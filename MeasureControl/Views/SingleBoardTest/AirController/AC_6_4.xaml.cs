@@ -24,5 +24,31 @@ namespace MeasureControl.Views.SingleBoardTest.AirController
         {
             InitializeComponent();
         }
+
+        private void RootGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e?.OriginalSource is DependencyObject source && FindAncestor<ComboBox>(source) != null)
+            {
+                return;
+            }
+
+            Keyboard.ClearFocus();
+            RootGrid.Focus();
+        }
+
+        private static T FindAncestor<T>(DependencyObject current) where T : DependencyObject
+        {
+            while (current != null)
+            {
+                if (current is T target)
+                {
+                    return target;
+                }
+
+                current = VisualTreeHelper.GetParent(current);
+            }
+
+            return null;
+        }
     }
 }

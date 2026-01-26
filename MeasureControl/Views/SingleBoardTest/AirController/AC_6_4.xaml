@@ -5,10 +5,36 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="clr-namespace:MeasureControl.Views.SingleBoardTest.AirController"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib"
     d:DesignHeight="550"
     d:DesignWidth="970"
     mc:Ignorable="d">
-    <Grid Background="White">
+    <UserControl.Resources>
+        <x:Array x:Key="Arinc429Channels" Type="sys:String">
+            <sys:String>CH0</sys:String>
+            <sys:String>CH1</sys:String>
+            <sys:String>CH2</sys:String>
+            <sys:String>CH3</sys:String>
+            <sys:String>CH4</sys:String>
+            <sys:String>CH5</sys:String>
+            <sys:String>CH6</sys:String>
+            <sys:String>CH7</sys:String>
+            <sys:String>CH8</sys:String>
+            <sys:String>CH9</sys:String>
+            <sys:String>CH10</sys:String>
+            <sys:String>CH11</sys:String>
+            <sys:String>CH12</sys:String>
+            <sys:String>CH13</sys:String>
+            <sys:String>CH14</sys:String>
+            <sys:String>CH15</sys:String>
+            <sys:String>CH16</sys:String>
+        </x:Array>
+    </UserControl.Resources>
+    <Grid
+        x:Name="RootGrid"
+        Background="White"
+        Focusable="True"
+        PreviewMouseDown="RootGrid_PreviewMouseDown">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
@@ -23,13 +49,187 @@
                 BorderBrush="#D9D9D9"
                 BorderThickness="1.5"
                 CornerRadius="8">
-                <TextBlock
-                    Margin="30,0,0,0"
-                    VerticalAlignment="Center"
-                    FontSize="30"
-                    FontWeight="Bold"
-                    Text="控制通道光耦供电测试" />
+                <Grid>
+                    <TextBlock
+                        Width="300"
+                        Margin="20,0,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        FontSize="30"
+                        FontWeight="Bold"
+                        Text="控制通道光耦供电测试" />
+                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                        <Button
+                            Width="110"
+                            Height="45"
+                            Margin="0,0,30,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="8">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image
+                                                x:Name="DeviceImage"
+                                                Width="20"
+                                                Height="20"
+                                                Margin="5,0,5,0"
+                                                Source="/Resources/Logo/hand_w.png" />
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="18"
+                                                Foreground="White"
+                                                Text="手动测试" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding}" Value="True">
+                                            <Setter Property="Tag" Value="True" />
+                                            <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
+                                        </DataTrigger>
 
+                                        <DataTrigger Binding="{Binding}" Value="False">
+                                            <Setter Property="Tag" Value="False" />
+                                        </DataTrigger>
+
+                                        <!--  2. 未连接 + 悬停  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                        </MultiTrigger>
+
+                                        <!--  3. 未连接 + 按下  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsPressed" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                        </MultiTrigger>
+
+                                        <!--  4. 已连接 + 悬停（优先级更高，放在后面）  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                        </MultiTrigger>
+
+                                        <!--  5. 已连接 + 按下  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsPressed" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                        </MultiTrigger>
+
+                                        <!--  6. 禁用状态（最高优先级）  -->
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Button
+                            Width="110"
+                            Height="45"
+                            Margin="0,0,30,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#22c55e"
+                                        CornerRadius="8">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image
+                                                x:Name="DeviceImage"
+                                                Width="20"
+                                                Height="20"
+                                                Margin="5,0,5,0"
+                                                Source="/Resources/Logo/auto.png" />
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="18"
+                                                Foreground="White"
+                                                Text="自动测试" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding}" Value="True">
+                                            <Setter Property="Tag" Value="True" />
+                                            <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding}" Value="False">
+                                            <Setter Property="Tag" Value="False" />
+                                        </DataTrigger>
+
+                                        <!--  2. 未连接 + 悬停  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                        </MultiTrigger>
+
+                                        <!--  3. 未连接 + 按下  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsPressed" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                        </MultiTrigger>
+
+                                        <!--  4. 已连接 + 悬停（优先级更高，放在后面）  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                        </MultiTrigger>
+
+                                        <!--  5. 已连接 + 按下  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsPressed" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                        </MultiTrigger>
+
+                                        <!--  6. 禁用状态（最高优先级）  -->
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+
+                </Grid>
             </Border>
             <Border
                 Grid.Row="1"
@@ -37,7 +237,281 @@
                 Background="White"
                 BorderBrush="#D9D9D9"
                 BorderThickness="1.5"
-                CornerRadius="8" />
+                CornerRadius="8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="2*" />
+                        <RowDefinition Height="2*" />
+                        <RowDefinition Height="2*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock
+                        Grid.Row="0"
+                        Margin="20,10,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="30"
+                        FontWeight="Bold"
+                        Text="测试步骤" />
+                    <StackPanel
+                        Grid.Row="1"
+                        Margin="10"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            Grid.Column="0"
+                            Margin="30,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="20"
+                            Text="进入ATP模式" />
+                        <ComboBox
+                            Width="140"
+                            Height="30"
+                            Margin="15,0,0,0"
+                            HorizontalAlignment="Left"
+                            FontSize="16"
+                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                            ItemsSource="{StaticResource Arinc429Channels}"
+                            SelectedIndex="0">
+                            <ComboBox.Style>
+                                <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
+                                    <Setter Property="Opacity" Value="1" />
+                                </Style>
+                            </ComboBox.Style>
+                        </ComboBox>
+                        <Button
+                            Width="80"
+                            Height="30"
+                            Margin="15,0,0,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="4">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Foreground="White"
+                                                Text="发送" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <TextBlock
+                            Grid.Column="0"
+                            Margin="30,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="20"
+                            Text="控制器输出电压" />
+                        <ComboBox
+                            Width="140"
+                            Height="30"
+                            Margin="15,0,0,0"
+                            HorizontalAlignment="Left"
+                            FontSize="16"
+                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                            ItemsSource="{StaticResource Arinc429Channels}"
+                            SelectedIndex="0">
+                            <ComboBox.Style>
+                                <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
+                                    <Setter Property="Opacity" Value="1" />
+                                </Style>
+                            </ComboBox.Style>
+                        </ComboBox>
+                        <Button
+                            Width="80"
+                            Height="30"
+                            Margin="15,0,0,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="4">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Foreground="White"
+                                                Text="发送" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+                    <StackPanel
+                        Grid.Row="2"
+                        Margin="10"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            Grid.Column="0"
+                            Margin="30,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="20"
+                            Text="光耦输出电压值" />
+                        <ComboBox
+                            Width="140"
+                            Height="30"
+                            Margin="15,0,0,0"
+                            HorizontalAlignment="Left"
+                            FontSize="16"
+                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                            ItemsSource="{StaticResource Arinc429Channels}"
+                            SelectedIndex="0">
+                            <ComboBox.Style>
+                                <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
+                                    <Setter Property="Opacity" Value="1" />
+                                </Style>
+                            </ComboBox.Style>
+                        </ComboBox>
+                        <Border
+                            Width="140"
+                            Height="30"
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock Margin="1" FontSize="16" />
+                        </Border>
+
+                        <Button
+                            Width="80"
+                            Height="30"
+                            Margin="15,0,0,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="4">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Foreground="White"
+                                                Text="测量" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                    </StackPanel>
+                    <StackPanel
+                        Grid.Row="3"
+                        Margin="10"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            Grid.Column="0"
+                            Margin="30,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="20"
+                            Text="控制器电压回采值" />
+                        <ComboBox
+                            Width="140"
+                            Height="30"
+                            Margin="15,0,0,0"
+                            HorizontalAlignment="Left"
+                            FontSize="16"
+                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                            ItemsSource="{StaticResource Arinc429Channels}"
+                            SelectedIndex="0">
+                            <ComboBox.Style>
+                                <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
+                                    <Setter Property="Opacity" Value="1" />
+                                </Style>
+                            </ComboBox.Style>
+                        </ComboBox>
+                        <Border
+                            Width="140"
+                            Height="30"
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock Margin="1" FontSize="16" />
+                        </Border>
+
+                        <Button
+                            Width="80"
+                            Height="30"
+                            Margin="15,0,0,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="4">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Foreground="White"
+                                                Text="测量" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
             <Border
                 Grid.Row="2"
                 Margin="8,4,8,8"
@@ -47,12 +521,12 @@
                 CornerRadius="8">
                 <Grid Grid.Row="2">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="2*" />
+                        <RowDefinition Height="1.5*" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <TextBlock
                         Grid.Row="0"
-                        Margin="30,0,0,0"
+                        Margin="20,0,0,0"
                         VerticalAlignment="Center"
                         FontSize="30"
                         FontWeight="Bold"
@@ -64,18 +538,18 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock
                             Grid.Column="0"
-                            Margin="30,0,0,0"
+                            Margin="20,0,0,0"
                             VerticalAlignment="Center"
                             FontSize="18"
                             FontWeight="Bold"
-                            Text="上次测试时间：" />
+                            Text="{Binding LastTestTime, StringFormat='上次测试时间：{0}'}" />
                         <TextBlock
                             Grid.Column="1"
                             Margin="30,0,0,0"
                             VerticalAlignment="Center"
                             FontSize="18"
                             FontWeight="Bold"
-                            Text="上次测试结果：" />
+                            Text="{Binding LastTestResult, StringFormat='上次测试结果：{0}'}" />
                     </Grid>
                 </Grid>
             </Border>

@@ -137,13 +137,18 @@
                                 CornerRadius="6"
                                 SnapsToDevicePixels="True">
                                 <ScrollViewer
+                                    Margin="0"
+                                    Padding="0"
                                     CanContentScroll="True"
                                     HorizontalScrollBarVisibility="Disabled"
                                     VerticalScrollBarVisibility="Auto">
                                     <ScrollViewer.Resources>
                                         <Style BasedOn="{StaticResource SimpleScrollBarStyle}" TargetType="ScrollBar" />
                                     </ScrollViewer.Resources>
-                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                                    <ItemsPresenter
+                                        Margin="0"
+                                        KeyboardNavigation.DirectionalNavigation="Contained"
+                                        SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
                                 </ScrollViewer>
                             </Border>
                         </Popup>
