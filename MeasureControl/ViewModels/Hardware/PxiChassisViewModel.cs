@@ -920,22 +920,29 @@ namespace MeasureControl.ViewModels
 
                 if (!string.IsNullOrWhiteSpace(displayBaseName))
                 {
-                    int existingCount = 0;
-                    try
+                    if (FixedDemoMode && string.Equals(ChassisName, "PXI机箱1", StringComparison.Ordinal))
                     {
-                        existingCount = ChassisDevices
-                            .Where(d => d != null && d.DeviceType == "Instrument" &&
-                                        (string.Equals(d.DisplayName, displayBaseName, StringComparison.Ordinal) ||
-                                         (!string.IsNullOrWhiteSpace(d.DisplayName) && d.DisplayName.StartsWith(displayBaseName, StringComparison.Ordinal)) ||
-                                         (string.IsNullOrWhiteSpace(d.DisplayName) && string.Equals(d.ParentNode, displayBaseName, StringComparison.Ordinal))))
-                            .Count();
+                        device.DisplayName = displayBaseName;
                     }
-                    catch
+                    else
                     {
-                        existingCount = 0;
-                    }
+                        int existingCount = 0;
+                        try
+                        {
+                            existingCount = ChassisDevices
+                                .Where(d => d != null && d.DeviceType == "Instrument" &&
+                                            (string.Equals(d.DisplayName, displayBaseName, StringComparison.Ordinal) ||
+                                             (!string.IsNullOrWhiteSpace(d.DisplayName) && d.DisplayName.StartsWith(displayBaseName, StringComparison.Ordinal)) ||
+                                             (string.IsNullOrWhiteSpace(d.DisplayName) && string.Equals(d.ParentNode, displayBaseName, StringComparison.Ordinal))))
+                                .Count();
+                        }
+                        catch
+                        {
+                            existingCount = 0;
+                        }
 
-                    device.DisplayName = $"{displayBaseName}{existingCount + 1}";
+                        device.DisplayName = $"{displayBaseName}{existingCount + 1}";
+                    }
                 }
 
                 // 添加到设备列表
@@ -1014,6 +1021,12 @@ namespace MeasureControl.ViewModels
                 // 选中设备
                 SelectedDevice = device;
 
+                if (IsRsSerialModule(device))
+                {
+                    NavigateToRsSerialDebugPanel(device);
+                    return;
+                }
+
                 // 判断是否为板卡（排除控制器和机箱）
                 if (IsCardDevice(device))
                 {
@@ -1024,6 +1037,45 @@ namespace MeasureControl.ViewModels
                     NavigateToInstrumentTestPanel(device);
                 }
             }
+        }
+
+        private bool IsRsSerialModule(DeviceBase device)
+        {
+            if (device == null) return false;
+            var text = (device.DisplayName ?? string.Empty) + "|" + (device.Model ?? string.Empty) + "|" + (device.Name ?? string.Empty);
+            return text.IndexOf("RS422", StringComparison.OrdinalIgnoreCase) >= 0 || text.IndexOf("RS232", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private void NavigateToRsSerialDebugPanel(DeviceBase device)
+        {
+            if (device == null) return;
+
+            var rsType = "RS";
+            var text = (device.DisplayName ?? string.Empty) + "|" + (device.Model ?? string.Empty) + "|" + (device.Name ?? string.Empty);
+            if (text.IndexOf("RS422", StringComparison.OrdinalIgnoreCase) >= 0) rsType = "RS422";
+            else if (text.IndexOf("RS232", StringComparison.OrdinalIgnoreCase) >= 0) rsType = "RS232";
+
+            var key = $"RS_SERIAL|{device.Id}";
+            if (_cachedInstrumentPanels.TryGetValue(key, out var cachedPanel) && cachedPanel != null)
+            {
+                RightPanelContent = cachedPanel;
+                return;
+            }
+
+            var title = device.DisplayName;
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                title = device.Model;
+            }
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                title = $"{rsType} 串口调试";
+            }
+
+            var viewModel = new MeasureControl.ViewModels.TestTask.RsSerialDebugPanelViewModel(rsType, title);
+            var panel = new MeasureControl.Views.TestTask.RsSerialDebugPanel { DataContext = viewModel };
+            _cachedInstrumentPanels[key] = panel;
+            RightPanelContent = panel;
         }
 
         private bool TryGetLastMatrixSwitchContext(out string testTaskName, out string configTableName, out string chassisName)
@@ -3643,15 +3695,18 @@ namespace MeasureControl.ViewModels
 
                 LoadChassisDevices();
 
+                ApplyFixedDemoInstrumentDefaults();
+
                 var uiChassisDevice = FindChassisDevice() as ChassisDevice;
                 if (uiChassisDevice?.Children == null)
                 {
                     return;
                 }
 
+                bool cardMatches = false;
                 if (uiChassisDevice.Children.Count == expectedNames.Count)
                 {
-                    bool matches = true;
+                    cardMatches = true;
                     for (int i = 0; i < expectedNames.Count; i++)
                     {
                         var child = uiChassisDevice.Children[i];
@@ -3659,32 +3714,39 @@ namespace MeasureControl.ViewModels
                         var actual = child?.Name;
                         if (!string.Equals(actual, expected, StringComparison.Ordinal))
                         {
-                            matches = false;
+                            cardMatches = false;
                             break;
                         }
                     }
+                }
 
-                    if (matches)
-                    {
-                        return;
-                    }
+                bool instrumentMatches = HasRequiredFixedDemoInstruments();
+
+                if (cardMatches && instrumentMatches)
+                {
+                    return;
                 }
 
                 _isApplyingFixedDemoLayout = true;
                 try
                 {
-                    uiChassisDevice.Children.Clear();
-
-                    foreach (var name in sequence)
+                    if (!cardMatches)
                     {
-                        var toolItem = FindToolItemByName(name);
-                        if (toolItem == null)
-                        {
-                            toolItem = new ProjectItem { Name = name };
-                        }
+                        uiChassisDevice.Children.Clear();
 
-                        OnAddDevice(toolItem);
+                        foreach (var name in sequence)
+                        {
+                            var toolItem = FindToolItemByName(name);
+                            if (toolItem == null)
+                            {
+                                toolItem = new ProjectItem { Name = name };
+                            }
+
+                            OnAddDevice(toolItem);
+                        }
                     }
+
+                    EnsureRequiredFixedDemoInstruments();
 
                     LoadChassisDevices();
                 }
@@ -3696,6 +3758,149 @@ namespace MeasureControl.ViewModels
             catch
             {
             }
+        }
+
+        private bool HasRequiredFixedDemoInstruments()
+        {
+            if (!string.Equals(ChassisName, "PXI机箱1", StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            var required = new Dictionary<string, int>(StringComparer.Ordinal)
+            {
+                { "普源 DG1032Z", 1 },
+                { "普源 DM3068", 1 },
+                { "是德 53220A", 1 },
+                { "普源 DH04804", 1 },
+                { "艾德克斯 IT-N6332B", 3 },
+                { "RS422模块", 2 },
+                { "RS232模块", 1 },
+            };
+
+            var current = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var d in ChassisDevices)
+            {
+                if (d == null) continue;
+                if (!string.Equals(d.DeviceType, "Instrument", StringComparison.Ordinal)) continue;
+                if (string.IsNullOrWhiteSpace(d.Name)) continue;
+
+                if (!current.ContainsKey(d.Name)) current[d.Name] = 0;
+                current[d.Name] += 1;
+            }
+
+            foreach (var kv in required)
+            {
+                current.TryGetValue(kv.Key, out var count);
+                if (count < kv.Value)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private void EnsureRequiredFixedDemoInstruments()
+        {
+            if (!string.Equals(ChassisName, "PXI机箱1", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            var required = new Dictionary<string, int>(StringComparer.Ordinal)
+            {
+                { "普源 DG1032Z", 1 },
+                { "普源 DM3068", 1 },
+                { "是德 53220A", 1 },
+                { "普源 DH04804", 1 },
+                { "艾德克斯 IT-N6332B", 3 },
+                { "RS422模块", 2 },
+                { "RS232模块", 1 },
+            };
+
+            var current = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var d in ChassisDevices)
+            {
+                if (d == null) continue;
+                if (!string.Equals(d.DeviceType, "Instrument", StringComparison.Ordinal)) continue;
+                if (string.IsNullOrWhiteSpace(d.Name)) continue;
+
+                if (!current.ContainsKey(d.Name)) current[d.Name] = 0;
+                current[d.Name] += 1;
+            }
+
+            foreach (var kv in required)
+            {
+                current.TryGetValue(kv.Key, out var count);
+                int need = kv.Value - count;
+                for (int i = 0; i < need; i++)
+                {
+                    var toolItem = FindToolItemByName(kv.Key) ?? new ProjectItem { Name = kv.Key };
+                    OnAddDevice(toolItem);
+                }
+            }
+
+            ApplyFixedDemoInstrumentDefaults();
+        }
+
+        private void ApplyFixedDemoInstrumentDefaults()
+        {
+            if (!FixedDemoMode) return;
+            if (!string.Equals(ChassisName, "PXI机箱1", StringComparison.Ordinal)) return;
+
+            try
+            {
+                // 1) 去掉同级设备显示名尾部编号（1/2/3...）
+                foreach (var d in ChassisDevices)
+                {
+                    if (d == null) continue;
+                    if (!string.Equals(d.DeviceType, "Instrument", StringComparison.Ordinal)) continue;
+
+                    var dn = d.DisplayName;
+                    if (string.IsNullOrWhiteSpace(dn)) continue;
+
+                    var trimmed = StripTrailingDigits(dn);
+                    if (!string.Equals(trimmed, dn, StringComparison.Ordinal))
+                    {
+                        d.DisplayName = trimmed;
+                    }
+                }
+
+                // 2) 三台电源默认IP（按当前列表顺序）
+                var psList = new List<PowerSupplyDevice>();
+                for (int i = 0; i < ChassisDevices.Count; i++)
+                {
+                    var ps = ChassisDevices[i] as PowerSupplyDevice;
+                    if (ps == null) continue;
+                    if (ps.Model != null && ps.Model.IndexOf("IT-N6332", StringComparison.OrdinalIgnoreCase) < 0 &&
+                        ps.Name != null && ps.Name.IndexOf("IT-N6332", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        continue;
+                    }
+                    psList.Add(ps);
+                }
+
+                var ips = new[] { "192.168.1.15", "192.168.1.16", "192.168.1.17" };
+                for (int i = 0; i < ips.Length && i < psList.Count; i++)
+                {
+                    psList[i].IpAddress = ips[i];
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private static string StripTrailingDigits(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            int end = text.Length;
+            while (end > 0 && char.IsDigit(text[end - 1]))
+            {
+                end--;
+            }
+            return end == text.Length ? text : text.Substring(0, end).TrimEnd();
         }
 
         private ProjectItem FindToolItemByName(string name)
