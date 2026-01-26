@@ -471,8 +471,8 @@
     <Compile Include="Views\Dialogs\SelfInspectionDialog.xaml.cs">
       <DependentUpon>SelfInspectionDialog.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\6_4.xaml.cs">
-      <DependentUpon>6_4.xaml</DependentUpon>
+    <Compile Include="Views\SingleBoardTest\AirController\AC_6_4.xaml.cs">
+      <DependentUpon>AC_6_4.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\BoardTest.xaml.cs">
       <DependentUpon>BoardTest.xaml</DependentUpon>
@@ -705,7 +705,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Views\SingleBoardTest\AirController\6_4.xaml">
+    <Page Include="Views\SingleBoardTest\AirController\AC_6_4.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

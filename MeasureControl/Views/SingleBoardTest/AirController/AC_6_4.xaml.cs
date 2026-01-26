@@ -16,7 +16,7 @@ using System.Windows.Shapes;
 namespace MeasureControl.Views.SingleBoardTest.AirController
 {
     /// <summary>
-    /// _6_4.xaml 的交互逻辑
+    /// AC_6_4.xaml 的交互逻辑
     /// </summary>
     public partial class AC_6_4 : UserControl
     {
