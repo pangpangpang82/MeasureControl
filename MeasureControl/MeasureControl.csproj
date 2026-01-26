@@ -946,10 +946,8 @@
 
     </Compile>
 
-    <Compile Include="Views\SingleBoardTest\AirController\6_4.xaml.cs">
-
-      <DependentUpon>6_4.xaml</DependentUpon>
-
+    <Compile Include="Views\SingleBoardTest\AirController\AC_6_4.xaml.cs">
+      <DependentUpon>AC_6_4.xaml</DependentUpon>
     </Compile>
 
     <Compile Include="Views\SingleBoardTest\BoardTest.xaml.cs">
@@ -1420,7 +1418,7 @@
 
     </Page>
 
-    <Page Include="Views\SingleBoardTest\AirController\6_4.xaml">
+    <Page Include="Views\SingleBoardTest\AirController\AC_6_4.xaml">
 
       <SubType>Designer</SubType>
 
@@ -2589,6 +2587,10 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 
     </Content>
+
+    <Resource Include="Resources\Logo\auto.png" />
+
+    <Resource Include="Resources\Logo\hand_w.png" />
 
     <Resource Include="Resources\Logo.ico" />
 

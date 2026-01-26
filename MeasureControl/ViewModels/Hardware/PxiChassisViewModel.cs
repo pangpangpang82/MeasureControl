@@ -3613,14 +3613,67 @@ namespace MeasureControl.ViewModels
                 return;
             }
 
-            if (!string.Equals(ChassisName, "PXI机箱1", StringComparison.Ordinal))
+            if (!string.Equals(ChassisName, "PXI机箱1", StringComparison.Ordinal) &&
+                !string.Equals(ChassisName, "PXI机箱2", StringComparison.Ordinal))
             {
                 return;
             }
 
             try
             {
-                var chassisDevice = _pxiChassisService.EnsureChassisDevice("PXI机箱1", "PXIe-2722G2");
+                var expectedNames = new List<string>();
+                var sequence = new List<string>();
+                var chassisModel = "";
+
+                if (string.Equals(ChassisName, "PXI机箱1", StringComparison.Ordinal))
+                {
+                    chassisModel = "PXIe-2722G2";
+                    expectedNames = new List<string>
+                    {
+                        "凌华 PXIe-3987",
+                        "简仪 PXIe-7131",
+                        "阿尔泰 PXI-7012",
+                        "阿尔泰 PXI-7012",
+                        "欧开 PXI-4087C",
+                        "欧开 PXI-4087C",
+                        "欧开 PXI-4087A",
+                        "阿尔泰 PXIe-9774",
+                        "芒果树 MT-X532",
+                        "空槽",
+                        "阿尔泰 PXIe-4227",
+                        "阿尔泰 PXI-4004",
+                        "芒果树 MT-X970",
+                        "阿尔泰 PXI-4332",
+                        "怀智 HZ-MIL1394B-PX1e-4N",
+                        "空槽",
+                        "空槽",
+                        "空槽"
+                    };
+
+                    // 与 expectedNames 保持一致，避免每次进入都因 "盲板" vs "空槽" 不一致而重建
+                    sequence = new List<string>(expectedNames);
+                }
+                else
+                {
+                    // PXI机箱2：先用空槽占位填满（9槽），留接口后续替换字符串即可
+                    chassisModel = "PXIe-2519G2";
+                    expectedNames = expectedNames = new List<string>
+                    {
+                        "凌华 PXIe-3987",
+                        "阿尔泰 PXI-2601",
+                        "阿尔泰 PXI-2601",
+                        "欧开 PXI-3022",
+                        "空槽",
+                        "阿尔泰 PXI-2601",
+                        "阿尔泰 PXI-2601",
+                        "阿尔泰 PXI-2601",
+                        "欧开 PXI-3022"
+                    };
+
+                    sequence = new List<string>(expectedNames);
+                }
+
+                var chassisDevice = _pxiChassisService.EnsureChassisDevice(ChassisName, chassisModel);
                 if (chassisDevice == null)
                 {
                     return;
@@ -3635,28 +3688,6 @@ namespace MeasureControl.ViewModels
                 {
                     return;
                 }
-
-                var expectedNames = new List<string>
-                {
-                    "凌华 PXIe-3987",
-                    "简仪 PXIe-7131",
-                    "阿尔泰 PXI-7012",
-                    "阿尔泰 PXI-7012",
-                    "欧开 PXI-4087C",
-                    "欧开 PXI-4087C",
-                    "欧开 PXI-4087A",
-                    "阿尔泰 PXIe-9774",
-                    "芒果树 MT-X532",
-                    "空槽",
-                    "阿尔泰 PXIe-4227",
-                    "阿尔泰 PXI-4004",
-                    "芒果树 MT-X970",
-                    "阿尔泰 PXI-4332",
-                    "怀智 HZ-MIL1394B-PX1e-4N",
-                    "空槽",
-                    "空槽",
-                    "空槽"
-                };
 
                 bool cardMatches = false;
                 if (uiChassisDevice.Children.Count == expectedNames.Count)
@@ -3688,28 +3719,6 @@ namespace MeasureControl.ViewModels
                     if (!cardMatches)
                     {
                         uiChassisDevice.Children.Clear();
-
-                        var sequence = new List<string>
-                        {
-                            "凌华 PXIe-3987",
-                            "简仪 PXIe-7131",
-                            "阿尔泰 PXI-7012",
-                            "阿尔泰 PXI-7012",
-                            "欧开 PXI-4087C",
-                            "欧开 PXI-4087C",
-                            "欧开 PXI-4087A",
-                            "阿尔泰 PXIe-9774",
-                            "芒果树 MT-X532",
-                            "盲板",
-                            "阿尔泰 PXIe-4227",
-                            "阿尔泰 PXI-4004",
-                            "芒果树 MT-X970",
-                            "阿尔泰 PXI-4332",
-                            "怀智 HZ-MIL1394B-PX1e-4N",
-                            "盲板",
-                            "盲板",
-                            "盲板"
-                        };
 
                         foreach (var name in sequence)
                         {

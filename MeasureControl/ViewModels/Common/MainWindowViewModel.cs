@@ -127,17 +127,11 @@ namespace MeasureControl.ViewModels.Common
 
                 if (string.Equals(chassis.Name, "PXI机箱1", StringComparison.OrdinalIgnoreCase))
                 {
-                    EnsureFixedDemoCard(chassisDevice, "简仪 PXIe-7131", "Slot2", chassis.Name, testTaskNames);
-                    EnsureFixedDemoCard(chassisDevice, "阿尔泰 PXI-7012", "Slot3", chassis.Name, testTaskNames);
-                    EnsureFixedDemoCard(chassisDevice, "阿尔泰 PXIe-9774", "Slot4", chassis.Name, testTaskNames);
-                    EnsureFixedDemoCard(chassisDevice, "芒果树 MT-X532", "Slot5", chassis.Name, testTaskNames);
+                    
                 }
                 else if (string.Equals(chassis.Name, "PXI机箱2", StringComparison.OrdinalIgnoreCase))
                 {
-                    EnsureFixedDemoCard(chassisDevice, "简仪 PXIe-7131", "Slot2", chassis.Name, testTaskNames);
-                    EnsureFixedDemoCard(chassisDevice, "阿尔泰 PXI-7012", "Slot3", chassis.Name, testTaskNames);
-                    EnsureFixedDemoCard(chassisDevice, "阿尔泰 PXIe-9774", "Slot4", chassis.Name, testTaskNames);
-                    EnsureFixedDemoCard(chassisDevice, "芒果树 MT-X532", "Slot5", chassis.Name, testTaskNames);
+                   
                 }
             }
         }
