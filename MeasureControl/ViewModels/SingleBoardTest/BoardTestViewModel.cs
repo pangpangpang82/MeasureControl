@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Controls;
 using MeasureControl.Events;
+using MeasureControl.Views.SingleBoardTest.AirController;
 using MeasureControl.Views.Dialogs;
 using Prism.Commands;
 using Prism.Events;
@@ -14,6 +16,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest
     public class BoardTestViewModel : BindableBase, INavigationAware
     {
         private readonly IEventAggregator _eventAggregator;
+
+        private static readonly IReadOnlyDictionary<string, Func<UserControl>> TestItemViewFactories =
+            new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "控制通道光耦供电测试", () => new AC_6_4() },
+            };
 
         private string _testTaskName;
         private string _boardType;
@@ -63,7 +71,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 if (SetProperty(ref _selectedTestItem, value))
                 {
-                    RightPanelContent = value == null ? null : new TextBlock { Text = value.Name, Margin = new System.Windows.Thickness(10) };
+                    if (value == null)
+                    {
+                        RightPanelContent = null;
+                        return;
+                    }
+
+                    if (TestItemViewFactories.TryGetValue(value.Name, out var viewFactory))
+                    {
+                        RightPanelContent = viewFactory();
+                        return;
+                    }
+
+                    RightPanelContent = new TextBlock { Text = value.Name, Margin = new System.Windows.Thickness(10) };
                 }
             }
         }

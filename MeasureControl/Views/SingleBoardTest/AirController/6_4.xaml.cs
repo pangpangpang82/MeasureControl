@@ -18,9 +18,9 @@ namespace MeasureControl.Views.SingleBoardTest.AirController
     /// <summary>
     /// _6_4.xaml 的交互逻辑
     /// </summary>
-    public partial class _6_4 : UserControl
+    public partial class AC_6_4 : UserControl
     {
-        public _6_4()
+        public AC_6_4()
         {
             InitializeComponent();
         }

@@ -1830,7 +1830,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
 
             var message = string.IsNullOrEmpty(SelectedTestTask)
                 ? "离散量配置尚未保存，是否现在保存？"
-                : $"{CardName}\"{SelectedTestTask}\" 的配置尚未保存，是否保存？";
+                : $"\"{SelectedTestTask}\"的{CardName}配置尚未保存，是否保存？";
 
             var result = ReMessageBox.Show(message, "提示",
                 System.Windows.MessageBoxButton.YesNoCancel,
@@ -2920,13 +2920,15 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
             get => InputChannel?.IsEnabled;
             set
             {
-                if (InputChannel == null || !value.HasValue)
+                if (InputChannel == null)
                 {
                     return;
                 }
-                if (InputChannel.IsEnabled != value.Value)
+
+                var enabled = value ?? false;
+                if (InputChannel.IsEnabled != enabled)
                 {
-                    InputChannel.IsEnabled = value.Value;
+                    InputChannel.IsEnabled = enabled;
                     RaisePropertyChanged(nameof(InputEnabled));
                 }
             }
@@ -2937,13 +2939,15 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
             get => OutputChannel?.IsEnabled;
             set
             {
-                if (OutputChannel == null || !value.HasValue)
+                if (OutputChannel == null)
                 {
                     return;
                 }
-                if (OutputChannel.IsEnabled != value.Value)
+
+                var enabled = value ?? false;
+                if (OutputChannel.IsEnabled != enabled)
                 {
-                    OutputChannel.IsEnabled = value.Value;
+                    OutputChannel.IsEnabled = enabled;
                     RaisePropertyChanged(nameof(OutputEnabled));
                 }
             }

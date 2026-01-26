@@ -420,7 +420,8 @@
                                                         <CheckBox
                                                             HorizontalAlignment="Center"
                                                             VerticalAlignment="Center"
-                                                            IsChecked="{Binding InputEnabled, Mode=TwoWay, TargetNullValue=False}">
+                                                            IsThreeState="False"
+                                                            IsChecked="{Binding InputEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, TargetNullValue=False}">
                                                             <CheckBox.Style>
                                                                 <Style BasedOn="{StaticResource EnableCheckBoxStyle}" TargetType="CheckBox">
                                                                     <Setter Property="IsEnabled" Value="False" />
@@ -456,7 +457,8 @@
                                                         <CheckBox
                                                             HorizontalAlignment="Center"
                                                             VerticalAlignment="Center"
-                                                            IsChecked="{Binding OutputEnabled, Mode=TwoWay, TargetNullValue=False}">
+                                                            IsThreeState="False"
+                                                            IsChecked="{Binding OutputEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, TargetNullValue=False}">
                                                             <CheckBox.Style>
                                                                 <Style BasedOn="{StaticResource EnableCheckBoxStyle}" TargetType="CheckBox">
                                                                     <Setter Property="IsEnabled" Value="False" />

@@ -762,7 +762,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
 
             var message = string.IsNullOrEmpty(SelectedTestTask)
                 ? "电阻输出配置尚未保存，是否现在保存？"
-                : $"{CardName}\"{SelectedTestTask}\" 的配置尚未保存，是否保存？";
+                : $"\" {SelectedTestTask} \" 的 {CardName} 配置尚未保存，是否保存？";
 
             var result = ReMessageBox.Show(
                 message,
