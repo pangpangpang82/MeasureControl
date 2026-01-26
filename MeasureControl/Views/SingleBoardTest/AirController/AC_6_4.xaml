@@ -11,23 +11,22 @@
     mc:Ignorable="d">
     <UserControl.Resources>
         <x:Array x:Key="Arinc429Channels" Type="sys:String">
-            <sys:String>CH0</sys:String>
-            <sys:String>CH1</sys:String>
-            <sys:String>CH2</sys:String>
-            <sys:String>CH3</sys:String>
-            <sys:String>CH4</sys:String>
-            <sys:String>CH5</sys:String>
-            <sys:String>CH6</sys:String>
-            <sys:String>CH7</sys:String>
-            <sys:String>CH8</sys:String>
-            <sys:String>CH9</sys:String>
-            <sys:String>CH10</sys:String>
-            <sys:String>CH11</sys:String>
-            <sys:String>CH12</sys:String>
-            <sys:String>CH13</sys:String>
-            <sys:String>CH14</sys:String>
-            <sys:String>CH15</sys:String>
-            <sys:String>CH16</sys:String>
+            <sys:String>ARINC429 CH0</sys:String>
+            <sys:String>ARINC429 CH1</sys:String>
+            <sys:String>ARINC429 CH2</sys:String>
+            <sys:String>ARINC429 CH3</sys:String>
+            <sys:String>ARINC429 CH4</sys:String>
+            <sys:String>ARINC429 CH5</sys:String>
+            <sys:String>ARINC429 CH6</sys:String>
+            <sys:String>ARINC429 CH7</sys:String>
+            <sys:String>ARINC429 CH8</sys:String>
+            <sys:String>ARINC429 CH9</sys:String>
+            <sys:String>ARINC429 CH10</sys:String>
+            <sys:String>ARINC429 CH11</sys:String>
+            <sys:String>ARINC429 CH12</sys:String>
+            <sys:String>ARINC429 CH13</sys:String>
+            <sys:String>ARINC429 CH14</sys:String>
+            <sys:String>ARINC429 CH15</sys:String>
         </x:Array>
         <x:Array x:Key="DmmChannels" Type="sys:String">
             <sys:String>Port1</sys:String>
@@ -66,7 +65,7 @@
                         <Button
                             Width="110"
                             Height="45"
-                            Margin="0,0,30,0"
+                            Margin="0,0,20,0"
                             VerticalAlignment="Center"
                             BorderThickness="0"
                             Command="{Binding}">
@@ -75,7 +74,7 @@
                                     <Border
                                         x:Name="border"
                                         Background="#3b82f6"
-                                        CornerRadius="8">
+                                        CornerRadius="6">
                                         <StackPanel Orientation="Horizontal">
                                             <Image
                                                 x:Name="DeviceImage"
@@ -159,7 +158,7 @@
                                     <Border
                                         x:Name="border"
                                         Background="#22c55e"
-                                        CornerRadius="8">
+                                        CornerRadius="6">
                                         <StackPanel Orientation="Horizontal">
                                             <Image
                                                 x:Name="DeviceImage"
@@ -267,7 +266,7 @@
                             FontSize="20"
                             Text="进入ATP模式" />
                         <ComboBox
-                            Width="140"
+                            Width="170"
                             Height="30"
                             Margin="15,0,0,0"
                             HorizontalAlignment="Left"
@@ -322,7 +321,7 @@
                             FontSize="20"
                             Text="控制器输出电压" />
                         <ComboBox
-                            Width="140"
+                            Width="170"
                             Height="30"
                             Margin="15,0,0,0"
                             HorizontalAlignment="Left"
@@ -454,7 +453,7 @@
                             FontSize="20"
                             Text="控制器电压回采值" />
                         <ComboBox
-                            Width="140"
+                            Width="170"
                             Height="30"
                             Margin="15,0,0,0"
                             HorizontalAlignment="Left"

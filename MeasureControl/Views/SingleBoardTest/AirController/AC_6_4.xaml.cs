@@ -32,6 +32,11 @@ namespace MeasureControl.Views.SingleBoardTest.AirController
                 return;
             }
 
+            if (e?.OriginalSource is DependencyObject origin && !IsDescendantOf(RootGrid, origin))
+            {
+                return;
+            }
+
             Keyboard.ClearFocus();
             RootGrid.Focus();
         }
@@ -49,6 +54,21 @@ namespace MeasureControl.Views.SingleBoardTest.AirController
             }
 
             return null;
+        }
+
+        private static bool IsDescendantOf(DependencyObject ancestor, DependencyObject current)
+        {
+            while (current != null)
+            {
+                if (ReferenceEquals(current, ancestor))
+                {
+                    return true;
+                }
+
+                current = VisualTreeHelper.GetParent(current);
+            }
+
+            return false;
         }
     }
 }
