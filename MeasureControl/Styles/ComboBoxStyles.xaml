@@ -139,7 +139,7 @@
                                 <ScrollViewer
                                     Margin="0"
                                     Padding="0"
-                                    CanContentScroll="True"
+                                    CanContentScroll="False"
                                     HorizontalScrollBarVisibility="Disabled"
                                     VerticalScrollBarVisibility="Auto">
                                     <ScrollViewer.Resources>

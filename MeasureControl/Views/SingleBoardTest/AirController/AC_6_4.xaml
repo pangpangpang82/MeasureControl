@@ -29,6 +29,10 @@
             <sys:String>CH15</sys:String>
             <sys:String>CH16</sys:String>
         </x:Array>
+        <x:Array x:Key="DmmChannels" Type="sys:String">
+            <sys:String>Port1</sys:String>
+            <sys:String>Port2</sys:String>
+        </x:Array>
     </UserControl.Resources>
     <Grid
         x:Name="RootGrid"
@@ -384,7 +388,7 @@
                             HorizontalAlignment="Left"
                             FontSize="16"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
+                            ItemsSource="{StaticResource DmmChannels}"
                             SelectedIndex="0">
                             <ComboBox.Style>
                                 <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
