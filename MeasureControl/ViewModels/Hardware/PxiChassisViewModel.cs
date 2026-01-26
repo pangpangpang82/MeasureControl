@@ -700,6 +700,11 @@ namespace MeasureControl.ViewModels
                     // 检查是否已经有控制器（一个机箱只能有一个控制器）
                     if (chassis != null && chassis.HasController())
                     {
+                        if (FixedDemoMode && _isApplyingFixedDemoLayout)
+                        {
+                            return;
+                        }
+
                         _dialogService.ShowWarningDialog("一个机箱只能有一个系统控制器！", "");
                         return;
                     }
@@ -709,8 +714,15 @@ namespace MeasureControl.ViewModels
                     // 非控制器设备：必须先有控制器才能添加其他板卡
                     if (chassis != null && !chassis.HasController())
                     {
-                        _dialogService.ShowWarningDialog("请先添加系统控制器！", "");
-                        return;
+                        if (FixedDemoMode && _isApplyingFixedDemoLayout)
+                        {
+                            // 固定布局自动应用时不强制要求先添加控制器（例如机箱2仅矩阵开关场景）
+                        }
+                        else
+                        {
+                            _dialogService.ShowWarningDialog("请先添加系统控制器！", "");
+                            return;
+                        }
                     }
                 }
 
@@ -760,7 +772,9 @@ namespace MeasureControl.ViewModels
                     var cardBaseName = device.ParentNode;
                     if (!string.IsNullOrWhiteSpace(cardBaseName))
                     {
-                        if (FixedDemoMode && string.Equals(ChassisName, "PXI机箱1", StringComparison.Ordinal))
+                        if (FixedDemoMode &&
+                            (string.Equals(ChassisName, "PXI机箱1", StringComparison.Ordinal) ||
+                             string.Equals(ChassisName, "PXI机箱2", StringComparison.Ordinal)))
                         {
                             device.CardName = cardBaseName;
                         }
