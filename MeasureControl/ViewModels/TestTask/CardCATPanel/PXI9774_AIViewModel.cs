@@ -1960,11 +1960,11 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
                 }
 
                 string initialTask = null;
-                if (Device?.CardConfigData is AnalogInputCardConfig cardConfig &&
-                    !string.IsNullOrEmpty(cardConfig.LastSelectedTestTask) &&
-                    AvailableTestTasks.Contains(cardConfig.LastSelectedTestTask))
+                if (Device?.CardConfigData is AnalogInputCardConfig existingConfig &&
+                    !string.IsNullOrEmpty(existingConfig.LastSelectedTestTask) &&
+                    AvailableTestTasks.Contains(existingConfig.LastSelectedTestTask))
                 {
-                    initialTask = cardConfig.LastSelectedTestTask;
+                    initialTask = existingConfig.LastSelectedTestTask;
                 }
                 else
                 {
