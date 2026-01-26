@@ -1,0 +1,702 @@
+<Window
+    x:Class="MeasureControl.Views.Dialogs.BCMessageEditDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:helpers="clr-namespace:MeasureControl.Helpers"
+    Title="编辑BC消息"
+    Width="600"
+    MinHeight="500"
+    MaxHeight="800"
+    Background="White"
+    BorderBrush="#D9D9D9"
+    BorderThickness="1"
+    ResizeMode="CanResize"
+    WindowStartupLocation="CenterScreen"
+    WindowStyle="None">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Styles/ComboBoxStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <helpers:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+            <helpers:ChannelSelectConverter x:Key="ChannelSelectConverter" />
+
+            <!--  TextBox样式  -->
+            <Style x:Key="TextBoxStyle" TargetType="TextBox">
+                <Setter Property="BorderBrush" Value="#D9D9D9" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Padding" Value="5" />
+                <Setter Property="FontSize" Value="13" />
+            </Style>
+
+            <!--  简洁的ScrollViewer样式  -->
+            <Style x:Key="SimpleScrollViewerStyle" TargetType="ScrollViewer">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollViewer">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition />
+                                    <ColumnDefinition Width="8" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <ScrollContentPresenter
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    Margin="{TemplateBinding Padding}"
+                                    Content="{TemplateBinding Content}"
+                                    ContentTemplate="{TemplateBinding ContentTemplate}" />
+
+                                <ScrollBar
+                                    x:Name="PART_VerticalScrollBar"
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    Maximum="{TemplateBinding ScrollableHeight}"
+                                    Orientation="Vertical"
+                                    Style="{StaticResource SimpleScrollBarStyle}"
+                                    ViewportSize="{TemplateBinding ViewportHeight}"
+                                    Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                    Value="{TemplateBinding VerticalOffset}" />
+
+                                <ScrollBar
+                                    x:Name="PART_HorizontalScrollBar"
+                                    Grid.Row="1"
+                                    Grid.Column="0"
+                                    Maximum="{TemplateBinding ScrollableWidth}"
+                                    Orientation="Horizontal"
+                                    Style="{StaticResource SimpleScrollBarStyle}"
+                                    ViewportSize="{TemplateBinding ViewportWidth}"
+                                    Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"
+                                    Value="{TemplateBinding HorizontalOffset}" />
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!--  主要按钮样式  -->
+            <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="#3b82f6" />
+                <Setter Property="Foreground" Value="White" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border
+                                x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border
+        BorderBrush="#D9D9D9"
+        BorderThickness="1"
+        CornerRadius="8">
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!--  标题栏  -->
+            <Border
+                Grid.Row="0"
+                Margin="0,0,0,15"
+                Background="#3b82f6"
+                CornerRadius="5,5,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        Grid.Column="0"
+                        Margin="15,10"
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Foreground="White"
+                        Text="编辑BC消息" />
+                    <Button
+                        Grid.Column="1"
+                        Width="30"
+                        Height="30"
+                        Margin="5"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Click="CloseButton_Click"
+                        Cursor="Hand">
+                        <TextBlock
+                            FontSize="18"
+                            Foreground="White"
+                            Text="✖" />
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!--  内容区域  -->
+            <ScrollViewer
+                Grid.Row="1"
+                Style="{StaticResource SimpleScrollViewerStyle}"
+                VerticalScrollBarVisibility="Auto">
+                <StackPanel Orientation="Vertical">
+                    <!--  消息名称  -->
+                    <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                        <TextBlock
+                            Width="100"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="消息名称：" />
+                        <Border
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBox
+                                Width="297"
+                                Height="26"
+                                Margin="1"
+                                VerticalAlignment="Center"
+                                BorderThickness="0"
+                                Style="{StaticResource TextBoxStyle}"
+                                Text="{Binding MessageName, UpdateSourceTrigger=PropertyChanged}" />
+                        </Border>
+                    </StackPanel>
+
+                    <!--  消息类型  -->
+                    <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                        <TextBlock
+                            Width="100"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="消息类型：" />
+                        <ComboBox
+                            Width="300"
+                            Height="30"
+                            VerticalAlignment="Center"
+                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                            ItemsSource="{Binding MessageTypes}"
+                            SelectedItem="{Binding MessageType, UpdateSourceTrigger=PropertyChanged}">
+                            <ComboBox.Style>
+                                <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
+                                    <Setter Property="Opacity" Value="1" />
+                                    <Setter Property="FontSize" Value="14" />
+                                </Style>
+                            </ComboBox.Style>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!--  通道选择（双冗余总线：A是主通道，B是备份通道）  -->
+                    <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                        <TextBlock
+                            Width="100"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="总线通道：" />
+                        <ComboBox
+                            Width="300"
+                            Height="30"
+                            VerticalAlignment="Center"
+                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                            SelectedIndex="{Binding ChannelSelect}">
+                            <ComboBox.Style>
+                                <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
+                                    <Setter Property="Opacity" Value="1" />
+                                    <Setter Property="FontSize" Value="14" />
+                                </Style>
+                            </ComboBox.Style>
+                            <ComboBox.Items>
+                                <ComboBoxItem Content="通道B（备份）" />
+                                <ComboBoxItem Content="通道A（主）" />
+                            </ComboBox.Items>
+                        </ComboBox>
+                        <TextBlock
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Foreground="#666666"
+                            Text="（双冗余总线：A主B备）" />
+                    </StackPanel>
+
+                    <!--  字数  -->
+                    <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                        <TextBlock
+                            Width="100"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="字数：" />
+                        <Border
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBox
+                                Width="100"
+                                Height="26"
+                                Margin="1"
+                                VerticalAlignment="Center"
+                                BorderThickness="0"
+                                Style="{StaticResource TextBoxStyle}"
+                                Text="{Binding DataLength, UpdateSourceTrigger=PropertyChanged}">
+                                <TextBox.ToolTip>
+                                    <ToolTip Content="1-32，每个字4字节（16进制）" />
+                                </TextBox.ToolTip>
+                            </TextBox>
+                        </Border>
+                        <TextBlock
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Foreground="#666666"
+                            Text="(1-32个字，每个字4字节)" />
+                    </StackPanel>
+
+                    <!--  根据消息类型显示不同的配置  -->
+                    <!--  BC->RT消息配置  -->
+                    <StackPanel
+                        Margin="0,0,0,15"
+                        Orientation="Vertical"
+                        Visibility="{Binding IsBCToRTMessage, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock
+                            Margin="0,0,0,10"
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Text="BC-&gt;RT消息配置" />
+                        <StackPanel Margin="0,0,0,10" Orientation="Horizontal">
+                            <TextBlock
+                                Width="100"
+                                VerticalAlignment="Center"
+                                FontSize="14"
+                                Text="RT地址：" />
+                            <Border
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBox
+                                    Width="100"
+                                    Height="29"
+                                    Margin="1"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Style="{StaticResource TextBoxStyle}"
+                                    Text="{Binding RTAddress, UpdateSourceTrigger=PropertyChanged}"
+                                    TextChanged="TextBox_TextChanged">
+                                    <TextBox.ToolTip>
+                                        <ToolTip Content="0-31" />
+                                    </TextBox.ToolTip>
+                                </TextBox>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock
+                                Width="100"
+                                VerticalAlignment="Center"
+                                FontSize="14"
+                                Text="子地址：" />
+                            <Border
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBox
+                                    Width="100"
+                                    Height="26"
+                                    Margin="1"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Style="{StaticResource TextBoxStyle}"
+                                    Text="{Binding SubAddress, UpdateSourceTrigger=PropertyChanged}">
+                                    <TextBox.ToolTip>
+                                        <ToolTip Content="1-30" />
+                                    </TextBox.ToolTip>
+                                </TextBox>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!--  RT->BC消息配置  -->
+                    <StackPanel
+                        Margin="0,0,0,15"
+                        Orientation="Vertical"
+                        Visibility="{Binding IsRTToBCMessage, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock
+                            Margin="0,0,0,10"
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Text="RT-&gt;BC消息配置" />
+                        <StackPanel Margin="0,0,0,10" Orientation="Horizontal">
+                            <TextBlock
+                                Width="100"
+                                VerticalAlignment="Center"
+                                FontSize="14"
+                                Text="RT地址：" />
+                            <Border
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBox
+                                    Width="100"
+                                    Height="26"
+                                    Margin="1"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Style="{StaticResource TextBoxStyle}"
+                                    Text="{Binding RTAddress, UpdateSourceTrigger=PropertyChanged}">
+                                    <TextBox.ToolTip>
+                                        <ToolTip Content="0-31" />
+                                    </TextBox.ToolTip>
+                                </TextBox>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock
+                                Width="100"
+                                VerticalAlignment="Center"
+                                FontSize="14"
+                                Text="子地址：" />
+                            <Border
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBox
+                                    Width="100"
+                                    Height="26"
+                                    Margin="1"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Style="{StaticResource TextBoxStyle}"
+                                    Text="{Binding SubAddress, UpdateSourceTrigger=PropertyChanged}">
+                                    <TextBox.ToolTip>
+                                        <ToolTip Content="1-30" />
+                                    </TextBox.ToolTip>
+                                </TextBox>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!--  RT->RT消息配置  -->
+                    <StackPanel
+                        Margin="0,0,0,15"
+                        Orientation="Vertical"
+                        Visibility="{Binding IsRTToRTMessage, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock
+                            Margin="0,0,0,10"
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Text="RT-&gt;RT消息配置" />
+
+                        <!--  发送方RT（数据来源）  -->
+                        <Border
+                            Margin="0,0,0,10"
+                            Padding="10"
+                            Background="#F0FDF4"
+                            BorderBrush="#22C55E"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock
+                                    Margin="0,0,0,5"
+                                    FontSize="13"
+                                    FontWeight="SemiBold"
+                                    Foreground="#166534"
+                                    Text="发送方RT（数据来源）" />
+                                <StackPanel Margin="0,0,0,5" Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="RT地址：" />
+                                    <Border
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBox
+                                            Width="100"
+                                            Height="26"
+                                            Margin="1"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            Style="{StaticResource TextBoxStyle}"
+                                            Text="{Binding RTAddress, UpdateSourceTrigger=PropertyChanged}">
+                                            <TextBox.ToolTip>
+                                                <ToolTip Content="0-31" />
+                                            </TextBox.ToolTip>
+                                        </TextBox>
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="子地址：" />
+                                    <Border
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBox
+                                            Width="100"
+                                            Height="26"
+                                            Margin="1"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            Style="{StaticResource TextBoxStyle}"
+                                            Text="{Binding SubAddress, UpdateSourceTrigger=PropertyChanged}">
+                                            <TextBox.ToolTip>
+                                                <ToolTip Content="1-30" />
+                                            </TextBox.ToolTip>
+                                        </TextBox>
+                                    </Border>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!--  箭头指示  -->
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            FontSize="18"
+                            Foreground="#6B7280"
+                            Text="↓ 数据传输方向 ↓" />
+
+                        <!--  接收方RT  -->
+                        <Border
+                            Margin="0,10,0,0"
+                            Padding="10"
+                            Background="#EFF6FF"
+                            BorderBrush="#3B82F6"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock
+                                    Margin="0,0,0,5"
+                                    FontSize="13"
+                                    FontWeight="SemiBold"
+                                    Foreground="#1E40AF"
+                                    Text="接收方RT（数据目标）" />
+                                <StackPanel Margin="0,0,0,5" Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="RT地址：" />
+                                    <Border
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBox
+                                            Width="100"
+                                            Height="26"
+                                            Margin="1"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            Style="{StaticResource TextBoxStyle}"
+                                            Text="{Binding RTAddress2, UpdateSourceTrigger=PropertyChanged}">
+                                            <TextBox.ToolTip>
+                                                <ToolTip Content="0-31" />
+                                            </TextBox.ToolTip>
+                                        </TextBox>
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="子地址：" />
+                                    <Border
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBox
+                                            Width="100"
+                                            Height="26"
+                                            Margin="1"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            Style="{StaticResource TextBoxStyle}"
+                                            Text="{Binding SubAddress2, UpdateSourceTrigger=PropertyChanged}">
+                                            <TextBox.ToolTip>
+                                                <ToolTip Content="1-30" />
+                                            </TextBox.ToolTip>
+                                        </TextBox>
+                                    </Border>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!--  Mode Code消息配置  -->
+                    <StackPanel
+                        Margin="0,0,0,15"
+                        Orientation="Vertical"
+                        Visibility="{Binding IsModeCodeMessage, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock
+                            Margin="0,0,0,10"
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Text="Mode Code消息配置" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock
+                                Width="100"
+                                VerticalAlignment="Center"
+                                FontSize="14"
+                                Text="Mode Code：" />
+                            <Border
+    BorderBrush="#D9D9D9"
+    BorderThickness="1"
+    CornerRadius="3">
+                                <TextBox
+        Width="100"
+        Height="26"
+        Margin="1"
+        VerticalAlignment="Center"
+        BorderThickness="0"
+                                Style="{StaticResource TextBoxStyle}"
+                                Text="{Binding ModeCode, UpdateSourceTrigger=PropertyChanged}">
+                                    <TextBox.ToolTip>
+                                        <ToolTip Content="0-31" />
+                                    </TextBox.ToolTip>
+                                </TextBox>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!--  数据编辑区域（仅BC→RT模式可编辑数据）  -->
+                    <StackPanel
+                        Margin="0,15,0,0"
+                        Orientation="Vertical"
+                        Visibility="{Binding IsBCToRTMessage, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock
+                            Margin="0,0,0,10"
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Text="数据内容（16进制）" />
+                        <TextBlock
+                            Margin="0,0,0,10"
+                            FontSize="12"
+                            Foreground="#666666"
+                            Text="{Binding DataLengthHint}" />
+                        <Border
+                            MaxHeight="300"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding DataWords}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border
+                                                Margin="5"
+                                                Padding="5"
+                                                BorderBrush="#D9D9D9"
+                                                BorderThickness="1"
+                                                CornerRadius="3">
+                                                <StackPanel Orientation="Vertical">
+                                                    <TextBlock
+                                                        FontSize="11"
+                                                        Foreground="#666666"
+                                                        Text="{Binding WordIndex, StringFormat='字{0}'}" />
+                                                    <TextBox
+                                                        Width="60"
+                                                        Height="25"
+                                                        Style="{StaticResource TextBoxStyle}"
+                                                        Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}">
+                                                        <TextBox.ToolTip>
+                                                            <ToolTip Content="2字节，16进制，例如：1234" />
+                                                        </TextBox.ToolTip>
+                                                    </TextBox>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+                    </StackPanel>
+
+                    <!--  RT→BC / RT→RT 模式提示信息  -->
+                    <Border
+                        Margin="0,15,0,0"
+                        Padding="15"
+                        Background="#FEF3C7"
+                        BorderBrush="#F59E0B"
+                        BorderThickness="1"
+                        CornerRadius="5"
+                        Visibility="{Binding ShowRTDataHint, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel Orientation="Vertical">
+                            <TextBlock
+                                FontSize="14"
+                                FontWeight="SemiBold"
+                                Foreground="#92400E"
+                                Text="⚠ 数据配置说明" />
+                            <TextBlock
+                                Margin="0,8,0,0"
+                                FontSize="13"
+                                Foreground="#92400E"
+                                Text="{Binding RTDataHintText}"
+                                TextWrapping="Wrap" />
+                            <TextBlock
+                                Margin="0,8,0,0"
+                                FontSize="12"
+                                Foreground="#B45309"
+                                Text="操作步骤：选择RT模式 → 右击对应RT → 配置RT内部子地址 → 设置发送数据"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!--  按钮区域  -->
+            <StackPanel
+                Grid.Row="2"
+                Margin="0,15,0,0"
+                HorizontalAlignment="Right"
+                Orientation="Horizontal">
+                <Button
+                    Width="80"
+                    Height="32"
+                    Margin="0,0,10,0"
+                    Click="CancelButton_Click"
+                    Content="取消"
+                    Style="{StaticResource PrimaryButtonStyle}" />
+                <Button
+                    Width="80"
+                    Height="32"
+                    Click="OKButton_Click"
+                    Content="确定"
+                    Style="{StaticResource PrimaryButtonStyle}" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
+

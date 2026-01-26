@@ -1,0 +1,814 @@
+﻿<UserControl x:Class="MeasureControl.Views.TestTask.ART4229ConfigPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:prism="http://prismlibrary.com/"
+             xmlns:local="clr-namespace:MeasureControl.Views"
+             xmlns:vm="clr-namespace:MeasureControl.ViewModels"
+             xmlns:helpers="clr-namespace:MeasureControl.Helpers"
+             xmlns:drivers="clr-namespace:MeasureControl.Drivers.ART4229"
+             prism:ViewModelLocator.AutoWireViewModel="True"
+             mc:Ignorable="d" 
+             d:DesignHeight="550"
+             d:DesignWidth="970"
+             Background="#FFFFFF">
+
+    <UserControl.Resources>
+        <helpers:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <helpers:InverseBoolConverter x:Key="InverseBoolConverter"/>
+        <helpers:BoolToGreenRedConverter x:Key="BoolToGreenRedConverter"/>
+
+        <!-- 圆角按钮样式 -->
+        <Style x:Key="RoundedButtonStyle" TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#c5e0f7"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#a8d4f5"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#e5e7eb"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#d1d5db"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 指示灯样式 -->
+        <Style x:Key="ChannelIndicatorStyle" TargetType="Ellipse">
+            <Setter Property="Width" Value="10"/>
+            <Setter Property="Height" Value="10"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Fill" Value="#9ca3af"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                    <Setter Property="Fill">
+                        <Setter.Value>
+                            <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                <GradientStop Offset="0" Color="#4ade80"/>
+                                <GradientStop Offset="1" Color="#16a34a"/>
+                            </RadialGradientBrush>
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsActive}" Value="False">
+                    <Setter Property="Fill" Value="#9ca3af"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 统一按钮样式（灰白风格） -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#F3F5F7" />
+            <Setter Property="Foreground" Value="#333333" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                                    x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#E5E7EB" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#D9D9D9" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#F0F0F0" />
+                                <Setter TargetName="border" Property="BorderBrush" Value="#CCCCCC" />
+                                <Setter Property="Foreground" Value="#999999" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 通道选项卡样式 -->
+        <Style x:Key="ChannelTabStyle" TargetType="RadioButton">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="bd" Background="White" BorderBrush="#D9D9D9" BorderThickness="0.8" CornerRadius="4" Padding="2,1" Margin="1">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- 通道指示灯 -->
+                                <Ellipse Width="8" Height="8" Margin="3,0,4,0">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="#9ca3af"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                    <Setter Property="Fill">
+                                                        <Setter.Value>
+                                                            <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                                <GradientStop Offset="0" Color="#4ade80"/>
+                                                                <GradientStop Offset="1" Color="#16a34a"/>
+                                                            </RadialGradientBrush>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="{Binding ChannelName}" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#EAF2F7"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#d6ebfc"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 标题栏 -->
+        <Border Grid.Row="0" Margin="5" Background="White" BorderBrush="#D9D9D9" BorderThickness="1.5" CornerRadius="8">
+            <DockPanel Margin="10,5,10,5">
+                <TextBlock DockPanel.Dock="Left" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" Text="ART4229 配置" />
+                <StackPanel DockPanel.Dock="Left" Margin="50,0,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock VerticalAlignment="Center" FontSize="14" Text="连接状态：" Width="62" />
+                    <Grid Width="18" Height="18" Margin="5,0,5,0">
+                        <Ellipse Width="18" Height="18" Stroke="#d1d5db" StrokeThickness="0.5" />
+                        <Ellipse Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill">
+                                        <Setter.Value>
+                                            <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                <GradientStop Offset="0" Color="#ff6b6b" />
+                                                <GradientStop Offset="1" Color="#dc2626" />
+                                            </RadialGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                            <Setter Property="Fill">
+                                                <Setter.Value>
+                                                    <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                        <GradientStop Offset="0" Color="#4ade80" />
+                                                        <GradientStop Offset="1" Color="#16a34a" />
+                                                    </RadialGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                    </Grid>
+                    <TextBlock VerticalAlignment="Center" FontSize="14" Margin="4,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                        <Setter Property="Text" Value="在线"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsConnected}" Value="False">
+                                        <Setter Property="Text" Value="离线"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+
+                <Button DockPanel.Dock="Left" Width="90" Height="30" BorderThickness="0.5"
+                    Command="{Binding ToggleDeviceCommand}" Margin="20,0,5,0" Cursor="Hand">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Image x:Name="DeviceImage" Width="15" Height="15" Margin="0,0,5,0" Source="/Resources/Logo/export.png" />
+                                    <TextBlock x:Name="DeviceAction" VerticalAlignment="Center" Foreground="White" FontSize="14" FontWeight="Bold">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="打开板卡"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                        <Setter Property="Text" Value="关闭板卡"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding IsConnected}" Value="False"/>
+                                        <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource TemplatedParent}}" Value="True"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                </MultiDataTrigger>
+                                <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#ef4444"/>
+                                </DataTrigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5,0,0,0">
+                    <Button BorderBrush="#2a2a2a" BorderThickness="1" FontSize="14" Width="100" Height="30" Margin="6,0" Content="打开所有通道" 
+                            Command="{Binding OpenAllChannelsCommand}" IsEnabled="{Binding IsConnected}"/>
+                    <Button BorderBrush="#2a2a2a" BorderThickness="1" FontSize="14" Width="100" Height="30" Margin="6,0" Content="关闭所有通道" 
+                            Command="{Binding CloseAllChannelsCommand}" IsEnabled="{Binding IsConnected}"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- 主内容区 -->
+        <Grid Grid.Row="1" Margin="5,0,5,5">
+            <Border BorderBrush="#E5EEF6" BorderThickness="1.5" CornerRadius="8" Padding="1" Background="White">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- 通道选项卡 -->
+                    <Grid Grid.Row="0" Height="32" Margin="1,2,1,2">
+                        <ItemsControl ItemsSource="{Binding Channels}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="16" Rows="1"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <RadioButton Style="{StaticResource ChannelTabStyle}"
+                                                 IsChecked="{Binding IsSelected}"
+                                                 Command="{Binding DataContext.SelectChannelCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                 CommandParameter="{Binding}">
+                                        <RadioButton.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="打开通道" 
+                                                          Click="MenuOpenChannel_Click"/>
+                                                <MenuItem Header="关闭通道" 
+                                                          Click="MenuCloseChannel_Click"/>
+                                            </ContextMenu>
+                                        </RadioButton.ContextMenu>
+                                    </RadioButton>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                    
+
+
+                    <!-- 通道配置区域 -->
+                    <Border Grid.Row="2" BorderBrush="#E5EEF6" CornerRadius="8" BorderThickness="1" Margin="5">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="7*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- 通道操作行 -->
+                            <Grid Grid.Row="0" Grid.ColumnSpan="2" Margin="4,6,4,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="4,0,20,0">
+                                    <TextBlock VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Text="当前通道方向为：" Margin="4,0,4,0" />
+                                    <TextBlock VerticalAlignment="Center" FontSize="14" FontWeight="Bold"  Margin="4,0,8,0"
+                                               Text="{Binding SelectedChannel.DirectionText, FallbackValue=未选择}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedChannel.IsTx}" Value="True">
+                                                        <Setter Property="Foreground" Value="#2563eb"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedChannel.IsTx}" Value="False">
+                                                        <Setter Property="Foreground" Value="#16a34a"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    
+                                    <Button BorderBrush="#62b5e6" BorderThickness="1" Background="#d6ebfc" Width="100" Height="26" Margin="8,0" 
+                                            Content="切换通道方向" Command="{Binding SwitchChannelDirectionCommand}"
+                                            IsEnabled="{Binding IsConnected}"/>
+
+                                    <!-- 垂直分隔线（通过旋转实现） -->
+                                    <Separator Background="#E5E7EB" Width="20" Height="1" Margin="10,0,0,0"
+                                                HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <Separator.LayoutTransform>
+                                            <RotateTransform Angle="90"/>
+                                        </Separator.LayoutTransform>
+                                    </Separator>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="2,0,0,0">
+                                    <!-- 发送通道：开始发送/停止发送 -->
+                                    <Button BorderBrush="#62b5e6" BorderThickness="1" Background="#d6ebfc" Width="60" Height="26" Margin="4,0" 
+                                            IsEnabled="{Binding IsConnected}" Content="开始发送"
+                                            Command="{Binding StartSendCommand}">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource RoundedButtonStyle}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedChannel.IsTx}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button BorderBrush="#62b5e6" BorderThickness="1" Background="#d6ebfc" Width="60" Height="26" Margin="4,0" 
+                                            IsEnabled="{Binding IsConnected}" Content="停止发送"
+                                            Command="{Binding StopSendCommand}">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource RoundedButtonStyle}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedChannel.IsTx}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <!-- 接收通道：开始接收/停止接收 -->
+                                    <Button BorderBrush="#62b5e6" BorderThickness="1" Background="#d6ebfc" Width="60" Height="26" Margin="4,0" 
+                                            IsEnabled="{Binding IsConnected}" Content="开始接收"
+                                            Command="{Binding StartReceiveCommand}">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource RoundedButtonStyle}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedChannel.IsTx}" Value="False">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button BorderBrush="#62b5e6" BorderThickness="1" Background="#d6ebfc" Width="60" Height="26" Margin="4,0" 
+                                            IsEnabled="{Binding IsConnected}" Content="停止接收"
+                                            Command="{Binding StopReceiveCommand}">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource RoundedButtonStyle}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedChannel.IsTx}" Value="False">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button BorderBrush="#62b5e6" BorderThickness="1" Background="#d6ebfc" Width="60" Height="26" Margin="4,0" Content="清空列表"
+                                            Command="{Binding ClearRxDataCommand}"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0">
+                                    <TextBlock VerticalAlignment="Center" FontSize="11" Margin="0,0,3,0">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="接收状态："/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedChannel.IsTx}" Value="True">
+                                                        <Setter Property="Text" Value="发送状态："/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <Border Width="16" Height="16" Background="Transparent" CornerRadius="8" VerticalAlignment="Center">
+                                        <Ellipse Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Setter Property="Fill">
+                                                        <Setter.Value>
+                                                            <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                                <GradientStop Offset="0" Color="#9ca3af" />
+                                                                <GradientStop Offset="1" Color="#6b7280" />
+                                                            </RadialGradientBrush>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SelectedChannel.CurrentConfig.IsRunning}" Value="True">
+                                                            <Setter Property="Fill">
+                                                                <Setter.Value>
+                                                                    <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                                        <GradientStop Offset="0" Color="#4ade80" />
+                                                                        <GradientStop Offset="1" Color="#16a34a" />
+                                                                    </RadialGradientBrush>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Ellipse.Style>
+                                        </Ellipse>
+                                    </Border>
+                                    <TextBlock Margin="5,0,0,0" VerticalAlignment="Center" FontSize="11" FontWeight="Bold">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="未接收"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedChannel.IsTx}" Value="True">
+                                                        <Setter Property="Text" Value="未发送"/>
+                                                    </DataTrigger>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding SelectedChannel.CurrentConfig.IsRunning}" Value="True"/>
+                                                            <Condition Binding="{Binding SelectedChannel.IsTx}" Value="True"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="Text" Value="正在发送"/>
+                                                        <Setter Property="Foreground" Value="#16a34a"/>
+                                                    </MultiDataTrigger>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding SelectedChannel.CurrentConfig.IsRunning}" Value="True"/>
+                                                            <Condition Binding="{Binding SelectedChannel.IsTx}" Value="False"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="Text" Value="正在接收"/>
+                                                        <Setter Property="Foreground" Value="#16a34a"/>
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- 通道配置面板 -->
+                            <!--接收配置面板-->
+                            <Border Grid.Row="1" Grid.Column="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" Margin="4" CornerRadius="4"
+                                    DataContext="{Binding SelectedChannel}">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DataContext.SelectedChannel.IsTx, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="False">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel Margin="8">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                        <TextBlock Text="通 道 配 置 - " FontWeight="Bold" FontSize="14"/>
+                                        <TextBlock Text="{Binding ChannelName, FallbackValue=未选择}" FontWeight="Bold" FontSize="14" Foreground="#3b82f6"/>
+                                    </StackPanel>
+
+                                    <StackPanel DataContext="{Binding CurrentConfig}">
+                                        <StackPanel Orientation="Horizontal" Margin="0,4">
+                                            <TextBlock Width="60" VerticalAlignment="Center" Text="通道中断："/>
+                                            <ComboBox Width="80" Height="22"
+                                                     ItemsSource="{Binding InterruptOptions}"
+                                                     SelectedIndex="{Binding InterruptIndex, Mode=TwoWay}"/>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,4">
+                                            <TextBlock Width="60" VerticalAlignment="Center" Text="中断深度："/>
+                                            <ComboBox Width="80" Height="22"
+                                                     ItemsSource="{Binding InterruptDepthOptions}"
+                                                     SelectedItem="{Binding InterruptDepth, Mode=TwoWay}"
+                                                     IsEnabled="{Binding EnableInterrupt}"/>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,4">
+                                            <TextBlock VerticalAlignment="Center" Width="60" Text="码  率："/>
+                                            <ComboBox Width="80" Height="22" x:Name="cmbRate">
+                                                <ComboBoxItem Content="100000" IsSelected="True"/>
+                                                <ComboBoxItem Content="50000"/>
+                                                <ComboBoxItem Content="12500"/>
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,4">
+                                            <TextBlock Width="60" VerticalAlignment="Center" Text="时  标："/>
+                                            <CheckBox VerticalAlignment="Center" IsChecked="{Binding EnableTimeTag, Mode=TwoWay}"/>
+                                        </StackPanel>
+
+                                        <Border Height="1" Background="#E5E7EB" Margin="0,8"/>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,4">
+                                            <TextBlock Width="60" VerticalAlignment="Center" Text="字格式："/>
+                                            <ComboBox Width="80" Height="22" SelectedIndex="{Binding WordFormat, Mode=TwoWay}">
+                                                <ComboBoxItem Content="标准429" IsSelected="True"/>
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,4">
+                                            <TextBlock Width="60" VerticalAlignment="Center" Text="校  验："/>
+                                            <ComboBox Width="80" Height="22" SelectedIndex="{Binding Parity, Mode=TwoWay}">
+                                                <ComboBoxItem Content="None" IsSelected="True"/>
+                                                <ComboBoxItem Content="ODD"/>
+                                                <ComboBoxItem Content="EVEN"/>
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <Button BorderBrush="#62b5e6" BorderThickness="1" HorizontalAlignment="Right" Background="#d6ebfc" Width="50" Height="24" Margin="0,12,10,0" Content="配 置"
+                                                IsEnabled="{Binding DataContext.IsConnected, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                Command="{Binding DataContext.ConfigureChannelCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/> 
+                                    </StackPanel>
+
+                                </StackPanel>
+                            </Border>
+
+                            <!--发送配置面板-->
+                            <Border Grid.Row="1" Grid.Column="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" Margin="4" CornerRadius="4"
+                                    DataContext="{Binding SelectedChannel}">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DataContext.SelectedChannel.IsTx, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                
+                                <StackPanel Margin="8">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                        <TextBlock Text="通 道 配 置 - " FontWeight="Bold" FontSize="14"/>
+                                        <TextBlock Text="{Binding ChannelName, FallbackValue=未选择}" FontWeight="Bold" FontSize="14" Foreground="#3b82f6"/>
+                                    </StackPanel>
+
+                                    <StackPanel DataContext="{Binding CurrentConfig}">
+                                        <StackPanel Orientation="Horizontal" Margin="0,4">
+                                            <TextBlock Width="60" VerticalAlignment="Center" Text="发送模式："/>
+                                            <ComboBox Width="80" Height="22" SelectedIndex="{Binding SendMode, Mode=TwoWay}">
+                                                <ComboBoxItem Content="Single"/>
+                                                <ComboBoxItem Content="Period"/>
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,4">
+                                            <TextBlock Width="60" VerticalAlignment="Center" Text="码  率："/>
+                                            <ComboBox Width="80" Height="22" SelectedIndex="{Binding RateIndex, Mode=TwoWay}">
+                                                <ComboBoxItem Content="100000"/>
+                                                <ComboBoxItem Content="50000"/>
+                                                <ComboBoxItem Content="12500"/>
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <Button BorderBrush="#62b5e6" BorderThickness="1" VerticalAlignment="Center" HorizontalAlignment="Right" Background="#d6ebfc" Width="50" Height="24" Margin="0,2,10,0" Content="配 置"
+                                             IsEnabled="{Binding DataContext.IsConnected, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                             Command="{Binding DataContext.ConfigureChannelCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+
+                                        <Separator Height="1" Background="#E5E7EB" Margin="0,5"/>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,4" IsEnabled="{Binding IsPeriodMode}">
+                                            <TextBlock Width="60" VerticalAlignment="Center" Text="发送周期："/>
+                                            <ComboBox Width="80" Height="22" SelectedIndex="{Binding SendPeriodIndex, Mode=TwoWay}">
+                                                <ComboBoxItem Content="100"/>
+                                                <ComboBoxItem Content="200"/>
+                                                <ComboBoxItem Content="500"/>
+                                                <ComboBoxItem Content="1000"/>
+                                            </ComboBox>
+                                            <TextBlock Width="30" Margin="8,0,0,0" VerticalAlignment="Center" Text="(ms)"/>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,4" IsEnabled="{Binding IsPeriodMode}">
+                                            <TextBlock Width="60" VerticalAlignment="Center" Text="发送次数："/>
+                                            <TextBox  Width="60" Height="18" Margin="0,0,8,0" Text="{Binding SendCount, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,4" IsEnabled="{Binding IsPeriodMode}">
+                                            <TextBlock Width="60" VerticalAlignment="Center" Text="字间隔："/>
+                                            <TextBox  Width="60" Height="18" Margin="0,0,8,0" Text="{Binding WordInterval, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                            <TextBlock Width="60" VerticalAlignment="Center" Text="范围[4,64]"/>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                                            <TextBlock Width="60" VerticalAlignment="Center" Text="校  验："/>
+                                            <ComboBox Width="80" Height="22" SelectedIndex="{Binding Parity, Mode=TwoWay}">
+                                                <ComboBoxItem Content="None" IsSelected="True"/>
+                                                <ComboBoxItem Content="ODD"/>
+                                                <ComboBoxItem Content="EVEN"/>
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <Border Background="#F8FAFC" BorderBrush="#E2E8F0" Margin="0,16,0,0" BorderThickness="1"  CornerRadius="4">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="auto"/>
+                                                    <RowDefinition Height="auto"/>
+                                                    <RowDefinition Height="50"/>
+                                                    <RowDefinition Height="40"/>
+                                                    <RowDefinition Height="auto"/>
+                                                </Grid.RowDefinitions>
+
+                                                <TextBlock Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Left" Width="44" FontSize="12" Margin="8,-8,0,0" Text=" 字结构 " Background="#F8FAFC"/>
+
+                                                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="36,10,0,-6">
+                                                    <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left" Width="76" FontSize="10" Margin="2,0,4,0" Text="SSM/Data/SDI"/>
+                                                    <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left" Width="50" FontSize="10" Margin="4,0,4,0" Text="八进制标签"/>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,0">
+                                                    <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left" Width="36" FontSize="12" Margin="2,0,4,0" Text="Label:"/>
+                                                    <TextBox  Width="65" Height="22" Margin="0,0,8,0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Text="{Binding DataContext.LabelSsmDataSdi, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                    <ComboBox Width="65" Height="22" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" ItemsSource="{Binding DataContext.OctalLabelOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                              SelectedIndex="{Binding DataContext.LabelOctalIndex, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay}"/>
+                                                </StackPanel>
+                                                
+                                                <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,0">
+                                                    <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left" Width="108" FontSize="12" Margin="0,0,0,0" Text="=> 429数据(Hex):"/>
+                                                    <TextBox  Width="70" Height="22" Margin="0,0,8,0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" 
+                                                              IsReadOnly="True" Text="{Binding DataContext.Data429Hex, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=OneWay}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,8">
+                                                    <CheckBox VerticalAlignment="Center" IsChecked="{Binding DataContext.IsDataIncrement, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay}"/>
+                                                    <TextBlock Width="60" Margin="8,0,0,0" VerticalAlignment="Center" Text="数据递增"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 通道数据列表 -->
+                            <!--接收数据列表-->
+                            <Border Grid.Row="1" Grid.Column="1" Background="White" BorderBrush="#E2E8F0" Margin="4" BorderThickness="1" CornerRadius="4">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedChannel.IsTx}" Value="False">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel Margin="8">
+                                    <TextBlock Text="接 收 数 据 列 表" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+                                    <DataGrid Grid.Row="1"
+                                          x:Name="rxDataGrid"
+                                          ItemsSource="{Binding SelectedChannel.RxDataList}"
+                                          SelectedItem="{Binding SelectedRxDataItem, Mode=TwoWay}"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False"
+                                          CanUserDeleteRows="False"
+                                          IsReadOnly="True"
+                                          HeadersVisibility="Column"
+                                          RowHeaderWidth="28"
+                                          GridLinesVisibility="Horizontal"
+                                          AlternatingRowBackground="#F3FAFF"
+                                          MinHeight="380">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="#" Width="40" Binding="{Binding Index}"/>
+                                            <DataGridTextColumn Header="时标" Width="90" Binding="{Binding TimeStamp}"
+                                                                Visibility="{Binding DataContext.SelectedChannel.CurrentConfig.EnableTimeTag, ElementName=rxDataGrid, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                            <DataGridTextColumn Header="码率" Width="60" Binding="{Binding Rate, StringFormat=F0}"/>
+                                            <DataGridTextColumn Header="原始数据" Width="80" Binding="{Binding Data429Hex}"/>
+                                            <DataGridTextColumn Header="Label" Width="50" Binding="{Binding Label}"/>
+                                            <DataGridTextColumn Header="SDI" Width="40" Binding="{Binding SDI}"/>
+                                            <DataGridTextColumn Header="Data" Width="*" Binding="{Binding Data}"/>
+                                            <DataGridTextColumn Header="SSM" Width="40" Binding="{Binding SSM}"/>
+                                            <DataGridTextColumn Header="校验位" Width="50" Binding="{Binding ParityBit}"/>
+                                            <DataGridTextColumn Header="校验状态" Width="70" Binding="{Binding ParityCheck}"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </Border>
+                            
+                            <!--发送数据列表-->
+                            <Border Grid.Row="1" Grid.Column="1" Background="White" BorderBrush="#E2E8F0" Margin="4" BorderThickness="1" CornerRadius="4">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedChannel.IsTx}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel Margin="8">
+                                    <TextBlock Text="数 据 列 表" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+                                    <!--Single模式数据列表-->
+                                    <DataGrid
+                                        ItemsSource="{Binding SelectedChannel.TxDataList}"
+                                        SelectedItem="{Binding SelectedTxDataItem, Mode=TwoWay}"
+                                        AutoGenerateColumns="False"
+                                        CanUserAddRows="False"
+                                        CanUserDeleteRows="False"
+                                        IsReadOnly="True"
+                                        HeadersVisibility="Column"
+                                        RowHeaderWidth="28"
+                                        GridLinesVisibility="Horizontal"
+                                        AlternatingRowBackground="#F3FAFF"
+                                        MinHeight="350">
+                                        <DataGrid.Style>
+                                            <Style TargetType="DataGrid">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedChannel.CurrentConfig.IsPeriodMode}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGrid.Style>
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="#" Width="60" Binding="{Binding Index}"/>
+                                            <DataGridTextColumn Header="429数据" Width="*" Binding="{Binding Data429Hex}"/>
+                                            <DataGridTextColumn Header="Label" Width="100" Binding="{Binding Label}"/>
+                                            <DataGridTextColumn Header="校验" Width="100" Binding="{Binding ParityText}"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    
+                                    <!--Period模式数据列表-->
+                                    <DataGrid
+                                        ItemsSource="{Binding SelectedChannel.TxDataList}"
+                                        SelectedItem="{Binding SelectedTxDataItem, Mode=TwoWay}"
+                                        AutoGenerateColumns="False"
+                                        CanUserAddRows="False"
+                                        CanUserDeleteRows="False"
+                                        IsReadOnly="True"
+                                        HeadersVisibility="Column"
+                                        RowHeaderWidth="28"
+                                        GridLinesVisibility="Horizontal"
+                                        AlternatingRowBackground="#F3FAFF"
+                                        MinHeight="350">
+                                        <DataGrid.Style>
+                                            <Style TargetType="DataGrid">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedChannel.CurrentConfig.IsPeriodMode}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGrid.Style>
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="#" Width="60" Binding="{Binding Index}"/>
+                                            <DataGridTextColumn Header="429数据" Width="*" Binding="{Binding Data429Hex}"/>
+                                            <DataGridTextColumn Header="Label" Width="100" Binding="{Binding Label}"/>
+                                            <DataGridTextColumn Header="发送周期" Width="60" Binding="{Binding SendPeriod}"/>
+                                            <DataGridTextColumn Header="发送次数" Width="60" Binding="{Binding SendCount}"/>
+                                            <DataGridTextColumn Header="字间隔" Width="60" Binding="{Binding WordInterval}"/>
+                                            <DataGridTextColumn Header="校验" Width="60" Binding="{Binding ParityText}"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                        <Button BorderBrush="#62b5e6" BorderThickness="1" Background="#d6ebfc" Width="70" Height="28" Margin="6,0" Content="添加数据" Command="{Binding AddTxDataCommand}"/>
+                                        <Button BorderBrush="#62b5e6" BorderThickness="1" Background="#d6ebfc" Width="70" Height="28" Margin="6,0" Content="修改数据" Command="{Binding ModifyTxDataCommand}"/>
+                                        <Button BorderBrush="#62b5e6" BorderThickness="1" Background="#d6ebfc" Width="90" Height="28" Margin="6,0" Content="删除选定数据" Command="{Binding DeleteTxDataCommand}"/>
+                                        <Button BorderBrush="#62b5e6" BorderThickness="1" Background="#d6ebfc" Width="90" Height="28" Margin="6,0" Content="保存发送数据"/>
+                                        <Button BorderBrush="#62b5e6" BorderThickness="1" Background="#d6ebfc" Width="90" Height="28" Margin="6,0" Content="导入发送数据"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
+

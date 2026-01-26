@@ -1,0 +1,2056 @@
+﻿<Window
+    x:Class="MeasureControl.Views.Dialogs.ChannelBusConfigWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:helpers="clr-namespace:MeasureControl.Helpers"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib"
+    Title="通道总线设置"
+    Width="1100"
+    Height="510"
+    Background="White"
+    BorderBrush="#1c1c1c"
+    BorderThickness="1"
+    ResizeMode="NoResize"
+    WindowStartupLocation="CenterOwner"
+    WindowStyle="None">
+
+    <Window.Resources>
+        <Style x:Key="DialogButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#1c1c1c" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Width" Value="70" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Margin" Value="5" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#4F5C87" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#4F5C87" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--  ComboBoxItem样式  -->
+        <Style x:Key="CustomComboBoxItemStyle" TargetType="ComboBoxItem">
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="OverridesDefaultStyle" Value="True" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border
+                            x:Name="Bd"
+                            Padding="{TemplateBinding Padding}"
+                            Background="{TemplateBinding Background}">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#F6F6F6" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#F6F6F6" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--  使能CheckBox样式：勾选背景蓝色，勾选标记白色  -->
+        <Style x:Key="EnableCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid>
+                            <Border
+                                x:Name="checkBoxBorder"
+                                Width="16"
+                                Height="16"
+                                Background="White"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="2">
+                                <Path
+                                    x:Name="checkMark"
+                                    Data="M 2 8 L 6 12 L 14 4"
+                                    Stroke="White"
+                                    StrokeThickness="2"
+                                    Visibility="Collapsed" />
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="checkBoxBorder" Property="Background" Value="#3b82f6" />
+                                <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#3b82f6" />
+                                <Setter TargetName="checkMark" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#3b82f6" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="checkBoxBorder" Property="Background" Value="#E5E5E5" />
+                                <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#CCCCCC" />
+                                <Setter TargetName="checkMark" Property="Stroke" Value="#999999" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--  Inverse bool converter for enabling/disabling controls  -->
+        <helpers:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <!--  Baud number string converter  -->
+        <helpers:BaudNumberStringConverter x:Key="BaudNumberStringConverter" />
+        <!--  Int equals converter  -->
+        <helpers:IntEqualsConverter x:Key="IntEqualsConverter" />
+    </Window.Resources>
+
+    <Grid Margin="0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!--  Title bar like AddChannelDialog  -->
+        <Border
+            Grid.Row="0"
+            Height="30"
+            Background="#1c1c1c"
+            MouseLeftButtonDown="DragWindow">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    Grid.Column="0"
+                    Margin="10,0,0,0"
+                    VerticalAlignment="Center"
+                    FontSize="14"
+                    Foreground="White"
+                    Text="通道总线设置" />
+                <Button
+                    Grid.Column="2"
+                    Width="30"
+                    Height="30"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Click="Cancel_Click"
+                    Content="✖"
+                    FontSize="14"
+                    IsCancel="True"
+                    Style="{StaticResource DialogButtonStyle}" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Margin="0,4" Orientation="Horizontal">
+                <TextBlock
+                    Width="100"
+                    VerticalAlignment="Center"
+                    Text="波特率 (bps):" />
+                <ComboBox
+                    x:Name="BaudCombo"
+                    Width="120"
+                    Height="25"
+                    IsEnabled="{Binding IsChecked, ElementName=CustomBaudCheck, Converter={StaticResource InverseBoolConverter}}"
+                    ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                    SelectedValue="{Binding nBaudRate, Mode=TwoWay}"
+                    SelectedValuePath="Tag"
+                    Style="{StaticResource CustomComboBoxStyle}">
+                    <ComboBoxItem>
+                        <ComboBoxItem.Tag>
+                            <sys:UInt32>10000</sys:UInt32>
+                        </ComboBoxItem.Tag>
+                        10k
+                    </ComboBoxItem>
+                    <ComboBoxItem>
+                        <ComboBoxItem.Tag>
+                            <sys:UInt32>20000</sys:UInt32>
+                        </ComboBoxItem.Tag>
+                        20k
+                    </ComboBoxItem>
+                    <ComboBoxItem>
+                        <ComboBoxItem.Tag>
+                            <sys:UInt32>50000</sys:UInt32>
+                        </ComboBoxItem.Tag>
+                        50k
+                    </ComboBoxItem>
+                    <ComboBoxItem>
+                        <ComboBoxItem.Tag>
+                            <sys:UInt32>100000</sys:UInt32>
+                        </ComboBoxItem.Tag>
+                        100k
+                    </ComboBoxItem>
+                    <ComboBoxItem>
+                        <ComboBoxItem.Tag>
+                            <sys:UInt32>125000</sys:UInt32>
+                        </ComboBoxItem.Tag>
+                        125k
+                    </ComboBoxItem>
+                    <ComboBoxItem>
+                        <ComboBoxItem.Tag>
+                            <sys:UInt32>250000</sys:UInt32>
+                        </ComboBoxItem.Tag>
+                        250k
+                    </ComboBoxItem>
+                    <ComboBoxItem>
+                        <ComboBoxItem.Tag>
+                            <sys:UInt32>500000</sys:UInt32>
+                        </ComboBoxItem.Tag>
+                        500k
+                    </ComboBoxItem>
+                    <ComboBoxItem>
+                        <ComboBoxItem.Tag>
+                            <sys:UInt32>800000</sys:UInt32>
+                        </ComboBoxItem.Tag>
+                        800k
+                    </ComboBoxItem>
+                    <ComboBoxItem>
+                        <ComboBoxItem.Tag>
+                            <sys:UInt32>1000000</sys:UInt32>
+                        </ComboBoxItem.Tag>
+                        1M
+                    </ComboBoxItem>
+                </ComboBox>
+
+                <StackPanel Orientation="Horizontal">
+                    <CheckBox
+                        x:Name="CustomBaudCheck"
+                        Margin="20,0,5,0"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource EnableCheckBoxStyle}" />
+                    <TextBlock VerticalAlignment="Center" Text="使用自定义波特率" />
+                </StackPanel>
+                <Border
+                    Margin="10,0,0,0"
+                    BorderBrush="#D9D9D9"
+                    BorderThickness="1"
+                    CornerRadius="3">
+                    <TextBox
+                        x:Name="CustomBaudText"
+                        Width="120"
+                        Height="22"
+                        Margin="1"
+                        BorderThickness="0"
+                        IsEnabled="{Binding IsChecked, ElementName=CustomBaudCheck}"
+                        Text="{Binding nBaudRate, Mode=TwoWay, Converter={StaticResource BaudNumberStringConverter}, UpdateSourceTrigger=PropertyChanged}" />
+                </Border>
+            </StackPanel>
+
+            <StackPanel
+                Grid.Row="1"
+                Margin="0,4"
+                Orientation="Horizontal">
+                <TextBlock
+                    Width="100"
+                    VerticalAlignment="Center"
+                    Text="工作模式:" />
+                <ComboBox
+                    x:Name="WorkModeCombo"
+                    Width="120"
+                    Height="25"
+                    ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                    SelectedValue="{Binding nWorkMode, Mode=TwoWay}"
+                    SelectedValuePath="Tag"
+                    Style="{StaticResource CustomComboBoxStyle}">
+                    <ComboBoxItem>
+                        <ComboBoxItem.Tag>
+                            <sys:Int32>0</sys:Int32>
+                        </ComboBoxItem.Tag>
+                        正常发送
+                    </ComboBoxItem>
+                </ComboBox>
+
+                <StackPanel
+                    Grid.Row="4"
+                    Margin="0,4"
+                    Orientation="Horizontal">
+                    <TextBlock
+                        Width="100"
+                        Margin="20,0,0,0"
+                        VerticalAlignment="Center"
+                        Text="滤波模式选择:" />
+                    <ComboBox
+                        x:Name="FilterCntCombo"
+                        Width="120"
+                        Height="25"
+                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                        SelectedValue="{Binding nAccFilterCnt, Mode=TwoWay}"
+                        SelectedValuePath="Tag"
+                        SelectionChanged="FilterCntCombo_SelectionChanged"
+                        Style="{StaticResource CustomComboBoxStyle}">
+                        <ComboBoxItem>
+                            <ComboBoxItem.Tag>
+                                <sys:Int32>0</sys:Int32>
+                            </ComboBoxItem.Tag>
+                            不参与滤波
+                        </ComboBoxItem>
+                        <ComboBoxItem>
+                            <ComboBoxItem.Tag>
+                                <sys:Int32>1</sys:Int32>
+                            </ComboBoxItem.Tag>
+                            单滤波验收
+                        </ComboBoxItem>
+                    </ComboBox>
+                </StackPanel>
+            </StackPanel>
+
+
+
+            <!--  Acceptance filter detailed settings  -->
+            <StackPanel
+                Grid.Row="5"
+                Margin="0,4"
+                Orientation="Horizontal">
+                <TextBlock
+                    Width="100"
+                    VerticalAlignment="Center"
+                    Text="验收码A (Hex):" />
+                <Border
+                    BorderBrush="#D9D9D9"
+                    BorderThickness="1"
+                    CornerRadius="3">
+                    <TextBox
+                        Width="115"
+                        Height="22"
+                        Margin="1"
+                        BorderThickness="0"
+                        Text="{Binding nAccCodeA, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, RelativeSource={RelativeSource AncestorType=Window}}" />
+                </Border>
+
+                <TextBlock
+                    Width="100"
+                    Margin="20,0,0,0"
+                    VerticalAlignment="Center"
+                    Text="屏蔽码A (Hex):" />
+                <Border
+                    BorderBrush="#D9D9D9"
+                    BorderThickness="1"
+                    CornerRadius="3">
+                    <TextBox
+                        Width="120"
+                        Height="22"
+                        Margin="1"
+                        BorderThickness="0"
+                        Text="{Binding nAccMaskA, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, RelativeSource={RelativeSource AncestorType=Window}}" />
+                </Border>
+            </StackPanel>
+
+
+            <!--  Acceptance ID registers: 30 bits (ID00..ID29)  -->
+            <Border
+                Grid.Row="6"
+                Margin="0,8,0,0"
+                Padding="8"
+                BorderBrush="#E5EEF6"
+                BorderThickness="1"
+                CornerRadius="4">
+                <StackPanel>
+                    <TextBlock
+                        Margin="4,0,0,8"
+                        FontWeight="Bold"
+                        Text="验收 ID 寄存器:" />
+                    <ScrollViewer
+                        Height="260"
+                        HorizontalAlignment="Center"
+                        HorizontalScrollBarVisibility="Auto"
+                        VerticalScrollBarVisibility="Disabled">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="520" />
+                                <ColumnDefinition Width="520" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel
+                                x:Name="IdTogglePanel"
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                Grid.ColumnSpan="2"
+                                Orientation="Horizontal">
+                                <!--  IDs displayed as vertical toggle buttons: top 'ID', below numeric  -->
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="RTR" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="29" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="28" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="27" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="26" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="25" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1,0,1,0"
+                                    BorderThickness="0"
+                                    VerticalContentAlignment="Center">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="24" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1,0,1,0"
+                                    BorderThickness="0"
+                                    VerticalContentAlignment="Center">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="23" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="22" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="21" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="20" />
+                                    </StackPanel>
+                                </ToggleButton>
+
+                                <!--  remaining IDs  -->
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="19" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="18" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="17" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1,0,1,0"
+                                    BorderThickness="0"
+                                    VerticalContentAlignment="Center">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="16" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1,0,1,0"
+                                    BorderThickness="0"
+                                    VerticalContentAlignment="Center">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="15" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="14" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="13" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="12" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="11" />
+                                    </StackPanel>
+                                </ToggleButton>
+
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="10" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="09" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1,0,1,0"
+                                    BorderThickness="0"
+                                    VerticalContentAlignment="Center">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="08" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1,0,1,0"
+                                    BorderThickness="0"
+                                    VerticalContentAlignment="Center">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="07" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="06" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="05" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="04" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="03" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="02" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="01" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    Width="32"
+                                    Height="80"
+                                    Margin="1"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="ID" />
+                                        <TextBlock
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Center"
+                                            FontSize="16"
+                                            Text="00" />
+                                    </StackPanel>
+                                </ToggleButton>
+                            </StackPanel>
+
+                            <StackPanel
+                                x:Name="IdButtonPanel"
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                Grid.ColumnSpan="2"
+                                Margin="0,0.5,0,0"
+                                Orientation="Horizontal">
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Margin="1,0,1,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Button
+                                        Width="28"
+                                        Height="28"
+                                        Click="CycleRegisterValue"
+                                        Content="✖">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="#D9D9D9"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel
+                                Grid.Row="2"
+                                Grid.Column="0"
+                                Margin="0,75,0,0"
+                                HorizontalAlignment="Left"
+                                Orientation="Vertical">
+                                <TextBlock
+                                    Width="500"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="注：对应位显示为“x”表示此位为无关位，不参与滤波。" />
+                            </StackPanel>
+
+                            <StackPanel
+                                Grid.Row="2"
+                                Grid.Column="1"
+                                Margin="0,50,0,0"
+                                HorizontalAlignment="Left"
+                                Orientation="Vertical">
+                                <TextBlock
+                                    Width="520"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="屏蔽码某位为0时，对应验收码的位无论为0或1，帧ID标示符的位不参与过滤。" />
+                                <TextBlock
+                                    Width="520"
+                                    Margin="0,10,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="屏蔽码某位为1时，对应验收码的位与帧ID标示符的位相同接收，否则拒绝。" />
+                                <TextBlock
+                                    Width="520"
+                                    Margin="0,30,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="标准帧单滤波：默认所有位显示'x'（不参与过滤），点击按钮设置为'0'或'1'启用过滤，点击'设置应用'时自动计算验收码和屏蔽码并应用所有设置。" />
+                            </StackPanel>
+                        </Grid>
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
+
+            <StackPanel
+                Grid.Row="7"
+                Margin="0,6,0,0"
+                HorizontalAlignment="Right"
+                Orientation="Horizontal">
+                <Button
+                    Width="80"
+                    Margin="6,0"
+                    Click="ApplySettings_Click"
+                    IsDefault="True"
+                    Style="{StaticResource DialogButtonStyle}">
+                    设置应用
+                </Button>
+                <Button
+                    Width="60"
+                    Margin="6,0"
+                    Click="Cancel_Click"
+                    IsCancel="True"
+                    Style="{StaticResource DialogButtonStyle}">
+                    关 闭
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

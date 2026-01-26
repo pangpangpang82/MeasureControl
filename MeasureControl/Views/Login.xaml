@@ -1,0 +1,549 @@
+﻿<Window
+    x:Class="MeasureControl.Views.Login"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:MeasureControl.Helpers"
+    xmlns:local="clr-namespace:MeasureControl"
+    xmlns:vm="clr-namespace:MeasureControl.ViewModels"
+    Title="登录界面"
+    Width="1200"
+    Height="800"
+    AllowsTransparency="True"
+    Background="Transparent"
+    Icon="/Resources/Logo/logo.jpg"
+    ResizeMode="NoResize"
+    WindowStartupLocation="CenterScreen"
+    WindowStyle="None">
+
+    <Window.Resources>
+        <helpers:EmptyStringToVisibilityConverter x:Key="EmptyToVisibility" />
+        <helpers:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <!--<helpers:RectConverter x:Key="RectConverter" />-->
+        <!--<Style x:Key="NoFocusVisual"
+               TargetType="Control">
+            <Setter Property="FocusVisualStyle"
+                    Value="{x:Null}" />
+        </Style>-->
+
+        <!--  简洁的滚动条样式  -->
+        <Style x:Key="SimpleScrollBarStyle" TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Width" Value="8" />
+            <Setter Property="MinWidth" Value="8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Border Background="Transparent" BorderThickness="0">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Style>
+                                            <Style TargetType="Thumb">
+                                                <Setter Property="Background" Value="#CCCCCC" />
+                                                <Setter Property="BorderThickness" Value="0" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Thumb">
+                                                            <Border
+                                                                Background="{TemplateBinding Background}"
+                                                                BorderThickness="0"
+                                                                CornerRadius="4" />
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#999999" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter Property="Background" Value="#666666" />
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Thumb.Style>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!--  回车登录 Esc退出  -->
+    <Window.InputBindings>
+        <KeyBinding Key="Enter" Command="{Binding LoginCommand}" />
+        <KeyBinding Key="Escape" Command="{Binding CloseCommand}" />
+    </Window.InputBindings>
+
+    <!--  清除焦点 窗口拖动  -->
+    <Border
+        Background="Transparent"
+        Focusable="True"
+        MouseDown="ClosePopupAndClearFocus"
+        MouseLeftButtonDown="DragWindow">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="5*" />
+            </Grid.ColumnDefinitions>
+
+            <!--  封面  -->
+            <Border
+                Grid.Column="0"
+                ClipToBounds="True"
+                CornerRadius="10,0,0,10">
+                <Border.Background>
+                    <ImageBrush ImageSource="/Resources/Logo/background.png" Stretch="UniformToFill" />
+                </Border.Background>
+            </Border>
+
+            <Border
+                x:Name="RightPanel"
+                Grid.Column="1"
+                Background="#f9fafb"
+                CornerRadius="0,10,10,0">
+
+                <!--  输入框  -->
+                <StackPanel
+                    Margin="0,275,0,0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    Orientation="Vertical">
+                    <StackPanel>
+
+                        <TextBlock
+                            Margin="0,0,0,10"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Foreground="#959aa4"
+                            Text="工号" />
+
+                        <Border
+                            Width="420"
+                            Height="45"
+                            Background="White"
+                            CornerRadius="3">
+
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="BorderBrush" Value="#ebecef" />
+                                    <Setter Property="BorderThickness" Value="1.5" />
+                                    <Setter Property="Effect">
+                                        <Setter.Value>
+                                            <DropShadowEffect
+                                                BlurRadius="0"
+                                                ShadowDepth="0"
+                                                Color="Transparent" />
+                                        </Setter.Value>
+                                    </Setter>
+                                    <!--  键盘焦点  -->
+                                    <Style.Triggers>
+                                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                            <Setter Property="BorderBrush" Value="#5984ed" />
+                                            <Setter Property="BorderThickness" Value="2" />
+                                            <Setter Property="Effect">
+                                                <Setter.Value>
+                                                    <DropShadowEffect
+                                                        BlurRadius="50"
+                                                        Opacity="0.1"
+                                                        ShadowDepth="0"
+                                                        Color="#5984ed" />
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                        <!--  鼠标悬停  -->
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="BorderBrush" Value="#5984ed" />
+                                            <Setter Property="BorderThickness" Value="2" />
+                                            <Setter Property="Effect">
+                                                <Setter.Value>
+                                                    <DropShadowEffect
+                                                        BlurRadius="50"
+                                                        Opacity="0.1"
+                                                        ShadowDepth="0"
+                                                        Color="#5984ed" />
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+
+                            <Grid Margin="10,0,5,0">
+
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="auto" />
+                                    <ColumnDefinition />
+                                    <ColumnDefinition Width="auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock
+                                    Grid.Column="0"
+                                    Margin="5,5,5,5"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    FontSize="16"
+                                    IsHitTestVisible="False"
+                                    Text="👤" />
+
+                                <!--  工号输入框  -->
+                                <TextBox
+                                    x:Name="User"
+                                    Grid.Column="1"
+                                    Height="30"
+                                    Margin="5,5,5,5"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0"
+                                    FontSize="14"
+                                    GotFocus="User_GotFocus"
+                                    Text="{Binding UserId, UpdateSourceTrigger=PropertyChanged}"
+                                    TextChanged="User_TextChanged" />
+
+                                <!--  提示占位符  -->
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Margin="5,0,5,0"
+                                    VerticalAlignment="Center"
+                                    Panel.ZIndex="0"
+                                    FontSize="14"
+                                    Foreground="#959aa4"
+                                    IsHitTestVisible="False"
+                                    Text="请输入工号"
+                                    Visibility="{Binding Text, ElementName=User, Converter={StaticResource EmptyToVisibility}}" />
+
+                                <!--  工号下拉框  -->
+                                <Button
+                                    x:Name="ShowDown"
+                                    Grid.Column="2"
+                                    Width="40"
+                                    Height="40"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Command="{Binding ShowDropdownUidCommand}"
+                                    Content="{Binding TriangleSymbol}"
+                                    Cursor="Arrow">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Grid Background="Transparent">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <!--  下拉框  -->
+                                <Popup
+                                    x:Name="DropdownPopup"
+                                    AllowsTransparency="True"
+                                    HorizontalOffset="-27"
+                                    IsOpen="{Binding IsDropdownOpen, Mode=TwoWay}"
+                                    Placement="Bottom"
+                                    PlacementTarget="{Binding ElementName=User}"
+                                    PopupAnimation="Fade"
+                                    StaysOpen="True"
+                                    VerticalOffset="1">
+                                    <Border
+                                        Background="Transparent"
+                                        ClipToBounds="False"
+                                        CornerRadius="6">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="8" />
+                                                <RowDefinition Height="*" />
+                                            </Grid.RowDefinitions>
+                                            <Path
+                                                Width="20"
+                                                Height="8"
+                                                Margin="20,0,0,0"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Top"
+                                                Data="M 0,8 L 8,0 L 16,8"
+                                                Fill="White"
+                                                Stroke="#E6E6E6"
+                                                StrokeThickness="1" />
+                                            <Border
+                                                Grid.Row="1"
+                                                Width="230"
+                                                Background="White"
+                                                BorderBrush="#E6E6E6"
+                                                BorderThickness="1,0,1,1"
+                                                ClipToBounds="False"
+                                                CornerRadius="6">
+                                                <ListBox
+                                                    x:Name="UidList"
+                                                    Background="White"
+                                                    BorderThickness="0"
+                                                    FontWeight="SemiBold"
+                                                    ItemsSource="{Binding UidOptions}"
+                                                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                    SelectionChanged="UidList_SelectionChanged">
+                                                    <ListBox.ItemContainerStyle>
+                                                        <Style TargetType="ListBoxItem">
+                                                            <Setter Property="SnapsToDevicePixels" Value="True" />
+                                                            <Setter Property="OverridesDefaultStyle" Value="True" />
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                            <Setter Property="BorderThickness" Value="0" />
+                                                            <Setter Property="Padding" Value="5" />
+                                                            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="ListBoxItem">
+                                                                        <Border
+                                                                            x:Name="Bd"
+                                                                            Padding="{TemplateBinding Padding}"
+                                                                            Background="{TemplateBinding Background}">
+                                                                            <ContentPresenter />
+                                                                        </Border>
+                                                                        <ControlTemplate.Triggers>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter TargetName="Bd" Property="Background" Value="#F6F6F6" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsSelected" Value="True">
+                                                                                <Setter TargetName="Bd" Property="Background" Value="#F6F6F6" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                                                                <Setter TargetName="Bd" Property="Background" Value="#F6F6F6" />
+                                                                            </Trigger>
+                                                                        </ControlTemplate.Triggers>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </Style>
+                                                    </ListBox.ItemContainerStyle>
+                                                    <ListBox.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Padding="5" Text="{Binding}" />
+                                                        </DataTemplate>
+                                                    </ListBox.ItemTemplate>
+                                                </ListBox>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock
+                            Margin="0,15,0,10"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Foreground="#959aa4"
+                            IsHitTestVisible="False"
+                            Text="密码" />
+
+                        <Border
+                            Width="420"
+                            Height="45"
+                            Background="White"
+                            CornerRadius="3">
+
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="BorderBrush" Value="#ebecef" />
+                                    <Setter Property="BorderThickness" Value="1.5" />
+                                    <Setter Property="Effect">
+                                        <Setter.Value>
+                                            <DropShadowEffect
+                                                BlurRadius="0"
+                                                ShadowDepth="0"
+                                                Color="Transparent" />
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                            <Setter Property="BorderBrush" Value="#5984ed" />
+                                            <Setter Property="BorderThickness" Value="2" />
+                                            <Setter Property="Effect">
+                                                <Setter.Value>
+                                                    <DropShadowEffect
+                                                        BlurRadius="50"
+                                                        Opacity="0.1"
+                                                        ShadowDepth="0"
+                                                        Color="#5984ed" />
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="BorderBrush" Value="#5984ed" />
+                                            <Setter Property="BorderThickness" Value="2" />
+                                            <Setter Property="Effect">
+                                                <Setter.Value>
+                                                    <DropShadowEffect
+                                                        BlurRadius="50"
+                                                        Opacity="0.1"
+                                                        ShadowDepth="0"
+                                                        Color="#5984ed" />
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+
+
+                            <Grid Margin="10,0,5,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="auto" />
+                                    <ColumnDefinition />
+                                    <ColumnDefinition Width="auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock
+                                    Margin="5,0,5,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="16"
+                                    IsHitTestVisible="False"
+                                    Text="🔒" />
+
+                                <!--  密码框  -->
+                                <PasswordBox
+                                    x:Name="Pwd"
+                                    Grid.Column="1"
+                                    Height="30"
+                                    Margin="5,0,5,0"
+                                    VerticalContentAlignment="Center"
+                                    helpers:PasswordBoxHelper.Attach="True"
+                                    helpers:PasswordBoxHelper.BoundPassword="{Binding Password, Mode=TwoWay}"
+                                    BorderThickness="0"
+                                    Visibility="{Binding IsPasswordVisible, Converter={StaticResource BoolToVisibility}, ConverterParameter='mode=bool;invert=true'}" />
+
+                                <TextBox
+                                    Grid.Column="1"
+                                    Height="30"
+                                    Margin="5,0,5,0"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0"
+                                    FontSize="14"
+                                    Text="{Binding Password, UpdateSourceTrigger=PropertyChanged}"
+                                    Visibility="{Binding IsPasswordVisible, Converter={StaticResource BoolToVisibility}, ConverterParameter='mode=bool'}" />
+
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Margin="5,0,5,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Foreground="#959aa4"
+                                    IsHitTestVisible="False"
+                                    Text="请输入密码"
+                                    Visibility="{Binding Password, Converter={StaticResource EmptyToVisibility}}" />
+
+                                <Button
+                                    Grid.Column="2"
+                                    Width="32"
+                                    Height="32"
+                                    Margin="0,0,5,0"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Command="{Binding TogglePasswordVisibilityCommand}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                    <Image
+                                        Width="16"
+                                        Height="16"
+                                        Source="{Binding PasswordToggleImagePath}"
+                                        Stretch="Uniform" />
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock
+                            Margin="0,15,0,10"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Foreground="#959aa4"
+                            IsHitTestVisible="False"
+                            Text="当前用户权限" />
+
+                        <Border
+                            Width="420"
+                            Height="45"
+                            Background="#f9fafb"
+                            BorderBrush="#ebecef"
+                            BorderThickness="1.5"
+                            CornerRadius="6">
+
+                            <Grid Margin="10,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="auto" />
+                                    <ColumnDefinition />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock
+                                    Margin="5,0,5,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="16"
+                                    IsHitTestVisible="False"
+                                    Text="🛡️" />
+
+                                <TextBox
+                                    x:Name="Psn"
+                                    Grid.Column="1"
+                                    Height="42"
+                                    Margin="5,0,5,0"
+                                    VerticalContentAlignment="Center"
+                                    Background="#f9fafb"
+                                    BorderThickness="0"
+                                    FontSize="14"
+                                    IsReadOnly="True"
+                                    Text="{Binding Permission}" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <TextBlock
+                Margin="35,35,35,35"
+                FontSize="35"
+                Foreground="White"
+                Text="四川汉宇航空科技" />
+            <TextBlock
+                Margin="35,95,0,0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                FontSize="18"
+                FontWeight="Thin"
+                Foreground="#CCFFFFFF"
+                Text="智能测控，精准掌控" />
+            <TextBlock
+                Margin="35,740,0,0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                FontSize="14"
+                Foreground="#CCFFFFFF"
+                Text="专业测控系统，助力工业智能化" />
+
+            <TextBlock
+                Grid.Column="2"
+                Margin="0,180,0,0"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                FontSize="30"
+                FontWeight="Bold"
+                Foreground="Black"
+                Text="控制器硬件测试平台登录" />
+            <TextBlock
+                Grid.Column="2"
+                Margin="0,230,0,0"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                FontSize="15"
+                FontWeight="Normal"
+                Foreground="#959aa4"
+                Text="请输入您的工号和密码" />
+        </Grid>
+    </Border>
+
+</Window>

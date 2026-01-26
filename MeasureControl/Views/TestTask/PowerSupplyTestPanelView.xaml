@@ -1,0 +1,1157 @@
+<UserControl
+    x:Class="MeasureControl.Views.TestTask.PowerSupplyTestPanelView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:MeasureControl.Helpers"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:prism="http://prismlibrary.com/"
+    d:DesignHeight="550"
+    d:DesignWidth="970"
+    Background="White"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <helpers:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <helpers:InverseBoolConverter x:Key="InverseBoolConverter" />
+
+        <Style x:Key="EnableCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid>
+                            <Border
+                                x:Name="checkBoxBorder"
+                                Width="16"
+                                Height="16"
+                                Background="White"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="2">
+                                <Path
+                                    x:Name="checkMark"
+                                    Data="M 2 8 L 6 12 L 14 4"
+                                    Stroke="White"
+                                    StrokeThickness="2"
+                                    Visibility="Collapsed" />
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="checkBoxBorder" Property="Background" Value="#3b82f6" />
+                                <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#3b82f6" />
+                                <Setter TargetName="checkMark" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#3b82f6" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DeviceToggleButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="100" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Background" Value="#3b82f6" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4">
+                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                <Image
+                                    x:Name="DeviceImage"
+                                    Width="20"
+                                    Height="20"
+                                    Margin="0,0,5,0"
+                                    Source="/Resources/Logo/export.png" />
+                                <TextBlock
+                                    x:Name="DeviceAction"
+                                    VerticalAlignment="Center"
+                                    Foreground="White"
+                                    Text="连接电源" />
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsPowerSupplyConnected}" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                <Setter TargetName="DeviceImage" Property="Source" Value="/Resources/Logo/import.png" />
+                                <Setter TargetName="DeviceAction" Property="Text" Value="断开电源" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsPowerSupplyConnected}" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                <Setter TargetName="DeviceImage" Property="Source" Value="/Resources/Logo/export.png" />
+                                <Setter TargetName="DeviceAction" Property="Text" Value="连接电源" />
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TextBoxStyle" TargetType="TextBox">
+            <Setter Property="Padding" Value="3" />
+            <Setter Property="Margin" Value="3" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="Height" Value="30" />
+        </Style>
+
+        <Style x:Key="ReadbackValueBorderStyle" TargetType="Border">
+            <Setter Property="BorderBrush" Value="#D9D9D9" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="MinWidth" Value="120" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="SmallButtonStyle" TargetType="Button">
+            <Setter Property="MinWidth" Value="90" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Margin" Value="5" />
+            <Setter Property="Background" Value="#3b82f6" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.92" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.82" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="OutputToggleButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="70" />
+            <Setter Property="Height" Value="46" />
+            <Setter Property="Margin" Value="8" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="Black" />
+            <Setter Property="BorderBrush" Value="#d1d5db" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="1*" />
+            <RowDefinition Height="7*" />
+        </Grid.RowDefinitions>
+
+        <Border
+            Grid.Row="0"
+            Margin="8,8,8,4"
+            BorderBrush="#D9D9D9"
+            BorderThickness="1.5"
+            CornerRadius="8">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock
+                    Margin="10,0,0,0"
+                    VerticalAlignment="Center"
+                    FontSize="22"
+                    FontWeight="Bold"
+                    Text="艾德克斯 IT-N6332B 配置" />
+
+                <TextBlock
+                    Margin="60,0,0,0"
+                    VerticalAlignment="Center"
+                    FontSize="20"
+                    Text="IP地址：" />
+                <Border
+                    Width="180"
+                    Height="32"
+                    Margin="5,0,0,0"
+                    VerticalAlignment="Center"
+                    BorderBrush="#D9D9D9"
+                    BorderThickness="1"
+                    CornerRadius="3">
+                    <TextBox
+                        Margin="5,0,0,0"
+                        VerticalAlignment="Center"
+                        BorderThickness="0"
+                        FontSize="20"
+                        Text="{Binding PowerSupplyIpAddress, UpdateSourceTrigger=PropertyChanged}" />
+                </Border>
+
+                <StackPanel Margin="30,0,0,0" Orientation="Horizontal">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="20"
+                        Text="连接状态：" />
+                    <Grid Width="18" Height="18">
+                        <Ellipse
+                            Width="18"
+                            Height="18"
+                            Stroke="#d1d5db"
+                            StrokeThickness="0.5" />
+                        <Ellipse
+                            Width="16"
+                            Height="16"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill">
+                                        <Setter.Value>
+                                            <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                <GradientStop Offset="0" Color="#ff6b6b" />
+                                                <GradientStop Offset="1" Color="#b91c1c" />
+                                            </RadialGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsPowerSupplyConnected}" Value="True">
+                                            <Setter Property="Fill">
+                                                <Setter.Value>
+                                                    <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                        <GradientStop Offset="0" Color="#4ade80" />
+                                                        <GradientStop Offset="1" Color="#16a34a" />
+                                                    </RadialGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                    </Grid>
+                    <TextBlock
+                        Margin="5,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="18"
+                        Text="{Binding ConnectionStatus}" />
+                </StackPanel>
+
+                <Border Margin="30,0,0,0">
+                    <Button
+                        Width="100"
+                        Height="36"
+                        Margin="10,0,5,0"
+                        Background="#3b82f6"
+                        BorderThickness="0"
+                        Command="{Binding ToggleDeviceCommand}"
+                        FontSize="16">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border
+                                    x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="4">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                        <!--  图标  -->
+                                        <Image
+                                            x:Name="DeviceImage"
+                                            Width="20"
+                                            Height="20"
+                                            Margin="0,0,5,0"
+                                            Source="/Resources/Logo/export.png" />
+                                        <!--  文字  -->
+                                        <TextBlock
+                                            x:Name="DeviceAction"
+                                            VerticalAlignment="Center"
+                                            Foreground="White"
+                                            Text="连接仪表" />
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <!--  先处理普通状态  -->
+                                    <DataTrigger Binding="{Binding IsPowerSupplyConnected}" Value="True">
+                                        <Setter Property="Tag" Value="True" />
+                                        <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                        <Setter TargetName="DeviceImage" Property="Source" Value="/Resources/Logo/import.png" />
+                                        <Setter TargetName="DeviceAction" Property="Text" Value="断开仪表" />
+                                    </DataTrigger>
+
+                                    <DataTrigger Binding="{Binding IsPowerSupplyConnected}" Value="False">
+                                        <Setter Property="Tag" Value="False" />
+                                    </DataTrigger>
+
+                                    <!--  2. 未连接 + 悬停  -->
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="False" />
+                                            <Condition Property="IsMouseOver" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                    </MultiTrigger>
+
+                                    <!--  3. 未连接 + 按下  -->
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="False" />
+                                            <Condition Property="IsPressed" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                    </MultiTrigger>
+
+                                    <!--  4. 已连接 + 悬停（优先级更高，放在后面）  -->
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="True" />
+                                            <Condition Property="IsMouseOver" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                    </MultiTrigger>
+
+                                    <!--  5. 已连接 + 按下  -->
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="True" />
+                                            <Condition Property="IsPressed" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                    </MultiTrigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1" Margin="8,4,8,8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border
+                    Grid.Row="0"
+                    Margin="0,0,0,8"
+                    BorderBrush="#D9D9D9"
+                    BorderThickness="1.5"
+                    CornerRadius="8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="290" />
+                        </Grid.ColumnDefinitions>
+                        <Border Background="#D9D9D9">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Margin="0,10,0,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Top"
+                                    FontSize="22"
+                                    FontWeight="SemiBold"
+                                    Text="CH1" />
+                                <Button
+                                    Grid.Row="1"
+                                    VerticalAlignment="Center"
+                                    Command="{Binding ToggleChannelOutputCommand}"
+                                    CommandParameter="1"
+                                    Content="输出"
+                                    Style="{StaticResource OutputToggleButtonStyle}" />
+                            </Grid>
+                        </Border>
+                        <Grid Grid.Column="1" Margin="10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="120" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="设定电压(V)：" />
+                            <Border
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch1SetVoltage, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="2"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="设定电流(A)：" />
+                            <Border
+                                Grid.Row="0"
+                                Grid.Column="3"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch1SetCurrent, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="限压(V)：" />
+                            <Border
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch1LimitVoltage, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="2"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="限流(A)：" />
+                            <Border
+                                Grid.Row="1"
+                                Grid.Column="3"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch1LimitCurrent, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+
+                            <TextBlock
+                                Grid.Row="2"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="限功率(W)：" />
+
+                            <Border
+                                Grid.Row="2"
+                                Grid.Column="1"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch1LimitPower, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+                            <StackPanel
+                                Grid.Row="2"
+                                Grid.Column="2"
+                                HorizontalAlignment="Right"
+                                Orientation="Horizontal">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="保护启用" />
+                                <CheckBox
+                                    Margin="5"
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    IsChecked="{Binding Ch1ProtectionEnabled}"
+                                    Style="{StaticResource EnableCheckBoxStyle}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid
+                            Grid.Column="2"
+                            Margin="10,5,10,5"
+                            VerticalAlignment="Center">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                Margin="0,0,0,5"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="测量电压：" />
+                            <Border
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                Margin="0,0,0,5"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="{Binding Ch1MeasVoltage}" />
+                            </Border>
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="2"
+                                Margin="6,0,0,6"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="V" />
+
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                Margin="0,0,0,5"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="测量电流：" />
+                            <Border
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Margin="0,0,0,5"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="{Binding Ch1MeasCurrent}" />
+                            </Border>
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="2"
+                                Margin="6,0,0,6"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="A" />
+
+                            <TextBlock
+                                Grid.Row="2"
+                                Grid.Column="0"
+                                Margin="0,0,0,5"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="功率：" />
+                            <Border
+                                Grid.Row="2"
+                                Grid.Column="1"
+                                Margin="0,0,0,5"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="{Binding Ch1MeasPower}" />
+                            </Border>
+                            <TextBlock
+                                Grid.Row="2"
+                                Grid.Column="2"
+                                Margin="6,0,0,6"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="W" />
+
+                            <TextBlock
+                                Grid.Row="3"
+                                Grid.Column="0"
+                                Margin="0,0,0,5"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="输出：" />
+                            <Border
+                                Grid.Row="3"
+                                Grid.Column="1"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="{Binding Ch1OutputEnabled, StringFormat={}{0}}" />
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <Border
+                    Grid.Row="1"
+                    Margin="0,0,0,8"
+                    BorderBrush="#D9D9D9"
+                    BorderThickness="1.5"
+                    CornerRadius="8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="290" />
+                        </Grid.ColumnDefinitions>
+                        <Border Background="#D9D9D9">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Margin="0,10,0,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Top"
+                                    FontSize="22"
+                                    FontWeight="SemiBold"
+                                    Text="CH2" />
+                                <Button
+                                    Grid.Row="1"
+                                    VerticalAlignment="Center"
+                                    Command="{Binding ToggleChannelOutputCommand}"
+                                    CommandParameter="2"
+                                    Content="输出"
+                                    Style="{StaticResource OutputToggleButtonStyle}" />
+                            </Grid>
+                        </Border>
+                        <Grid Grid.Column="1" Margin="10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="120" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="设定电压(V)：" />
+                            <Border
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch2SetVoltage, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="2"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="设定电流(A)：" />
+                            <Border
+                                Grid.Row="0"
+                                Grid.Column="3"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch2SetCurrent, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="限压(V)：" />
+                            <Border
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch2LimitVoltage, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="2"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="限流(A)：" />
+                            <Border
+                                Grid.Row="1"
+                                Grid.Column="3"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch2LimitCurrent, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+
+                            <TextBlock
+                                Grid.Row="2"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="限功率(W)：" />
+                            <Border
+                                Grid.Row="2"
+                                Grid.Column="1"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch2LimitPower, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+
+                            <StackPanel
+                                Grid.Row="2"
+                                Grid.Column="2"
+                                HorizontalAlignment="Right"
+                                Orientation="Horizontal">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="保护启用" />
+                                <CheckBox
+                                    Margin="5"
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    IsChecked="{Binding Ch2ProtectionEnabled}"
+                                    Style="{StaticResource EnableCheckBoxStyle}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid
+                            Grid.Column="2"
+                            Margin="10,5,10,5"
+                            VerticalAlignment="Center">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="测量电压：" />
+                            <Border
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                Margin="0,0,0,5"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="{Binding Ch2MeasVoltage}" />
+                            </Border>
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="2"
+                                Margin="6,0,0,6"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="V" />
+
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="测量电流：" />
+                            <Border
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Margin="0,0,0,5"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="{Binding Ch2MeasCurrent}" />
+                            </Border>
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="2"
+                                Margin="6,0,0,6"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="A" />
+
+                            <TextBlock
+                                Grid.Row="2"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="功率：" />
+                            <Border
+                                Grid.Row="2"
+                                Grid.Column="1"
+                                Margin="0,0,0,5"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="{Binding Ch2MeasPower}" />
+                            </Border>
+                            <TextBlock
+                                Grid.Row="2"
+                                Grid.Column="2"
+                                Margin="6,0,0,6"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="W" />
+
+                            <TextBlock
+                                Grid.Row="3"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="输出：" />
+                            <Border
+                                Grid.Row="3"
+                                Grid.Column="1"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="{Binding Ch2OutputEnabled, StringFormat={}{0}}" />
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <Border
+                    Grid.Row="2"
+                    BorderBrush="#D9D9D9"
+                    BorderThickness="1.5"
+                    CornerRadius="8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="290" />
+                        </Grid.ColumnDefinitions>
+                        <Border Background="#D9D9D9">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Margin="0,10,0,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Top"
+                                    FontSize="22"
+                                    FontWeight="SemiBold"
+                                    Text="CH3" />
+                                <Button
+                                    Grid.Row="1"
+                                    VerticalAlignment="Center"
+                                    Command="{Binding ToggleChannelOutputCommand}"
+                                    CommandParameter="3"
+                                    Content="输出"
+                                    Style="{StaticResource OutputToggleButtonStyle}" />
+                            </Grid>
+                        </Border>
+                        <Grid Grid.Column="1" Margin="10,5,10,5">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="120" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="设定电压(V)：" />
+                            <Border
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch3SetVoltage, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="2"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="设定电流(A)：" />
+                            <Border
+                                Grid.Row="0"
+                                Grid.Column="3"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch3SetCurrent, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="限压(V)：" />
+                            <Border
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch3LimitVoltage, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="2"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="限流(A)：" />
+                            <Border
+                                Grid.Row="1"
+                                Grid.Column="3"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch3LimitCurrent, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+
+                            <TextBlock
+                                Grid.Row="2"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="限功率(W)：" />
+                            <Border
+                                Grid.Row="2"
+                                Grid.Column="1"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBox
+                                    BorderThickness="0"
+                                    FontSize="18"
+                                    Text="{Binding Ch3LimitPower, UpdateSourceTrigger=PropertyChanged}" />
+                            </Border>
+
+                            <StackPanel
+                                Grid.Row="2"
+                                Grid.Column="2"
+                                HorizontalAlignment="Right"
+                                Orientation="Horizontal">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="保护启用" />
+                                <CheckBox
+                                    Margin="5"
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    IsChecked="{Binding Ch3ProtectionEnabled}"
+                                    Style="{StaticResource EnableCheckBoxStyle}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid
+                            Grid.Column="2"
+                            Margin="10,5,10,5"
+                            VerticalAlignment="Center">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="测量电压：" />
+                            <Border
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                Margin="0,0,0,5"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="{Binding Ch3MeasVoltage}" />
+                            </Border>
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="2"
+                                Margin="6,0,0,6"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="V" />
+
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="测量电流：" />
+                            <Border
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Margin="0,0,0,5"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="{Binding Ch3MeasCurrent}" />
+                            </Border>
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="2"
+                                Margin="6,0,0,6"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="A" />
+
+                            <TextBlock
+                                Grid.Row="2"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="功率：" />
+                            <Border
+                                Grid.Row="2"
+                                Grid.Column="1"
+                                Margin="0,0,0,5"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="{Binding Ch3MeasPower}" />
+                            </Border>
+                            <TextBlock
+                                Grid.Row="2"
+                                Grid.Column="2"
+                                Margin="6,0,0,6"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="W" />
+
+                            <TextBlock
+                                Grid.Row="3"
+                                Grid.Column="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Text="输出：" />
+                            <Border
+                                Grid.Row="3"
+                                Grid.Column="1"
+                                Style="{StaticResource ReadbackValueBorderStyle}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="{Binding Ch3OutputEnabled, StringFormat={}{0}}" />
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

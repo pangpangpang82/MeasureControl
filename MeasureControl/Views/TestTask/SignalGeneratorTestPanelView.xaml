@@ -1,0 +1,1368 @@
+<UserControl
+    x:Class="MeasureControl.Views.TestTask.SignalGeneratorTestPanelView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:MeasureControl.Helpers"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:prism="http://prismlibrary.com/"
+    d:DesignHeight="550"
+    d:DesignWidth="970"
+    Background="White"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <helpers:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <helpers:InverseBoolConverter x:Key="InverseBoolConverter" />
+
+        <Style x:Key="HeaderTextStyle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,5" />
+        </Style>
+
+        <Style x:Key="ButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="MinWidth" Value="100" />
+            <Setter Property="Margin" Value="5" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style x:Key="TextBoxStyle" TargetType="TextBox">
+            <Setter Property="Padding" Value="5" />
+            <Setter Property="Margin" Value="5" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="1*" />
+            <RowDefinition Height="7*" />
+        </Grid.RowDefinitions>
+        <Border
+            Grid.Row="0"
+            Margin="8,8,8,4"
+            BorderBrush="#D9D9D9"
+            BorderThickness="1.5"
+            CornerRadius="8">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock
+                    Margin="10,0,0,0"
+                    VerticalAlignment="Center"
+                    FontSize="22"
+                    FontWeight="Bold"
+                    Text="普源DG1032Z 配置" />
+                <TextBlock
+                    Margin="60,0,0,0"
+                    VerticalAlignment="Center"
+                    FontSize="20"
+                    Text="设备IP地址：" />
+                <Border
+                    Width="180"
+                    Height="32"
+                    Margin="5,0,0,0"
+                    VerticalAlignment="Center"
+                    BorderBrush="#D9D9D9"
+                    BorderThickness="1"
+                    CornerRadius="3">
+                    <TextBox
+                        Margin="5,0,0,0"
+                        VerticalAlignment="Center"
+                        BorderThickness="0"
+                        FontSize="20"
+                        Text="{Binding SignalGeneratorIpAddress, UpdateSourceTrigger=PropertyChanged}" />
+                </Border>
+
+                <StackPanel Margin="60,0,0,0" Orientation="Horizontal">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="20"
+                        Text="连接状态：" />
+                    <Grid Width="18" Height="18">
+                        <Ellipse
+                            Width="18"
+                            Height="18"
+                            Stroke="#d1d5db"
+                            StrokeThickness="0.5" />
+                        <Ellipse
+                            Width="16"
+                            Height="16"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill">
+                                        <Setter.Value>
+                                            <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                <GradientStop Offset="0" Color="#ff6b6b" />
+                                                <GradientStop Offset="1" Color="#b91c1c" />
+                                            </RadialGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSignalGeneratorConnected}" Value="True">
+                                            <Setter Property="Fill">
+                                                <Setter.Value>
+                                                    <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                        <GradientStop Offset="0" Color="#4ade80" />
+                                                        <GradientStop Offset="1" Color="#16a34a" />
+                                                    </RadialGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                    </Grid>
+                    <TextBlock
+                        Margin="5,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="18"
+                        Text="{Binding ConnectionStatus}" />
+                </StackPanel>
+                <Border Margin="30,0,0,0">
+                    <Button
+                        Width="100"
+                        Height="36"
+                        Margin="10,0,5,0"
+                        Background="#3b82f6"
+                        BorderThickness="0"
+                        Command="{Binding ToggleDeviceCommand}"
+                        FontSize="16">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border
+                                    x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="4">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                        <!--  图标  -->
+                                        <Image
+                                            x:Name="DeviceImage"
+                                            Width="20"
+                                            Height="20"
+                                            Margin="0,0,5,0"
+                                            Source="/Resources/Logo/export.png" />
+                                        <!--  文字  -->
+                                        <TextBlock
+                                            x:Name="DeviceAction"
+                                            VerticalAlignment="Center"
+                                            Foreground="White"
+                                            Text="连接仪表" />
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <!--  先处理普通状态  -->
+                                    <DataTrigger Binding="{Binding IsSignalGeneratorConnected}" Value="True">
+                                        <Setter Property="Tag" Value="True" />
+                                        <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                        <Setter TargetName="DeviceImage" Property="Source" Value="/Resources/Logo/import.png" />
+                                        <Setter TargetName="DeviceAction" Property="Text" Value="断开仪表" />
+                                    </DataTrigger>
+
+                                    <DataTrigger Binding="{Binding IsSignalGeneratorConnected}" Value="False">
+                                        <Setter Property="Tag" Value="False" />
+                                    </DataTrigger>
+
+                                    <!--  2. 未连接 + 悬停  -->
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="False" />
+                                            <Condition Property="IsMouseOver" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                    </MultiTrigger>
+
+                                    <!--  3. 未连接 + 按下  -->
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="False" />
+                                            <Condition Property="IsPressed" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                    </MultiTrigger>
+
+                                    <!--  4. 已连接 + 悬停（优先级更高，放在后面）  -->
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="True" />
+                                            <Condition Property="IsMouseOver" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                    </MultiTrigger>
+
+                                    <!--  5. 已连接 + 按下  -->
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="True" />
+                                            <Condition Property="IsPressed" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                    </MultiTrigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Border>
+            </StackPanel>
+        </Border>
+        <Border Grid.Row="1">
+            <Grid>
+                <Grid.LayoutTransform>
+                    <ScaleTransform ScaleX="0.85" ScaleY="0.85" />
+                </Grid.LayoutTransform>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="1*" />
+                    <RowDefinition Height="1*" />
+                </Grid.RowDefinitions>
+                <Border
+                    Grid.Row="0"
+                    Margin="8,4,8,4"
+                    BorderBrush="#D9D9D9"
+                    BorderThickness="1.5"
+                    CornerRadius="8">
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1.3*" />
+                            <ColumnDefinition Width="4*" />
+                            <ColumnDefinition Width="4*" />
+                            <ColumnDefinition Width="4*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Background="#D9D9D9">
+                            <StackPanel
+                                Grid.Column="0"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Orientation="Vertical">
+
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="22"
+                                    FontWeight="SemiBold"
+                                    Text="CH1" />
+                                <Border
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    Width="80"
+                                    Height="50"
+                                    Margin="0,10,0,0"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="8">
+                                    <Button
+                                        Command="{Binding ToggleOutputForChannelCommand}"
+                                        CommandParameter="1"
+                                        Content="输出"
+                                        FontSize="18">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="White"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                        <StackPanel Grid.Column="1" Orientation="Vertical">
+                            <TextBlock
+                                Margin="10"
+                                FontSize="22"
+                                FontWeight="SemiBold"
+                                Text="输出参数" />
+                            <StackPanel
+                                Margin="15,0,0,0"
+                                Orientation="Horizontal"
+                                Visibility="{Binding Ch1ShowAmplitude, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="幅度：" />
+                                <Border
+                                    Width="200"
+                                    Height="32"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <Grid>
+                                        <TextBox
+                                            Margin="10,0,35,0"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="18"
+                                            Text="{Binding Ch1AmplitudeVpp, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock
+                                            Margin="0,0,10,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Foreground="Black"
+                                            Text="V" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel
+                                Margin="15,10,0,0"
+                                Orientation="Horizontal"
+                                Visibility="{Binding Ch1ShowFrequency, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="频率：" />
+                                <Border
+                                    Width="200"
+                                    Height="32"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <Grid>
+                                        <TextBox
+                                            Margin="10,0,35,0"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="18"
+                                            Text="{Binding Ch1FrequencyHz, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock
+                                            Margin="0,0,10,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Foreground="Black"
+                                            Text="Hz" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel
+                                Margin="15,10,0,0"
+                                Orientation="Horizontal"
+                                Visibility="{Binding Ch1ShowOffset, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="偏置：" />
+                                <Border
+                                    Width="200"
+                                    Height="32"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <Grid>
+                                        <TextBox
+                                            Margin="10,0,35,0"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="18"
+                                            Text="{Binding Ch1OffsetV, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock
+                                            Margin="0,0,10,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Foreground="Black"
+                                            Text="V" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel
+                                Margin="15,10,0,0"
+                                Orientation="Horizontal"
+                                Visibility="{Binding Ch1ShowDuty, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="占空比：" />
+                                <Border
+                                    Width="183"
+                                    Height="32"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <Grid>
+                                        <TextBox
+                                            Margin="10,0,35,0"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="18"
+                                            Text="{Binding Ch1DutyPercent, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock
+                                            Margin="0,0,10,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Foreground="Black"
+                                            Text="%" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel
+                                Margin="15,10,0,0"
+                                Orientation="Horizontal"
+                                Visibility="{Binding Ch1ShowPhase, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="相位：" />
+                                <Border
+                                    Width="200"
+                                    Height="32"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <Grid>
+                                        <TextBox
+                                            Margin="10,0,35,0"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="18"
+                                            Text="{Binding Ch1PhaseDeg, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock
+                                            Margin="0,0,10,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Foreground="Black"
+                                            Text="°" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel
+                                Margin="15,10,0,0"
+                                Orientation="Horizontal"
+                                Visibility="{Binding Ch1ShowSymmetry, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="对称性：" />
+                                <Border
+                                    Width="183"
+                                    Height="32"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <Grid>
+                                        <TextBox
+                                            Margin="10,0,35,0"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="18"
+                                            Text="{Binding Ch1SymmetryPercent, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock
+                                            Margin="0,0,10,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Foreground="Black"
+                                            Text="%" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock
+                                Margin="10"
+                                FontSize="22"
+                                FontWeight="SemiBold"
+                                Text="输出模式" />
+                            <Grid Margin="20,10,15,20">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="1*" />
+                                    <RowDefinition Height="1*" />
+                                    <RowDefinition Height="1*" />
+                                    <RowDefinition Height="1*" />
+                                    <RowDefinition Height="1*" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*" />
+                                    <ColumnDefinition Width="1*" />
+                                </Grid.ColumnDefinitions>
+                                <Border
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    Width="100"
+                                    Height="60"
+                                    Margin="0,0,0,12"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="8">
+                                    <Button
+                                        Command="{Binding SelectWaveformTypeCommand}"
+                                        CommandParameter="1|SIN"
+                                        Content="正弦波"
+                                        FontSize="18">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="White"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding Ch1SelectedWaveformType}" Value="SIN">
+                                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                                    </DataTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    Width="100"
+                                    Height="60"
+                                    Margin="0,0,0,12"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="8">
+                                    <Button
+                                        Command="{Binding SelectWaveformTypeCommand}"
+                                        CommandParameter="1|SQU"
+                                        Content="方波"
+                                        FontSize="18">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="White"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding Ch1SelectedWaveformType}" Value="SQU">
+                                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                                    </DataTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Grid.Row="1"
+                                    Grid.Column="0"
+                                    Width="100"
+                                    Height="60"
+                                    Margin="0,0,0,12"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="8">
+                                    <Button
+                                        Command="{Binding SelectWaveformTypeCommand}"
+                                        CommandParameter="1|RAMP"
+                                        Content="三角波"
+                                        FontSize="18">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="White"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding Ch1SelectedWaveformType}" Value="RAMP">
+                                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                                    </DataTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Grid.Row="1"
+                                    Grid.Column="1"
+                                    Width="100"
+                                    Height="60"
+                                    Margin="0,0,0,12"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="8">
+                                    <Button
+                                        Command="{Binding SelectWaveformTypeCommand}"
+                                        CommandParameter="1|PULS"
+                                        Content="脉冲"
+                                        FontSize="18">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="White"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding Ch1SelectedWaveformType}" Value="PULS">
+                                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                                    </DataTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Grid.Row="2"
+                                    Grid.Column="0"
+                                    Width="100"
+                                    Height="60"
+                                    Margin="0,0,0,12"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="8">
+                                    <Button
+                                        Command="{Binding SelectWaveformTypeCommand}"
+                                        CommandParameter="1|NOIS"
+                                        Content="噪声"
+                                        FontSize="18">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="White"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding Ch1SelectedWaveformType}" Value="NOIS">
+                                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                                    </DataTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Grid.Row="2"
+                                    Grid.Column="1"
+                                    Width="100"
+                                    Height="60"
+                                    Margin="0,0,0,12"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="8">
+                                    <Button
+                                        Command="{Binding SelectWaveformTypeCommand}"
+                                        CommandParameter="1|DC"
+                                        Content="直流"
+                                        FontSize="18">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="White"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding Ch1SelectedWaveformType}" Value="DC">
+                                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                                    </DataTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel Grid.Column="3">
+                            <TextBlock
+                                Margin="10"
+                                FontSize="22"
+                                FontWeight="SemiBold"
+                                Text="输出波形" />
+                            <TextBlock
+                                Margin="10,0,10,0"
+                                FontSize="18"
+                                Text="{Binding Ch1WaveformDisplayText}" />
+                            <Border
+                                Width="220"
+                                Height="70"
+                                Margin="10,8,10,0"
+                                Background="#f9fafb"
+                                BorderBrush="#e5e7eb"
+                                BorderThickness="1"
+                                CornerRadius="6">
+                                <Canvas
+                                    Width="220"
+                                    Height="70"
+                                    ClipToBounds="True">
+                                    <Line
+                                        Stroke="#e5e7eb"
+                                        StrokeThickness="1"
+                                        X1="0"
+                                        X2="220"
+                                        Y1="35"
+                                        Y2="35" />
+                                    <Polyline
+                                        Points="{Binding Ch1WaveformPoints}"
+                                        Stroke="#3b82f6"
+                                        StrokeThickness="2" />
+                                </Canvas>
+                            </Border>
+                        </StackPanel>
+
+                    </Grid>
+                </Border>
+                <Border
+                    Grid.Row="1"
+                    Margin="8,4,8,8"
+                    BorderBrush="#D9D9D9"
+                    BorderThickness="1"
+                    CornerRadius="8">
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1.3*" />
+                            <ColumnDefinition Width="4*" />
+                            <ColumnDefinition Width="4*" />
+                            <ColumnDefinition Width="4*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Background="#D9D9D9">
+                            <StackPanel
+                                Grid.Column="0"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Orientation="Vertical">
+
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="22"
+                                    FontWeight="SemiBold"
+                                    Text="CH2" />
+                                <Border
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    Width="80"
+                                    Height="50"
+                                    Margin="0,10,0,0"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="8">
+                                    <Button
+                                        Command="{Binding ToggleOutputForChannelCommand}"
+                                        CommandParameter="2"
+                                        Content="输出"
+                                        FontSize="18">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="White"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                        <StackPanel Grid.Column="1" Orientation="Vertical">
+                            <TextBlock
+                                Margin="10"
+                                FontSize="22"
+                                FontWeight="SemiBold"
+                                Text="输出参数" />
+                            <StackPanel
+                                Margin="15,0,0,0"
+                                Orientation="Horizontal"
+                                Visibility="{Binding Ch2ShowAmplitude, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="幅度：" />
+                                <Border
+                                    Width="200"
+                                    Height="32"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <Grid>
+                                        <TextBox
+                                            Margin="10,0,35,0"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="18"
+                                            Text="{Binding Ch2AmplitudeVpp, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock
+                                            Margin="0,0,10,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Foreground="Black"
+                                            Text="V" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel
+                                Margin="15,10,0,0"
+                                Orientation="Horizontal"
+                                Visibility="{Binding Ch2ShowFrequency, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="频率：" />
+                                <Border
+                                    Width="200"
+                                    Height="32"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <Grid>
+                                        <TextBox
+                                            Margin="10,0,35,0"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="18"
+                                            Text="{Binding Ch2FrequencyHz, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock
+                                            Margin="0,0,10,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Foreground="Black"
+                                            Text="Hz" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel
+                                Margin="15,10,0,0"
+                                Orientation="Horizontal"
+                                Visibility="{Binding Ch2ShowOffset, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="偏置：" />
+                                <Border
+                                    Width="200"
+                                    Height="32"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <Grid>
+                                        <TextBox
+                                            Margin="10,0,35,0"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="18"
+                                            Text="{Binding Ch2OffsetV, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock
+                                            Margin="0,0,10,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Foreground="Black"
+                                            Text="V" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel
+                                Margin="15,10,0,0"
+                                Orientation="Horizontal"
+                                Visibility="{Binding Ch2ShowDuty, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="占空比：" />
+                                <Border
+                                    Width="183"
+                                    Height="32"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <Grid>
+                                        <TextBox
+                                            Margin="10,0,35,0"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="18"
+                                            Text="{Binding Ch2DutyPercent, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock
+                                            Margin="0,0,10,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Foreground="Black"
+                                            Text="%" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel
+                                Margin="15,10,0,0"
+                                Orientation="Horizontal"
+                                Visibility="{Binding Ch2ShowPhase, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="相位：" />
+                                <Border
+                                    Width="200"
+                                    Height="32"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <Grid>
+                                        <TextBox
+                                            Margin="10,0,35,0"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="18"
+                                            Text="{Binding Ch2PhaseDeg, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock
+                                            Margin="0,0,10,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Foreground="Black"
+                                            Text="°" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel
+                                Margin="15,10,0,0"
+                                Orientation="Horizontal"
+                                Visibility="{Binding Ch2ShowSymmetry, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="18"
+                                    Text="对称性：" />
+                                <Border
+                                    Width="183"
+                                    Height="32"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <Grid>
+                                        <TextBox
+                                            Margin="10,0,35,0"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="18"
+                                            Text="{Binding Ch2SymmetryPercent, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock
+                                            Margin="0,0,10,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Foreground="Black"
+                                            Text="%" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock
+                                Margin="10"
+                                FontSize="22"
+                                FontWeight="SemiBold"
+                                Text="输出模式" />
+                            <Grid Margin="20,10,15,20">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="1*" />
+                                    <RowDefinition Height="1*" />
+                                    <RowDefinition Height="1*" />
+                                    <RowDefinition Height="1*" />
+                                    <RowDefinition Height="1*" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*" />
+                                    <ColumnDefinition Width="1*" />
+                                </Grid.ColumnDefinitions>
+                                <Border
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    Width="100"
+                                    Height="60"
+                                    Margin="0,0,0,12"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="8">
+                                    <Button
+                                        Command="{Binding SelectWaveformTypeCommand}"
+                                        CommandParameter="2|SIN"
+                                        Content="正弦波"
+                                        FontSize="18">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="White"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding Ch2SelectedWaveformType}" Value="SIN">
+                                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                                    </DataTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    Width="100"
+                                    Height="60"
+                                    Margin="0,0,0,12"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="8">
+                                    <Button
+                                        Command="{Binding SelectWaveformTypeCommand}"
+                                        CommandParameter="2|SQU"
+                                        Content="方波"
+                                        FontSize="18">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="White"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding Ch2SelectedWaveformType}" Value="SQU">
+                                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                                    </DataTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Grid.Row="1"
+                                    Grid.Column="0"
+                                    Width="100"
+                                    Height="60"
+                                    Margin="0,0,0,12"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="8">
+                                    <Button
+                                        Command="{Binding SelectWaveformTypeCommand}"
+                                        CommandParameter="2|RAMP"
+                                        Content="三角波"
+                                        FontSize="18">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="White"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding Ch2SelectedWaveformType}" Value="RAMP">
+                                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                                    </DataTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Grid.Row="1"
+                                    Grid.Column="1"
+                                    Width="100"
+                                    Height="60"
+                                    Margin="0,0,0,12"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="8">
+                                    <Button
+                                        Command="{Binding SelectWaveformTypeCommand}"
+                                        CommandParameter="2|PULS"
+                                        Content="脉冲"
+                                        FontSize="18">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="White"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding Ch2SelectedWaveformType}" Value="PULS">
+                                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                                    </DataTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Grid.Row="2"
+                                    Grid.Column="0"
+                                    Width="100"
+                                    Height="60"
+                                    Margin="0,0,0,12"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="8">
+                                    <Button
+                                        Command="{Binding SelectWaveformTypeCommand}"
+                                        CommandParameter="2|NOIS"
+                                        Content="噪声"
+                                        FontSize="18">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="White"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding Ch2SelectedWaveformType}" Value="NOIS">
+                                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                                    </DataTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                                <Border
+                                    Grid.Row="2"
+                                    Grid.Column="1"
+                                    Width="100"
+                                    Height="60"
+                                    Margin="0,0,0,12"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="2"
+                                    CornerRadius="8">
+                                    <Button
+                                        Command="{Binding SelectWaveformTypeCommand}"
+                                        CommandParameter="2|DC"
+                                        Content="直流"
+                                        FontSize="18">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="White"
+                                                    BorderBrush="White"
+                                                    BorderThickness="0"
+                                                    CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFBEE6FD" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding Ch2SelectedWaveformType}" Value="DC">
+                                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                                    </DataTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel Grid.Column="3">
+                            <TextBlock
+                                Margin="10"
+                                FontSize="22"
+                                FontWeight="SemiBold"
+                                Text="输出波形" />
+                            <TextBlock
+                                Margin="10,0,10,0"
+                                FontSize="18"
+                                Text="{Binding Ch2WaveformDisplayText}" />
+                            <Border
+                                Width="220"
+                                Height="70"
+                                Margin="10,8,10,0"
+                                Background="#f9fafb"
+                                BorderBrush="#e5e7eb"
+                                BorderThickness="1"
+                                CornerRadius="6">
+                                <Canvas
+                                    Width="220"
+                                    Height="70"
+                                    ClipToBounds="True">
+                                    <Line
+                                        Stroke="#e5e7eb"
+                                        StrokeThickness="1"
+                                        X1="0"
+                                        X2="220"
+                                        Y1="35"
+                                        Y2="35" />
+                                    <Polyline
+                                        Points="{Binding Ch2WaveformPoints}"
+                                        Stroke="#10b981"
+                                        StrokeThickness="2" />
+                                </Canvas>
+                            </Border>
+                        </StackPanel>
+
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+
+</UserControl>
+

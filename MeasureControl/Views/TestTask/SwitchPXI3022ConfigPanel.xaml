@@ -1,0 +1,964 @@
+﻿<UserControl
+    x:Class="MeasureControl.Views.TestTask.SwitchPXI3022ConfigPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:MeasureControl.Helpers"
+    xmlns:local="clr-namespace:MeasureControl.ViewModels.TestTask"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    x:Name="SwitchPXI3022ConfigPanelView"
+    d:DesignHeight="900"
+    d:DesignWidth="1200"
+    Background="White"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!--  转换器  -->
+        <helpers:BoolToColorConverter x:Key="BoolToColorConverter" />
+        <helpers:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
+        <helpers:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <helpers:NodeConnectionStateConverter x:Key="NodeConnectionStateConverter" />
+        <helpers:NodeIdToNumberConverter x:Key="NodeIdToNumberConverter" />
+
+        <!--  样式  -->
+        <Style x:Key="HeaderTextStyle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="CardButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="MinWidth" Value="80" />
+            <Setter Property="Margin" Value="5,0" />
+        </Style>
+
+
+        <!--  矩阵节点样式（移除彩色圈）- 简化版  -->
+        <Style x:Key="MatrixNodeStyle" TargetType="Ellipse">
+            <Setter Property="Width" Value="20" />
+            <Setter Property="Height" Value="20" />
+            <Setter Property="StrokeThickness" Value="0" />
+            <Setter Property="Fill" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="ToolTip" Value="{Binding ToolTipText}" />
+            <!--  移除所有颜色相关的触发器，仅保留交互功能  -->
+            <Style.Triggers>
+                <!--  选中状态  -->
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect
+                                BlurRadius="10"
+                                ShadowDepth="0"
+                                Color="#FF9800" />
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+                <!--  悬停状态  -->
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="1" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!--  交叉点样式  -->
+        <Style x:Key="CrossPointStyle" TargetType="Ellipse">
+            <Setter Property="Stroke" Value="#9E9E9E" />
+            <Setter Property="StrokeThickness" Value="1.5" />
+            <Setter Property="Fill" Value="White" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="ToolTipService.ShowDuration" Value="30000" />
+            <Setter Property="ToolTip">
+                <Setter.Value>
+                    <ToolTip
+                        Background="White"
+                        BorderBrush="#CCCCCC"
+                        BorderThickness="1"
+                        Content="{Binding ToolTipText}"
+                        FontSize="11" />
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <!--  鼠标悬停效果  -->
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Stroke" Value="#2196F3" />
+                    <Setter Property="StrokeThickness" Value="2.5" />
+                </Trigger>
+                <!--  已连接状态  -->
+                <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                    <Setter Property="Fill" Value="#4CAF50" />
+                    <Setter Property="Stroke" Value="#45A049" />
+                    <Setter Property="StrokeThickness" Value="2" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!--  网格线样式  -->
+        <Style x:Key="GridLineStyle" TargetType="Line">
+            <Setter Property="Stroke" Value="#CCCCCC" />
+            <Setter Property="StrokeThickness" Value="2" />
+            <Setter Property="Opacity" Value="0.7" />
+        </Style>
+
+        <!--  延长线样式  -->
+        <Style x:Key="ExtensionLineStyle" TargetType="Line">
+            <Setter Property="StrokeThickness" Value="1.5" />
+            <Setter Property="StrokeDashArray" Value="3,2" />
+            <Setter Property="Opacity" Value="0.8" />
+        </Style>
+
+    </UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!--  顶部工具栏  -->
+        <Border
+            Grid.Row="0"
+            Margin="10,8,10,4"
+            Background="White"
+            BorderBrush="#D9D9D9"
+            BorderThickness="1.5"
+            CornerRadius="8">
+            <StackPanel Margin="10,5,0,5" Orientation="Horizontal">
+                <TextBlock
+                    x:Name="Card_class"
+                    Margin="5,0,0,0"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    FontWeight="Bold"
+                    Text="PXI-3022 配置" />
+                <TextBlock
+                    Margin="10,0,0,0"
+                    VerticalAlignment="Center"
+                    FontSize="14"
+                    Text="板卡名称：" />
+                <Border
+                    Width="100"
+                    Height="28"
+                    Margin="5,0,0,0"
+                    VerticalAlignment="Center"
+                    BorderBrush="#D9D9D9"
+                    BorderThickness="1"
+                    CornerRadius="3">
+                    <TextBox
+                        x:Name="CardNameTextBox"
+                        Margin="5,0,0,0"
+                        VerticalAlignment="Center"
+                        BorderThickness="0"
+                        LostFocus="CardNameTextBox_LostFocus"
+                        Text="{Binding CardName, UpdateSourceTrigger=PropertyChanged}" />
+                </Border>
+
+                <StackPanel Margin="0,0,20,0" Orientation="Horizontal">
+                    <TextBlock
+                        Margin="10,0,5,0"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="拓扑：" />
+
+                    <TextBox
+                        Margin="5,0,0,0"
+                        VerticalAlignment="Center"
+                        BorderThickness="0"
+                        Text="{Binding Topology, UpdateSourceTrigger=PropertyChanged}" />
+
+
+                </StackPanel>
+                <!--  简化版连接状态  -->
+                <StackPanel Margin="10,0,0,0" Orientation="Horizontal">
+                    <TextBlock
+                        Width="62"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="连接状态：" />
+                    <Grid
+                        Width="18"
+                        Height="18"
+                        Margin="5,0,0,0">
+                        <Ellipse
+                            Width="18"
+                            Height="18"
+                            Stroke="#d1d5db"
+                            StrokeThickness="0.5" />
+                        <Ellipse
+                            Width="16"
+                            Height="16"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill">
+                                        <Setter.Value>
+                                            <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                <GradientStop Offset="0" Color="#ff6b6b" />
+                                                <GradientStop Offset="1" Color="#b91c1c" />
+                                            </RadialGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <!--  绿色（在线）  -->
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsDeviceConnected}" Value="True">
+                                            <Setter Property="Fill">
+                                                <Setter.Value>
+                                                    <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                        <GradientStop Offset="0" Color="#4ade80" />
+                                                        <GradientStop Offset="1" Color="#16a34a" />
+                                                    </RadialGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                    </Grid>
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="{Binding ConnectionStatus}" />
+                </StackPanel>
+                <Border Margin="5,0,0,0">
+                    <Button
+                        Width="80"
+                        Height="28"
+                        Margin="30,0,5,0"
+                        Background="#3b82f6"
+                        BorderThickness="0"
+                        Command="{Binding ToggleDeviceCommand}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border
+                                    x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="4">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                        <!--  图标  -->
+                                        <Image
+                                            x:Name="DeviceImage"
+                                            Width="15"
+                                            Height="15"
+                                            Margin="0,0,5,0"
+                                            Source="/Resources/Logo/export.png" />
+                                        <!--  文字  -->
+                                        <TextBlock
+                                            x:Name="DeviceAction"
+                                            VerticalAlignment="Center"
+                                            Foreground="White"
+                                            Text="{Binding ConnectButtonText}" />
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <!--  鼠标悬停效果  -->
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                    </Trigger>
+
+                                    <!--  按下效果  -->
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                    </Trigger>
+
+                                    <!--  根据IsDeviceConnected设置样式  -->
+                                    <DataTrigger Binding="{Binding IsDeviceConnected}" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                        <Setter TargetName="DeviceImage" Property="Source" Value="/Resources/Logo/import.png" />
+                                    </DataTrigger>
+
+                                    <!--  确保离线状态样式  -->
+                                    <DataTrigger Binding="{Binding IsDeviceConnected}" Value="False">
+                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                        <Setter TargetName="DeviceImage" Property="Source" Value="/Resources/Logo/export.png" />
+                                    </DataTrigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Border>
+                <StackPanel
+                    Grid.Column="2"
+                    HorizontalAlignment="Right"
+                    Orientation="Horizontal">
+
+                    <!--  全部断开按钮 - 新样式  -->
+                    <Button
+                        Width="80"
+                        Height="28"
+                        Margin="5,0"
+                        Background="#3b82f6"
+                        BorderThickness="0"
+                        Command="{Binding DisconnectAllCommand}"
+                        IsEnabled="{Binding IsDeviceConnected}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border
+                                    x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="4">
+                                    <TextBlock
+                                        Margin="5,0,5,0"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Foreground="White"
+                                        Text="全部断开" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                        <Setter TargetName="border" Property="Opacity" Value="0.6" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <Border
+            Grid.Row="1"
+            Margin="10,4,10,8"
+            Background="White"
+            BorderBrush="#D9D9D9"
+            BorderThickness="1.5"
+            CornerRadius="8">
+            <TabControl
+                Margin="6"
+                Background="Transparent"
+                BorderThickness="0">
+                <!--  选项卡1: 矩阵拓扑视图(上半)  -->
+                <TabItem Header="拓扑视图(上半)">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!--  矩阵拓扑结构可视化  -->
+                        <Border
+                            Grid.Row="0"
+                            Background="White"
+                            BorderBrush="#E0E0E0"
+                            BorderThickness="1"
+                            CornerRadius="5"
+                            SizeChanged="MatrixContainer_SizeChanged">
+                            <ScrollViewer
+                                x:Name="TopologyScrollViewer1"
+                                HorizontalScrollBarVisibility="Auto"
+                                VerticalScrollBarVisibility="Auto">
+                                <!--  动态绑定画布尺寸  -->
+                                <Canvas
+                                    x:Name="TopologyCanvas"
+                                    Width="{Binding ElementName=TopologyScrollViewer1, Path=ViewportWidth, Mode=OneWay}"
+                                    Height="{Binding CanvasHeight}"
+                                    Background="White"
+                                    Loaded="TopologyCanvas_Loaded"
+                                    SizeChanged="TopologyCanvas_SizeChanged">
+
+                                    <!--  水平线（4条输入线）  -->
+                                    <ItemsControl ItemsSource="{Binding HorizontalLinesPage1}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Line
+                                                    Opacity="0.7"
+                                                    Stroke="#CCCCCC"
+                                                    StrokeThickness="2"
+                                                    X1="{Binding StartX}"
+                                                    X2="{Binding EndX}"
+                                                    Y1="{Binding StartY}"
+                                                    Y2="{Binding EndY}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!--  垂直线（32条输出线）  -->
+                                    <ItemsControl ItemsSource="{Binding VerticalLinesPage1}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Line
+                                                    Opacity="0.7"
+                                                    Stroke="#CCCCCC"
+                                                    StrokeThickness="2"
+                                                    X1="{Binding StartX}"
+                                                    X2="{Binding EndX}"
+                                                    Y1="{Binding StartY}"
+                                                    Y2="{Binding EndY}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!--  交叉点网格  -->
+                                    <ItemsControl ItemsSource="{Binding CrossPointsPage1}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <!--  交叉点圆圈  -->
+                                                    <Ellipse
+                                                        Width="{Binding Size}"
+                                                        Height="{Binding Size}"
+                                                        MouseEnter="CrossPoint_MouseEnter"
+                                                        MouseLeave="CrossPoint_MouseLeave"
+                                                        MouseLeftButtonDown="CrossPoint_MouseLeftButtonDown"
+                                                        Style="{StaticResource CrossPointStyle}">
+
+                                                        <!--  添加右键菜单 - 只在交叉点上添加  -->
+                                                        <Ellipse.ContextMenu>
+                                                            <ContextMenu>
+                                                                <!--  断开连接菜单项（仅在已连接时显示）  -->
+                                                                <MenuItem
+                                                                    Command="{Binding DataContext.DisconnectCrossPointCommand, Source={x:Reference Name=SwitchPXI3022ConfigPanelView}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Header="断开连接">
+                                                                    <MenuItem.Style>
+                                                                        <Style TargetType="MenuItem">
+                                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                                            <Setter Property="Foreground" Value="#F44336" />
+                                                                            <Setter Property="FontWeight" Value="Bold" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </MenuItem.Style>
+                                                                </MenuItem>
+
+                                                                <!--  连接此交叉点菜单项（仅在未连接时显示）  -->
+                                                                <MenuItem
+                                                                    Command="{Binding DataContext.ConnectCrossPointCommand, Source={x:Reference Name=SwitchPXI3022ConfigPanelView}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Header="连接此交叉点">
+                                                                    <MenuItem.Style>
+                                                                        <Style TargetType="MenuItem">
+                                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                                            <Setter Property="Foreground" Value="#2196F3" />
+                                                                            <Setter Property="FontWeight" Value="Bold" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsConnected}" Value="False">
+                                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </MenuItem.Style>
+                                                                </MenuItem>
+                                                            </ContextMenu>
+                                                        </Ellipse.ContextMenu>
+                                                    </Ellipse>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="Canvas.Left" Value="{Binding X}" />
+                                                <Setter Property="Canvas.Top" Value="{Binding Y}" />
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                    </ItemsControl>
+
+                                    <!--  矩阵节点（输入/输出小圆圈）- 空心样式  -->
+                                    <ItemsControl ItemsSource="{Binding MatrixNodesPage1}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <!--  节点圆圈 - 空心  -->
+                                                    <Ellipse
+                                                        Width="20"
+                                                        Height="20"
+                                                        MouseEnter="MatrixNode_MouseEnter"
+                                                        MouseLeave="MatrixNode_MouseLeave"
+                                                        MouseLeftButtonDown="MatrixNode_MouseLeftButtonDown"
+                                                        MouseRightButtonDown="MatrixNode_MouseRightButtonDown"
+                                                        Style="{StaticResource MatrixNodeStyle}" />
+
+                                                    <!--  节点编号（显示完整ID：r0, c0格式，深灰色）  -->
+                                                    <TextBlock
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="11"
+                                                        FontWeight="Normal"
+                                                        Foreground="#444444"
+                                                        Text="{Binding NodeId}">
+                                                        <!--  根据节点类型设置不同的平移效果  -->
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <!--  默认样式（输出节点向上平移更多）  -->
+                                                                <Setter Property="Margin" Value="0,-6,0,0" />
+                                                                <!--  输入节点向左平移更多  -->
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding NodeType}" Value="Input">
+                                                                        <Setter Property="HorizontalAlignment" Value="Right" />
+                                                                        <Setter Property="Margin" Value="-8,-2,0,0" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="Canvas.Left" Value="{Binding DisplayX}" />
+                                                <Setter Property="Canvas.Top" Value="{Binding DisplayY}" />
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                    </ItemsControl>
+                                </Canvas>
+                            </ScrollViewer>
+                        </Border>
+
+                        <!--  图例和说明  -->
+                        <Border
+                            Grid.Row="1"
+                            Margin="0,8,0,0"
+                            Padding="10"
+                            Background="#F8F8F8"
+                            BorderBrush="#E0E0E0"
+                            BorderThickness="1"
+                            CornerRadius="5">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!--  图例  -->
+                                <StackPanel Grid.Column="0" Orientation="Vertical">
+                                    <TextBlock
+                                        Margin="0,0,0,5"
+                                        FontWeight="Bold"
+                                        Text="图例" />
+                                    <WrapPanel>
+                                        <StackPanel Margin="0,2,10,2" Orientation="Horizontal">
+                                            <Line
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                Stroke="#CCCCCC"
+                                                StrokeDashArray="5,2"
+                                                StrokeThickness="2"
+                                                X1="0"
+                                                X2="20"
+                                                Y1="6"
+                                                Y2="6" />
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                Text="{Binding InputLineText}" />
+                                        </StackPanel>
+
+                                        <StackPanel Margin="0,2,10,2" Orientation="Horizontal">
+                                            <Line
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                Stroke="#CCCCCC"
+                                                StrokeDashArray="5,2"
+                                                StrokeThickness="2"
+                                                X1="10"
+                                                X2="10"
+                                                Y1="0"
+                                                Y2="20" />
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                Text="输出线 (c0-c31)" />
+                                        </StackPanel>
+
+                                        <StackPanel Margin="0,2,10,2" Orientation="Horizontal">
+                                            <Ellipse
+                                                Width="12"
+                                                Height="12"
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                Fill="White"
+                                                Stroke="#9E9E9E"
+                                                StrokeThickness="1" />
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                Text="交叉点(未连接)" />
+                                        </StackPanel>
+
+                                        <StackPanel Margin="0,2,10,2" Orientation="Horizontal">
+                                            <Ellipse
+                                                Width="12"
+                                                Height="12"
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                Fill="#4CAF50" />
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                Text="交叉点(已连接)" />
+                                        </StackPanel>
+                                    </WrapPanel>
+                                </StackPanel>
+
+                                <!--  统计信息  -->
+                                <StackPanel
+                                    Grid.Column="2"
+                                    VerticalAlignment="Center"
+                                    Orientation="Horizontal">
+                                    <StackPanel Margin="3,0" Orientation="Horizontal">
+                                        <TextBlock
+                                            Margin="0,0,5,0"
+                                            VerticalAlignment="Center"
+                                            Text="连接次数:" />
+                                        <TextBlock
+                                            Margin="0,0,30,0"
+                                            VerticalAlignment="Center"
+                                            FontWeight="Bold"
+                                            Foreground="Green"
+                                            Text="{Binding TotalConnectionCount}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </TabItem>
+
+                <!--  选项卡2: 拓扑视图(下半)  -->
+                <TabItem Header="拓扑视图(下半)">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!--  矩阵拓扑结构可视化  -->
+                        <Border
+                            Grid.Row="0"
+                            Background="White"
+                            BorderBrush="#E0E0E0"
+                            BorderThickness="1"
+                            CornerRadius="5"
+                            SizeChanged="MatrixContainer_SizeChanged">
+                            <ScrollViewer
+                                x:Name="TopologyScrollViewer2"
+                                HorizontalScrollBarVisibility="Auto"
+                                VerticalScrollBarVisibility="Auto">
+                                <!--  动态绑定画布尺寸  -->
+                                <Canvas
+                                    x:Name="TopologyCanvas2"
+                                    Width="{Binding ElementName=TopologyScrollViewer2, Path=ViewportWidth, Mode=OneWay}"
+                                    Height="{Binding CanvasHeight}"
+                                    Background="White"
+                                    Loaded="TopologyCanvas2_Loaded"
+                                    SizeChanged="TopologyCanvas2_SizeChanged">
+
+                                    <!--  水平线（4条输入线）  -->
+                                    <ItemsControl ItemsSource="{Binding HorizontalLinesPage2}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Line
+                                                    Opacity="0.7"
+                                                    Stroke="#CCCCCC"
+                                                    StrokeThickness="2"
+                                                    X1="{Binding StartX}"
+                                                    X2="{Binding EndX}"
+                                                    Y1="{Binding StartY}"
+                                                    Y2="{Binding EndY}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!--  垂直线（32条输出线）  -->
+                                    <ItemsControl ItemsSource="{Binding VerticalLinesPage2}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Line
+                                                    Opacity="0.7"
+                                                    Stroke="#CCCCCC"
+                                                    StrokeThickness="2"
+                                                    X1="{Binding StartX}"
+                                                    X2="{Binding EndX}"
+                                                    Y1="{Binding StartY}"
+                                                    Y2="{Binding EndY}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!--  交叉点网格  -->
+                                    <ItemsControl ItemsSource="{Binding CrossPointsPage2}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <!--  交叉点圆圈  -->
+                                                    <Ellipse
+                                                        Width="{Binding Size}"
+                                                        Height="{Binding Size}"
+                                                        MouseEnter="CrossPoint_MouseEnter"
+                                                        MouseLeave="CrossPoint_MouseLeave"
+                                                        MouseLeftButtonDown="CrossPoint_MouseLeftButtonDown"
+                                                        Style="{StaticResource CrossPointStyle}">
+
+                                                        <!--  添加右键菜单 - 只在交叉点上添加  -->
+                                                        <Ellipse.ContextMenu>
+                                                            <ContextMenu>
+                                                                <!--  断开连接菜单项（仅在已连接时显示）  -->
+                                                                <MenuItem
+                                                                    Command="{Binding DataContext.DisconnectCrossPointCommand, Source={x:Reference Name=SwitchPXI3022ConfigPanelView}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Header="断开连接">
+                                                                    <MenuItem.Style>
+                                                                        <Style TargetType="MenuItem">
+                                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                                            <Setter Property="Foreground" Value="#F44336" />
+                                                                            <Setter Property="FontWeight" Value="Bold" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </MenuItem.Style>
+                                                                </MenuItem>
+
+                                                                <!--  连接此交叉点菜单项（仅在未连接时显示）  -->
+                                                                <MenuItem
+                                                                    Command="{Binding DataContext.ConnectCrossPointCommand, Source={x:Reference Name=SwitchPXI3022ConfigPanelView}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Header="连接此交叉点">
+                                                                    <MenuItem.Style>
+                                                                        <Style TargetType="MenuItem">
+                                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                                            <Setter Property="Foreground" Value="#2196F3" />
+                                                                            <Setter Property="FontWeight" Value="Bold" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsConnected}" Value="False">
+                                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </MenuItem.Style>
+                                                                </MenuItem>
+                                                            </ContextMenu>
+                                                        </Ellipse.ContextMenu>
+                                                    </Ellipse>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="Canvas.Left" Value="{Binding X}" />
+                                                <Setter Property="Canvas.Top" Value="{Binding Y}" />
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                    </ItemsControl>
+
+                                    <!--  矩阵节点（输入/输出小圆圈）- 空心样式  -->
+                                    <ItemsControl ItemsSource="{Binding MatrixNodesPage2}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <!--  节点圆圈 - 空心  -->
+                                                    <Ellipse
+                                                        Width="20"
+                                                        Height="20"
+                                                        MouseEnter="MatrixNode_MouseEnter"
+                                                        MouseLeave="MatrixNode_MouseLeave"
+                                                        MouseLeftButtonDown="MatrixNode_MouseLeftButtonDown"
+                                                        MouseRightButtonDown="MatrixNode_MouseRightButtonDown"
+                                                        Style="{StaticResource MatrixNodeStyle}" />
+
+                                                    <!--  节点编号（显示完整ID：r0, c0格式，深灰色）  -->
+                                                    <TextBlock
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="11"
+                                                        FontWeight="Normal"
+                                                        Foreground="#444444"
+                                                        Text="{Binding NodeId}">
+                                                        <!--  根据节点类型设置不同的平移效果  -->
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <!--  默认样式（输出节点向上平移更多）  -->
+                                                                <Setter Property="Margin" Value="0,-6,0,0" />
+                                                                <!--  输入节点向左平移更多  -->
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding NodeType}" Value="Input">
+                                                                        <Setter Property="HorizontalAlignment" Value="Right" />
+                                                                        <Setter Property="Margin" Value="-8,-2,0,0" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="Canvas.Left" Value="{Binding DisplayX}" />
+                                                <Setter Property="Canvas.Top" Value="{Binding DisplayY}" />
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                    </ItemsControl>
+                                </Canvas>
+                            </ScrollViewer>
+                        </Border>
+
+                        <!--  图例和说明  -->
+                        <Border
+                            Grid.Row="1"
+                            Margin="0,8,0,0"
+                            Padding="10"
+                            Background="#F8F8F8"
+                            BorderBrush="#E0E0E0"
+                            BorderThickness="1"
+                            CornerRadius="5">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!--  图例  -->
+                                <StackPanel Grid.Column="0" Orientation="Vertical">
+                                    <TextBlock
+                                        Margin="0,0,0,5"
+                                        FontWeight="Bold"
+                                        Text="图例" />
+                                    <WrapPanel>
+                                        <StackPanel Margin="0,2,10,2" Orientation="Horizontal">
+                                            <Line
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                Stroke="#CCCCCC"
+                                                StrokeDashArray="5,2"
+                                                StrokeThickness="2"
+                                                X1="0"
+                                                X2="20"
+                                                Y1="6"
+                                                Y2="6" />
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                Text="{Binding InputLineText}" />
+                                        </StackPanel>
+
+                                        <StackPanel Margin="0,2,10,2" Orientation="Horizontal">
+                                            <Line
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                Stroke="#CCCCCC"
+                                                StrokeDashArray="5,2"
+                                                StrokeThickness="2"
+                                                X1="10"
+                                                X2="10"
+                                                Y1="0"
+                                                Y2="20" />
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                Text="输出线 (c32-c63)" />
+                                        </StackPanel>
+
+                                        <StackPanel Margin="0,2,10,2" Orientation="Horizontal">
+                                            <Ellipse
+                                                Width="12"
+                                                Height="12"
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                Fill="White"
+                                                Stroke="#9E9E9E"
+                                                StrokeThickness="1" />
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                Text="交叉点(未连接)" />
+                                        </StackPanel>
+
+                                        <StackPanel Margin="0,2,10,2" Orientation="Horizontal">
+                                            <Ellipse
+                                                Width="12"
+                                                Height="12"
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                Fill="#4CAF50" />
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                Text="交叉点(已连接)" />
+                                        </StackPanel>
+                                    </WrapPanel>
+                                </StackPanel>
+
+                                <!--  统计信息  -->
+                                <StackPanel
+                                    Grid.Column="2"
+                                    VerticalAlignment="Center"
+                                    Orientation="Horizontal">
+                                    <StackPanel Margin="3,0" Orientation="Horizontal">
+                                        <TextBlock
+                                            Margin="0,0,5,0"
+                                            VerticalAlignment="Center"
+                                            Text="连接次数:" />
+                                        <TextBlock
+                                            Margin="0,0,30,0"
+                                            VerticalAlignment="Center"
+                                            FontWeight="Bold"
+                                            Foreground="Green"
+                                            Text="{Binding TotalConnectionCount}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </TabItem>
+
+
+            </TabControl>
+        </Border>
+    </Grid>
+</UserControl>

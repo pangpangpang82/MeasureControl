@@ -1,0 +1,59 @@
+﻿<UserControl
+    x:Class="MeasureControl.Views.TestControl.LampControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:MeasureControl.Views.TestControl"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    d:DesignHeight="64"
+    d:DesignWidth="64"
+    mc:Ignorable="d">
+    <Grid>
+        <!--  外圈边框  -->
+        <Ellipse
+            x:Name="OuterRing"
+            Width="64"
+            Height="64"
+            Fill="Transparent"
+            Stroke="#d1d5db"
+            StrokeThickness="1" />
+
+        <!--  指示灯主体  -->
+        <Ellipse
+            x:Name="LampBody"
+            Width="54"
+            Height="54"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+            <Ellipse.Fill>
+                <RadialGradientBrush GradientOrigin="0.3,0.3">
+                    <GradientStop x:Name="LampColorLight" Offset="0" Color="#ff6b6b" />
+                    <GradientStop x:Name="LampColorDark" Offset="1" Color="#dc2626" />
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+            <Ellipse.Effect>
+                <DropShadowEffect
+                    x:Name="GlowEffect"
+                    BlurRadius="8"
+                    Opacity="0.5"
+                    ShadowDepth="0"
+                    Color="#dc2626" />
+            </Ellipse.Effect>
+        </Ellipse>
+
+        <!--  高光效果  -->
+        <Ellipse
+            Width="23"
+            Height="16"
+            Margin="-16,-24,0,0"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+            <Ellipse.Fill>
+                <RadialGradientBrush>
+                    <GradientStop Offset="0" Color="#80FFFFFF" />
+                    <GradientStop Offset="1" Color="#00FFFFFF" />
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+        </Ellipse>
+    </Grid>
+</UserControl>
