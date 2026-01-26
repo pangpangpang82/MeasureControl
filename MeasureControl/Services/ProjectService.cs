@@ -101,6 +101,8 @@ namespace MeasureControl.Services
 
                 CurrentProjectRoot = rootNode;
 
+                ApplyFixedChassisLayoutTemplateIfNeeded(rootNode);
+
                 Debug.WriteLine($"[Project] Creating HardwareConfig...");
                 var HardwareConfig = new ProjectItem
                 {
@@ -233,6 +235,279 @@ namespace MeasureControl.Services
                 }
                 throw new Exception($"创建项目失败: {ex.Message}", ex);
             }
+        }
+
+        private class FixedLayoutTemplate
+        {
+            [JsonProperty("version")]
+            public int Version { get; set; }
+
+            [JsonProperty("chassisTemplates")]
+            public List<FixedChassisTemplate> ChassisTemplates { get; set; }
+        }
+
+        private class FixedChassisTemplate
+        {
+            [JsonProperty("chassisType")]
+            public string ChassisType { get; set; }
+
+            [JsonProperty("chassisName")]
+            public string ChassisName { get; set; }
+
+            [JsonProperty("gridRow")]
+            public int GridRow { get; set; }
+
+            [JsonProperty("gridColumn")]
+            public int GridColumn { get; set; }
+
+            [JsonProperty("slots")]
+            public List<FixedSlotTemplate> Slots { get; set; }
+        }
+
+        private class FixedSlotTemplate
+        {
+            [JsonProperty("slot")]
+            public string Slot { get; set; }
+
+            [JsonProperty("device")]
+            public string Device { get; set; }
+        }
+
+        private void ApplyFixedChassisLayoutTemplateIfNeeded(ProjectItem rootNode)
+        {
+            if (rootNode == null)
+            {
+                return;
+            }
+
+            rootNode.PxiChassisData ??= new ObservableCollection<ChassisModel>();
+            if (rootNode.PxiChassisData.Count > 0)
+            {
+                return;
+            }
+
+            var template = LoadOrCreateFixedLayoutTemplate();
+
+            if (template?.ChassisTemplates == null || template.ChassisTemplates.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var chassisTemplate in template.ChassisTemplates.Where(t => t != null))
+            {
+                if (string.IsNullOrWhiteSpace(chassisTemplate.ChassisName) || string.IsNullOrWhiteSpace(chassisTemplate.ChassisType))
+                {
+                    continue;
+                }
+
+                var chassis = ChassisFactory.CreateChassis(chassisTemplate.ChassisType, chassisTemplate.ChassisName, chassisTemplate.GridRow, chassisTemplate.GridColumn);
+                if (chassis == null)
+                {
+                    continue;
+                }
+
+                chassis.Devices ??= new ObservableCollection<Models.Devices.DeviceBase>();
+                var chassisDevice = chassis.Devices.OfType<Models.Devices.ChassisDevice>().FirstOrDefault();
+                if (chassisDevice == null)
+                {
+                    chassisDevice = new Models.Devices.ChassisDevice(chassis.Model ?? chassis.Name)
+                    {
+                        CardName = chassis.Name,
+                        SlotCount = chassis.SlotCount,
+                        ParentNode = $"{chassis.SlotCount}槽机箱",
+                        ConnectionMethod = "详细信息",
+                        Details = "详细信息",
+                        DeviceType = AppConstants.DeviceTypeChassis,
+                        Status = "正常",
+                        IsExpanded = true,
+                        Model = chassis.Model,
+                        ChassisModel = chassis.Model,
+                        Children = new ObservableCollection<Models.Devices.DeviceBase>()
+                    };
+                    chassis.Devices.Add(chassisDevice);
+                }
+                else
+                {
+                    chassisDevice.Children ??= new ObservableCollection<Models.Devices.DeviceBase>();
+                }
+
+                if (chassisTemplate.Slots != null)
+                {
+                    chassisDevice.Children.Clear();
+                    foreach (var slot in chassisTemplate.Slots)
+                    {
+                        var name = slot?.Device ?? string.Empty;
+                        var pos = slot?.Slot ?? string.Empty;
+
+                        var device = Helpers.DeviceFactory.CreateDevice(name, pos);
+                        if (device == null)
+                        {
+                            continue;
+                        }
+
+                        chassisDevice.Children.Add(device);
+                    }
+                }
+
+                rootNode.PxiChassisData.Add(chassis);
+            }
+        }
+
+        private static FixedLayoutTemplate LoadOrCreateFixedLayoutTemplate()
+        {
+            var runtimePath = GetFixedLayoutTemplateRuntimePath();
+            var candidatePaths = new List<string>();
+            if (!string.IsNullOrWhiteSpace(runtimePath))
+            {
+                candidatePaths.Add(runtimePath);
+            }
+
+            var sourcePath = GetFixedLayoutTemplateSourcePath();
+            if (!string.IsNullOrWhiteSpace(sourcePath))
+            {
+                candidatePaths.Add(sourcePath);
+            }
+
+            foreach (var path in candidatePaths.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var json = File.ReadAllText(path);
+                    var template = JsonConvert.DeserializeObject<FixedLayoutTemplate>(json);
+                    if (template?.ChassisTemplates != null && template.ChassisTemplates.Count > 0)
+                    {
+                        return template;
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            // fallback: in-code default template
+            var fallbackTemplate = CreateDefaultFixedLayoutTemplate();
+            TryPersistTemplateToRuntimeProjects(fallbackTemplate);
+            return fallbackTemplate;
+        }
+
+        private static FixedLayoutTemplate CreateDefaultFixedLayoutTemplate()
+        {
+            return new FixedLayoutTemplate
+            {
+                Version = 1,
+                ChassisTemplates = new List<FixedChassisTemplate>
+                {
+                    new FixedChassisTemplate
+                    {
+                        ChassisType = "PXIe-2722G2",
+                        ChassisName = "PXI机箱1",
+                        GridRow = 0,
+                        GridColumn = 0,
+                        Slots = new List<FixedSlotTemplate>
+                        {
+                            new FixedSlotTemplate { Slot = "Slot1", Device = "凌华 PXIe-3987" },
+                            new FixedSlotTemplate { Slot = "Slot2", Device = "简仪 PXIe-7131" },
+                            new FixedSlotTemplate { Slot = "Slot3", Device = "阿尔泰 PXI-7012" },
+                            new FixedSlotTemplate { Slot = "Slot4", Device = "阿尔泰 PXI-7012" },
+                            new FixedSlotTemplate { Slot = "Slot5", Device = "欧开 PXI-4087C" },
+                            new FixedSlotTemplate { Slot = "Slot6", Device = "欧开 PXI-4087C" },
+                            new FixedSlotTemplate { Slot = "Slot7", Device = "欧开 PXI-4087A" },
+                            new FixedSlotTemplate { Slot = "Slot8", Device = "阿尔泰 PXIe-9774" },
+                            new FixedSlotTemplate { Slot = "Slot9", Device = "芒果树 MT-X532" },
+                            new FixedSlotTemplate { Slot = "Slot10", Device = "空槽" },
+                            new FixedSlotTemplate { Slot = "Slot11", Device = "阿尔泰 PXIe-4227" },
+                            new FixedSlotTemplate { Slot = "Slot12", Device = "阿尔泰 PXI-4004" },
+                            new FixedSlotTemplate { Slot = "Slot13", Device = "芒果树 MT-X970" },
+                            new FixedSlotTemplate { Slot = "Slot14", Device = "阿尔泰 PXI-4332" },
+                            new FixedSlotTemplate { Slot = "Slot15", Device = "怀智 HZ-MIL1394B-PX1e-4N" },
+                            new FixedSlotTemplate { Slot = "Slot16", Device = "空槽" },
+                            new FixedSlotTemplate { Slot = "Slot17", Device = "空槽" },
+                            new FixedSlotTemplate { Slot = "Slot18", Device = "空槽" }
+                        }
+                    },
+                    new FixedChassisTemplate
+                    {
+                        ChassisType = "PXIe-2519G2",
+                        ChassisName = "PXI机箱2",
+                        GridRow = 0,
+                        GridColumn = 1,
+                        Slots = new List<FixedSlotTemplate>
+                        {
+                            new FixedSlotTemplate { Slot = "Slot1", Device = "空槽" },
+                            new FixedSlotTemplate { Slot = "Slot2", Device = "空槽" },
+                            new FixedSlotTemplate { Slot = "Slot3", Device = "空槽" },
+                            new FixedSlotTemplate { Slot = "Slot4", Device = "空槽" },
+                            new FixedSlotTemplate { Slot = "Slot5", Device = "空槽" },
+                            new FixedSlotTemplate { Slot = "Slot6", Device = "空槽" },
+                            new FixedSlotTemplate { Slot = "Slot7", Device = "空槽" },
+                            new FixedSlotTemplate { Slot = "Slot8", Device = "空槽" },
+                            new FixedSlotTemplate { Slot = "Slot9", Device = "空槽" }
+                        }
+                    }
+                }
+            };
+        }
+
+        private static void TryPersistTemplateToRuntimeProjects(FixedLayoutTemplate template)
+        {
+            try
+            {
+                var runtimePath = GetFixedLayoutTemplateRuntimePath();
+                if (string.IsNullOrWhiteSpace(runtimePath))
+                {
+                    return;
+                }
+
+                var dir = Path.GetDirectoryName(runtimePath);
+                if (!string.IsNullOrWhiteSpace(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                if (File.Exists(runtimePath))
+                {
+                    return;
+                }
+
+                var json = JsonConvert.SerializeObject(template, Formatting.Indented);
+                File.WriteAllText(runtimePath, json);
+            }
+            catch
+            {
+            }
+        }
+
+        private static string GetFixedLayoutTemplateRuntimePath()
+        {
+            try
+            {
+                var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                return Path.Combine(baseDir, "Projects", "fixed_layout.json");
+            }
+            catch
+            {
+            }
+
+            return null;
+        }
+
+        private static string GetFixedLayoutTemplateSourcePath()
+        {
+            try
+            {
+                var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                return Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "Projects", "fixed_layout.json"));
+            }
+            catch
+            {
+            }
+
+            return null;
         }
 
         /// <summary>

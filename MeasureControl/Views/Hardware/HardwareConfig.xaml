@@ -847,7 +847,7 @@
                                 Height="70"
                                 Margin="0,10,0,0"
                                 Source="/Resources/Hardware/PXI-2722.png" />
-                            <TextBlock HorizontalAlignment="Center" Text="PXI-2722G2" />
+                            <TextBlock HorizontalAlignment="Center" Text="PXIe-2722G2" />
                         </StackPanel>
                     </Border>
                     <Border
@@ -867,7 +867,7 @@
                                 Height="80"
                                 Margin="0,10,0,0"
                                 Source="/Resources/Hardware/PXI-2519.png" />
-                            <TextBlock HorizontalAlignment="Center" Text="PXI-2519G2" />
+                            <TextBlock HorizontalAlignment="Center" Text="PXIe-2519G2" />
                         </StackPanel>
                     </Border>
                 </Grid>
