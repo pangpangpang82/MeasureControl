@@ -474,6 +474,9 @@
     <Compile Include="Views\SingleBoardTest\AirController\AC_6_4.xaml.cs">
       <DependentUpon>AC_6_4.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorTestView.xaml.cs">
+      <DependentUpon>PT500TemperatureSensorTestView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SingleBoardTest\BoardTest.xaml.cs">
       <DependentUpon>BoardTest.xaml</DependentUpon>
     </Compile>
@@ -706,6 +709,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\SingleBoardTest\AirController\AC_6_4.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorTestView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

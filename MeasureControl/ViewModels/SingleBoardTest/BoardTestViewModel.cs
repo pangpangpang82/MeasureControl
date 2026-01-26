@@ -21,6 +21,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
             {
                 { "控制通道光耦供电测试", () => new AC_6_4() },
+                { "PT500型温度传感器测试", () => new PT500TemperatureSensorTestView() },
             };
 
         private string _testTaskName;
@@ -128,6 +129,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 TestSequenceItems.Add(new TestSequenceItem("电源对地阻抗检查"));
                 TestSequenceItems.Add(new TestSequenceItem("电源模块测试"));
+                TestSequenceItems.Add(new TestSequenceItem("PT500型温度传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("5V传感器供电电压测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道光耦供电测试"));
                 TestSequenceItems.Add(new TestSequenceItem("ARINC429通讯测试"));
