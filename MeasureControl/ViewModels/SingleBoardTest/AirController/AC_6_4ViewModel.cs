@@ -1,0 +1,771 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using MeasureControl.Events;
+using MeasureControl.Models;
+using MeasureControl.Services;
+using Prism.Commands;
+using Prism.Events;
+using Prism.Mvvm;
+using MeasureControl.Simulations.AC_6_4;
+
+namespace MeasureControl.ViewModels.SingleBoardTest.AirController
+{
+    public class AC_6_4ViewModel : BindableBase, IDisposable
+    {
+        private const byte DefaultLabel = 0x6A;
+        private static readonly byte[] EnterAtpCommand = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] EnterAtpOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
+        private static readonly byte[] ExitAtpCommand = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
+        private static readonly byte[] ExitAtpOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        private static readonly byte[] EnableOutputCommand = { 0x01, 0x04, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] EnableOutputAck = { 0x01, 0x04, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01 };
+
+        private const string TestItemKey = "AC_6_4";
+        private const string PersistKeyEnterAtpTx = "EnterAtpTxChannel";
+        private const string PersistKeyEnterAtpRx = "EnterAtpRxChannel";
+        private const string PersistKeySetVoltageTx = "SetVoltageTxChannel";
+        private const string PersistKeySetVoltageRx = "SetVoltageRxChannel";
+        private const string PersistKeyTelemetryRx = "TelemetryRxChannel";
+        private const string PersistKeyExitAtpTx = "ExitAtpTxChannel";
+        private const string PersistKeyExitAtpRx = "ExitAtpRxChannel";
+        private const string PersistKeyDmmChannel = "DmmChannel";
+        private const string PersistKeyLastTestTime = "LastTestTime";
+        private const string PersistKeyLastTestResult = "LastTestResult";
+
+        private readonly ISingleBoardTestContextService _singleBoardTestContext;
+        private readonly ProjectService _projectService;
+        private readonly IEventAggregator _eventAggregator;
+        private readonly AC_6_4Simulation _simulation = new AC_6_4Simulation();
+
+        private SubscriptionToken _projectSavingToken;
+
+        private bool _isManualTestRunning;
+        private bool _isAutoTestRunning;
+        private bool _isInAtpMode;
+        private bool _outputEnabled;
+        private bool _isBusy;
+
+        private CancellationTokenSource _opCts;
+
+        private string _enterAtpTxChannel;
+        private string _enterAtpRxChannel;
+        private string _setVoltageTxChannel;
+        private string _setVoltageRxChannel;
+        private string _telemetryRxChannel;
+        private string _exitAtpTxChannel;
+        private string _exitAtpRxChannel;
+
+        private string _dmmChannel;
+
+        private string _lastTestTime;
+        private string _lastTestResult;
+
+        public AC_6_4ViewModel(
+            ISingleBoardTestContextService singleBoardTestContext,
+            ProjectService projectService,
+            IEventAggregator eventAggregator)
+        {
+            _singleBoardTestContext = singleBoardTestContext;
+            _projectService = projectService;
+            _eventAggregator = eventAggregator;
+            _enterAtpTxChannel = "ARINC429_0";
+            _enterAtpRxChannel = "ARINC429_1";
+            _setVoltageTxChannel = "ARINC429_2";
+            _setVoltageRxChannel = "ARINC429_3";
+            _telemetryRxChannel = "ARINC429_4";
+            _exitAtpTxChannel = "ARINC429_5";
+            _exitAtpRxChannel = "ARINC429_6";
+
+            _dmmChannel = "Port1";
+
+            ManualTestCommand = new DelegateCommand(OnManualTest);
+            AutoTestCommand = new DelegateCommand(OnAutoTest);
+
+            SendEnterAtpCommand = new DelegateCommand(OnSendEnterAtp, CanSendEnterAtp);
+            SendSetVoltageCommand = new DelegateCommand(OnSendSetVoltage, CanSendSetVoltage);
+            SendExitAtpCommand = new DelegateCommand(OnSendExitAtp, CanSendExitAtp);
+
+            ClearLogCommand = new DelegateCommand(() => Logs.Clear());
+
+            LoadPersistedState();
+            _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
+
+            UpdateCommandStates();
+        }
+
+        private string PersistDataKey
+        {
+            get
+            {
+                var taskName = _singleBoardTestContext?.TestTaskName ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(taskName))
+                {
+                    return $"{TestItemKey}";
+                }
+
+                return $"{taskName}/{TestItemKey}";
+            }
+        }
+
+        public DelegateCommand ManualTestCommand { get; }
+        public DelegateCommand AutoTestCommand { get; }
+        public DelegateCommand SendEnterAtpCommand { get; }
+        public DelegateCommand SendSetVoltageCommand { get; }
+        public DelegateCommand SendExitAtpCommand { get; }
+        public DelegateCommand ClearLogCommand { get; }
+
+        public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
+
+        public bool IsBusy
+        {
+            get => _isBusy;
+            private set
+            {
+                if (SetProperty(ref _isBusy, value))
+                {
+                    UpdateCommandStates();
+                }
+            }
+        }
+
+        public bool IsManualTestRunning
+        {
+            get => _isManualTestRunning;
+            set
+            {
+                if (SetProperty(ref _isManualTestRunning, value))
+                {
+                    if (value)
+                    {
+                        IsAutoTestRunning = false;
+                    }
+
+                    UpdateCommandStates();
+                }
+            }
+        }
+
+        public bool IsAutoTestRunning
+        {
+            get => _isAutoTestRunning;
+            set
+            {
+                if (SetProperty(ref _isAutoTestRunning, value))
+                {
+                    if (value)
+                    {
+                        IsManualTestRunning = false;
+                    }
+
+                    UpdateCommandStates();
+                }
+            }
+        }
+
+        public bool IsInAtpMode
+        {
+            get => _isInAtpMode;
+            private set
+            {
+                if (SetProperty(ref _isInAtpMode, value))
+                {
+                    UpdateCommandStates();
+                }
+            }
+        }
+
+        public bool OutputEnabled
+        {
+            get => _outputEnabled;
+            private set
+            {
+                if (SetProperty(ref _outputEnabled, value))
+                {
+                    UpdateCommandStates();
+                }
+            }
+        }
+
+        public string EnterAtpTxChannel
+        {
+            get => _enterAtpTxChannel;
+            set
+            {
+                if (SetProperty(ref _enterAtpTxChannel, value))
+                {
+                    UpdateCommandStates();
+                    SavePersistedState();
+                }
+            }
+        }
+
+        public string EnterAtpRxChannel
+        {
+            get => _enterAtpRxChannel;
+            set
+            {
+                if (SetProperty(ref _enterAtpRxChannel, value))
+                {
+                    UpdateCommandStates();
+                    SavePersistedState();
+                }
+            }
+        }
+
+        public string SetVoltageTxChannel
+        {
+            get => _setVoltageTxChannel;
+            set
+            {
+                if (SetProperty(ref _setVoltageTxChannel, value))
+                {
+                    UpdateCommandStates();
+                    SavePersistedState();
+                }
+            }
+        }
+
+        public string SetVoltageRxChannel
+        {
+            get => _setVoltageRxChannel;
+            set
+            {
+                if (SetProperty(ref _setVoltageRxChannel, value))
+                {
+                    UpdateCommandStates();
+                    SavePersistedState();
+                }
+            }
+        }
+
+        public string TelemetryRxChannel
+        {
+            get => _telemetryRxChannel;
+            set
+            {
+                if (SetProperty(ref _telemetryRxChannel, value))
+                {
+                    SavePersistedState();
+                }
+            }
+        }
+
+        public string ExitAtpTxChannel
+        {
+            get => _exitAtpTxChannel;
+            set
+            {
+                if (SetProperty(ref _exitAtpTxChannel, value))
+                {
+                    UpdateCommandStates();
+                    SavePersistedState();
+                }
+            }
+        }
+
+        public string ExitAtpRxChannel
+        {
+            get => _exitAtpRxChannel;
+            set
+            {
+                if (SetProperty(ref _exitAtpRxChannel, value))
+                {
+                    UpdateCommandStates();
+                    SavePersistedState();
+                }
+            }
+        }
+
+        public string DmmChannel
+        {
+            get => _dmmChannel;
+            set
+            {
+                if (SetProperty(ref _dmmChannel, value))
+                {
+                    SavePersistedState();
+                }
+            }
+        }
+
+        public string LastTestTime
+        {
+            get => _lastTestTime;
+            set
+            {
+                if (SetProperty(ref _lastTestTime, value))
+                {
+                    SavePersistedState();
+                }
+            }
+        }
+
+        public string LastTestResult
+        {
+            get => _lastTestResult;
+            set
+            {
+                if (SetProperty(ref _lastTestResult, value))
+                {
+                    SavePersistedState();
+                }
+            }
+        }
+
+        private void LoadPersistedState()
+        {
+            try
+            {
+                var root = _projectService?.CurrentProjectRoot;
+                if (root?.TestInterfaceControls == null)
+                    return;
+
+                if (!root.TestInterfaceControls.TryGetValue(PersistDataKey, out var items) || items == null)
+                    return;
+
+                string Read(string key)
+                {
+                    return items.FirstOrDefault(x => string.Equals(x?.BoundVariableName, key, StringComparison.OrdinalIgnoreCase))?.BoundVariablePath;
+                }
+
+                _enterAtpTxChannel = Read(PersistKeyEnterAtpTx) ?? _enterAtpTxChannel;
+                _enterAtpRxChannel = Read(PersistKeyEnterAtpRx) ?? _enterAtpRxChannel;
+                _setVoltageTxChannel = Read(PersistKeySetVoltageTx) ?? _setVoltageTxChannel;
+                _setVoltageRxChannel = Read(PersistKeySetVoltageRx) ?? _setVoltageRxChannel;
+                _telemetryRxChannel = Read(PersistKeyTelemetryRx) ?? _telemetryRxChannel;
+                _exitAtpTxChannel = Read(PersistKeyExitAtpTx) ?? _exitAtpTxChannel;
+                _exitAtpRxChannel = Read(PersistKeyExitAtpRx) ?? _exitAtpRxChannel;
+                _dmmChannel = Read(PersistKeyDmmChannel) ?? _dmmChannel;
+                _lastTestTime = Read(PersistKeyLastTestTime) ?? _lastTestTime;
+                _lastTestResult = Read(PersistKeyLastTestResult) ?? _lastTestResult;
+
+                RaisePropertyChanged(nameof(EnterAtpTxChannel));
+                RaisePropertyChanged(nameof(EnterAtpRxChannel));
+                RaisePropertyChanged(nameof(SetVoltageTxChannel));
+                RaisePropertyChanged(nameof(SetVoltageRxChannel));
+                RaisePropertyChanged(nameof(TelemetryRxChannel));
+                RaisePropertyChanged(nameof(ExitAtpTxChannel));
+                RaisePropertyChanged(nameof(ExitAtpRxChannel));
+                RaisePropertyChanged(nameof(DmmChannel));
+                RaisePropertyChanged(nameof(LastTestTime));
+                RaisePropertyChanged(nameof(LastTestResult));
+            }
+            catch
+            {
+            }
+        }
+
+        private void SavePersistedState()
+        {
+            try
+            {
+                var root = _projectService?.CurrentProjectRoot;
+                if (root?.TestInterfaceControls == null)
+                    return;
+
+                if (!root.TestInterfaceControls.TryGetValue(PersistDataKey, out var items) || items == null)
+                {
+                    items = new List<TestInterfaceControlItem>();
+                    root.TestInterfaceControls[PersistDataKey] = items;
+                }
+
+                void Upsert(string key, string value)
+                {
+                    var item = items.FirstOrDefault(x => string.Equals(x?.BoundVariableName, key, StringComparison.OrdinalIgnoreCase));
+                    if (item == null)
+                    {
+                        item = new TestInterfaceControlItem
+                        {
+                            ControlType = "Value",
+                            BoundVariableName = key
+                        };
+                        items.Add(item);
+                    }
+
+                    item.BoundVariablePath = value ?? string.Empty;
+                }
+
+                Upsert(PersistKeyEnterAtpTx, EnterAtpTxChannel);
+                Upsert(PersistKeyEnterAtpRx, EnterAtpRxChannel);
+                Upsert(PersistKeySetVoltageTx, SetVoltageTxChannel);
+                Upsert(PersistKeySetVoltageRx, SetVoltageRxChannel);
+                Upsert(PersistKeyTelemetryRx, TelemetryRxChannel);
+                Upsert(PersistKeyExitAtpTx, ExitAtpTxChannel);
+                Upsert(PersistKeyExitAtpRx, ExitAtpRxChannel);
+                Upsert(PersistKeyDmmChannel, DmmChannel);
+                Upsert(PersistKeyLastTestTime, LastTestTime);
+                Upsert(PersistKeyLastTestResult, LastTestResult);
+            }
+            catch
+            {
+            }
+        }
+
+        private void OnProjectSaving()
+        {
+            SavePersistedState();
+        }
+
+        private void OnManualTest()
+        {
+            if (IsManualTestRunning)
+            {
+                _ = StopTestAsync();
+                return;
+            }
+
+            _ = StartManualTestAsync();
+        }
+
+        private void OnAutoTest()
+        {
+            if (IsAutoTestRunning)
+            {
+                _ = StopTestAsync();
+                return;
+            }
+
+            // 当前阶段只实现仿真模式下的设备初始化；自动测试后续再接具体步骤
+            _ = StartAutoTestAsync();
+        }
+
+        private async Task StartManualTestAsync()
+        {
+            if (IsBusy) return;
+            IsBusy = true;
+            try
+            {
+                IsManualTestRunning = true;
+                _opCts?.Cancel();
+                _opCts?.Dispose();
+                _opCts = new CancellationTokenSource();
+                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 手动测试启动(仿真模式)：开始打开设备");
+
+                // 仿真模式：固定占用产品侧通道
+                _simulation.SimProductRxChannelIndex = 14;
+                _simulation.SimProductTxChannelIndex = 15;
+
+                await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => Logs.Add(msg));
+
+                IsInAtpMode = false;
+                OutputEnabled = false;
+            }
+            catch (Exception ex)
+            {
+                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 手动测试启动失败: {ex.Message}");
+                IsManualTestRunning = false;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private Task StopTestAsync()
+        {
+            return StopTestAsync(sendExitAtp: true);
+        }
+
+        private async Task StartAutoTestAsync()
+        {
+            if (IsBusy) return;
+            IsBusy = true;
+            try
+            {
+                IsAutoTestRunning = true;
+                _opCts?.Cancel();
+                _opCts?.Dispose();
+                _opCts = new CancellationTokenSource();
+                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 自动测试启动(仿真模式)：开始打开设备");
+
+                _simulation.SimProductRxChannelIndex = 14;
+                _simulation.SimProductTxChannelIndex = 15;
+
+                await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => Logs.Add(msg));
+
+                IsInAtpMode = false;
+                OutputEnabled = false;
+            }
+            catch (Exception ex)
+            {
+                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 自动测试启动失败: {ex.Message}");
+                IsAutoTestRunning = false;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private async Task StopTestAsync(bool sendExitAtp)
+        {
+            if (IsBusy) return;
+            IsBusy = true;
+            try
+            {
+                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 停止测试：发送退出ATP并关闭设备");
+
+                if (sendExitAtp && SendExitAtpCommand.CanExecute())
+                {
+                    await SendExitAtpAsync(stopAfter: false);
+                }
+
+                await _simulation.StopAsync(msg => Logs.Add(msg));
+
+                IsManualTestRunning = false;
+                IsAutoTestRunning = false;
+                IsInAtpMode = false;
+                OutputEnabled = false;
+
+                try
+                {
+                    _opCts?.Cancel();
+                }
+                catch
+                {
+                }
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = "--";
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                if (_projectSavingToken != null)
+                {
+                    _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Unsubscribe(_projectSavingToken);
+                    _projectSavingToken = null;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private bool CanSendEnterAtp()
+        {
+            if (IsBusy) return false;
+            if (!IsManualTestRunning && !IsAutoTestRunning) return false;
+            if (string.IsNullOrWhiteSpace(EnterAtpTxChannel) || string.IsNullOrWhiteSpace(EnterAtpRxChannel)) return false;
+            return !string.Equals(EnterAtpTxChannel, EnterAtpRxChannel, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void OnSendEnterAtp()
+        {
+            _ = SendEnterAtpAsync();
+        }
+
+        private async Task SendEnterAtpAsync()
+        {
+            if (!SendEnterAtpCommand.CanExecute())
+                return;
+
+            IsBusy = true;
+            try
+            {
+                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 发送进入ATP：TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}, Data=00 01 00 01 00 00 00 00");
+
+                var token = _opCts?.Token ?? CancellationToken.None;
+                var resp = await _simulation.SendBenchCommandAndWaitAsync(
+                    EnterAtpTxChannel,
+                    EnterAtpRxChannel,
+                    DefaultLabel,
+                    EnterAtpCommand,
+                    b => b.SequenceEqual(EnterAtpOk),
+                    timeoutMs: 2000,
+                    msg => Logs.Add(msg),
+                    token);
+
+                if (resp == null)
+                {
+                    Logs.Add($"[{DateTime.Now:HH:mm:ss}] 进入ATP超时未收到OK");
+                    return;
+                }
+
+                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 收到ATP OK，进入ATP成功");
+                IsInAtpMode = true;
+            }
+            catch (Exception ex)
+            {
+                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败: {ex.Message}");
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private bool CanSendSetVoltage()
+        {
+            if (IsBusy) return false;
+            if (!IsInAtpMode) return false;
+            if (string.IsNullOrWhiteSpace(SetVoltageTxChannel) || string.IsNullOrWhiteSpace(SetVoltageRxChannel)) return false;
+            return !string.Equals(SetVoltageTxChannel, SetVoltageRxChannel, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void OnSendSetVoltage()
+        {
+            _ = SendSetVoltageAsync();
+        }
+
+        private async Task SendSetVoltageAsync()
+        {
+            if (!SendSetVoltageCommand.CanExecute())
+                return;
+
+            IsBusy = true;
+            try
+            {
+                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 发送开启输出：TX={SetVoltageTxChannel}, RX={SetVoltageRxChannel}, Data=01 04 01 01 00 00 00 00");
+
+                var token = _opCts?.Token ?? CancellationToken.None;
+                var resp = await _simulation.SendBenchCommandAndWaitAsync(
+                    SetVoltageTxChannel,
+                    SetVoltageRxChannel,
+                    DefaultLabel,
+                    EnableOutputCommand,
+                    b => b.SequenceEqual(EnableOutputAck),
+                    timeoutMs: 2000,
+                    msg => Logs.Add(msg),
+                    token);
+
+                if (resp == null)
+                {
+                    Logs.Add($"[{DateTime.Now:HH:mm:ss}] 开启输出超时未收到ACK");
+                    return;
+                }
+
+                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 收到开启输出ACK");
+                OutputEnabled = true;
+
+                // 简单判定：收到回采上报的电压 (01 04 01 02 vv vv 00 00) 并在范围内即 PASS
+                await EvaluateResultFromTelemetryAsync(token);
+            }
+            catch (Exception ex)
+            {
+                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 开启输出失败: {ex.Message}");
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private async Task EvaluateResultFromTelemetryAsync(CancellationToken token)
+        {
+            // 取样窗口（可按你后续规则调整）：2秒内收到任意一帧回采上报，且电压在[2.25,2.75]V则PASS，否则FAIL
+            var deadline = DateTime.UtcNow.AddSeconds(2);
+            bool got = false;
+            bool pass = false;
+
+            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
+            {
+                var resp = await _simulation.WaitBenchResponseAsync(
+                    TelemetryRxChannel,
+                    DefaultLabel,
+                    b => b != null && b.Length == 8 && b[0] == 0x01 && b[1] == 0x04 && b[2] == 0x01 && b[3] == 0x02,
+                    timeoutMs: 300,
+                    log: null,
+                    token);
+
+                if (resp == null)
+                {
+                    await Task.Delay(50, token);
+                    continue;
+                }
+
+                got = true;
+                ushort mv = (ushort)((resp[4] << 8) | resp[5]);
+                double v = mv / 1000.0;
+                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 回采上报: {v:F3}V");
+                pass = v >= 2.25 && v <= 2.75;
+                if (pass)
+                    break;
+            }
+
+            LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            LastTestResult = (!got) ? "FAIL" : (pass ? "PASS" : "FAIL");
+        }
+
+        private bool CanSendExitAtp()
+        {
+            if (IsBusy) return false;
+            if (!IsManualTestRunning && !IsAutoTestRunning) return false;
+            if (!OutputEnabled) return false;
+            if (string.IsNullOrWhiteSpace(ExitAtpTxChannel) || string.IsNullOrWhiteSpace(ExitAtpRxChannel)) return false;
+            return !string.Equals(ExitAtpTxChannel, ExitAtpRxChannel, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void OnSendExitAtp()
+        {
+            _ = SendExitAtpAsync(stopAfter: true);
+        }
+
+        private async Task SendExitAtpAsync(bool stopAfter)
+        {
+            if (!SendExitAtpCommand.CanExecute())
+                return;
+
+            IsBusy = true;
+            try
+            {
+                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 发送退出ATP：TX={ExitAtpTxChannel}, RX={ExitAtpRxChannel}, Data=00 02 00 01 00 00 00 01");
+
+                var token = _opCts?.Token ?? CancellationToken.None;
+                var resp = await _simulation.SendBenchCommandAndWaitAsync(
+                    ExitAtpTxChannel,
+                    ExitAtpRxChannel,
+                    DefaultLabel,
+                    ExitAtpCommand,
+                    b => b.SequenceEqual(ExitAtpOk),
+                    timeoutMs: 2000,
+                    msg => Logs.Add(msg),
+                    token);
+
+                if (resp == null)
+                {
+                    Logs.Add($"[{DateTime.Now:HH:mm:ss}] 退出ATP超时未收到OK");
+                }
+                else
+                {
+                    Logs.Add($"[{DateTime.Now:HH:mm:ss}] 收到退出ATP OK");
+                }
+
+                IsInAtpMode = false;
+                OutputEnabled = false;
+
+                if (stopAfter)
+                {
+                    // 约定：退出ATP = 结束本次测试
+                    _ = StopTestAsync(sendExitAtp: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 退出ATP失败: {ex.Message}");
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private void UpdateCommandStates()
+        {
+            SendEnterAtpCommand.RaiseCanExecuteChanged();
+            SendSetVoltageCommand.RaiseCanExecuteChanged();
+            SendExitAtpCommand.RaiseCanExecuteChanged();
+        }
+    }
+}

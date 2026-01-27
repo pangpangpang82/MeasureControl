@@ -16,6 +16,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
     public class BoardTestViewModel : BindableBase, INavigationAware
     {
         private readonly IEventAggregator _eventAggregator;
+        private readonly MeasureControl.Services.ISingleBoardTestContextService _singleBoardTestContext;
 
         private static readonly IReadOnlyDictionary<string, Func<UserControl>> TestItemViewFactories =
             new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
@@ -57,9 +58,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
         public DelegateCommand CloseInRegionCommand { get; }
 
-        public BoardTestViewModel(IEventAggregator eventAggregator)
+        public BoardTestViewModel(IEventAggregator eventAggregator, MeasureControl.Services.ISingleBoardTestContextService singleBoardTestContext)
         {
             _eventAggregator = eventAggregator ?? throw new ArgumentNullException(nameof(eventAggregator));
+            _singleBoardTestContext = singleBoardTestContext ?? throw new ArgumentNullException(nameof(singleBoardTestContext));
             CloseInRegionCommand = new DelegateCommand(OnCloseInRegion);
         }
 
@@ -103,6 +105,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             ParentChassisName = parameters?.GetValue<string>("ParentChassisName")
                                 ?? parameters?.GetValue<string>("ChassisName")
                                 ?? string.Empty;
+
+            _singleBoardTestContext.Update(ParentChassisName, TestTaskName, BoardType);
 
             var instanceId = string.IsNullOrWhiteSpace(ParentChassisName) ? TestTaskName : $"{ParentChassisName}-{TestTaskName}";
             PageKey = string.IsNullOrWhiteSpace(instanceId) ? "BoardTest" : $"BoardTest_{instanceId}";
