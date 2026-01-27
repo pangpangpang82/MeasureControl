@@ -420,10 +420,10 @@ namespace MeasureControl.Simulations.AC_6_4
                                         double outputVoltage = NextDouble(13.5, 16.5);
                                         try
                                         {
-                                            // 输出交流电压：优先尝试设置正弦波 + AC 幅值；若设备不支持则回退到 VOLTage
+                                            // 输出直流电压：优先尝试设置 DC + OFFSet；若设备不支持则回退到 VOLTage
                                             try
                                             {
-                                                await SendScpiAsync($":SOURce{SignalGeneratorChannel}:FUNCtion SIN", 5000, token);
+                                                await SendScpiAsync($":SOURce{SignalGeneratorChannel}:FUNCtion DC", 5000, token);
                                             }
                                             catch
                                             {
@@ -431,15 +431,13 @@ namespace MeasureControl.Simulations.AC_6_4
 
                                             try
                                             {
-                                                await SendScpiAsync($":SOURce{SignalGeneratorChannel}:VOLTage:AC {outputVoltage:F3}", 5000, token);
+                                                await SendScpiAsync($":SOURce{SignalGeneratorChannel}:VOLTage:OFFSet {outputVoltage:F3}", 5000, token);
                                             }
                                             catch
                                             {
-                                                // 兼容部分设备只有 VOLTage
+                                                // 兼容部分设备不支持 OFFSet
                                                 await SendScpiAsync($":SOURce{SignalGeneratorChannel}:VOLTage {outputVoltage:F3}", 5000, token);
                                             }
-
-                                            await SendScpiAsync($":OUTPut{SignalGeneratorChannel} ON", 5000, token);
                                         }
                                         catch
                                         {
