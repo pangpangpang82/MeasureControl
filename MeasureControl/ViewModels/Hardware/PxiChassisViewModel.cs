@@ -970,7 +970,7 @@ namespace MeasureControl.ViewModels
                     DeviceInfo = $"{device.ParentNode} - {device.Model}"
                 });
             }
-            
+
             // 在设备已加入 chassis.Children 并完成槽位更新后再启动 Switch 设备对应的 TCP 服务器，
             // 确保 GetTcpListenPortForSwitchDevice 能读取到正确的 SlotIndex。
             try
@@ -1211,13 +1211,13 @@ namespace MeasureControl.ViewModels
 
             // 排除空槽占位符
             if (device.Name == "空槽") return false;
-            
+
             // 排除控制器
             if (device is ControllerDevice) return false;
-            
+
             // 排除机箱
             if (device is ChassisDeviceBase) return false;
-            
+
             // 判断是否为板卡类型（DeviceType == "Card" 或者是 PxiDeviceBase 的子类）
             return device.DeviceType == "Card" || device is PxiDeviceBase;
         }
@@ -1231,7 +1231,7 @@ namespace MeasureControl.ViewModels
             {
                 // 使用BeginUIInteraction/EndUIInteraction包装UI交互操作，避免触发项目修改事件
                 _pxiChassisService.BeginUIInteraction();
-                
+
                 try
                 {
                     // 对于模拟量采集设备，在初始化前检查AnalogInputNode状态
@@ -1241,7 +1241,7 @@ namespace MeasureControl.ViewModels
                         {
                         }
                     }
-                    
+
                     // 选中设备
                     SelectedDevice = device;
 
@@ -1254,7 +1254,7 @@ namespace MeasureControl.ViewModels
                         RightPanelContent = null;
                         return;
                     }
-                    
+
                     // 如果是机箱设备，获取机箱IP地址
                     if (device.DeviceType == "Chassis")
                     {
@@ -1272,22 +1272,22 @@ namespace MeasureControl.ViewModels
                     {
                         ChassisIpAddress = "";
                     }
-                    
+
                     // 设置标题为"设备详细信息"
                     DeviceInfoTitle = "设备详细信息";
-                    
+
                     // 对于板卡设备，确保子节点已正确初始化
                     if (device.DeviceType == "Card")
                     {
                         System.Diagnostics.Debug.WriteLine($"[PxiChassis] OnDeviceClick init-check: Device={device?.Name ?? device?.CardName}, ChildrenCount={(device?.Children?.Count ?? 0)}");
                         bool needsInit = false;
-                        
+
                         // 检查Children集合
                         if (device.Children == null || device.Children.Count == 0)
                         {
                             needsInit = true;
                         }
-                        
+
                         // 对于模拟量采集设备，还需要检查AnalogInputNode
                         if (device is AnalogAcquisitionDevice analogDev)
                         {
@@ -1296,7 +1296,7 @@ namespace MeasureControl.ViewModels
                                 needsInit = true;
                             }
                         }
-                        
+
                         if (needsInit)
                         {
                             System.Diagnostics.Debug.WriteLine($"[PxiChassis] OnDeviceClick initializing children for {device?.Name ?? device?.CardName}");
@@ -1314,27 +1314,27 @@ namespace MeasureControl.ViewModels
                     // 确保始终恢复UI交互标志
                     _pxiChassisService.EndUIInteraction();
                 }
-                
+
                 // 更新设备详细信息显示
                 UpdateDeviceInfoItems(device);
-                
+
                 // 验证DeviceInfoItems是否正确填充
                 for (int i = 0; i < DeviceInfoItems.Count; i++)
                 {
                     var item = DeviceInfoItems[i];
                 }
-                
+
                 // 导航到 DeviceInfoPanel
                 NavigateToDeviceInfoPanel();
-                
-                // 发布设备点击事件，通知HardwareConfigViewModel显示设备详细信息
-                    // Ensure Description defaults to device name if empty so UI shows something meaningful
-                    if (string.IsNullOrWhiteSpace(device.Description))
-                    {
-                        device.Description = device.Name;
-                    }
 
-                    _eventAggregator.GetEvent<DeviceClickedEvent>().Publish(new DeviceClickedEventArgs
+                // 发布设备点击事件，通知HardwareConfigViewModel显示设备详细信息
+                // Ensure Description defaults to device name if empty so UI shows something meaningful
+                if (string.IsNullOrWhiteSpace(device.Description))
+                {
+                    device.Description = device.Name;
+                }
+
+                _eventAggregator.GetEvent<DeviceClickedEvent>().Publish(new DeviceClickedEventArgs
                 {
                     Device = device,
                     DeviceType = device.DeviceType,
@@ -1361,7 +1361,7 @@ namespace MeasureControl.ViewModels
             // 创建新的集合来存储设备信息项
             var newDeviceInfoItems = new ObservableCollection<DeviceInfoItem>();
 
-            if (device == null) 
+            if (device == null)
             {
                 DeviceInfoItems = newDeviceInfoItems; // 替换为空集合
                 return;
@@ -1396,7 +1396,7 @@ namespace MeasureControl.ViewModels
                         }
                     }
                 }
-                
+
                 // 使用设备类的GetDeviceInfoItems方法获取信息
                 var deviceInfoItems = device.GetDeviceInfoItems();
                 // 如果设备类返回了信息项，使用它们
@@ -1407,16 +1407,16 @@ namespace MeasureControl.ViewModels
                     for (int i = 0; i < deviceInfoItems.Count; i++)
                     {
                         var item = deviceInfoItems[i];
-                        
+
                         // 确保第一个字段（CardType）与左侧列表的第一个字段保持一致
                         // 优先显示CardName，否则显示ParentNode
                         if (i == 0 && string.IsNullOrEmpty(item.CardType))
                         {
-                            item.CardType = !string.IsNullOrWhiteSpace(device.CardName) 
-                                ? device.CardName 
+                            item.CardType = !string.IsNullOrWhiteSpace(device.CardName)
+                                ? device.CardName
                                 : device.ParentNode;
                         }
-                        
+
                         if (i == 0)
                         {
                             // 第一行板卡信息：高度和机箱高度一样（46px）
@@ -1429,7 +1429,7 @@ namespace MeasureControl.ViewModels
                             item.Height = "40";
                             item.DeviceType = device.DeviceType;
                         }
-                        
+
                         newDeviceInfoItems.Add(item);
                     }
                 }
@@ -1443,7 +1443,7 @@ namespace MeasureControl.ViewModels
             {
                 CreateFallbackDeviceInfo(device, newDeviceInfoItems);
             }
-            
+
             // 替换整个集合，触发PropertyChanged事件，确保UI更新
             DeviceInfoItems = newDeviceInfoItems;
         }
@@ -1482,12 +1482,12 @@ namespace MeasureControl.ViewModels
                 GetSlotPosition(device),
                 device.Status ?? "正常"
             );
-            
+
             // 设置第一行板卡信息的高度和机箱高度一样（46px）
             cardInfo.Height = "46";
             cardInfo.DeviceType = device.DeviceType;
             targetCollection.Add(cardInfo);
-            
+
             // 调试输出
         }
 
@@ -1525,7 +1525,7 @@ namespace MeasureControl.ViewModels
                                 return $"Slot{startSlot}";
                             }
                         }
-                        
+
                         // 累加已占用的槽位数
                         if (child is ControllerDevice ctrl)
                         {
@@ -1551,11 +1551,11 @@ namespace MeasureControl.ViewModels
         private bool IsAnalogAcquisitionDevice(DeviceBase device)
         {
             if (device?.DeviceType != "Card") return false;
-            
+
             string name = device.Name?.ToLower() ?? "";
             string model = device.Model?.ToLower() ?? "";
-            
-            return name.Contains("模拟") || name.Contains("analog") || 
+
+            return name.Contains("模拟") || name.Contains("analog") ||
                    model.Contains("模拟") || model.Contains("analog");
         }
 
@@ -1575,43 +1575,43 @@ namespace MeasureControl.ViewModels
                 {
                     return device.DeviceTypeName;
                 }
-                
+
                 // 如果DeviceTypeName为空或为"通用设备"，则根据设备名称或型号判断板卡类型
                 string name = device.Name?.ToLower() ?? "";
                 string model = device.Model?.ToLower() ?? "";
-                
+
                 // 模拟量采集板卡
-                if (name.Contains("模拟") || name.Contains("analog") || 
+                if (name.Contains("模拟") || name.Contains("analog") ||
                     model.Contains("模拟") || model.Contains("analog"))
                 {
                     return "模拟量采集";
                 }
                 // 数字量采集板卡
-                else if (name.Contains("数字") || name.Contains("digital") || 
+                else if (name.Contains("数字") || name.Contains("digital") ||
                          model.Contains("数字") || model.Contains("digital"))
                 {
                     return "数字量采集";
                 }
                 // 矩阵开关板卡
-                else if (name.Contains("矩阵") || name.Contains("matrix") || 
+                else if (name.Contains("矩阵") || name.Contains("matrix") ||
                          model.Contains("矩阵") || model.Contains("matrix"))
                 {
                     return "矩阵开关";
                 }
                 // 控制器板卡
-                else if (name.Contains("控制") || name.Contains("controller") || 
+                else if (name.Contains("控制") || name.Contains("controller") ||
                          model.Contains("控制") || model.Contains("controller"))
                 {
                     return "控制器";
                 }
                 // 信号发生器板卡
-                else if (name.Contains("信号") || name.Contains("signal") || 
+                else if (name.Contains("信号") || name.Contains("signal") ||
                          model.Contains("信号") || model.Contains("signal"))
                 {
                     return "信号发生器";
                 }
                 // 示波器板卡
-                else if (name.Contains("示波") || name.Contains("oscilloscope") || 
+                else if (name.Contains("示波") || name.Contains("oscilloscope") ||
                          model.Contains("示波") || model.Contains("oscilloscope"))
                 {
                     return "示波器";
@@ -1629,12 +1629,12 @@ namespace MeasureControl.ViewModels
                 {
                     return device.DeviceTypeName;
                 }
-                
+
                 // 如果DeviceTypeName为空或为"通用设备"，则根据设备名称或型号判断
                 string name = device.Name?.ToLower() ?? "";
                 string model = device.Model?.ToLower() ?? "";
-                
-                if (name.Contains("电源") || name.Contains("power") || 
+
+                if (name.Contains("电源") || name.Contains("power") ||
                     model.Contains("电源") || model.Contains("power"))
                 {
                     return "程控电源";
@@ -1752,13 +1752,13 @@ namespace MeasureControl.ViewModels
                 {
                     child.SlotPosition = $"Slot {currentSlot}";
                     child.ConnectionMethod = $"Slot{currentSlot}";
-                    
+
                     // 设置 SlotIndex（用于驱动初始化）
                     if (child is PxiDeviceBase pxiDevice)
                     {
                         pxiDevice.SlotIndex = currentSlot;
                     }
-                    
+
                     currentSlot += 1;
                 }
             }
@@ -1770,7 +1770,7 @@ namespace MeasureControl.ViewModels
 
             var PXI = new ProjectItem { Name = "PXI系统", Icon = "/Resources/Logo/chip_b.png" };
             Tools.Add(PXI);
-            
+
             // 移除机箱节点 - 机箱只能在 HardwareConfig 页面通过拖拽添加
             // var pxichassis = new ProjectItem { Name = "机箱", Icon = "/Resources/Logo/chip_b.png" };
             // PXI.Children.Add(pxichassis);
@@ -1893,9 +1893,9 @@ namespace MeasureControl.ViewModels
             {
                 // 清空现有设备，包括机箱设备的子设备
                 ChassisDevices.Clear();
-                
+
                 var devices = _pxiChassisService.GetChassisDevices(ChassisName);
-                
+
                 // 首先添加机箱设备（如果存在）
                 var chassisDevice = devices.FirstOrDefault(d => d.DeviceType == "Chassis");
                 if (chassisDevice != null)
@@ -1904,21 +1904,21 @@ namespace MeasureControl.ViewModels
                     if (chassisDevice.Children == null)
                         chassisDevice.Children = new ObservableCollection<DeviceBase>();
                     // 注意：不要清空Children集合，因为板卡设备需要保留在机箱的子设备中
-                    
+
                     ChassisDevices.Add(chassisDevice);
                 }
-                
+
                 // 然后添加其他设备（非机箱设备）
                 foreach (var device in devices)
                 {
                     // 跳过机箱设备和板卡设备（板卡设备已经在机箱的Children中）
                     if (device.DeviceType == "Chassis" || device.DeviceType == "Card")
                         continue;
-                    
+
                     // 其他设备：直接添加到ChassisDevices集合
                     ChassisDevices.Add(device);
                 }
-                
+
                 // 加载完成后，更新所有板卡的槽位信息
                 if (chassisDevice is ChassisDevice chassisDeviceForSlot)
                 {
@@ -1927,7 +1927,7 @@ namespace MeasureControl.ViewModels
 
                 // 本地机箱：为矩阵开关注册后台命令处理器（无需打开面板）
                 RefreshLocalMatrixHandlers();
-                
+
                 // 更新拖放提示显示状态
                 UpdateDropHintVisibility();
             }
@@ -1959,7 +1959,7 @@ namespace MeasureControl.ViewModels
 
         private void OnAddChassis()
         {
-            if (string.IsNullOrEmpty(SelectedChassis)) 
+            if (string.IsNullOrEmpty(SelectedChassis))
             {
                 _dialogService.ShowWarningDialog("请先选择一个机箱", "提示");
                 return;
@@ -1984,7 +1984,7 @@ namespace MeasureControl.ViewModels
                 chassis.DeviceType = "Chassis";
                 chassis.Status = "正常";
                 chassis.IsExpanded = true;
-                
+
                 // 确保机箱有子设备集合
                 if (chassis.Children == null)
                     chassis.Children = new ObservableCollection<DeviceBase>();
@@ -1992,10 +1992,10 @@ namespace MeasureControl.ViewModels
                 // 添加到设备列表的顶部
                 ChassisDevices.Insert(0, chassis);
                 SelectedDevice = chassis;
-                
+
                 // 更新拖放提示显示状态
                 UpdateDropHintVisibility();
-                
+
                 _dialogService.ShowInfoDialog($"成功添加机箱: {SelectedChassis}", "成功");
             }
             catch (Exception ex)
@@ -2261,7 +2261,7 @@ namespace MeasureControl.ViewModels
             RightPanelContent = panel;
 
             Debug.WriteLine($"[PxiChassis] RightPanelContent set to {panel.GetType().Name}, DataContext={viewModel.GetType().Name}");
-        } 
+        }
 
         private string GetCardPanelCacheKey(DeviceBase device, string panelType)
         {
@@ -2341,10 +2341,10 @@ namespace MeasureControl.ViewModels
                 }
 
                 var viewModel = new ViewModels.TestTask.LvdtSimulatorConfigPanelViewModel(
-                    lvdtDevice, 
-                    ChassisName, 
-                    _pxiChassisService, 
-                    _eventAggregator, 
+                    lvdtDevice,
+                    ChassisName,
+                    _pxiChassisService,
+                    _eventAggregator,
                     _projectService);
                 var panel = new Views.TestTask.LvdtSimulatorConfigPanel { DataContext = viewModel };
 
@@ -2596,7 +2596,7 @@ namespace MeasureControl.ViewModels
 
             // 更新机箱名称
             ChassisName = args.ChassisName;
-            
+
             // 查找对应的机箱设备
             var chassisDevice = FindChassisDeviceByName(args.ChassisName);
             if (chassisDevice != null)
@@ -2614,8 +2614,8 @@ namespace MeasureControl.ViewModels
         private void OnDeviceModified(DeviceModifiedEventArgs args)
         {
             // 处理通道编号更新事件、设备删除事件和设备更新事件（如重命名）
-            if (args.ModificationType == "ChannelNumberingUpdated" || 
-                args.ModificationType == "DeviceRemoved" || 
+            if (args.ModificationType == "ChannelNumberingUpdated" ||
+                args.ModificationType == "DeviceRemoved" ||
                 args.ModificationType == "Update")
             {
                 // 如果事件来自当前机箱，需要刷新显示
@@ -2625,12 +2625,12 @@ namespace MeasureControl.ViewModels
                     // 通过替换整个集合引用来强制刷新UI
                     var currentDevices = new ObservableCollection<DeviceBase>(ChassisDevices);
                     ChassisDevices = currentDevices;
-                    
+
                     // 如果当前有选中的设备，也刷新详细信息面板
                     if (SelectedDevice != null)
                     {
                         UpdateDeviceInfoItems(SelectedDevice);
-                        
+
                         // 只有在右侧没有其他内容（或当前就是设备信息面板）时，才刷新设备信息面板，避免覆盖已有配置界面
                         if (RightPanelContent == null || RightPanelContent is DeviceInfoPanel)
                         {
@@ -2646,8 +2646,8 @@ namespace MeasureControl.ViewModels
         /// </summary>
         private DeviceBase FindChassisDeviceByName(string chassisName)
         {
-            return ChassisDevices.FirstOrDefault(device => 
-                device.DeviceType == "Chassis" && 
+            return ChassisDevices.FirstOrDefault(device =>
+                device.DeviceType == "Chassis" &&
                 (device.Name == chassisName || device.Model == chassisName));
         }
 
@@ -2664,7 +2664,7 @@ namespace MeasureControl.ViewModels
             try
             {
                 string currentName = device.CardName ?? device.Model;
-                
+
                 // 创建重命名对话框
                 var renameDialog = new RenameDialog();
                 var viewModel = new RenameDialogViewModel
@@ -2673,29 +2673,29 @@ namespace MeasureControl.ViewModels
                     OldName = currentName,
                     NewName = currentName
                 };
-                
+
                 // 设置验证函数：检查名称唯一性
                 viewModel.SetValidateFunc(newName =>
                 {
                     // 如果新名称与旧名称相同，允许
                     if (newName == currentName)
                         return true;
-                    
+
                     // 检查名称是否在同一机箱内唯一
                     return _pxiChassisService.ValidateCardName(ChassisName, device.Id, newName);
                 });
-                
+
                 renameDialog.DataContext = viewModel;
-                
+
                 // 显示对话框
                 if (renameDialog.ShowDialog() == true)
                 {
                     string newName = viewModel.NewName?.Trim();
-                    
+
                     // 如果名称没有改变，直接返回
                     if (newName == currentName)
                         return;
-                    
+
                     // 调用服务重命名
                     bool success = _pxiChassisService.RenameCard(ChassisName, device.Id, newName);
                     if (success)
@@ -2741,7 +2741,7 @@ namespace MeasureControl.ViewModels
                         return;
                     }
                 }
-                
+
                 // 如果是SwitchDevice，在删除前停止对应的TCP服务器
                 if (device is SwitchDevice switchDevice)
                 {
@@ -2782,17 +2782,17 @@ namespace MeasureControl.ViewModels
                         ModificationType = "Delete",
                         DeviceInfo = $"{device.ParentNode} - {device.Model}"
                     });
-                    
+
                     // 发布项目修改事件，触发自动保存
                     _eventAggregator.GetEvent<ProjectModifiedEvent>().Publish(new ProjectModifiedEventArgs
                     {
                         ModificationType = "Device",
                         Description = $"删除机箱设备: {device.Model}"
                     });
-                    
+
                     // 注意：不发布DeletePxiChassisEvent事件，因为删除的只是9槽机箱设备，不是整个PXI机箱容器
                     // 整个PXI机箱容器应该保留，只是设备列表为空
-                    
+
                     _dialogService.ShowInfoDialog("机箱设备已删除", "成功");
                 }
                 else
@@ -2803,7 +2803,7 @@ namespace MeasureControl.ViewModels
                     {
                         // 从机箱设备的子节点中删除板卡设备
                         bool removed = chassisDevice.Children.Remove(device);
-                        
+
                         // 更新所有板卡的槽位位置（删除后重新编号）
                         if (chassisDevice is ChassisDevice chassisDeviceForSlot)
                         {
@@ -2812,19 +2812,19 @@ namespace MeasureControl.ViewModels
 
                         // 本地机箱：刷新矩阵后台命令处理器注册（槽位可能重排）
                         RefreshLocalMatrixHandlers();
-                        
+
                         // 手动触发Children属性更改通知，确保UI立即更新
                         var children = chassisDevice.Children;
                         chassisDevice.Children = null;
                         chassisDevice.Children = children;
                     }
-                    
+
                     // 从ChassisDevices中删除（如果存在）
                     if (ChassisDevices.Contains(device))
                     {
                         ChassisDevices.Remove(device);
                     }
-                    
+
                     // 从服务中删除设备（确保保存时删除）
                     _pxiChassisService.RemoveDeviceFromChassis(ChassisName, device.Id);
                     // 发布设备修改事件，通知MainWindowViewModel标记项目为已修改
@@ -2834,22 +2834,22 @@ namespace MeasureControl.ViewModels
                         ModificationType = "Delete",
                         DeviceInfo = $"{device.ParentNode} - {device.Model}"
                     });
-                    
+
                     // 发布项目修改事件，触发自动保存
                     _eventAggregator.GetEvent<ProjectModifiedEvent>().Publish(new ProjectModifiedEventArgs
                     {
                         ModificationType = "Device",
                         Description = $"删除设备: {device.ParentNode} - {device.Model}"
                     });
-                    
+
                     _dialogService.ShowInfoDialog("设备已删除", "成功");
                 }
                 // 更新拖放提示显示状态
                 UpdateDropHintVisibility();
-                
+
                 // 清除选中状态
                 SelectedDevice = null;
-                
+
                 // 清除右侧设备信息显示
                 DeviceInfoItems.Clear();
                 DeviceInfoTitle = "暂无信息";
@@ -3034,9 +3034,9 @@ namespace MeasureControl.ViewModels
             {
                 return true; // 包含机箱关键字的设备
             }
-            
+
             // 检查是否为机箱型号（如简仪 PXIe-2722G2, 简仪 PXIe-2519G2等）
-            var chassisModels = new[] { 
+            var chassisModels = new[] {
                 "PXIe-2722G2", "PXIe-2519G2", "PXIe-27722G2"
             };
             return chassisModels.Any(model => projectItem.Name.Contains(model));
@@ -3054,11 +3054,11 @@ namespace MeasureControl.ViewModels
             {
                 return true;
             }
-            
+
             // 判断是否为PXI板卡设备 - 这些设备应该作为机箱的子节点
-            var pxiCardKeywords = new[] { 
-                "PXIe-", "PXI-", "控制器", "矩阵开关", "离散量", "模拟量", "电阻输出", 
-                "LVDT", "RVDT", "旋转变压器", "CAN", "ARINC429", "1553B", "1394B", "LVDS", 
+            var pxiCardKeywords = new[] {
+                "PXIe-", "PXI-", "控制器", "矩阵开关", "离散量", "模拟量", "电阻输出",
+                "LVDT", "RVDT", "旋转变压器", "CAN", "ARINC429", "1553B", "1394B", "LVDS",
                 "凌华", "欧开", "阿尔泰", "芒果树", "怀智", "简仪", "NI", "National Instruments"
             };
             return pxiCardKeywords.Any(keyword => projectItem.Name.Contains(keyword));
@@ -3304,7 +3304,7 @@ namespace MeasureControl.ViewModels
             {
                 return parentNodeName;
             }
-            
+
             // 如果无法从项目树获取，则根据设备名称推断类型节点
             if (projectItem.Name.Contains("机箱"))
             {
@@ -3324,7 +3324,7 @@ namespace MeasureControl.ViewModels
             if (projectItem.Name.Contains("1553B")) return "1553B";
             if (projectItem.Name.Contains("1394B")) return "1394B";
             if (projectItem.Name.Contains("LVDS")) return "LVDS";
-            
+
             // PXI板卡设备类型识别（简仪、NI等品牌）
             if (projectItem.Name.Contains("简仪") || projectItem.Name.Contains("NI") || projectItem.Name.Contains("National Instruments"))
             {
@@ -3335,27 +3335,27 @@ namespace MeasureControl.ViewModels
                     return "PXI板卡";
                 }
             }
-            
+
             // 程控设备类型识别
             if (projectItem.Name.Contains("电源")) return "程控电源";
             if (projectItem.Name.Contains("负载")) return "电子负载";
-            
+
             // Chroma设备具体类型识别
             if (projectItem.Name.Contains("Chroma 6314A")) return "程控电源";
             if (projectItem.Name.Contains("Chroma 6312A")) return "电子负载";
             if (projectItem.Name.Contains("Chroma")) return "程控仪器仪表";
-            
+
             // 程控仪器仪表子类型识别
             if (projectItem.Name.Contains("DG1032Z") || projectItem.Name.Contains("信号发生器")) return "信号发生器";
             if (projectItem.Name.Contains("DM3068") || projectItem.Name.Contains("数字多用表")) return "数字多用表";
             if (projectItem.Name.Contains("DH04804") || projectItem.Name.Contains("示波器")) return "示波器";
             if (projectItem.Name.Contains("53220A") || projectItem.Name.Contains("频率计")) return "频率计";
             if (projectItem.Name.Contains("6314A")) return "串口";
-            
+
             // 其他程控仪器仪表设备
-            if (projectItem.Name.Contains("普源") || projectItem.Name.Contains("是德") || 
+            if (projectItem.Name.Contains("普源") || projectItem.Name.Contains("是德") ||
                 projectItem.Name.Contains("DH") || projectItem.Name.Contains("MS")) return "程控仪器仪表";
-            
+
             return "其他自定义设备";
         }
 
@@ -3411,7 +3411,7 @@ namespace MeasureControl.ViewModels
         private string FindParentNodeInChildren(ProjectItem parent, ProjectItem target)
         {
             if (parent.Children == null) return null;
-            
+
             foreach (var child in parent.Children)
             {
                 // 如果找到目标设备，返回父节点名称
@@ -3419,7 +3419,7 @@ namespace MeasureControl.ViewModels
                 {
                     return parent.Name;
                 }
-                
+
                 // 递归查找子节点
                 var result = FindParentNodeInChildren(child, target);
                 if (!string.IsNullOrEmpty(result))
@@ -3427,7 +3427,7 @@ namespace MeasureControl.ViewModels
                     return result;
                 }
             }
-            
+
             return null;
         }
 
@@ -3435,8 +3435,8 @@ namespace MeasureControl.ViewModels
         {
             if (projectItem.Name.Contains("电源")) return "程控电源";
             if (projectItem.Name.Contains("负载")) return "电子负载";
-            if (projectItem.Name.Contains("普源") || projectItem.Name.Contains("是德") || 
-                projectItem.Name.Contains("Chroma") || projectItem.Name.Contains("DH") || 
+            if (projectItem.Name.Contains("普源") || projectItem.Name.Contains("是德") ||
+                projectItem.Name.Contains("Chroma") || projectItem.Name.Contains("DH") ||
                 projectItem.Name.Contains("MS")) return "程控仪器仪表";
             if (projectItem.Name.Contains("控制器")) return "PXI控制器";
             if (projectItem.Name.Contains("矩阵开关")) return "矩阵开关";
@@ -3450,7 +3450,7 @@ namespace MeasureControl.ViewModels
             if (projectItem.Name.Contains("1553B")) return "1553B通信";
             if (projectItem.Name.Contains("1394B")) return "1394B通信";
             if (projectItem.Name.Contains("LVDS")) return "LVDS通信";
-            
+
             return "PXI板卡";
         }
 
@@ -3463,8 +3463,8 @@ namespace MeasureControl.ViewModels
         private string GetChannelCount(ProjectItem projectItem)
         {
             if (projectItem.Name.Contains("电源") || projectItem.Name.Contains("负载")) return "1";
-            if (projectItem.Name.Contains("普源") || projectItem.Name.Contains("是德") || 
-                projectItem.Name.Contains("Chroma") || projectItem.Name.Contains("DH") || 
+            if (projectItem.Name.Contains("普源") || projectItem.Name.Contains("是德") ||
+                projectItem.Name.Contains("Chroma") || projectItem.Name.Contains("DH") ||
                 projectItem.Name.Contains("MS")) return "2";
             return "16";
         }
@@ -3492,9 +3492,9 @@ namespace MeasureControl.ViewModels
                         .FirstOrDefault();
                     pxiChassisView?.ExpandPxiToolsTreeLevel2();
                 }
-            catch (Exception)
-            {
-            }
+                catch (Exception)
+                {
+                }
             }), DispatcherPriority.Loaded);
         }
 
@@ -3531,7 +3531,7 @@ namespace MeasureControl.ViewModels
                 SelectedDevice = null;
                 DeviceInfoItems?.Clear();
                 DeviceInfoTitle = "暂无信息";
-                
+
                 ChassisName = navigationContext.Parameters["ChassisName"].ToString();
                 // 确保机箱存在
                 InitializeChassis();
@@ -3539,7 +3539,7 @@ namespace MeasureControl.ViewModels
                 LoadChassisDevices();
 
                 EnsureFixedDemoLayoutIfNeeded();
-                
+
                 // 检查是否为标定导航
                 bool isCalibrationNavigation = navigationContext.Parameters.ContainsKey("IsCalibrationNavigation") &&
                     navigationContext.Parameters["IsCalibrationNavigation"] is bool isCalibration && isCalibration;
@@ -3575,7 +3575,7 @@ namespace MeasureControl.ViewModels
                         }
                     }
                 }
-                
+
                 // 检查是否为波形显示导航
                 bool isWaveformNavigation = navigationContext.Parameters.ContainsKey("IsWaveformNavigation") &&
                     navigationContext.Parameters["IsWaveformNavigation"] is bool isWaveform && isWaveform;
@@ -3614,7 +3614,7 @@ namespace MeasureControl.ViewModels
                         }
                     }
                 }
-                
+
                 // 展开PXI工具树的一级目录
                 ExpandPxiToolsTreeLevel2();
             }
@@ -3645,17 +3645,17 @@ namespace MeasureControl.ViewModels
                     expectedNames = new List<string>
                     {
                         "凌华 PXIe-3987",
-                        "简仪 PXIe-7131",
-                        "阿尔泰 PXI-7012",
-                        "阿尔泰 PXI-7012",
-                        "欧开 PXI-4087C",
-                        "欧开 PXI-4087C",
                         "欧开 PXI-4087A",
+                         "欧开 PXI-4087C",
+                        "欧开 PXI-4087C",
+                        "阿尔泰 PXI-7012",
+                        "阿尔泰 PXI-7012",
+                       "芒果树 MT-X532",
+                         "阿尔泰 PXIe-4227",
                         "阿尔泰 PXIe-9774",
-                        "芒果树 MT-X532",
                         "空槽",
-                        "阿尔泰 PXIe-4227",
-                        "阿尔泰 PXI-4004",
+                       "阿尔泰 PXI-4004",
+                        "简仪 PXIe-7131",
                         "芒果树 MT-X970",
                         "阿尔泰 PXI-4332",
                         "怀智 HZ-MIL1394B-PX1e-4N",
@@ -3674,14 +3674,14 @@ namespace MeasureControl.ViewModels
                     expectedNames = expectedNames = new List<string>
                     {
                         "凌华 PXIe-3987",
-                        "阿尔泰 PXI-2601",
-                        "阿尔泰 PXI-2601",
                         "欧开 PXI-3022",
+                        "欧开 PXI-3022",
+                        "阿尔泰 PXI-2601",
+                        "阿尔泰 PXI-2601",
                         "空槽",
                         "阿尔泰 PXI-2601",
                         "阿尔泰 PXI-2601",
-                        "阿尔泰 PXI-2601",
-                        "欧开 PXI-3022"
+                        "阿尔泰 PXI-2601",                       
                     };
 
                     sequence = new List<string>(expectedNames);
@@ -3695,59 +3695,53 @@ namespace MeasureControl.ViewModels
 
                 LoadChassisDevices();
 
-                ApplyFixedDemoInstrumentDefaults();
-
                 var uiChassisDevice = FindChassisDevice() as ChassisDevice;
                 if (uiChassisDevice?.Children == null)
                 {
                     return;
                 }
 
-                bool cardMatches = false;
-                if (uiChassisDevice.Children.Count == expectedNames.Count)
-                {
-                    cardMatches = true;
-                    for (int i = 0; i < expectedNames.Count; i++)
-                    {
-                        var child = uiChassisDevice.Children[i];
-                        var expected = expectedNames[i];
-                        var actual = child?.Name;
-                        if (!string.Equals(actual, expected, StringComparison.Ordinal))
-                        {
-                            cardMatches = false;
-                            break;
-                        }
-                    }
-                }
-
-                bool instrumentMatches = HasRequiredFixedDemoInstruments();
-
-                if (cardMatches && instrumentMatches)
+                // 仅在“新建项目/机箱无数据”时初始化一次默认布局。
+                // 一旦 proj.json 中已有任何板卡/仪器数据，则不再校验、不再重建，避免覆盖配置项。
+                if (uiChassisDevice.Children.Count > 0)
                 {
                     return;
+                }
+
+                if (string.Equals(ChassisName, "PXI机箱1", StringComparison.Ordinal))
+                {
+                    var hasAnyInstrument = false;
+                    try
+                    {
+                        hasAnyInstrument = ChassisDevices.Any(d => d != null && string.Equals(d.DeviceType, "Instrument", StringComparison.Ordinal));
+                    }
+                    catch
+                    {
+                        hasAnyInstrument = false;
+                    }
+
+                    if (hasAnyInstrument)
+                    {
+                        return;
+                    }
                 }
 
                 _isApplyingFixedDemoLayout = true;
                 try
                 {
-                    if (!cardMatches)
+                    foreach (var name in sequence)
                     {
-                        uiChassisDevice.Children.Clear();
-
-                        foreach (var name in sequence)
+                        var toolItem = FindToolItemByName(name);
+                        if (toolItem == null)
                         {
-                            var toolItem = FindToolItemByName(name);
-                            if (toolItem == null)
-                            {
-                                toolItem = new ProjectItem { Name = name };
-                            }
-
-                            OnAddDevice(toolItem);
+                            toolItem = new ProjectItem { Name = name };
                         }
+
+                        OnAddDevice(toolItem);
                     }
 
                     EnsureRequiredFixedDemoInstruments();
-
+                    ApplyFixedDemoInstrumentDefaults();
                     LoadChassisDevices();
                 }
                 finally
@@ -3980,19 +3974,19 @@ namespace MeasureControl.ViewModels
             {
                 // 清理机箱设备数据，包括子设备
                 ResourceCleanupHelper.CleanupDeviceCollection(ChassisDevices);
-                
+
                 // 清理设备信息
                 ResourceCleanupHelper.CleanupCollection(DeviceInfoItems);
-                
+
                 // 清理选中的设备
                 SelectedDevice = null;
-                
+
                 // 重置机箱名称
                 ChassisName = $"{AppConstants.DefaultChassisNamePrefix}1";
-                
+
                 // 重新初始化可用机箱列表
                 InitializeAvailableChassis();
-                
+
             }, "PxiChassisViewModel项目关闭清理");
         }
         #endregion
@@ -4354,17 +4348,17 @@ namespace MeasureControl.ViewModels
                                                     {
                                                         Debug.WriteLine($"[HandleClientAsync-Fallback] 更新设备配置失败: {ex.Message}");
                                                     }
-                                                // 通知有变化，便于 UI 层刷新（如果存在订阅者）
-                                                try
-                                                {
-                                                    _eventAggregator?.GetEvent<MeasureControl.Events.DeviceModifiedEvent>()?.Publish(new MeasureControl.Events.DeviceModifiedEventArgs
+                                                    // 通知有变化，便于 UI 层刷新（如果存在订阅者）
+                                                    try
                                                     {
-                                                        ChassisName = this.ChassisName,
-                                                        ModificationType = "RemoteCommand",
-                                                        Device = targetSwitch
-                                                    });
-                                                }
-                                                catch { }
+                                                        _eventAggregator?.GetEvent<MeasureControl.Events.DeviceModifiedEvent>()?.Publish(new MeasureControl.Events.DeviceModifiedEventArgs
+                                                        {
+                                                            ChassisName = this.ChassisName,
+                                                            ModificationType = "RemoteCommand",
+                                                            Device = targetSwitch
+                                                        });
+                                                    }
+                                                    catch { }
                                                 }
                                             }
                                         }
@@ -4525,7 +4519,7 @@ namespace MeasureControl.ViewModels
             {
                 // 构建完整的pageKey: PxiChassis_机箱名称
                 string pageKey = $"PxiChassis_{ChassisName}";
-                
+
                 // 传递完整的pageKey，这样MainWindowViewModel可以正确识别和关闭该页面
                 _eventAggregator.GetEvent<Events.ReleaseCurrentPageEvent>().Publish(pageKey);
             }
@@ -4544,7 +4538,7 @@ namespace MeasureControl.ViewModels
                 _eventAggregator?.GetEvent<PxiChassisSelectedEvent>()?.Unsubscribe(OnPxiChassisSelected);
                 _eventAggregator?.GetEvent<ProjectClosedEvent>()?.Unsubscribe(OnProjectClosed);
                 _eventAggregator?.GetEvent<DeviceModifiedEvent>()?.Unsubscribe(OnDeviceModified);
-                
+
                 // 清理集合
                 ChassisDevices?.Clear();
                 AvailableChassis?.Clear();
