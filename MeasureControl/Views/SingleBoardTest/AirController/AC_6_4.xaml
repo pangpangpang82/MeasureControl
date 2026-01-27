@@ -479,7 +479,7 @@
                             BorderBrush="#D9D9D9"
                             BorderThickness="1"
                             CornerRadius="3">
-                            <TextBlock Margin="1" FontSize="16" />
+                            <TextBlock Margin="1" FontSize="16" Text="{Binding DmmVoltageText}" />
                         </Border>
 
                     </StackPanel>
@@ -717,8 +717,11 @@
                         Margin="20,0,0,0"
                         VerticalAlignment="Center"
                         FontSize="30"
-                        FontWeight="Bold"
-                        Text="测试结果：" />
+                        FontWeight="Bold">
+                        <Run Text="测试结果：" />
+                        <Run Text=" " />
+                        <Run Text="{Binding LastTestResult, TargetNullValue=--, FallbackValue=--}" />
+                    </TextBlock>
                     <Grid Grid.Row="1">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition />

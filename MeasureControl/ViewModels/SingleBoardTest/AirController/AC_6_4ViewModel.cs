@@ -73,6 +73,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private string _dmmChannel;
 
+        private string _dmmVoltageText;
         private string _telemetryVoltageText;
 
         private string _lastTestTime;
@@ -96,6 +97,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             _dmmChannel = "Port1";
 
+            DmmVoltageText = "--";
             TelemetryVoltageText = "--";
 
             _simulation.OnOutputEnabledAsync = OnSimulationOutputEnabledAsync;
@@ -133,6 +135,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _telemetryVoltageText;
             private set => SetProperty(ref _telemetryVoltageText, value);
+        }
+
+        public string DmmVoltageText
+        {
+            get => _dmmVoltageText;
+            private set => SetProperty(ref _dmmVoltageText, value);
         }
 
         public double? LatestDmmVoltage
@@ -499,6 +507,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 IsManualTestRunning = true;
+                LastTestTime = "--";
+                LastTestResult = "--";
                 _opCts?.Cancel();
                 _opCts?.Dispose();
                 _opCts = new CancellationTokenSource();
@@ -512,6 +522,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 IsInAtpMode = false;
                 OutputEnabled = false;
+                DmmVoltageText = "--";
                 TelemetryVoltageText = "--";
             }
             catch (Exception ex)
@@ -537,6 +548,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 IsAutoTestRunning = true;
+                LastTestTime = "--";
+                LastTestResult = "--";
                 _opCts?.Cancel();
                 _opCts?.Dispose();
                 _opCts = new CancellationTokenSource();
@@ -549,6 +562,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 IsInAtpMode = false;
                 OutputEnabled = false;
+                DmmVoltageText = "--";
                 TelemetryVoltageText = "--";
             }
             catch (Exception ex)
@@ -585,6 +599,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsInAtpMode = false;
                 OutputEnabled = false;
 
+                DmmVoltageText = "--";
                 TelemetryVoltageText = "--";
 
                 try
@@ -601,6 +616,40 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             finally
             {
                 IsBusy = false;
+            }
+        }
+
+        private void TrySwitchMatrixForSelectedDmmChannel()
+        {
+            if (!OutputEnabled)
+                return;
+
+            var token = _opCts?.Token ?? CancellationToken.None;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await SwitchMatrixForSelectedDmmChannelAsync(msg => AddLog(msg), token);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 矩阵开关切换失败: {ex.Message}");
+                }
+            });
+        }
+
+        private async Task SwitchMatrixForSelectedDmmChannelAsync(Action<string> log, CancellationToken token)
+        {
+            await _matrixSwitchLock.WaitAsync(token);
+            try
+            {
+                string outNode = string.Equals(DmmChannel, "Port2", StringComparison.OrdinalIgnoreCase) ? "O31" : "O30";
+                bool ok = await MatrixControlService.Instance.ConnectNodesAsync("I4", outNode, 7, "192.168.1.3");
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 矩阵开关通路: I4->{outNode} slot=7 ip=192.168.1.3, ok={ok}");
+            }
+            finally
+            {
+                _matrixSwitchLock.Release();
             }
         }
 
@@ -683,7 +732,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         var raw = await QueryDmmStringAsync(":MEAS:VOLT:DC?", ct).ConfigureAwait(false);
                         raw = raw?.Trim();
 
-                        TelemetryVoltageText = FormatVoltageReading(raw);
+                        DmmVoltageText = FormatVoltageReading(raw);
                         LatestDmmVoltage = TryParseVoltageReading(raw, out var v) ? v : null;
                     }
                     catch (OperationCanceledException)
@@ -692,7 +741,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
                     catch (Exception ex)
                     {
-                        TelemetryVoltageText = $"回采失败: {ex.Message}";
+                        DmmVoltageText = $"回采失败: {ex.Message}";
                     }
 
                     await Task.Delay(300, ct).ConfigureAwait(false);
@@ -1015,6 +1064,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 ushort mv = (ushort)((resp[4] << 8) | resp[5]);
                 double v = mv / 1000.0;
                 LatestTelemetryVoltage = v;
+                TelemetryVoltageText = $"{v:0.000} V";
                 lastTelemetry = v;
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 回采上报: {v:F3}V");
 
