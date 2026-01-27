@@ -503,8 +503,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _opCts = new CancellationTokenSource();
                 Logs.Add($"[{DateTime.Now:HH:mm:ss}] 自动测试启动(仿真模式)：开始打开设备");
 
-                _simulation.SimProductRxChannelIndex = 14;
-                _simulation.SimProductTxChannelIndex = 15;
+                _simulation.SimProductRxChannelIndex = 6;
+                _simulation.SimProductTxChannelIndex = 7;
 
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => Logs.Add(msg));
 
