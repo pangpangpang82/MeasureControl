@@ -41,8 +41,10 @@ namespace MeasureControl.Simulations.AC_6_4
         private static readonly byte[] EnableOutputCommand = { 0x01, 0x04, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnableOutputAck = { 0x01, 0x04, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01 };
 
-        public int SimProductRxChannelIndex { get; set; } = 14;
-        public int SimProductTxChannelIndex { get; set; } = 15;
+        public bool EnableFrameLogging { get; set; } = true;
+
+        public int SimProductRxChannelIndex { get; set; } = 6;
+        public int SimProductTxChannelIndex { get; set; } = 7;
 
         public string SignalGeneratorIpAddress { get; set; } = "192.168.1.12";
         public int SignalGeneratorPort { get; set; } = 5555;
@@ -123,6 +125,30 @@ namespace MeasureControl.Simulations.AC_6_4
 
             try
             {
+                if (tx == rx)
+                {
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench TX/RX 通道冲突：TX={tx}, RX={rx}");
+                    return false;
+                }
+                if (tx == SimProductRxChannelIndex || tx == SimProductTxChannelIndex)
+                {
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchTX 与产品侧通道冲突：benchTX={tx}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
+                    return false;
+                }
+                if (rx == SimProductRxChannelIndex || rx == SimProductTxChannelIndex)
+                {
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX 与产品侧通道冲突：benchRX={rx}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
+                    return false;
+                }
+
+                bool openTxOk = await _arincDriver.OpenTxChannelAsync(tx);
+                bool openRxOk = await _arincDriver.OpenRxChannelAsync(rx);
+                if (!openTxOk || !openRxOk)
+                {
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench通道打开失败: openTX={openTxOk} (tx={tx}), openRX={openRxOk} (rx={rx})");
+                    return false;
+                }
+
                 await _arincDriver.ConfigureTxChannelAsync(tx, txRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
                 await _arincDriver.ConfigureRxChannelAsync(rx, rxRate, parity: parity, wordFormat: wordFormat,
                     enableInterrupt: true, interruptDepth: 512, enableTimeTag: false);
@@ -158,6 +184,19 @@ namespace MeasureControl.Simulations.AC_6_4
 
             try
             {
+                if (rx == SimProductRxChannelIndex || rx == SimProductTxChannelIndex)
+                {
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX 与产品侧通道冲突：benchRX={rx}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
+                    return false;
+                }
+
+                bool openRxOk = await _arincDriver.OpenRxChannelAsync(rx);
+                if (!openRxOk)
+                {
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench接收通道打开失败: benchRX={rx}");
+                    return false;
+                }
+
                 await _arincDriver.ConfigureRxChannelAsync(rx, rxRate, parity: parity, wordFormat: wordFormat,
                     enableInterrupt: true, interruptDepth: 512, enableTimeTag: false);
 
@@ -194,11 +233,14 @@ namespace MeasureControl.Simulations.AC_6_4
             if (command8 == null || command8.Length != 8)
                 throw new ArgumentException("command8 must be 8 bytes", nameof(command8));
 
-            await EnsureBenchChannelsAsync(benchTxChannel, benchRxChannel, log);
+            bool readyOk = await EnsureBenchChannelsAsync(benchTxChannel, benchRxChannel, log);
+            if (!readyOk)
+                throw new InvalidOperationException($"[SIM] bench通道未就绪：TX={benchTxChannel}, RX={benchRxChannel}");
 
             int txIndex = ParseChannelIndex(benchTxChannel);
             int rxIndex = ParseChannelIndex(benchRxChannel);
 
+            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送: tx={txIndex}, rx={rxIndex}, label=0x{label:X2}, payload8={FormatBytes(command8)}");
             await SendMultiFrameOnChannelAsync(txIndex, label, command8, log, token);
 
             return await WaitBenchResponseAsync(
@@ -229,6 +271,8 @@ namespace MeasureControl.Simulations.AC_6_4
             // 这样即使 label 不一致，也能正确组出 8 字节响应并由 isExpectedResponse 判定。
             var assemblers = new Dictionary<byte, MultiFrameCommandAssembler>();
             var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
+            int rxLogCount = 0;
+            const int maxRxLog = 32;
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
             {
@@ -239,6 +283,19 @@ namespace MeasureControl.Simulations.AC_6_4
                     {
                         if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
                             continue;
+
+                        if (EnableFrameLogging)
+                        {
+                            if (rxLogCount < maxRxLog)
+                            {
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} recv raw=0x{item.Data429:X8} label=0x{rxLabel:X2} sdi={sdi} payload=0x{payload:X4}");
+                                rxLogCount++;
+                                if (rxLogCount == maxRxLog)
+                                {
+                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} recv日志已达上限({maxRxLog})，后续帧不再打印(避免刷屏)");
+                                }
+                            }
+                        }
 
                         // 仅用于排查：当你传入固定 label 时，如果一直超时，可打开日志观察 rxLabel 是否不同。
                         // 这里不打印每一帧，避免刷屏；只在首次看到某个 label 时打印一次。
@@ -254,7 +311,10 @@ namespace MeasureControl.Simulations.AC_6_4
                         if (assembler.TryAddFragment(rxLabel, sdi, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
                         {
                             if (isExpectedResponse == null || isExpectedResponse(resp8))
+                            {
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 label=0x{rxLabel:X2} resp8={FormatBytes(resp8)}");
                                 return resp8;
+                            }
                         }
                     }
                 }
@@ -332,6 +392,7 @@ namespace MeasureControl.Simulations.AC_6_4
                             {
                                 if (_rxAssembler.TryAddFragment(label, sdi, payload, DateTime.UtcNow, out var cmd8))
                                 {
+                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] simRX={SimProductRxChannelIndex} 拼包完成 label=0x{label:X2} cmd8={FormatBytes(cmd8)}");
                                     if (cmd8.SequenceEqual(EnterAtpCommand))
                                     {
                                         log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP指令 -> 回复 ATP OK");
@@ -445,6 +506,15 @@ namespace MeasureControl.Simulations.AC_6_4
             {
                 log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧回包发送失败: simTX={SimProductTxChannelIndex}");
             }
+            else if (EnableFrameLogging)
+            {
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] simTX={SimProductTxChannelIndex} send label=0x{label:X2} payload8={FormatBytes(payload8)}");
+                for (int i = 0; i < data429.Length; i++)
+                {
+                    TryParseWord(data429[i], out var txLabel, out var sdi, out var payload);
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] simTX={SimProductTxChannelIndex} send[{i}] raw=0x{data429[i]:X8} label=0x{txLabel:X2} sdi={sdi} payload=0x{payload:X4}");
+                }
+            }
         }
 
         private async Task SendMultiFrameOnChannelAsync(int txChannelIndex, byte label, byte[] payload8, Action<string> log, CancellationToken token)
@@ -469,6 +539,15 @@ namespace MeasureControl.Simulations.AC_6_4
             if (!ok)
             {
                 log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench侧发送失败: tx={txChannelIndex}");
+            }
+            else if (EnableFrameLogging)
+            {
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchTX={txChannelIndex} send label=0x{label:X2} payload8={FormatBytes(payload8)}");
+                for (int i = 0; i < data429.Length; i++)
+                {
+                    TryParseWord(data429[i], out var txLabel, out var sdi, out var payload);
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchTX={txChannelIndex} send[{i}] raw=0x{data429[i]:X8} label=0x{txLabel:X2} sdi={sdi} payload=0x{payload:X4}");
+                }
             }
         }
 
@@ -637,7 +716,14 @@ namespace MeasureControl.Simulations.AC_6_4
             const double txRate = 100000.0;
             const double rxRate = 0; // 自适应
 
-            // 试验台侧：打开 benchTxIndex / benchRxIndex
+            bool openBenchTx = await _arincDriver.OpenTxChannelAsync(benchTxIndex);
+            bool openBenchRx = await _arincDriver.OpenRxChannelAsync(benchRxIndex);
+            bool openSimRx = await _arincDriver.OpenRxChannelAsync(SimProductRxChannelIndex);
+            bool openSimTx = await _arincDriver.OpenTxChannelAsync(SimProductTxChannelIndex);
+
+            if (!openBenchTx || !openBenchRx || !openSimRx || !openSimTx)
+                throw new InvalidOperationException($"[SIM] Open通道失败: benchTX={benchTxIndex}({openBenchTx}), benchRX={benchRxIndex}({openBenchRx}), simRX={SimProductRxChannelIndex}({openSimRx}), simTX={SimProductTxChannelIndex}({openSimTx})");
+
             await _arincDriver.ConfigureTxChannelAsync(benchTxIndex, txRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
             await _arincDriver.ConfigureRxChannelAsync(benchRxIndex, rxRate, parity: parity, wordFormat: wordFormat,
                 enableInterrupt: true, interruptDepth: 512, enableTimeTag: false);
@@ -651,6 +737,13 @@ namespace MeasureControl.Simulations.AC_6_4
             await _arincDriver.ConfigureTxChannelAsync(SimProductTxChannelIndex, txRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
 
             log($"[{DateTime.Now:HH:mm:ss}] [SIM] ARINC429 通道已配置: benchTX={benchTxIndex}, benchRX={benchRxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
+        }
+
+        private static string FormatBytes(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length == 0)
+                return string.Empty;
+            return string.Join(" ", bytes.Select(b => b.ToString("X2")));
         }
 
         private static int ParseChannelIndex(string channel)
