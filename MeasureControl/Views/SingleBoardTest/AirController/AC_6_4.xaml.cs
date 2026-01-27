@@ -12,6 +12,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using MeasureControl.ViewModels.SingleBoardTest.AirController;
+using Prism.Ioc;
 
 namespace MeasureControl.Views.SingleBoardTest.AirController
 {
@@ -23,6 +25,7 @@ namespace MeasureControl.Views.SingleBoardTest.AirController
         public AC_6_4()
         {
             InitializeComponent();
+            DataContext = ContainerLocator.Container.Resolve<AC_6_4ViewModel>();
         }
 
         private void RootGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)

@@ -776,7 +776,11 @@
 
     <Compile Include="Services\ProjectTreeService.cs" />
 
+    <Compile Include="Services\SingleBoardTestContextService.cs" />
+
     <Compile Include="Services\PxiChassisService.cs" />
+
+    <Compile Include="Simulations\AC_6_4\AC_6_4Simulation.cs" />
 
     <Compile Include="Services\RemoteMatrixCommandDispatcher.cs" />
 
@@ -865,6 +869,8 @@
     <Compile Include="ViewModels\Hardware\PxiChassisViewModel.cs" />
 
     <Compile Include="ViewModels\SingleBoardTest\BoardTestViewModel.cs" />
+
+    <Compile Include="ViewModels\SingleBoardTest\AirController\AC_6_4ViewModel.cs" />
 
     <Compile Include="ViewModels\Dialogs\ReMessageBoxViewModel.cs" />
 
