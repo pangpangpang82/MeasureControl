@@ -2626,15 +2626,11 @@
 
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 
-      <Link>ACTS6010_32.dll</Link>
-
     </Content>
 
     <Content Include="Libs\ACTS6010_64.dll">
 
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-
-      <Link>ACTS6010_64.dll</Link>
 
     </Content>
 
@@ -2642,15 +2638,11 @@
 
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 
-      <Link>Art_DAQ.dll</Link>
-
     </Content>
 
     <Content Include="Libs\CC_RN_BM_DLL.dll">
 
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-
-      <Link>CC_RN_BM_DLL.dll</Link>
 
     </Content>
 
@@ -2658,15 +2650,12 @@
 
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 
-      <Link>wdapi1200.dll</Link>
-
     </Content>
 
     <Content Include="Libs\wdapi1200_32.dll">
 
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 
-      <Link>wdapi1200_32.dll</Link>
 
     </Content>
 
