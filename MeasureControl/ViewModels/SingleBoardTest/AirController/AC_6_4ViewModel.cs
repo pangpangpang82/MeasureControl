@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -139,6 +140,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public DelegateCommand ClearLogCommand { get; }
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
+
+        private void AddLog(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+                return;
+
+            try
+            {
+                Logs.Add(message);
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                Debug.WriteLine(message);
+            }
+            catch
+            {
+            }
+        }
 
         public bool IsBusy
         {
@@ -463,13 +486,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _opCts?.Cancel();
                 _opCts?.Dispose();
                 _opCts = new CancellationTokenSource();
-                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 手动测试启动(仿真模式)：开始打开设备");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动(仿真模式)：开始打开设备");
 
                 // 仿真模式：固定占用产品侧通道
                 _simulation.SimProductRxChannelIndex = 14;
                 _simulation.SimProductTxChannelIndex = 15;
 
-                await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => Logs.Add(msg));
+                await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
                 IsInAtpMode = false;
                 OutputEnabled = false;
@@ -477,7 +500,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             catch (Exception ex)
             {
-                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 手动测试启动失败: {ex.Message}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动失败: {ex.Message}");
                 IsManualTestRunning = false;
             }
             finally
@@ -501,12 +524,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _opCts?.Cancel();
                 _opCts?.Dispose();
                 _opCts = new CancellationTokenSource();
-                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 自动测试启动(仿真模式)：开始打开设备");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动(仿真模式)：开始打开设备");
 
                 _simulation.SimProductRxChannelIndex = 6;
                 _simulation.SimProductTxChannelIndex = 7;
 
-                await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => Logs.Add(msg));
+                await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
                 IsInAtpMode = false;
                 OutputEnabled = false;
@@ -514,7 +537,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             catch (Exception ex)
             {
-                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 自动测试启动失败: {ex.Message}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动失败: {ex.Message}");
                 IsAutoTestRunning = false;
             }
             finally
@@ -529,7 +552,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             IsBusy = true;
             try
             {
-                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 停止测试：发送退出ATP并关闭设备");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 停止测试：发送退出ATP并关闭设备");
 
                 await StopDmmPollingAsync();
                 await DisconnectDmmAsync();
@@ -539,7 +562,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     await SendExitAtpAsync(stopAfter: false);
                 }
 
-                await _simulation.StopAsync(msg => Logs.Add(msg));
+                await _simulation.StopAsync(msg => AddLog(msg));
 
                 IsManualTestRunning = false;
                 IsAutoTestRunning = false;
@@ -849,7 +872,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             IsBusy = true;
             try
             {
-                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 发送进入ATP：TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}, Data=00 01 00 01 00 00 00 00");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送进入ATP：TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}, Label=0x{DefaultLabel:X2}, Data=00 01 00 01 00 00 00 00");
 
                 var token = _opCts?.Token ?? CancellationToken.None;
                 var resp = await _simulation.SendBenchCommandAndWaitAsync(
@@ -859,21 +882,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     EnterAtpCommand,
                     b => b.SequenceEqual(EnterAtpOk),
                     timeoutMs: 2000,
-                    msg => Logs.Add(msg),
+                    msg => AddLog(msg),
                     token);
 
                 if (resp == null)
                 {
-                    Logs.Add($"[{DateTime.Now:HH:mm:ss}] 进入ATP超时未收到OK");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP超时，未收到OK");
                     return;
                 }
 
-                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 收到ATP OK，进入ATP成功");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 收到ATP OK，进入ATP成功");
                 IsInAtpMode = true;
             }
             catch (Exception ex)
             {
-                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败: {ex.Message}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败: {ex.Message}");
             }
             finally
             {
@@ -902,7 +925,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             IsBusy = true;
             try
             {
-                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 发送开启输出：TX={SetVoltageTxChannel}, RX={SetVoltageRxChannel}, Data=01 04 01 01 00 00 00 00");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送开启输出：TX={SetVoltageTxChannel}, RX={SetVoltageRxChannel}, Label=0x{DefaultLabel:X2}, Data=01 04 01 01 00 00 00 00");
 
                 var token = _opCts?.Token ?? CancellationToken.None;
                 var resp = await _simulation.SendBenchCommandAndWaitAsync(
@@ -912,16 +935,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     EnableOutputCommand,
                     b => b.SequenceEqual(EnableOutputAck),
                     timeoutMs: 2000,
-                    msg => Logs.Add(msg),
+                    msg => AddLog(msg),
                     token);
 
                 if (resp == null)
                 {
-                    Logs.Add($"[{DateTime.Now:HH:mm:ss}] 开启输出超时未收到ACK");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 开启输出超时，未收到ACK");
                     return;
                 }
 
-                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 收到开启输出ACK");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 收到开启输出ACK");
                 OutputEnabled = true;
 
                 // 简单判定：收到回采上报的电压 (01 04 01 02 vv vv 00 00) 并在范围内即 PASS
@@ -929,7 +952,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             catch (Exception ex)
             {
-                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 开启输出失败: {ex.Message}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 开启输出失败: {ex.Message}");
             }
             finally
             {
@@ -963,7 +986,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 got = true;
                 ushort mv = (ushort)((resp[4] << 8) | resp[5]);
                 double v = mv / 1000.0;
-                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 回采上报: {v:F3}V");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 回采上报: {v:F3}V");
                 pass = v >= 2.25 && v <= 2.75;
                 if (pass)
                     break;
@@ -995,7 +1018,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             IsBusy = true;
             try
             {
-                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 发送退出ATP：TX={ExitAtpTxChannel}, RX={ExitAtpRxChannel}, Data=00 02 00 01 00 00 00 01");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送退出ATP：TX={ExitAtpTxChannel}, RX={ExitAtpRxChannel}, Label=0x{DefaultLabel:X2}, Data=00 02 00 01 00 00 00 01");
 
                 var token = _opCts?.Token ?? CancellationToken.None;
                 var resp = await _simulation.SendBenchCommandAndWaitAsync(
@@ -1005,16 +1028,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     ExitAtpCommand,
                     b => b.SequenceEqual(ExitAtpOk),
                     timeoutMs: 2000,
-                    msg => Logs.Add(msg),
+                    msg => AddLog(msg),
                     token);
 
                 if (resp == null)
                 {
-                    Logs.Add($"[{DateTime.Now:HH:mm:ss}] 退出ATP超时未收到OK");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP超时，未收到OK");
                 }
                 else
                 {
-                    Logs.Add($"[{DateTime.Now:HH:mm:ss}] 收到退出ATP OK");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 收到退出ATP OK");
                 }
 
                 IsInAtpMode = false;
@@ -1028,7 +1051,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             catch (Exception ex)
             {
-                Logs.Add($"[{DateTime.Now:HH:mm:ss}] 退出ATP失败: {ex.Message}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP失败: {ex.Message}");
             }
             finally
             {
