@@ -294,8 +294,8 @@
                                                                 <ControlTemplate TargetType="ListBoxItem">
                                                                     <Border
                                                                         x:Name="Bd"
-                                                                        Padding="0,6,0,6"
                                                                         MinHeight="44"
+                                                                        Padding="0,6,0,6"
                                                                         Background="{TemplateBinding Background}"
                                                                         BorderBrush="#6e8de6"
                                                                         BorderThickness="0,0,0,2">
@@ -430,7 +430,7 @@
                                             VerticalAlignment="Center"
                                             FontSize="14"
                                             FontWeight="Black"
-                                            Text="{Binding DeviceInfoTitle}" />
+                                            Text="暂无信息" />
                                     </StackPanel>
 
                                     <Border Grid.Row="1" Margin="10,5,0,0">
@@ -682,7 +682,7 @@
                         </TreeView.Resources>
                         <TreeView.ItemTemplate>
                             <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                                <Border Background="Transparent" HorizontalAlignment="Stretch">
+                                <Border HorizontalAlignment="Stretch" Background="Transparent">
                                     <Border.InputBindings>
                                         <MouseBinding
                                             Command="{Binding DataContext.AddDeviceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
