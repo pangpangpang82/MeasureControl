@@ -2815,7 +2815,8 @@ namespace MeasureControl.ViewModels.TestTask
                         {
                             crossPoint.IsPendingConnection = false;
                             crossPoint.IsConnected = false;
-                            crossPoint.ConnectionColor = null;
+                            // 与 PXI2601 保持一致：断开时显示灰色而非 null，以便 UI 立即显示为断开状态
+                            crossPoint.ConnectionColor = "#9E9E9E";
                         }
 
                         // 更新交叉点状态
@@ -3009,8 +3010,8 @@ namespace MeasureControl.ViewModels.TestTask
                             if (args == null) return false;
                             // args.InputNodeId like "r{n}", args.OutputNodeId like "c{m}"
                             int input = 0, output = 0;
-                            if (!int.TryParse(args.InputNodeId.TrimStart('r','R'), out input)) return false;
-                            if (!int.TryParse(args.OutputNodeId.TrimStart('c','C'), out output)) return false;
+                            if (!int.TryParse(args.InputNodeId.TrimStart('r', 'R'), out input)) return false;
+                            if (!int.TryParse(args.OutputNodeId.TrimStart('c', 'C'), out output)) return false;
 
                             // PXI3022 is 4 rows x 64 cols
                             int row = input % 4;
@@ -3701,7 +3702,7 @@ namespace MeasureControl.ViewModels.TestTask
                 }
 
                 // 设置交叉点为待确认状态
-               // Debug.WriteLine($"[HandleOutputNodeClick] 设置交叉点为待确认状态");
+                // Debug.WriteLine($"[HandleOutputNodeClick] 设置交叉点为待确认状态");
                 crossPoint.IsPendingConnection = true;
                 crossPoint.ConnectionColor = "#FF9800";
                 _pendingCrossPoint = crossPoint;
@@ -4161,7 +4162,7 @@ namespace MeasureControl.ViewModels.TestTask
             // 仅在宽度显著变化或未初始化时更新CanvasWidth，避免小变动触发重绘
             if (CanvasWidth == 0 || Math.Abs(CanvasWidth - calculatedWidth) > 30)
             {
-            CanvasWidth = calculatedWidth;
+                CanvasWidth = calculatedWidth;
             }
             // 仅在高度显著变化或未初始化时设置CanvasHeight，避免频繁抖动
             if (CanvasHeight == 0 || Math.Abs(CanvasHeight - calculatedHeight) > 30)
@@ -4405,7 +4406,7 @@ namespace MeasureControl.ViewModels.TestTask
                 var connection = _cardConfig.GetConnection(crossPoint.InputNodeId, crossPoint.OutputNodeId);
                 bool isConnected = connection?.State == SwitchConnectionState.Connected;
 
-                Debug.WriteLine($"[UpdateCrossPointsConnectionStatus] 交叉点 {crossPoint.CrossPointId} - 输入:{crossPoint.InputNodeId}, 输出:{crossPoint.OutputNodeId}, 连接:{connection?.State}, isConnected:{isConnected}, IsPendingConnection:{crossPoint.IsPendingConnection}");
+                //Debug.WriteLine($"[UpdateCrossPointsConnectionStatus] 交叉点 {crossPoint.CrossPointId} - 输入:{crossPoint.InputNodeId}, 输出:{crossPoint.OutputNodeId}, 连接:{connection?.State}, isConnected:{isConnected}, IsPendingConnection:{crossPoint.IsPendingConnection}");
 
                 if (isConnected) connectedCount++;
                 else disconnectedCount++;
@@ -4421,12 +4422,14 @@ namespace MeasureControl.ViewModels.TestTask
                 {
                     if (!crossPoint.IsPendingConnection)
                     {
-                        crossPoint.ConnectionColor = null;
-                       // Debug.WriteLine($"[UpdateCrossPointsConnectionStatus] 设置交叉点 {crossPoint.CrossPointId} 为默认颜色");
+                        // 使用灰色作为断开默认颜色，保证 UI 与 PXI2601 行为一致
+                        crossPoint.ConnectionColor = "#9E9E9E";
+                        // Debug.WriteLine($"[UpdateCrossPointsConnectionStatus] 设置交叉点 {crossPoint.CrossPointId} 为灰色");
                     }
                     else
                     {
-                       // Debug.WriteLine($"[UpdateCrossPointsConnectionStatus] 交叉点 {crossPoint.CrossPointId} 是待处理连接，保持颜色不变");
+                        // 保持待处理连接的颜色不变
+                        // Debug.WriteLine($"[UpdateCrossPointsConnectionStatus] 交叉点 {crossPoint.CrossPointId} 是待处理连接，保持颜色不变");
                     }
                 }
             }
@@ -4445,7 +4448,7 @@ namespace MeasureControl.ViewModels.TestTask
                 return;
             }
 
-           // Debug.WriteLine($"[UpdateMatrixNodesConnectionStatus] 开始更新所有节点状态，节点总数: {MatrixNodes.Count}");
+            // Debug.WriteLine($"[UpdateMatrixNodesConnectionStatus] 开始更新所有节点状态，节点总数: {MatrixNodes.Count}");
 
             // 获取所有活跃连接
             var activeConnections = _cardConfig.GetActiveConnections().ToList();
@@ -4475,11 +4478,11 @@ namespace MeasureControl.ViewModels.TestTask
                     isConnected = connectedOutputs.Contains(node.NodeId);
                 }
 
-               // Debug.WriteLine($"[UpdateMatrixNodesConnectionStatus] 节点 {node.NodeId} ({node.NodeType}): {isConnected}");
+                // Debug.WriteLine($"[UpdateMatrixNodesConnectionStatus] 节点 {node.NodeId} ({node.NodeType}): {isConnected}");
                 node.IsConnected = isConnected;
             }
 
-          //  Debug.WriteLine($"[UpdateMatrixNodesConnectionStatus] 完成更新");
+            //  Debug.WriteLine($"[UpdateMatrixNodesConnectionStatus] 完成更新");
         }
 
         #endregion
@@ -4526,7 +4529,7 @@ namespace MeasureControl.ViewModels.TestTask
                         Debug.WriteLine($"[SwitchPXI3022Control] Dispose 异常: {ex.Message}");
                     }
                 }).Wait(TimeSpan.FromSeconds(3));
-                
+
                 // 清理TCP连接
                 CleanupTcpConnection();
 
