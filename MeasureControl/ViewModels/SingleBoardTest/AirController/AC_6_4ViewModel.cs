@@ -49,6 +49,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private readonly SemaphoreSlim _dmmIoLock = new SemaphoreSlim(1, 1);
         private CancellationTokenSource _dmmPollingCts;
         private Task _dmmPollingTask;
+        private readonly SemaphoreSlim _matrixSwitchLock = new SemaphoreSlim(1, 1);
 
         private SubscriptionToken _projectSavingToken;
 
@@ -57,6 +58,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool _isInAtpMode;
         private bool _outputEnabled;
         private bool _isBusy;
+        private double? _latestDmmVoltage;
+        private double? _latestTelemetryVoltage;
 
         private CancellationTokenSource _opCts;
 
@@ -130,6 +133,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _telemetryVoltageText;
             private set => SetProperty(ref _telemetryVoltageText, value);
+        }
+
+        public double? LatestDmmVoltage
+        {
+            get => _latestDmmVoltage;
+            private set => SetProperty(ref _latestDmmVoltage, value);
+        }
+
+        public double? LatestTelemetryVoltage
+        {
+            get => _latestTelemetryVoltage;
+            private set => SetProperty(ref _latestTelemetryVoltage, value);
         }
 
         public DelegateCommand ManualTestCommand { get; }
@@ -331,6 +346,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (SetProperty(ref _dmmChannel, value))
                 {
                     SavePersistedState();
+                    TrySwitchMatrixForSelectedDmmChannel();
                 }
             }
         }
@@ -595,12 +611,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 var ok1 = await MatrixControlService.Instance.ConnectNodesAsync("I2", "O0", 8, "192.168.1.3");
                 log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 矩阵开关通路: I2->O0 slot=8 ip=192.168.1.3, ok={ok1}");
-
-                var ok2 = await MatrixControlService.Instance.ConnectNodesAsync("I4", "O9", 4, "192.168.1.3");
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 矩阵开关通路: I4->O9 slot=4 ip=192.168.1.3, ok={ok2}");
-
-                // var ok3 = await MatrixControlService.Instance.ConnectNodesAsync("I3", "O9", 8, "192.168.1.3");
-                // log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 矩阵开关通路: I3->O9 slot=8 ip=192.168.1.3, ok={ok3}");
+                await SwitchMatrixForSelectedDmmChannelAsync(log, token);
             }
             catch (Exception ex)
             {
@@ -669,11 +680,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         idx++;
 
                         await TryApplyDmmVoltageRangeAsync(rangeIndex, ct).ConfigureAwait(false);
-                        var raw = await QueryDmmStringAsync(":MEAS:VOLT:AC?", ct).ConfigureAwait(false);
+                        var raw = await QueryDmmStringAsync(":MEAS:VOLT:DC?", ct).ConfigureAwait(false);
                         raw = raw?.Trim();
 
-                        string display = FormatVoltageReading(raw);
-                        TelemetryVoltageText = display;
+                        TelemetryVoltageText = FormatVoltageReading(raw);
+                        LatestDmmVoltage = TryParseVoltageReading(raw, out var v) ? v : null;
                     }
                     catch (OperationCanceledException)
                     {
@@ -695,16 +706,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return;
 
             // 参考 DmmTestPanelViewModel 对频率量程的写法：优先走 :MEASure:<FUNC> <rangeIndex>
-            // 这里用 :MEASure:VOLTage:AC <rangeIndex>，失败则忽略（继续用自动量程/默认量程读值）。
+            // 这里用 :MEASure:VOLTage:DC <rangeIndex>，失败则忽略（继续用自动量程/默认量程读值）。
             try
             {
-                await SendDmmCommandAsync($":MEASure:VOLTage:AC {rangeIndex}", token).ConfigureAwait(false);
+                await SendDmmCommandAsync($":MEASure:VOLTage:DC {rangeIndex}", token).ConfigureAwait(false);
             }
             catch
             {
                 try
                 {
-                    await SendDmmCommandAsync($"VOLT:AC {rangeIndex}", token).ConfigureAwait(false);
+                    await SendDmmCommandAsync($"VOLT:DC {rangeIndex}", token).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -766,6 +777,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
 
             return s;
+        }
+
+        private static bool TryParseVoltageReading(string raw, out double voltage)
+        {
+            voltage = 0;
+            if (string.IsNullOrWhiteSpace(raw))
+                return false;
+            var s = raw.Trim();
+            if (s.Equals("OL", StringComparison.OrdinalIgnoreCase) ||
+                s.IndexOf("OVER", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                s.IndexOf("OVLD", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return false;
+            }
+            return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out voltage);
         }
 
         private async Task StopDmmPollingAsync()
@@ -966,6 +992,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             var deadline = DateTime.UtcNow.AddSeconds(2);
             bool got = false;
             bool pass = false;
+            bool dmmOk = false;
+            double? lastTelemetry = null;
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
             {
@@ -974,7 +1002,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     DefaultLabel,
                     b => b != null && b.Length == 8 && b[0] == 0x01 && b[1] == 0x04 && b[2] == 0x01 && b[3] == 0x02,
                     timeoutMs: 300,
-                    log: null,
+                    msg => AddLog(msg),
                     token);
 
                 if (resp == null)
@@ -986,8 +1014,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 got = true;
                 ushort mv = (ushort)((resp[4] << 8) | resp[5]);
                 double v = mv / 1000.0;
+                LatestTelemetryVoltage = v;
+                lastTelemetry = v;
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 回采上报: {v:F3}V");
-                pass = v >= 2.25 && v <= 2.75;
+
+                var dmm = LatestDmmVoltage;
+                dmmOk = dmm.HasValue && dmm.Value >= 13.5 && dmm.Value <= 16.5;
+                bool teleOk = v >= 2.25 && v <= 2.75;
+                pass = dmmOk && teleOk;
                 if (pass)
                     break;
             }
