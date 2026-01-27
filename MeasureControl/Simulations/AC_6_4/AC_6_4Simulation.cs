@@ -50,6 +50,8 @@ namespace MeasureControl.Simulations.AC_6_4
 
         public int ArincDeviceIndex { get; set; } = 0;
 
+        public Func<Action<string>, CancellationToken, Task> OnOutputEnabledAsync { get; set; }
+
         public async Task StartAsync(string benchTxChannel, string benchRxChannel, Action<string> log)
         {
             if (_started) return;
@@ -338,9 +340,25 @@ namespace MeasureControl.Simulations.AC_6_4
                                         double outputVoltage = NextDouble(13.5, 16.5);
                                         try
                                         {
-                                            // 复用项目里信号发生器面板的最小SCPI子集
-                                            // 约定：用 :SOURce{ch}:VOLTage 设置输出幅值，然后 :OUTPut{ch} ON 使能输出
-                                            await SendScpiAsync($":SOURce{SignalGeneratorChannel}:VOLTage {outputVoltage:F3}", 5000, token);
+                                            // 输出交流电压：优先尝试设置正弦波 + AC 幅值；若设备不支持则回退到 VOLTage
+                                            try
+                                            {
+                                                await SendScpiAsync($":SOURce{SignalGeneratorChannel}:FUNCtion SIN", 5000, token);
+                                            }
+                                            catch
+                                            {
+                                            }
+
+                                            try
+                                            {
+                                                await SendScpiAsync($":SOURce{SignalGeneratorChannel}:VOLTage:AC {outputVoltage:F3}", 5000, token);
+                                            }
+                                            catch
+                                            {
+                                                // 兼容部分设备只有 VOLTage
+                                                await SendScpiAsync($":SOURce{SignalGeneratorChannel}:VOLTage {outputVoltage:F3}", 5000, token);
+                                            }
+
                                             await SendScpiAsync($":OUTPut{SignalGeneratorChannel} ON", 5000, token);
                                         }
                                         catch
@@ -348,6 +366,17 @@ namespace MeasureControl.Simulations.AC_6_4
                                         }
 
                                         _outputEnabled = true;
+
+                                        try
+                                        {
+                                            var cb = OnOutputEnabledAsync;
+                                            if (cb != null)
+                                                await cb(log, token);
+                                        }
+                                        catch
+                                        {
+                                        }
+
                                         StartTelemetryLoopIfNeeded(label, log);
                                     }
                                 }
@@ -558,6 +587,9 @@ namespace MeasureControl.Simulations.AC_6_4
             {
                 var device = new Arinc429Device("PXIe-4227", "Slot0")
                 {
+                    // DriverFactory 依赖 Model 字段来判断具体板卡类型
+                    Model = "PXIe-4227",
+                    Name = "PXIe-4227",
                     SlotIndex = ArincDeviceIndex
                 };
 
