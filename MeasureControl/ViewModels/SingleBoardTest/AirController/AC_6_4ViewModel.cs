@@ -11,6 +11,8 @@ using Prism.Commands;
 using Prism.Events;
 using Prism.Mvvm;
 using MeasureControl.Simulations.AC_6_4;
+using System.Globalization;
+using NationalInstruments.Visa;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
@@ -41,6 +43,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private readonly IEventAggregator _eventAggregator;
         private readonly AC_6_4Simulation _simulation = new AC_6_4Simulation();
 
+        private readonly ResourceManager _dmmResourceManager = new ResourceManager();
+        private MessageBasedSession _dmmSession;
+        private readonly SemaphoreSlim _dmmIoLock = new SemaphoreSlim(1, 1);
+        private CancellationTokenSource _dmmPollingCts;
+        private Task _dmmPollingTask;
+
         private SubscriptionToken _projectSavingToken;
 
         private bool _isManualTestRunning;
@@ -60,6 +68,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _exitAtpRxChannel;
 
         private string _dmmChannel;
+
+        private string _telemetryVoltageText;
 
         private string _lastTestTime;
         private string _lastTestResult;
@@ -81,6 +91,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _exitAtpRxChannel = "ARINC429_6";
 
             _dmmChannel = "Port1";
+
+            TelemetryVoltageText = "--";
+
+            _simulation.OnOutputEnabledAsync = OnSimulationOutputEnabledAsync;
 
             ManualTestCommand = new DelegateCommand(OnManualTest);
             AutoTestCommand = new DelegateCommand(OnAutoTest);
@@ -109,6 +123,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 return $"{taskName}/{TestItemKey}";
             }
+        }
+
+        public string TelemetryVoltageText
+        {
+            get => _telemetryVoltageText;
+            private set => SetProperty(ref _telemetryVoltageText, value);
         }
 
         public DelegateCommand ManualTestCommand { get; }
@@ -453,6 +473,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 IsInAtpMode = false;
                 OutputEnabled = false;
+                TelemetryVoltageText = "--";
             }
             catch (Exception ex)
             {
@@ -489,6 +510,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 IsInAtpMode = false;
                 OutputEnabled = false;
+                TelemetryVoltageText = "--";
             }
             catch (Exception ex)
             {
@@ -509,6 +531,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 Logs.Add($"[{DateTime.Now:HH:mm:ss}] 停止测试：发送退出ATP并关闭设备");
 
+                await StopDmmPollingAsync();
+                await DisconnectDmmAsync();
+
                 if (sendExitAtp && SendExitAtpCommand.CanExecute())
                 {
                     await SendExitAtpAsync(stopAfter: false);
@@ -520,6 +545,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsAutoTestRunning = false;
                 IsInAtpMode = false;
                 OutputEnabled = false;
+
+                TelemetryVoltageText = "--";
 
                 try
                 {
@@ -538,6 +565,238 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        private async Task OnSimulationOutputEnabledAsync(Action<string> log, CancellationToken token)
+        {
+            // 1) 切矩阵开关通路
+            try
+            {
+                var ok1 = await MatrixControlService.Instance.ConnectNodesAsync("I2", "O0", 8, "192.168.1.3");
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 矩阵开关通路: I2->O0 slot=8 ip=192.168.1.3, ok={ok1}");
+
+                var ok2 = await MatrixControlService.Instance.ConnectNodesAsync("I4", "O9", 4, "192.168.1.3");
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 矩阵开关通路: I4->O9 slot=4 ip=192.168.1.3, ok={ok2}");
+
+                var ok3 = await MatrixControlService.Instance.ConnectNodesAsync("I3", "O9", 8, "192.168.1.3");
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 矩阵开关通路: I3->O9 slot=8 ip=192.168.1.3, ok={ok3}");
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 矩阵开关切换失败: {ex.Message}");
+            }
+
+            // 2) 启动万用表电压回采（档位轮询）
+            try
+            {
+                await EnsureDmmConnectedAsync(token);
+                StartDmmVoltageRangePolling(token);
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 启动万用表回采失败: {ex.Message}");
+            }
+        }
+
+        private async Task EnsureDmmConnectedAsync(CancellationToken token)
+        {
+            if (_dmmSession != null)
+                return;
+
+            // 当前项目里 DMM 面板使用 TCPIP0::<ip>::5555::SOCKET
+            // 这里先沿用固定 IP，后续如需做成可配置，再从 Project/设备树里取。
+            const string ip = "192.168.1.13";
+            const int port = 5555;
+
+            await Task.Run(() =>
+            {
+                string resourceString = $"TCPIP0::{ip}::{port}::SOCKET";
+                _dmmSession = (MessageBasedSession)_dmmResourceManager.Open(resourceString, 0, 5000);
+                try
+                {
+                    _dmmSession.TimeoutMilliseconds = 8000;
+                    _dmmSession.TerminationCharacterEnabled = true;
+                    _dmmSession.TerminationCharacter = (byte)'\n';
+                }
+                catch
+                {
+                }
+            }, token);
+        }
+
+        private void StartDmmVoltageRangePolling(CancellationToken token)
+        {
+            if (_dmmPollingTask != null && !_dmmPollingTask.IsCompleted)
+                return;
+
+            _dmmPollingCts?.Cancel();
+            _dmmPollingCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            var ct = _dmmPollingCts.Token;
+
+            _dmmPollingTask = Task.Run(async () =>
+            {
+                // 档位轮询：200mV/2V/20V/200V/750V
+                // 说明：不同型号DMM对量程指令支持可能不同，这里采用“尝试设置量程 -> 查询 :MEAS:VOLT:DC?”的容错策略。
+                int[] rangeIndices = { 0, 1, 2, 3, 4 };
+                int idx = 0;
+
+                while (!ct.IsCancellationRequested)
+                {
+                    try
+                    {
+                        int rangeIndex = rangeIndices[idx % rangeIndices.Length];
+                        idx++;
+
+                        await TryApplyDmmVoltageRangeAsync(rangeIndex, ct).ConfigureAwait(false);
+                        var raw = await QueryDmmStringAsync(":MEAS:VOLT:AC?", ct).ConfigureAwait(false);
+                        raw = raw?.Trim();
+
+                        string display = FormatVoltageReading(raw);
+                        TelemetryVoltageText = display;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        TelemetryVoltageText = $"回采失败: {ex.Message}";
+                    }
+
+                    await Task.Delay(300, ct).ConfigureAwait(false);
+                }
+            }, ct);
+        }
+
+        private async Task TryApplyDmmVoltageRangeAsync(int rangeIndex, CancellationToken token)
+        {
+            if (_dmmSession == null)
+                return;
+
+            // 参考 DmmTestPanelViewModel 对频率量程的写法：优先走 :MEASure:<FUNC> <rangeIndex>
+            // 这里用 :MEASure:VOLTage:AC <rangeIndex>，失败则忽略（继续用自动量程/默认量程读值）。
+            try
+            {
+                await SendDmmCommandAsync($":MEASure:VOLTage:AC {rangeIndex}", token).ConfigureAwait(false);
+            }
+            catch
+            {
+                try
+                {
+                    await SendDmmCommandAsync($"VOLT:AC {rangeIndex}", token).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        private async Task<string> QueryDmmStringAsync(string command, CancellationToken token)
+        {
+            if (_dmmSession == null)
+                throw new InvalidOperationException("DMM会话未建立");
+
+            await _dmmIoLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                var cmd = command.EndsWith("\n", StringComparison.Ordinal) ? command : command + "\n";
+                _dmmSession.RawIO.Write(cmd);
+                return _dmmSession.RawIO.ReadString();
+            }
+            finally
+            {
+                _dmmIoLock.Release();
+            }
+        }
+
+        private async Task SendDmmCommandAsync(string command, CancellationToken token)
+        {
+            if (_dmmSession == null)
+                throw new InvalidOperationException("DMM会话未建立");
+
+            await _dmmIoLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                var cmd = command.EndsWith("\n", StringComparison.Ordinal) ? command : command + "\n";
+                _dmmSession.RawIO.Write(cmd);
+            }
+            finally
+            {
+                _dmmIoLock.Release();
+            }
+        }
+
+        private static string FormatVoltageReading(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return "--";
+
+            var s = raw.Trim();
+            if (s.Equals("OL", StringComparison.OrdinalIgnoreCase) ||
+                s.IndexOf("OVER", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                s.IndexOf("OVLD", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "超出量程";
+            }
+
+            if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var dv))
+            {
+                return $"{dv:0.00000} V";
+            }
+
+            return s;
+        }
+
+        private async Task StopDmmPollingAsync()
+        {
+            try
+            {
+                _dmmPollingCts?.Cancel();
+            }
+            catch
+            {
+            }
+
+            var task = _dmmPollingTask;
+            if (task != null)
+            {
+                try
+                {
+                    await Task.WhenAny(task, Task.Delay(500)).ConfigureAwait(true);
+                }
+                catch
+                {
+                }
+            }
+
+            _dmmPollingTask = null;
+
+            try
+            {
+                _dmmPollingCts?.Dispose();
+            }
+            catch
+            {
+            }
+
+            _dmmPollingCts = null;
+        }
+
+        private Task DisconnectDmmAsync()
+        {
+            try
+            {
+                _dmmSession?.Dispose();
+            }
+            catch
+            {
+            }
+            finally
+            {
+                _dmmSession = null;
+            }
+
+            return Task.CompletedTask;
+        }
+
         public void Dispose()
         {
             try
@@ -547,6 +806,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Unsubscribe(_projectSavingToken);
                     _projectSavingToken = null;
                 }
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                StopDmmPollingAsync().GetAwaiter().GetResult();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                DisconnectDmmAsync().GetAwaiter().GetResult();
             }
             catch
             {
