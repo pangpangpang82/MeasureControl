@@ -576,8 +576,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 var ok2 = await MatrixControlService.Instance.ConnectNodesAsync("I4", "O9", 4, "192.168.1.3");
                 log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 矩阵开关通路: I4->O9 slot=4 ip=192.168.1.3, ok={ok2}");
 
-                var ok3 = await MatrixControlService.Instance.ConnectNodesAsync("I3", "O9", 8, "192.168.1.3");
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 矩阵开关通路: I3->O9 slot=8 ip=192.168.1.3, ok={ok3}");
+                // var ok3 = await MatrixControlService.Instance.ConnectNodesAsync("I3", "O9", 8, "192.168.1.3");
+                // log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 矩阵开关通路: I3->O9 slot=8 ip=192.168.1.3, ok={ok3}");
             }
             catch (Exception ex)
             {
