@@ -68,6 +68,14 @@ namespace MeasureControl.Simulations.AC_6_4
             int benchTxIndex = ParseChannelIndex(benchTxChannel);
             int benchRxIndex = ParseChannelIndex(benchRxChannel);
 
+            // 通道冲突保护：同一物理通道不能同时被当作 TX/RX，也不能与仿真产品侧通道冲突
+            if (benchTxIndex == benchRxIndex)
+                throw new InvalidOperationException($"[SIM] bench TX/RX 通道冲突：TX={benchTxIndex}, RX={benchRxIndex}");
+            if (benchTxIndex == SimProductRxChannelIndex || benchTxIndex == SimProductTxChannelIndex)
+                throw new InvalidOperationException($"[SIM] benchTX 与产品侧通道冲突：benchTX={benchTxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
+            if (benchRxIndex == SimProductRxChannelIndex || benchRxIndex == SimProductTxChannelIndex)
+                throw new InvalidOperationException($"[SIM] benchRX 与产品侧通道冲突：benchRX={benchRxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
+
             _benchTxChannelIndex = benchTxIndex;
             _benchRxChannelIndex = benchRxIndex;
 
@@ -216,7 +224,10 @@ namespace MeasureControl.Simulations.AC_6_4
             int rxIndex = ParseChannelIndex(benchRxChannel);
             await EnsureBenchRxChannelAsync(benchRxChannel, log);
 
-            var assembler = new MultiFrameCommandAssembler();
+            // 注意：现场设备可能不会使用我们发送时的固定 label，
+            // 这里不要强依赖 label 过滤，改为按“收到的 label”分别组包。
+            // 这样即使 label 不一致，也能正确组出 8 字节响应并由 isExpectedResponse 判定。
+            var assemblers = new Dictionary<byte, MultiFrameCommandAssembler>();
             var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
@@ -229,8 +240,16 @@ namespace MeasureControl.Simulations.AC_6_4
                         if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
                             continue;
 
-                        if (rxLabel != label)
-                            continue;
+                        // 仅用于排查：当你传入固定 label 时，如果一直超时，可打开日志观察 rxLabel 是否不同。
+                        // 这里不打印每一帧，避免刷屏；只在首次看到某个 label 时打印一次。
+                        if (log != null && !assemblers.ContainsKey(rxLabel))
+                            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 收到新label=0x{rxLabel:X2} (expected=0x{label:X2})");
+
+                        if (!assemblers.TryGetValue(rxLabel, out var assembler))
+                        {
+                            assembler = new MultiFrameCommandAssembler();
+                            assemblers[rxLabel] = assembler;
+                        }
 
                         if (assembler.TryAddFragment(rxLabel, sdi, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
                         {
