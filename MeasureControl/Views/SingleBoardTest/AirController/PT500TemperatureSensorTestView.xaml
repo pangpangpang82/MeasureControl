@@ -41,8 +41,8 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
-                <RowDefinition Height="4*" />
-                <RowDefinition Height="*" />
+                <RowDefinition Height="4.5*" />
+                <RowDefinition Height="1.8*" />
             </Grid.RowDefinitions>
             <Border
                 x:Name="Test_name"
@@ -54,7 +54,7 @@
                 CornerRadius="8">
                 <Grid>
                     <TextBlock
-                        Width="300"
+                        Width="320"
                         Margin="20,0,0,0"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Center"
@@ -549,15 +549,19 @@
                             Margin="20,0,0,0"
                             VerticalAlignment="Center"
                             FontSize="18"
-                            FontWeight="Bold"
-                            Text="{Binding LastTestTime, StringFormat='上次测试时间：{0}'}" />
+                            FontWeight="Bold">
+                            <Run Text="上次测试时间：" />
+                            <Run Text="{Binding LastTestTime, TargetNullValue=--, FallbackValue=--}" />
+                        </TextBlock>
                         <TextBlock
                             Grid.Column="1"
                             Margin="30,0,0,0"
                             VerticalAlignment="Center"
                             FontSize="18"
-                            FontWeight="Bold"
-                            Text="{Binding LastTestResult, StringFormat='上次测试结果：{0}'}" />
+                            FontWeight="Bold">
+                            <Run Text="上次测试结果：" />
+                            <Run Text="{Binding LastTestResult, TargetNullValue=--, FallbackValue=--}" />
+                        </TextBlock>
                     </Grid>
                 </Grid>
             </Border>
