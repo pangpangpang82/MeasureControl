@@ -421,9 +421,11 @@ namespace MeasureControl.Simulations.AC_6_4
                                         await SendMultiFrameResponseAsync(label, EnableOutputAck, log, token);
 
                                         double outputVoltage = NextDouble(13.5, 16.5);
+                                        double outputCurrent = 0.2;
                                         try
                                         {
                                             await SendPowerSupplyScpiAsync($"VOLT {outputVoltage:F3},(@1)", 5000, token);
+                                            await SendPowerSupplyScpiAsync($"CURR {outputCurrent:F3},(@1)", 5000, token);
                                             await SendPowerSupplyScpiAsync("OUTP:PROT:CLE", 5000, token);
                                             await SendPowerSupplyScpiAsync("OUTP ON,(@1)", 5000, token);
                                         }
