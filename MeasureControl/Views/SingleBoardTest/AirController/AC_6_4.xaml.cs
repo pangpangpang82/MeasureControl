@@ -35,13 +35,18 @@ namespace MeasureControl.Views.SingleBoardTest.AirController
                 return;
             }
 
-            if (e?.OriginalSource is DependencyObject origin && !IsDescendantOf(RootGrid, origin))
+            if (sender is not Grid rootGrid)
+            {
+                return;
+            }
+
+            if (e?.OriginalSource is DependencyObject origin && !IsDescendantOf(rootGrid, origin))
             {
                 return;
             }
 
             Keyboard.ClearFocus();
-            RootGrid.Focus();
+            rootGrid.Focus();
         }
 
         private static T FindAncestor<T>(DependencyObject current) where T : DependencyObject

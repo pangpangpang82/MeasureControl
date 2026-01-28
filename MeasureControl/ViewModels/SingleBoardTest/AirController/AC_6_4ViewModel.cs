@@ -13,6 +13,7 @@ using Prism.Events;
 using Prism.Mvvm;
 using MeasureControl.Simulations.AC_6_4;
 using System.Globalization;
+using Ivi.Visa;
 using NationalInstruments.Visa;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
@@ -44,7 +45,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private readonly IEventAggregator _eventAggregator;
         private readonly AC_6_4Simulation _simulation = new AC_6_4Simulation();
 
-        private readonly ResourceManager _dmmResourceManager = new ResourceManager();
+        private ResourceManager _dmmResourceManager;
+        private string _dmmInitError;
         private MessageBasedSession _dmmSession;
         private readonly SemaphoreSlim _dmmIoLock = new SemaphoreSlim(1, 1);
         private CancellationTokenSource _dmmPollingCts;
@@ -684,6 +686,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (_dmmSession != null)
                 return;
 
+            if (!EnsureDmmResourceManagerAvailable())
+                throw new InvalidOperationException(_dmmInitError ?? "DMM资源管理器初始化失败");
+
             // 当前项目里 DMM 面板使用 TCPIP0::<ip>::5555::SOCKET
             // 这里先沿用固定 IP，后续如需做成可配置，再从 Project/设备树里取。
             const string ip = "192.168.1.13";
@@ -703,6 +708,35 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                 }
             }, token);
+        }
+
+        private bool EnsureDmmResourceManagerAvailable()
+        {
+            if (_dmmResourceManager != null)
+                return true;
+            if (!string.IsNullOrWhiteSpace(_dmmInitError))
+                return false;
+
+            try
+            {
+                _dmmResourceManager = new ResourceManager();
+                return true;
+            }
+            catch (DllNotFoundException ex)
+            {
+                _dmmInitError = ex.Message;
+                return false;
+            }
+            catch (VisaException ex)
+            {
+                _dmmInitError = ex.Message;
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _dmmInitError = ex.Message;
+                return false;
+            }
         }
 
         private void StartDmmVoltageRangePolling(CancellationToken token)
@@ -923,6 +957,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             catch
             {
+            }
+
+            try
+            {
+                _dmmResourceManager?.Dispose();
+            }
+            catch
+            {
+            }
+            finally
+            {
+                _dmmResourceManager = null;
             }
         }
 
