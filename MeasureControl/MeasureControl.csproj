@@ -437,6 +437,9 @@
     <Compile Include="ViewModels\Hardware\PxiChassisViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\BoardTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\AC_6_4ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\AC_6_4CanViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensorCanViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensor429ViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\ReMessageBoxViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\RenameDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\TestProgressDialogViewModel.cs" />
@@ -480,8 +483,23 @@
     <Compile Include="Views\SingleBoardTest\AirController\AC_6_4.xaml.cs">
       <DependentUpon>AC_6_4.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\AC_6_4CanView.xaml.cs">
+      <DependentUpon>AC_6_4CanView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\AC_6_4CommTabView.xaml.cs">
+      <DependentUpon>AC_6_4CommTabView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorTestView.xaml.cs">
       <DependentUpon>PT500TemperatureSensorTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorCanView.xaml.cs">
+      <DependentUpon>PT500TemperatureSensorCanView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\PT500TemperatureSensor429View.xaml.cs">
+      <DependentUpon>PT500TemperatureSensor429View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorCommTabView.xaml.cs">
+      <DependentUpon>PT500TemperatureSensorCommTabView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\BoardTest.xaml.cs">
       <DependentUpon>BoardTest.xaml</DependentUpon>
@@ -625,9 +643,6 @@
     <Compile Include="Views\TestTask\CardCATPanel\MT532_AO.xaml.cs">
       <DependentUpon>MT532_AO.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Views\TestTask\CardCATPanel\MTX970_LVDS.xaml.cs">
-      <DependentUpon>MTX970_LVDS.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Views\TestTask\CardCATPanel\PXI7012_RO.xaml.cs">
       <DependentUpon>PXI7012_RO.xaml</DependentUpon>
     </Compile>
@@ -721,7 +736,27 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Views\SingleBoardTest\AirController\AC_6_4CanView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\AC_6_4CommTabView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\PT500TemperatureSensor429View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorCanView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorCommTabView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

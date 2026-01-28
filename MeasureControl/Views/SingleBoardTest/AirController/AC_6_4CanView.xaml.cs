@@ -1,28 +1,17 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+using MeasureControl.ViewModels.SingleBoardTest.AirController;
 
 namespace MeasureControl.Views.SingleBoardTest.AirController
 {
-    /// <summary>
-    /// PT500TemperatureSensorTestView.xaml 的交互逻辑
-    /// </summary>
-    public partial class PT500TemperatureSensorTestView : UserControl
+    public partial class AC_6_4CanView : UserControl
     {
-        public PT500TemperatureSensorTestView()
+        public AC_6_4CanView()
         {
             InitializeComponent();
+            DataContext = new AC_6_4CanViewModel();
         }
 
         private void RootGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)
