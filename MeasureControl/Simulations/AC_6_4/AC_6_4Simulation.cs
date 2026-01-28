@@ -150,7 +150,7 @@ namespace MeasureControl.Simulations.AC_6_4
 
                 await _arincDriver.ConfigureTxChannelAsync(tx, txRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
                 await _arincDriver.ConfigureRxChannelAsync(rx, rxRate, parity: parity, wordFormat: wordFormat,
-                    enableInterrupt: true, interruptDepth: 512, enableTimeTag: false);
+                    enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
 
                 bool ok = await _arincDriver.StartReceiveAsync(rx);
                 if (ok)
@@ -197,7 +197,7 @@ namespace MeasureControl.Simulations.AC_6_4
                 }
 
                 await _arincDriver.ConfigureRxChannelAsync(rx, rxRate, parity: parity, wordFormat: wordFormat,
-                    enableInterrupt: true, interruptDepth: 512, enableTimeTag: false);
+                    enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
 
                 bool ok = await _arincDriver.StartReceiveAsync(rx);
                 if (ok)
@@ -677,7 +677,7 @@ namespace MeasureControl.Simulations.AC_6_4
             const int wordFormat = 0;
             const int parity = 1; // Odd
             const double txRate = 100000.0;
-            const double rxRate = 0; // 自适应
+            const double rxRate = 100000.0;
 
             bool openBenchTx = await _arincDriver.OpenTxChannelAsync(benchTxIndex);
             bool openBenchRx = await _arincDriver.OpenRxChannelAsync(benchRxIndex);
@@ -689,11 +689,11 @@ namespace MeasureControl.Simulations.AC_6_4
 
             await _arincDriver.ConfigureTxChannelAsync(benchTxIndex, txRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
             await _arincDriver.ConfigureRxChannelAsync(benchRxIndex, rxRate, parity: parity, wordFormat: wordFormat,
-                enableInterrupt: true, interruptDepth: 512, enableTimeTag: false);
+                enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
 
             // 仿真产品侧：固定占用通道
             await _arincDriver.ConfigureRxChannelAsync(SimProductRxChannelIndex, rxRate, parity: parity, wordFormat: wordFormat,
-                enableInterrupt: true, interruptDepth: 512, enableTimeTag: false);
+                enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
             await _arincDriver.ConfigureTxChannelAsync(SimProductTxChannelIndex, txRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] ARINC429 通道已配置: benchTX={benchTxIndex}, benchRX={benchRxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
