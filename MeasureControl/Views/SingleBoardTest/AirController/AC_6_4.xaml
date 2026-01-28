@@ -721,6 +721,7 @@
                         <Run Text="测试结果：" />
                         <Run Text=" " />
                         <Run Text="{Binding LastTestResult, TargetNullValue=--, FallbackValue=--}" />
+                        <Run Text="{Binding LastTestTime, TargetNullValue=--, FallbackValue=--}" />
                     </TextBlock>
                     <Grid Grid.Row="1">
                         <Grid.ColumnDefinitions>
