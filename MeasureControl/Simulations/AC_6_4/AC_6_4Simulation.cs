@@ -154,7 +154,7 @@ namespace MeasureControl.Simulations.AC_6_4
 
                 await _arincDriver.ConfigureTxChannelAsync(tx, txRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
                 await _arincDriver.ConfigureRxChannelAsync(rx, rxRate, parity: parity, wordFormat: wordFormat,
-                    enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
+                    enableInterrupt: false, interruptDepth: 0, enableTimeTag: false);
 
                 bool ok = await _arincDriver.StartReceiveAsync(rx);
                 if (ok)
@@ -201,7 +201,7 @@ namespace MeasureControl.Simulations.AC_6_4
                 }
 
                 await _arincDriver.ConfigureRxChannelAsync(rx, rxRate, parity: parity, wordFormat: wordFormat,
-                    enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
+                    enableInterrupt: false, interruptDepth: 0, enableTimeTag: false);
 
                 bool ok = await _arincDriver.StartReceiveAsync(rx);
                 if (ok)
@@ -279,7 +279,7 @@ namespace MeasureControl.Simulations.AC_6_4
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
             {
-                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: true);
+                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
                 if (list != null && list.Count > 0)
                 {
                     foreach (var item in list)
@@ -386,7 +386,7 @@ namespace MeasureControl.Simulations.AC_6_4
             {
                 try
                 {
-                    var list = await _arincDriver.ReadReceiveDataAsync(SimProductRxChannelIndex, maxCount: 1024, enableTimeTag: false, enableRateAdaption: true);
+                    var list = await _arincDriver.ReadReceiveDataAsync(SimProductRxChannelIndex, maxCount: 1024, enableTimeTag: false, enableRateAdaption: false);
                     if (list != null && list.Count > 0)
                     {
                         foreach (var item in list)
@@ -695,11 +695,11 @@ namespace MeasureControl.Simulations.AC_6_4
 
             await _arincDriver.ConfigureTxChannelAsync(benchTxIndex, benchTxRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
             await _arincDriver.ConfigureRxChannelAsync(benchRxIndex, benchRxRate, parity: parity, wordFormat: wordFormat,
-                enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
+                enableInterrupt: false, interruptDepth: 0, enableTimeTag: false);
 
             // 仿真产品侧：固定占用通道
             await _arincDriver.ConfigureRxChannelAsync(SimProductRxChannelIndex, simRxRate, parity: parity, wordFormat: wordFormat,
-                enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
+                enableInterrupt: false, interruptDepth: 0, enableTimeTag: false);
             await _arincDriver.ConfigureTxChannelAsync(SimProductTxChannelIndex, simTxRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] ARINC429 通道已配置: benchTX={benchTxIndex}, benchRX={benchRxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");

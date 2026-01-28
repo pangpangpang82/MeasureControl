@@ -11,6 +11,7 @@ using MeasureControl.Services;
 using Prism.Commands;
 using Prism.Events;
 using Prism.Mvvm;
+using System.Windows;
 using MeasureControl.Simulations.AC_6_4;
 using System.Globalization;
 using NationalInstruments.Visa;
@@ -175,7 +176,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             try
             {
-                Logs.Add(message);
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null && !dispatcher.CheckAccess())
+                {
+                    dispatcher.BeginInvoke(new Action(() => Logs.Add(message)));
+                }
+                else
+                {
+                    Logs.Add(message);
+                }
             }
             catch
             {
