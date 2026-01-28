@@ -36,6 +36,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const string PersistKeyExitAtpTx = "ExitAtpTxChannel";
         private const string PersistKeyExitAtpRx = "ExitAtpRxChannel";
         private const string PersistKeyDmmChannel = "DmmChannel";
+        private const string PersistKeyArincRate = "ArincRate";
         private const string PersistKeyLastTestTime = "LastTestTime";
         private const string PersistKeyLastTestResult = "LastTestResult";
 
@@ -73,6 +74,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _exitAtpRxChannel;
 
         private string _dmmChannel;
+
+        private double _arincRate = 100000.0;
 
         private string _dmmVoltageText;
         private string _telemetryVoltageText;
@@ -384,6 +387,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        public double ArincRate
+        {
+            get => _arincRate;
+            set
+            {
+                if (SetProperty(ref _arincRate, value))
+                {
+                    SavePersistedState();
+                }
+            }
+        }
+
         private void LoadPersistedState()
         {
             try
@@ -408,6 +423,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _exitAtpTxChannel = Read(PersistKeyExitAtpTx) ?? _exitAtpTxChannel;
                 _exitAtpRxChannel = Read(PersistKeyExitAtpRx) ?? _exitAtpRxChannel;
                 _dmmChannel = Read(PersistKeyDmmChannel) ?? _dmmChannel;
+
+                var rateText = Read(PersistKeyArincRate);
+                if (double.TryParse(rateText, NumberStyles.Any, CultureInfo.InvariantCulture, out var rate) && rate > 0)
+                    _arincRate = rate;
+
                 _lastTestTime = Read(PersistKeyLastTestTime) ?? _lastTestTime;
                 _lastTestResult = Read(PersistKeyLastTestResult) ?? _lastTestResult;
 
@@ -419,6 +439,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 RaisePropertyChanged(nameof(ExitAtpTxChannel));
                 RaisePropertyChanged(nameof(ExitAtpRxChannel));
                 RaisePropertyChanged(nameof(DmmChannel));
+                RaisePropertyChanged(nameof(ArincRate));
                 RaisePropertyChanged(nameof(LastTestTime));
                 RaisePropertyChanged(nameof(LastTestResult));
             }
@@ -465,6 +486,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 Upsert(PersistKeyExitAtpTx, ExitAtpTxChannel);
                 Upsert(PersistKeyExitAtpRx, ExitAtpRxChannel);
                 Upsert(PersistKeyDmmChannel, DmmChannel);
+                Upsert(PersistKeyArincRate, ArincRate.ToString(CultureInfo.InvariantCulture));
                 Upsert(PersistKeyLastTestTime, LastTestTime);
                 Upsert(PersistKeyLastTestResult, LastTestResult);
             }
@@ -518,6 +540,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 // 仿真模式：固定占用产品侧通道
                 _simulation.SimProductRxChannelIndex = 6;
                 _simulation.SimProductTxChannelIndex = 7;
+                _simulation.ArincRate = ArincRate;
 
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
@@ -560,6 +583,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 _simulation.SimProductRxChannelIndex = 6;
                 _simulation.SimProductTxChannelIndex = 7;
+                _simulation.ArincRate = ArincRate;
 
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
