@@ -806,17 +806,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 // 档位轮询：200mV/2V/20V/200V/750V
                 // 说明：不同型号DMM对量程指令支持可能不同，这里采用“尝试设置量程 -> 查询 :MEAS:VOLT:DC?”的容错策略。
-                int[] rangeIndices = { 0, 1, 2, 3, 4 };
-                int idx = 0;
-
                 while (!ct.IsCancellationRequested)
                 {
                     try
                     {
-                        int rangeIndex = rangeIndices[idx % rangeIndices.Length];
-                        idx++;
-
-                        await TryApplyDmmVoltageRangeAsync(rangeIndex, ct).ConfigureAwait(false);
                         var raw = await QueryDmmStringAsync(":MEAS:VOLT:DC?", ct).ConfigureAwait(false);
                         raw = raw?.Trim();
 
