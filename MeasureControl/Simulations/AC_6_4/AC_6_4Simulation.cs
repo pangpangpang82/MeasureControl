@@ -13,9 +13,9 @@ namespace MeasureControl.Simulations.AC_6_4
 {
     public sealed class AC_6_4Simulation : IDisposable
     {
-        private TcpClient _signalGeneratorClient;
-        private NetworkStream _signalGeneratorStream;
-        private readonly SemaphoreSlim _signalGeneratorIoLock = new SemaphoreSlim(1, 1);
+        private TcpClient _powerSupplyClient;
+        private NetworkStream _powerSupplyStream;
+        private readonly SemaphoreSlim _powerSupplyIoLock = new SemaphoreSlim(1, 1);
 
         private ART4229Driver _arincDriver;
 
@@ -43,12 +43,15 @@ namespace MeasureControl.Simulations.AC_6_4
 
         public bool EnableFrameLogging { get; set; } = true;
 
+        public double ArincRate { get; set; } = 100000.0;
+
+        public double SimProductArincRate { get; set; } = 100000.0;
+
         public int SimProductRxChannelIndex { get; set; } = 6;
         public int SimProductTxChannelIndex { get; set; } = 7;
 
-        public string SignalGeneratorIpAddress { get; set; } = "192.168.1.12";
-        public int SignalGeneratorPort { get; set; } = 5555;
-        public string SignalGeneratorChannel { get; set; } = "1";
+        public string PowerSupplyIpAddress { get; set; } = "192.168.1.15";
+        public int PowerSupplyPort { get; set; } = 30000;
 
         public int ArincDeviceIndex { get; set; } = 0;
 
@@ -63,7 +66,7 @@ namespace MeasureControl.Simulations.AC_6_4
 
             _simCts = new CancellationTokenSource();
 
-            await ConnectSignalGeneratorAsync(log);
+            await ConnectPowerSupplyAsync(log);
 
             await OpenArincDeviceAsync(log);
 
@@ -120,8 +123,8 @@ namespace MeasureControl.Simulations.AC_6_4
 
             const int wordFormat = 0;
             const int parity = 1;
-            const double txRate = 100000.0;
-            const double rxRate = 0;
+            double txRate = ArincRate;
+            double rxRate = ArincRate;
 
             try
             {
@@ -151,7 +154,7 @@ namespace MeasureControl.Simulations.AC_6_4
 
                 await _arincDriver.ConfigureTxChannelAsync(tx, txRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
                 await _arincDriver.ConfigureRxChannelAsync(rx, rxRate, parity: parity, wordFormat: wordFormat,
-                    enableInterrupt: true, interruptDepth: 512, enableTimeTag: false);
+                    enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
 
                 bool ok = await _arincDriver.StartReceiveAsync(rx);
                 if (ok)
@@ -180,7 +183,7 @@ namespace MeasureControl.Simulations.AC_6_4
 
             const int wordFormat = 0;
             const int parity = 1;
-            const double rxRate = 0;
+            double rxRate = ArincRate;
 
             try
             {
@@ -198,7 +201,7 @@ namespace MeasureControl.Simulations.AC_6_4
                 }
 
                 await _arincDriver.ConfigureRxChannelAsync(rx, rxRate, parity: parity, wordFormat: wordFormat,
-                    enableInterrupt: true, interruptDepth: 512, enableTimeTag: false);
+                    enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
 
                 bool ok = await _arincDriver.StartReceiveAsync(rx);
                 if (ok)
@@ -404,7 +407,7 @@ namespace MeasureControl.Simulations.AC_6_4
                                         _outputEnabled = false;
                                         try
                                         {
-                                            await SendScpiAsync($":OUTPut{SignalGeneratorChannel} OFF", 5000, token);
+                                            await SendPowerSupplyScpiAsync("OUTP OFF,(@1)", 5000, token);
                                         }
                                         catch
                                         {
@@ -413,31 +416,18 @@ namespace MeasureControl.Simulations.AC_6_4
                                     }
                                     else if (cmd8.SequenceEqual(EnableOutputCommand))
                                     {
-                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到开启输出指令 -> 回ACK并开启信号发生器输出");
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到开启输出指令 -> 回ACK并开启程控电源输出");
 
                                         await SendMultiFrameResponseAsync(label, EnableOutputAck, log, token);
 
                                         double outputVoltage = NextDouble(13.5, 16.5);
+                                        double outputCurrent = 0.2;
                                         try
                                         {
-                                            // 输出直流电压：优先尝试设置 DC + OFFSet；若设备不支持则回退到 VOLTage
-                                            try
-                                            {
-                                                await SendScpiAsync($":SOURce{SignalGeneratorChannel}:FUNCtion DC", 5000, token);
-                                            }
-                                            catch
-                                            {
-                                            }
-
-                                            try
-                                            {
-                                                await SendScpiAsync($":SOURce{SignalGeneratorChannel}:VOLTage:OFFSet {outputVoltage:F3}", 5000, token);
-                                            }
-                                            catch
-                                            {
-                                                // 兼容部分设备不支持 OFFSet
-                                                await SendScpiAsync($":SOURce{SignalGeneratorChannel}:VOLTage {outputVoltage:F3}", 5000, token);
-                                            }
+                                            await SendPowerSupplyScpiAsync($"VOLT {outputVoltage:F3},(@1)", 5000, token);
+                                            await SendPowerSupplyScpiAsync($"CURR {outputCurrent:F3},(@1)", 5000, token);
+                                            await SendPowerSupplyScpiAsync("OUTP:PROT:CLE", 5000, token);
+                                            await SendPowerSupplyScpiAsync("OUTP ON,(@1)", 5000, token);
                                         }
                                         catch
                                         {
@@ -658,25 +648,6 @@ namespace MeasureControl.Simulations.AC_6_4
             return needParityBit ? (data | 0x80000000) : data;
         }
 
-        private async Task ConnectSignalGeneratorAsync(Action<string> log)
-        {
-            try
-            {
-                _signalGeneratorClient = new TcpClient();
-                await _signalGeneratorClient.ConnectAsync(SignalGeneratorIpAddress, SignalGeneratorPort);
-                _signalGeneratorStream = _signalGeneratorClient.GetStream();
-
-                var idn = await QueryScpiAsync("*IDN?", 5000, CancellationToken.None);
-                log($"[{DateTime.Now:HH:mm:ss}] [SIM] 信号发生器已连接: {idn}");
-
-                await SendScpiAsync($":OUTPut{SignalGeneratorChannel} OFF", 5000, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"[SIM] 连接信号发生器失败: {SignalGeneratorIpAddress}:{SignalGeneratorPort}, {ex.Message}", ex);
-            }
-        }
-
         private async Task OpenArincDeviceAsync(Action<string> log)
         {
             try
@@ -697,7 +668,7 @@ namespace MeasureControl.Simulations.AC_6_4
                 if (!ok)
                     throw new InvalidOperationException("ARINC429 板卡连接失败");
 
-                log($"[{DateTime.Now:HH:mm:ss}] [SIM] ARINC429 板卡已连接 (deviceIndex={ArincDeviceIndex})");
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] ARINC429 板卡已连接 (deviceIndex={ArincDeviceIndex})");
             }
             catch (Exception ex)
             {
@@ -711,8 +682,10 @@ namespace MeasureControl.Simulations.AC_6_4
             // wordFormat: 0 表示标准429
             const int wordFormat = 0;
             const int parity = 1; // Odd
-            const double txRate = 100000.0;
-            const double rxRate = 0; // 自适应
+            double benchTxRate = ArincRate;
+            double benchRxRate = ArincRate;
+            double simTxRate = SimProductArincRate;
+            double simRxRate = SimProductArincRate;
 
             bool openBenchTx = await _arincDriver.OpenTxChannelAsync(benchTxIndex);
             bool openBenchRx = await _arincDriver.OpenRxChannelAsync(benchRxIndex);
@@ -722,19 +695,16 @@ namespace MeasureControl.Simulations.AC_6_4
             if (!openBenchTx || !openBenchRx || !openSimRx || !openSimTx)
                 throw new InvalidOperationException($"[SIM] Open通道失败: benchTX={benchTxIndex}({openBenchTx}), benchRX={benchRxIndex}({openBenchRx}), simRX={SimProductRxChannelIndex}({openSimRx}), simTX={SimProductTxChannelIndex}({openSimTx})");
 
-            await _arincDriver.ConfigureTxChannelAsync(benchTxIndex, txRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
-            await _arincDriver.ConfigureRxChannelAsync(benchRxIndex, rxRate, parity: parity, wordFormat: wordFormat,
-                enableInterrupt: true, interruptDepth: 512, enableTimeTag: false);
+            await _arincDriver.ConfigureTxChannelAsync(benchTxIndex, benchTxRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
+            await _arincDriver.ConfigureRxChannelAsync(benchRxIndex, benchRxRate, parity: parity, wordFormat: wordFormat,
+                enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
 
-            // 仿真产品侧：固定占用通道（你说写死）
-            // 注意：同一块板卡通道是 TX 还是 RX 需要按你实际接线规划，这里先默认：
-            // - SimProductRxChannelIndex 用于接收试验台指令
-            // - SimProductTxChannelIndex 用于发送回复/回采
-            await _arincDriver.ConfigureRxChannelAsync(SimProductRxChannelIndex, rxRate, parity: parity, wordFormat: wordFormat,
-                enableInterrupt: true, interruptDepth: 512, enableTimeTag: false);
-            await _arincDriver.ConfigureTxChannelAsync(SimProductTxChannelIndex, txRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
+            // 仿真产品侧：固定占用通道
+            await _arincDriver.ConfigureRxChannelAsync(SimProductRxChannelIndex, simRxRate, parity: parity, wordFormat: wordFormat,
+                enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
+            await _arincDriver.ConfigureTxChannelAsync(SimProductTxChannelIndex, simTxRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
 
-            log($"[{DateTime.Now:HH:mm:ss}] [SIM] ARINC429 通道已配置: benchTX={benchTxIndex}, benchRX={benchRxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
+            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] ARINC429 通道已配置: benchTX={benchTxIndex}, benchRX={benchRxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
         }
 
         private static string FormatBytes(byte[] bytes)
@@ -764,30 +734,50 @@ namespace MeasureControl.Simulations.AC_6_4
             return 0;
         }
 
-        private async Task<string> QueryScpiAsync(string command, int timeoutMs, CancellationToken token)
+        private async Task ConnectPowerSupplyAsync(Action<string> log)
         {
-            await _signalGeneratorIoLock.WaitAsync(token);
             try
             {
-                await WriteLineAsync(_signalGeneratorStream, command, timeoutMs, token);
-                return await ReadLineAsync(_signalGeneratorStream, timeoutMs, token);
+                _powerSupplyClient = new TcpClient();
+                await _powerSupplyClient.ConnectAsync(PowerSupplyIpAddress, PowerSupplyPort);
+                _powerSupplyStream = _powerSupplyClient.GetStream();
+
+                var idn = await QueryPowerSupplyScpiAsync("*IDN?", 5000, CancellationToken.None);
+                log($"[{DateTime.Now:HH:mm:ss}] [SIM] 程控电源已连接: {idn}");
+
+                await SendPowerSupplyScpiAsync("SYST:REM", 5000, CancellationToken.None);
+                await SendPowerSupplyScpiAsync("OUTP OFF,(@1)", 5000, CancellationToken.None);
             }
-            finally
+            catch (Exception ex)
             {
-                _signalGeneratorIoLock.Release();
+                throw new InvalidOperationException($"[SIM] 连接程控电源失败: {PowerSupplyIpAddress}:{PowerSupplyPort}, {ex.Message}", ex);
             }
         }
 
-        private async Task SendScpiAsync(string command, int timeoutMs, CancellationToken token)
+        private async Task<string> QueryPowerSupplyScpiAsync(string command, int timeoutMs, CancellationToken token)
         {
-            await _signalGeneratorIoLock.WaitAsync(token);
+            await _powerSupplyIoLock.WaitAsync(token);
             try
             {
-                await WriteLineAsync(_signalGeneratorStream, command, timeoutMs, token);
+                await WriteLineAsync(_powerSupplyStream, command, timeoutMs, token);
+                return await ReadLineAsync(_powerSupplyStream, timeoutMs, token);
             }
             finally
             {
-                _signalGeneratorIoLock.Release();
+                _powerSupplyIoLock.Release();
+            }
+        }
+
+        private async Task SendPowerSupplyScpiAsync(string command, int timeoutMs, CancellationToken token)
+        {
+            await _powerSupplyIoLock.WaitAsync(token);
+            try
+            {
+                await WriteLineAsync(_powerSupplyStream, command, timeoutMs, token);
+            }
+            finally
+            {
+                _powerSupplyIoLock.Release();
             }
         }
 
@@ -877,26 +867,26 @@ namespace MeasureControl.Simulations.AC_6_4
 
             try
             {
-                _signalGeneratorStream?.Dispose();
+                _powerSupplyStream?.Dispose();
             }
             catch
             {
             }
             finally
             {
-                _signalGeneratorStream = null;
+                _powerSupplyStream = null;
             }
 
             try
             {
-                _signalGeneratorClient?.Close();
+                _powerSupplyClient?.Close();
             }
             catch
             {
             }
             finally
             {
-                _signalGeneratorClient = null;
+                _powerSupplyClient = null;
             }
         }
 
@@ -910,7 +900,7 @@ namespace MeasureControl.Simulations.AC_6_4
             {
             }
 
-            _signalGeneratorIoLock.Dispose();
+            _powerSupplyIoLock.Dispose();
         }
 
         private sealed class MultiFrameCommandAssembler
