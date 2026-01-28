@@ -43,6 +43,10 @@ namespace MeasureControl.Simulations.AC_6_4
 
         public bool EnableFrameLogging { get; set; } = true;
 
+        public double ArincRate { get; set; } = 100000.0;
+
+        public double SimProductArincRate { get; set; } = 100000.0;
+
         public int SimProductRxChannelIndex { get; set; } = 6;
         public int SimProductTxChannelIndex { get; set; } = 7;
 
@@ -119,8 +123,8 @@ namespace MeasureControl.Simulations.AC_6_4
 
             const int wordFormat = 0;
             const int parity = 1;
-            const double txRate = 100000.0;
-            const double rxRate = 0;
+            double txRate = ArincRate;
+            double rxRate = ArincRate;
 
             try
             {
@@ -179,7 +183,7 @@ namespace MeasureControl.Simulations.AC_6_4
 
             const int wordFormat = 0;
             const int parity = 1;
-            const double rxRate = 0;
+            double rxRate = ArincRate;
 
             try
             {
@@ -676,8 +680,10 @@ namespace MeasureControl.Simulations.AC_6_4
             // wordFormat: 0 表示标准429
             const int wordFormat = 0;
             const int parity = 1; // Odd
-            const double txRate = 100000.0;
-            const double rxRate = 100000.0;
+            double benchTxRate = ArincRate;
+            double benchRxRate = ArincRate;
+            double simTxRate = SimProductArincRate;
+            double simRxRate = SimProductArincRate;
 
             bool openBenchTx = await _arincDriver.OpenTxChannelAsync(benchTxIndex);
             bool openBenchRx = await _arincDriver.OpenRxChannelAsync(benchRxIndex);
@@ -687,14 +693,14 @@ namespace MeasureControl.Simulations.AC_6_4
             if (!openBenchTx || !openBenchRx || !openSimRx || !openSimTx)
                 throw new InvalidOperationException($"[SIM] Open通道失败: benchTX={benchTxIndex}({openBenchTx}), benchRX={benchRxIndex}({openBenchRx}), simRX={SimProductRxChannelIndex}({openSimRx}), simTX={SimProductTxChannelIndex}({openSimTx})");
 
-            await _arincDriver.ConfigureTxChannelAsync(benchTxIndex, txRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
-            await _arincDriver.ConfigureRxChannelAsync(benchRxIndex, rxRate, parity: parity, wordFormat: wordFormat,
+            await _arincDriver.ConfigureTxChannelAsync(benchTxIndex, benchTxRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
+            await _arincDriver.ConfigureRxChannelAsync(benchRxIndex, benchRxRate, parity: parity, wordFormat: wordFormat,
                 enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
 
             // 仿真产品侧：固定占用通道
-            await _arincDriver.ConfigureRxChannelAsync(SimProductRxChannelIndex, rxRate, parity: parity, wordFormat: wordFormat,
+            await _arincDriver.ConfigureRxChannelAsync(SimProductRxChannelIndex, simRxRate, parity: parity, wordFormat: wordFormat,
                 enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
-            await _arincDriver.ConfigureTxChannelAsync(SimProductTxChannelIndex, txRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
+            await _arincDriver.ConfigureTxChannelAsync(SimProductTxChannelIndex, simTxRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] ARINC429 通道已配置: benchTX={benchTxIndex}, benchRX={benchRxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
         }
