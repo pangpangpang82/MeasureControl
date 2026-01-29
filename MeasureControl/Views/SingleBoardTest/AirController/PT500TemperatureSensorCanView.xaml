@@ -11,21 +11,21 @@
     mc:Ignorable="d">
     <UserControl.Resources>
         <x:Array x:Key="CanChannels" Type="sys:String">
-            <sys:String>CAN CH0</sys:String>
-            <sys:String>CAN CH1</sys:String>
-            <sys:String>CAN CH2</sys:String>
-            <sys:String>CAN CH3</sys:String>
-            <sys:String>CAN CH4</sys:String>
-            <sys:String>CAN CH5</sys:String>
-            <sys:String>CAN CH6</sys:String>
-            <sys:String>CAN CH7</sys:String>
-            <sys:String>CAN CH8</sys:String>
-            <sys:String>CAN CH9</sys:String>
-            <sys:String>CAN CH10</sys:String>
-            <sys:String>CAN CH11</sys:String>
-            <sys:String>CAN CH12</sys:String>
-            <sys:String>CAN CH13</sys:String>
-            <sys:String>CAN CH14</sys:String>
+            <sys:String>CH0</sys:String>
+            <sys:String>CH1</sys:String>
+            <sys:String>CH2</sys:String>
+            <sys:String>CH3</sys:String>
+            <sys:String>CH4</sys:String>
+            <sys:String>CH5</sys:String>
+            <sys:String>CH6</sys:String>
+            <sys:String>CH7</sys:String>
+            <sys:String>CH8</sys:String>
+            <sys:String>CH9</sys:String>
+            <sys:String>CH10</sys:String>
+            <sys:String>CH11</sys:String>
+            <sys:String>CH12</sys:String>
+            <sys:String>CH13</sys:String>
+            <sys:String>CH14</sys:String>
         </x:Array>
 
         <Style x:Key="EnableCheckBoxStyle" TargetType="CheckBox">
@@ -294,7 +294,7 @@
                         Text="进入ATP模式：" />
                     <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="16" Text="TX" />
                     <ComboBox
-                        Width="140"
+                        Width="70"
                         Height="36"
                         Margin="5,0,0,0"
                         HorizontalAlignment="Left"
@@ -304,7 +304,7 @@
                         SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
                     <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
                     <ComboBox
-                        Width="140"
+                        Width="70"
                         Height="36"
                         Margin="5,0,0,0"
                         HorizontalAlignment="Left"
@@ -362,7 +362,7 @@
                         FontSize="18"
                         Text="接入电阻：" />
                     <ComboBox
-                        Width="140"
+                        Width="70"
                         Height="36"
                         Margin="0,0,0,0"
                         HorizontalAlignment="Left"
@@ -374,7 +374,7 @@
                         <ComboBoxItem Content="3挡" />
                     </ComboBox>
                     <Border
-                        Width="140"
+                        Width="70"
                         Height="36"
                         Margin="15,0,0,0"
                         VerticalAlignment="Center"
@@ -390,75 +390,6 @@
                         VerticalAlignment="Center"
                         BorderThickness="0"
                         Command="{Binding SendSetControllerResistorCommand}">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border
-                                    x:Name="border"
-                                    Background="#3b82f6"
-                                    CornerRadius="4">
-                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                        <TextBlock
-                                            x:Name="DeviceAction"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="18"
-                                            Foreground="White"
-                                            Text="发送" />
-                                    </StackPanel>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                    </Trigger>
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                    </Trigger>
-                                    <Trigger Property="IsEnabled" Value="False">
-                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                        <Setter Property="Cursor" Value="Arrow" />
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-                </StackPanel>
-
-                <StackPanel
-                    Grid.Row="3"
-                    Margin="10"
-                    Orientation="Horizontal">
-                    <TextBlock
-                        Margin="30,0,0,0"
-                        VerticalAlignment="Center"
-                        FontSize="20"
-                        Text="控制器温度测试：" />
-                    <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="16" Text="TX" />
-                    <ComboBox
-                        Width="140"
-                        Height="36"
-                        Margin="0,0,0,0"
-                        HorizontalAlignment="Left"
-                        FontSize="16"
-                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                        ItemsSource="{StaticResource CanChannels}"
-                        SelectedItem="{Binding ControllerTemperatureTestTxChannel, Mode=TwoWay}" />
-                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
-                    <ComboBox
-                        Width="140"
-                        Height="36"
-                        Margin="0,0,0,0"
-                        HorizontalAlignment="Left"
-                        FontSize="16"
-                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                        ItemsSource="{StaticResource CanChannels}"
-                        SelectedItem="{Binding ControllerTemperatureTestRxChannel, Mode=TwoWay}" />
-                    <Button
-                        Width="80"
-                        Height="36"
-                        Margin="15,0,0,0"
-                        VerticalAlignment="Center"
-                        BorderThickness="0"
-                        Command="{Binding TestControllerTemperatureCommand}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border
@@ -493,6 +424,75 @@
                 </StackPanel>
 
                 <StackPanel
+                    Grid.Row="3"
+                    Margin="10"
+                    Orientation="Horizontal">
+                    <TextBlock
+                        Margin="30,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="20"
+                        Text="控制器温度测试：" />
+                    <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="16" Text="TX" />
+                    <ComboBox
+                        Width="70"
+                        Height="36"
+                        Margin="0,0,0,0"
+                        HorizontalAlignment="Left"
+                        FontSize="16"
+                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                        ItemsSource="{StaticResource CanChannels}"
+                        SelectedItem="{Binding ControllerTemperatureTestTxChannel, Mode=TwoWay}" />
+                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
+                    <ComboBox
+                        Width="70"
+                        Height="36"
+                        Margin="0,0,0,0"
+                        HorizontalAlignment="Left"
+                        FontSize="16"
+                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                        ItemsSource="{StaticResource CanChannels}"
+                        SelectedItem="{Binding ControllerTemperatureTestRxChannel, Mode=TwoWay}" />
+                    <Button
+                        Width="80"
+                        Height="36"
+                        Margin="15,0,0,0"
+                        VerticalAlignment="Center"
+                        BorderThickness="0"
+                        Command="{Binding TestControllerTemperatureCommand}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border
+                                    x:Name="border"
+                                    Background="#3b82f6"
+                                    CornerRadius="4">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                        <TextBlock
+                                            x:Name="DeviceAction"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="18"
+                                            Foreground="White"
+                                            Text="发送" />
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                        <Setter Property="Cursor" Value="Arrow" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+
+                <StackPanel
                     Grid.Row="4"
                     Margin="10"
                     Orientation="Horizontal">
@@ -503,7 +503,7 @@
                         Text="温度回采值：" />
                     <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
                     <ComboBox
-                        Width="140"
+                        Width="70"
                         Height="36"
                         Margin="5,0,0,0"
                         HorizontalAlignment="Left"
@@ -512,7 +512,7 @@
                         ItemsSource="{StaticResource CanChannels}"
                         SelectedItem="{Binding TemperatureTelemetryRxChannel, Mode=TwoWay}" />
                     <Border
-                        Width="140"
+                        Width="70"
                         Height="38"
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
@@ -572,7 +572,7 @@
                         Text="退出ATP模式：" />
                     <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="16" Text="TX" />
                     <ComboBox
-                        Width="140"
+                        Width="70"
                         Height="38"
                         Margin="5,0,0,0"
                         HorizontalAlignment="Left"
@@ -582,7 +582,7 @@
                         SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
                     <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
                     <ComboBox
-                        Width="140"
+                        Width="70"
                         Height="38"
                         Margin="5,0,0,0"
                         HorizontalAlignment="Left"

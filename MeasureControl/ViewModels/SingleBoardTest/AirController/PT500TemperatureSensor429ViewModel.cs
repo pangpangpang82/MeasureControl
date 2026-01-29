@@ -9,13 +9,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
     {
         public PT500TemperatureSensor429ViewModel()
         {
-            _enterAtpTxChannel = "ARINC429 CH0";
-            _enterAtpRxChannel = "ARINC429 CH1";
-            _controllerTemperatureTestTxChannel = "ARINC429 CH2";
-            _controllerTemperatureTestRxChannel = "ARINC429 CH3";
-            _temperatureTelemetryRxChannel = "ARINC429 CH4";
-            _exitAtpTxChannel = "ARINC429 CH5";
-            _exitAtpRxChannel = "ARINC429 CH6";
+            _enterAtpTxChannel = "CH0";
+            _enterAtpRxChannel = "CH1";
+            _controllerTemperatureTestTxChannel = "CH0";
+            _controllerTemperatureTestRxChannel = "CH1";
+            _temperatureTelemetryRxChannel = "CH1";
+            _exitAtpTxChannel = "CH0";
+            _exitAtpRxChannel = "CH1";
 
             _resistorGear = "1挡";
             ResistorGearValueText = _resistorGear;
