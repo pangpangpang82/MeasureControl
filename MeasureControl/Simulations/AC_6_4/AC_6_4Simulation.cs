@@ -554,8 +554,8 @@ namespace MeasureControl.Simulations.AC_6_4
         {
             // 协议假设（可调整）：
             // - 产品开启输出后，周期性上报“传感器供电电压回采并上传”
-            // - 上报8字节包：01 04 01 02 vv vv 00 00
-            //   其中 vv vv 为回采电压的 mV (UInt16, big-endian)，范围 [2.25V, 2.75V] -> [2250, 2750]
+            // - 上报8字节包：01 04 01 02 ff ff ff ff
+            //   其中 ff ff ff ff 为回采电压的 IEEE754 float(4字节)，固定字节序：big-endian
             while (!token.IsCancellationRequested)
             {
                 try
@@ -567,20 +567,20 @@ namespace MeasureControl.Simulations.AC_6_4
                     }
 
                     double sense = NextDouble(2.25, 2.75);
-                    int mvInt = (int)Math.Round(sense * 1000.0);
-                    if (mvInt < 0) mvInt = 0;
-                    if (mvInt > 65535) mvInt = 65535;
-                    ushort mv = (ushort)mvInt;
+                    float senseF = (float)sense;
+                    var fbytes = BitConverter.GetBytes(senseF);
+                    if (BitConverter.IsLittleEndian)
+                        Array.Reverse(fbytes);
 
                     var payload = new byte[8];
                     payload[0] = 0x01;
                     payload[1] = 0x04;
                     payload[2] = 0x01;
                     payload[3] = 0x02;
-                    payload[4] = (byte)((mv >> 8) & 0xFF);
-                    payload[5] = (byte)(mv & 0xFF);
-                    payload[6] = 0x00;
-                    payload[7] = 0x00;
+                    payload[4] = fbytes[0];
+                    payload[5] = fbytes[1];
+                    payload[6] = fbytes[2];
+                    payload[7] = fbytes[3];
 
                     await SendMultiFrameResponseAsync(label, payload, log, token);
 
