@@ -381,7 +381,7 @@
                         BorderBrush="#D9D9D9"
                         BorderThickness="1"
                         CornerRadius="3">
-                        <TextBlock Margin="1" FontSize="16" Text="{Binding ResistorGearValueText}" />
+                        <TextBlock Margin="1" FontSize="16" Text="{Binding MeasuredResistanceValueText}" />
                     </Border>
                     <Button
                         Width="80"
