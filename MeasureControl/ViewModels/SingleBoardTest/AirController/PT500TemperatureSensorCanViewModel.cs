@@ -2,11 +2,18 @@ using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using MeasureControl.Drivers;
+using MeasureControl.Drivers.ArtSwitch;
+using MeasureControl.Drivers.PXI4004CAN;
 using MeasureControl.Models.Devices;
+using MeasureControl.Models.Devices.DeviceCategories;
 using MeasureControl.Services;
 using NationalInstruments.Visa;
 using Prism.Ioc;
@@ -15,6 +22,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public class PT500TemperatureSensorCanViewModel : BindableBase
     {
+        private const uint DefaultCanFrameId = 0;
+        private const int DmmDefaultPort = 5555;
+        private const string DmmDefaultIp = "192.168.1.13";
+        private const string MatrixIpAddress = "192.168.1.3";
+        private const int MatrixFixedSlotIndex = 4;
+        private const int MatrixDmmSlotIndex = 7;
+
+        private static readonly byte[] AtpR = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] AtpEnterOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
+        private static readonly byte[] AtpE = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
+        private static readonly byte[] AbPdtsTemperature = { 0x07, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+
+        private PXI4004Driver _canDriver;
+        private IDeviceDriver _resistorDriver;
+        private ResourceManager _dmmResourceManager;
+        private MessageBasedSession _dmmSession;
+        private readonly SemaphoreSlim _dmmIoLock = new SemaphoreSlim(1, 1);
+
+        private readonly SemaphoreSlim _matrixSwitchLock = new SemaphoreSlim(1, 1);
+        private bool _matrixConnected;
+
+        private readonly SemaphoreSlim _canOpLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
+
         public PT500TemperatureSensorCanViewModel()
         {
             _enterAtpTxChannel = "CAN CH0";
@@ -32,16 +63,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             LastTestTime = "--";
             LastTestResult = "--";
 
-            SendEnterAtpCommand = new DelegateCommand(() => AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：进入ATP"));
+            SendEnterAtpCommand = new DelegateCommand(async () => await OnSendEnterAtpAsync());
             SendSetControllerResistorCommand = new DelegateCommand(async () => await SendSetControllerResistorAsync(), () => !IsResistorMeasuring)
                 .ObservesProperty(() => IsResistorMeasuring);
-            TestControllerTemperatureCommand = new DelegateCommand(() => AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：控制器温度"));
+            TestControllerTemperatureCommand = new DelegateCommand(async () => await OnTestControllerTemperatureAsync());
             TestTemperatureTelemetryCommand = new DelegateCommand(() =>
             {
                 TemperatureTelemetryValueText = "--";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：温度回采值，RX通道={TemperatureTelemetryRxChannel}");
             });
-            SendExitAtpCommand = new DelegateCommand(() => AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：退出ATP"));
+            SendExitAtpCommand = new DelegateCommand(async () => await OnSendExitAtpAsync());
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
             ManualTestCommand = new DelegateCommand(OnManualTest);
@@ -201,16 +232,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private void OnManualTest()
         {
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试按钮点击");
             if (IsManualTestRunning)
             {
-                IsManualTestRunning = false;
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试停止");
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                _ = StopManualTestAsync();
                 return;
             }
 
-            IsManualTestRunning = true;
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动");
+            _ = StartManualTestAsync();
         }
 
         private void OnAutoTest()
@@ -227,10 +256,363 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动");
         }
 
+        private async Task StartManualTestAsync()
+        {
+            await _manualTestLock.WaitAsync();
+            try
+            {
+                if (IsManualTestRunning)
+                    return;
+
+                IsManualTestRunning = true;
+                LastTestTime = "--";
+                LastTestResult = "--";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：开始打开设备");
+
+                var ok = await EnsureAllDevicesReadyAsync();
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动失败：设备未准备就绪");
+                    IsManualTestRunning = false;
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    return;
+                }
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：设备已就绪");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动异常：{ex.Message}");
+                IsManualTestRunning = false;
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            }
+            finally
+            {
+                _manualTestLock.Release();
+            }
+        }
+
+        private async Task StopManualTestAsync()
+        {
+            await _manualTestLock.WaitAsync();
+            try
+            {
+                if (!IsManualTestRunning)
+                    return;
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试停止：关闭设备");
+                IsManualTestRunning = false;
+
+                await DisconnectCanAsync();
+                await DisconnectDmmAsync();
+                await DisconnectMatrixAsync();
+                await DisconnectResistorAsync();
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试停止异常：{ex.Message}");
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            }
+            finally
+            {
+                _manualTestLock.Release();
+            }
+        }
+
+        private async Task<bool> EnsureAllDevicesReadyAsync()
+        {
+            var canOk = false;
+            var dmmOk = false;
+            var matrixOk = false;
+            var resistorOk = false;
+
+            try { canOk = await EnsureCanDriverReadyAsync(); } catch (Exception ex) { AddLog($"[{DateTime.Now:HH:mm:ss}] CAN打开异常：{ex.Message}"); }
+            try { dmmOk = await EnsureDmmReadyAsync(); } catch (Exception ex) { AddLog($"[{DateTime.Now:HH:mm:ss}] 万用表打开异常：{ex.Message}"); }
+            try { matrixOk = await EnsureMatrixReadyAsync(); } catch (Exception ex) { AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关打开异常：{ex.Message}"); }
+            try { resistorOk = await EnsureResistorReadyAsync(); } catch (Exception ex) { AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡打开异常：{ex.Message}"); }
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试设备就绪结果：CAN={canOk}, DMM={dmmOk}, 矩阵={matrixOk}, 电阻={resistorOk}");
+
+            return canOk || dmmOk || matrixOk || resistorOk;
+        }
+
+        private async Task DisconnectCanAsync()
+        {
+            try
+            {
+                if (_canDriver != null)
+                {
+                    await _canDriver.DisconnectAsync();
+                    _canDriver = null;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private async Task<bool> EnsureDmmReadyAsync()
+        {
+            if (_dmmSession != null)
+                return true;
+
+            try
+            {
+                _dmmResourceManager ??= new ResourceManager();
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 万用表打开失败：ResourceManager创建失败：{ex.Message}");
+                return false;
+            }
+
+            try
+            {
+                var ip = DmmDefaultIp;
+                if (!IPAddress.TryParse(ip, out _))
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 万用表打开失败：IP无效({ip})");
+                    return false;
+                }
+
+                try
+                {
+                    var resourceString = $"TCPIP0::{ip}::{DmmDefaultPort}::SOCKET";
+                    _dmmSession = (MessageBasedSession)_dmmResourceManager.Open(resourceString, 0, 5000);
+                }
+                catch
+                {
+                    var resourceString = $"TCPIP0::{ip}::inst0::INSTR";
+                    _dmmSession = (MessageBasedSession)_dmmResourceManager.Open(resourceString, 0, 5000);
+                }
+
+                try
+                {
+                    _dmmSession.TimeoutMilliseconds = 8000;
+                    _dmmSession.TerminationCharacterEnabled = true;
+                    _dmmSession.TerminationCharacter = (byte)'\n';
+                }
+                catch
+                {
+                }
+
+                var idn = await QueryDmmStringAsync("*IDN?");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 万用表已打开：{(idn ?? string.Empty).Trim()}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 万用表打开失败：{ex.Message}");
+                await DisconnectDmmAsync();
+                return false;
+            }
+        }
+
+        private async Task<string> QueryDmmStringAsync(string query)
+        {
+            if (_dmmSession == null)
+                throw new InvalidOperationException("DMM会话未建立");
+
+            await _dmmIoLock.WaitAsync();
+            try
+            {
+                var cmd = query.EndsWith("\n", StringComparison.Ordinal) ? query : query + "\n";
+                _dmmSession.RawIO.Write(cmd);
+                return _dmmSession.RawIO.ReadString();
+            }
+            finally
+            {
+                _dmmIoLock.Release();
+            }
+        }
+
+        private Task DisconnectDmmAsync()
+        {
+            try
+            {
+                if (_dmmSession != null)
+                {
+                    _dmmSession.Dispose();
+                    _dmmSession = null;
+                }
+            }
+            catch
+            {
+            }
+
+            return Task.CompletedTask;
+        }
+
+        private async Task<bool> EnsureMatrixReadyAsync()
+        {
+            if (_matrixConnected)
+                return true;
+
+            await _matrixSwitchLock.WaitAsync();
+            try
+            {
+                if (_matrixConnected)
+                    return true;
+
+                var ok1 = await MatrixControlService.Instance.ConnectNodesAsync("I4", "O6", MatrixFixedSlotIndex, MatrixIpAddress);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(固定): I4->O6 slot={MatrixFixedSlotIndex} ip={MatrixIpAddress}, ok={ok1}");
+
+                var ok2 = await MatrixControlService.Instance.ConnectNodesAsync("I3", "O30", MatrixDmmSlotIndex, MatrixIpAddress);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路: I3->O30 slot={MatrixDmmSlotIndex} ip={MatrixIpAddress}, ok={ok2}");
+
+                _matrixConnected = ok1 || ok2;
+                return _matrixConnected;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关打开异常：{ex.Message}");
+                _matrixConnected = false;
+                return false;
+            }
+            finally
+            {
+                _matrixSwitchLock.Release();
+            }
+        }
+
+        private async Task DisconnectMatrixAsync()
+        {
+            await _matrixSwitchLock.WaitAsync();
+            try
+            {
+                var ok1 = await MatrixControlService.Instance.DisconnectNodesAsync("I4", "O6", MatrixFixedSlotIndex, MatrixIpAddress);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开(固定): I4->O6 slot={MatrixFixedSlotIndex} ip={MatrixIpAddress}, ok={ok1}");
+
+                var ok2 = await MatrixControlService.Instance.DisconnectNodesAsync("I3", "O30", MatrixDmmSlotIndex, MatrixIpAddress);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开: I3->O30 slot={MatrixDmmSlotIndex} ip={MatrixIpAddress}, ok={ok2}");
+
+                var ok3 = await MatrixControlService.Instance.DisconnectNodesAsync("I3", "O31", MatrixDmmSlotIndex, MatrixIpAddress);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开: I3->O31 slot={MatrixDmmSlotIndex} ip={MatrixIpAddress}, ok={ok3}");
+
+                _matrixConnected = false;
+            }
+            catch
+            {
+                _matrixConnected = false;
+            }
+            finally
+            {
+                _matrixSwitchLock.Release();
+            }
+        }
+
+        private async Task<bool> EnsureResistorReadyAsync()
+        {
+            if (_resistorDriver != null && _resistorDriver.IsConnected)
+                return true;
+
+            try
+            {
+                for (uint logicalId = 0; logicalId <= 7; logicalId++)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡直连：尝试ACTS6010逻辑ID={logicalId}");
+                    var dummy = new ProgrammableResistorDevice
+                    {
+                        Name = "电阻输出",
+                        Model = "PXI-7012",
+                        CardName = $"电阻输出(自动探测-{logicalId})",
+                        SlotIndex = (int)logicalId
+                    };
+
+                    var driver = new ACTS6010Driver(dummy, logicalId);
+                    var ok = await driver.ConnectAsync();
+                    if (ok)
+                    {
+                        _resistorDriver = driver;
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡已连接：ACTS6010 逻辑ID={logicalId}");
+                        return true;
+                    }
+                }
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡打开失败：ACTS6010 逻辑ID 0-7 均连接失败");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡打开异常：{ex.Message}");
+                _resistorDriver = null;
+                return false;
+            }
+        }
+
+        private async Task DisconnectResistorAsync()
+        {
+            try
+            {
+                if (_resistorDriver != null)
+                {
+                    await _resistorDriver.DisconnectAsync();
+                    _resistorDriver = null;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private System.Collections.Generic.List<DeviceBase> GetDevicesInCurrentChassis()
+        {
+            try
+            {
+                var pxiChassisService = ContainerLocator.Container?.Resolve(typeof(IPxiChassisService)) as IPxiChassisService;
+                if (pxiChassisService == null)
+                    return null;
+
+                var ctx = ContainerLocator.Container?.Resolve(typeof(ISingleBoardTestContextService)) as ISingleBoardTestContextService;
+                var chassisName = ctx?.ChassisName ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(chassisName))
+                {
+                    var chassisDevices = pxiChassisService.GetChassisDevices(chassisName);
+                    if (chassisDevices != null)
+                    {
+                        var list = FlattenDevices(chassisDevices).ToList();
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 当前机箱={chassisName}, 设备数={list.Count}");
+                        return list;
+                    }
+                }
+
+                var all = pxiChassisService.GetAllChassis();
+                if (all == null)
+                    return null;
+
+                var allDevices = all
+                    .Where(c => c?.Devices != null)
+                    .SelectMany(c => FlattenDevices(c.Devices))
+                    .ToList();
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 当前机箱未指定或未找到，使用全局设备列表，设备数={allDevices.Count}");
+                return allDevices;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private void AddLog(string message)
         {
             if (string.IsNullOrWhiteSpace(message))
                 return;
+
+            try
+            {
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null && !dispatcher.CheckAccess())
+                {
+                    dispatcher.BeginInvoke(new Action(() => AddLog(message)));
+                    return;
+                }
+            }
+            catch
+            {
+            }
 
             try
             {
@@ -239,6 +621,492 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             catch
             {
             }
+
+            try
+            {
+                Debug.WriteLine(message);
+            }
+            catch
+            {
+            }
+        }
+
+        private async Task OnSendEnterAtpAsync()
+        {
+            await _canOpLock.WaitAsync();
+            try
+            {
+                var txIndex = ParseCanChannelIndex(EnterAtpTxChannel);
+                var rxIndex = ParseCanChannelIndex(EnterAtpRxChannel);
+                if (txIndex < 0 || rxIndex < 0)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：通道选择无效");
+                    return;
+                }
+
+                var ok = await EnsureCanDriverReadyAsync();
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：CAN驱动未就绪");
+                    return;
+                }
+
+                ok = await _canDriver.OpenChannelAsync(txIndex) && await _canDriver.OpenChannelAsync(rxIndex);
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：打开通道失败 TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}");
+                    return;
+                }
+
+                var frame = PXI4004.CreateDataFrame(DefaultCanFrameId, AtpR);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：进入ATP(ATP R)，TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}, Data={FormatData(AtpR)}");
+
+                ok = await _canDriver.SendFrameAsync(txIndex, frame, 0.2);
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：发送失败");
+                    return;
+                }
+
+                var received = await WaitSpecificDataFrameAsync(rxIndex, AtpR, TimeSpan.FromMilliseconds(800));
+                if (!received)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：RX未收到ATP R返回(Data={FormatData(AtpR)})");
+                    return;
+                }
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP：RX已收到返回，发送进入ATP成功帧(固定 CAN CH2->CH3)");
+
+                var fixedTx = 2;
+                var fixedRx = 3;
+                ok = await _canDriver.OpenChannelAsync(fixedTx) && await _canDriver.OpenChannelAsync(fixedRx);
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP成功帧发送失败：打开固定通道失败");
+                    return;
+                }
+
+                var okFrame = PXI4004.CreateDataFrame(DefaultCanFrameId, AtpEnterOk);
+                ok = await _canDriver.SendFrameAsync(fixedTx, okFrame, 0.2);
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP成功帧发送失败");
+                    return;
+                }
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP成功帧已发送：TX=CAN CH2, RX=CAN CH3, Data={FormatData(AtpEnterOk)}");
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = "进入ATP成功";
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP异常：{ex.Message}");
+            }
+            finally
+            {
+                _canOpLock.Release();
+            }
+        }
+
+        private async Task OnTestControllerTemperatureAsync()
+        {
+            await _canOpLock.WaitAsync();
+            try
+            {
+                var txIndex = ParseCanChannelIndex(ControllerTemperatureTestTxChannel);
+                var rxIndex = ParseCanChannelIndex(ControllerTemperatureTestRxChannel);
+                if (txIndex < 0 || rxIndex < 0)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试失败：通道选择无效");
+                    return;
+                }
+
+                var ok = await EnsureCanDriverReadyAsync();
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试失败：CAN驱动未就绪");
+                    return;
+                }
+
+                ok = await _canDriver.OpenChannelAsync(txIndex) && await _canDriver.OpenChannelAsync(rxIndex);
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试失败：打开通道失败 TX={ControllerTemperatureTestTxChannel}, RX={ControllerTemperatureTestRxChannel}");
+                    return;
+                }
+
+                var frame = PXI4004.CreateDataFrame(DefaultCanFrameId, AbPdtsTemperature);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：控制器温度(AB_PDTS_Temperature)，TX={ControllerTemperatureTestTxChannel}, RX={ControllerTemperatureTestRxChannel}, Data={FormatData(AbPdtsTemperature)}");
+
+                ok = await _canDriver.SendFrameAsync(txIndex, frame, 0.2);
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试失败：发送失败");
+                    return;
+                }
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = "控制器温度测试已发送";
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试异常：{ex.Message}");
+            }
+            finally
+            {
+                _canOpLock.Release();
+            }
+        }
+
+        private async Task OnSendExitAtpAsync()
+        {
+            await _canOpLock.WaitAsync();
+            try
+            {
+                var txIndex = ParseCanChannelIndex(ExitAtpTxChannel);
+                var rxIndex = ParseCanChannelIndex(ExitAtpRxChannel);
+                if (txIndex < 0 || rxIndex < 0)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP失败：通道选择无效");
+                    return;
+                }
+
+                var ok = await EnsureCanDriverReadyAsync();
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP失败：CAN驱动未就绪");
+                    return;
+                }
+
+                ok = await _canDriver.OpenChannelAsync(txIndex) && await _canDriver.OpenChannelAsync(rxIndex);
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP失败：打开通道失败 TX={ExitAtpTxChannel}, RX={ExitAtpRxChannel}");
+                    return;
+                }
+
+                var frame = PXI4004.CreateDataFrame(DefaultCanFrameId, AtpE);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：退出ATP(ATP E)，TX={ExitAtpTxChannel}, RX={ExitAtpRxChannel}, Data={FormatData(AtpE)}");
+
+                ok = await _canDriver.SendFrameAsync(txIndex, frame, 0.2);
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP失败：发送失败");
+                    return;
+                }
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = "退出ATP已发送";
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP异常：{ex.Message}");
+            }
+            finally
+            {
+                _canOpLock.Release();
+            }
+        }
+
+        private async Task<bool> EnsureCanDriverReadyAsync()
+        {
+            if (_canDriver != null && _canDriver.IsConnected)
+                return true;
+
+            try
+            {
+                var pxiChassisService = ContainerLocator.Container?.Resolve(typeof(IPxiChassisService)) as IPxiChassisService;
+                if (pxiChassisService == null)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动未准备：未获取到IPxiChassisService");
+                    return false;
+                }
+
+                System.Collections.Generic.List<DeviceBase> allDevices = null;
+                var ctx = ContainerLocator.Container?.Resolve(typeof(ISingleBoardTestContextService)) as ISingleBoardTestContextService;
+                var chassisName = ctx?.ChassisName ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(chassisName))
+                {
+                    var chassisDevices = pxiChassisService.GetChassisDevices(chassisName);
+                    if (chassisDevices != null)
+                    {
+                        allDevices = FlattenDevices(chassisDevices).ToList();
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] CAN设备查找：使用当前机箱={chassisName}, 设备数={allDevices.Count}");
+                    }
+                }
+
+                if (allDevices == null)
+                {
+                    var chassisList = pxiChassisService.GetAllChassis();
+                    if (chassisList == null)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动未准备：GetAllChassis 返回空");
+                        return false;
+                    }
+
+                    allDevices = chassisList
+                        .Where(c => c?.Devices != null)
+                        .SelectMany(c => FlattenDevices(c.Devices))
+                        .Where(d => d != null)
+                        .ToList();
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] CAN设备查找：使用全局设备列表，设备数={allDevices.Count}");
+                }
+
+                if (allDevices.Count == 0)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动未准备：机箱设备列表为空");
+                    return false;
+                }
+
+                try
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] CAN设备列表预览(前30条)：");
+                    int idx = 0;
+                    foreach (var d in allDevices.Take(30))
+                    {
+                        var slot = (d as PxiDeviceBase)?.SlotIndex;
+                        var typeName = d?.GetType()?.Name ?? "<null>";
+                        AddLog($"[{DateTime.Now:HH:mm:ss}]  #{idx} Type={typeName}, Model={d?.Model}, Name={d?.Name}, CardName={d?.CardName}, Slot={slot}, Children={(d?.Children?.Count ?? 0)}, Id={d?.Id}");
+                        idx++;
+                    }
+                }
+                catch
+                {
+                }
+
+                DeviceBase target = allDevices
+                    .OfType<CanBusDevice>()
+                    .FirstOrDefault(d => d != null && ((d.Model ?? string.Empty).ToUpperInvariant().Contains("4004") || (d.Name ?? string.Empty).ToUpperInvariant().Contains("4004")));
+
+                target ??= allDevices
+                    .OfType<CanBusDevice>()
+                    .FirstOrDefault();
+
+                target ??= allDevices
+                    .FirstOrDefault(d =>
+                        ((d.Model ?? string.Empty).ToUpperInvariant().Contains("4004") ||
+                         (d.Name ?? string.Empty).ToUpperInvariant().Contains("4004") ||
+                         (d.CardName ?? string.Empty).ToUpperInvariant().Contains("4004") ||
+                         (d.Model ?? string.Empty).ToUpperInvariant().Contains("CAN") ||
+                         (d.Name ?? string.Empty).ToUpperInvariant().Contains("CAN") ||
+                         (d.CardName ?? string.Empty).ToUpperInvariant().Contains("CAN")));
+
+                PXI4004Driver driver = null;
+                if (target == null)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] CAN设备查找：字符串匹配未命中，开始按驱动类型探测(PXI4004Driver)...");
+                    foreach (var d in allDevices)
+                    {
+                        if (d == null)
+                            continue;
+
+                        try
+                        {
+                            var slotIndex = (d as PxiDeviceBase)?.SlotIndex ?? -1;
+                            var probed = DriverFactory.GetCachedDriver(d.Id, slotIndex) ?? DriverFactory.CreateDriver(d);
+                            if (probed is PXI4004Driver p)
+                            {
+                                target = d;
+                                driver = p;
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] CAN设备查找：探测命中PXI4004Driver，Device={d?.Model ?? d?.Name ?? d?.CardName}, Slot={slotIndex}, Id={d?.Id}");
+                                break;
+                            }
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+
+                if (target == null)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动未准备：未找到CAN板卡设备(4004/CAN)，尝试直接连接PXI4004逻辑设备0");
+                    try
+                    {
+                        for (var logicalIndex = 0; logicalIndex <= 7; logicalIndex++)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] CAN直接连接：尝试PXI4004逻辑设备{logicalIndex}");
+                            var dummy = new CanBusDevice
+                            {
+                                Name = "PXI4004",
+                                Model = "PXI-4004",
+                                CardName = $"PXI4004(自动探测-{logicalIndex})",
+                                SlotIndex = logicalIndex
+                            };
+
+                            var direct = new PXI4004Driver(dummy, logicalIndex);
+                            var directOk = await direct.ConnectAsync();
+                            if (directOk)
+                            {
+                                _canDriver = direct;
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动已连接：PXI4004(自动探测) 逻辑设备{logicalIndex}");
+                                return true;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] CAN直接连接失败：{ex.Message}");
+                    }
+
+                    return false;
+                }
+
+                if (driver == null)
+                {
+                    try
+                    {
+                        var slotIndex = (target as PxiDeviceBase)?.SlotIndex ?? -1;
+                        driver = (DriverFactory.GetCachedDriver(target.Id, slotIndex) ?? DriverFactory.CreateDriver(target)) as PXI4004Driver;
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动未准备：DriverFactory.CreateDriver异常：{ex.Message}");
+                    }
+                }
+
+                if (driver == null)
+                {
+                    int slot = 0;
+                    if (target is CanBusDevice c) slot = c.SlotIndex > 0 ? c.SlotIndex : 0;
+                    else if (target is PxiDeviceBase p) slot = p.SlotIndex > 0 ? p.SlotIndex : 0;
+                    driver = new PXI4004Driver(target, slot);
+                }
+
+                var ok = await driver.ConnectAsync();
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动未准备：ConnectAsync失败 (Device={target?.Model ?? target?.Name ?? target?.CardName})");
+                    return false;
+                }
+
+                _canDriver = driver;
+                return _canDriver.IsConnected;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动未准备：EnsureCanDriverReadyAsync异常：{ex.Message}");
+                return false;
+            }
+        }
+
+        private static System.Collections.Generic.IEnumerable<DeviceBase> FlattenDevices(System.Collections.Generic.IEnumerable<DeviceBase> devices)
+        {
+            if (devices == null)
+                yield break;
+
+            foreach (var d in devices)
+            {
+                if (d == null)
+                    continue;
+
+                yield return d;
+
+                if (d.Children == null)
+                    continue;
+
+                foreach (var child in FlattenDevices(d.Children))
+                    yield return child;
+            }
+        }
+
+        private static int ParseCanChannelIndex(string channel)
+        {
+            if (string.IsNullOrWhiteSpace(channel))
+                return -1;
+
+            var s = channel.Trim();
+            var idx = s.LastIndexOf("CH", StringComparison.OrdinalIgnoreCase);
+            if (idx < 0)
+                return -1;
+
+            var numberPart = s.Substring(idx + 2).Trim();
+            if (!int.TryParse(numberPart, out var n))
+                return -1;
+
+            if (n < 0)
+                return -1;
+
+            return n;
+        }
+
+        private async Task<bool> WaitAnyFrameAsync(int rxChannelIndex, TimeSpan timeout)
+        {
+            var start = DateTime.UtcNow;
+            while ((DateTime.UtcNow - start) < timeout)
+            {
+                var frame = await _canDriver.ReceiveFrameAsync(rxChannelIndex, 0.02);
+                if (frame.HasValue)
+                {
+                    var data = frame.Value.DataBuf;
+                    var len = frame.Value.nDataLength;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] RX收到：CH{rxChannelIndex}, ID=0x{frame.Value.nFrameID:X}, Len={len}, Data={FormatData(data, len)}");
+                    return true;
+                }
+
+                await Task.Delay(10);
+            }
+
+            return false;
+        }
+
+        private async Task<bool> WaitSpecificDataFrameAsync(int rxChannelIndex, byte[] expectedData, TimeSpan timeout)
+        {
+            var start = DateTime.UtcNow;
+            while ((DateTime.UtcNow - start) < timeout)
+            {
+                var frame = await _canDriver.ReceiveFrameAsync(rxChannelIndex, 0.02);
+                if (frame.HasValue)
+                {
+                    var buf = frame.Value.DataBuf;
+                    var len = frame.Value.nDataLength;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] RX收到：CH{rxChannelIndex}, ID=0x{frame.Value.nFrameID:X}, Len={len}, Data={FormatData(buf, len)}");
+
+                    if (IsDataMatch(buf, len, expectedData))
+                        return true;
+                }
+
+                await Task.Delay(10);
+            }
+
+            return false;
+        }
+
+        private static bool IsDataMatch(byte[] receivedBuf, int receivedLen, byte[] expected)
+        {
+            if (expected == null)
+                return false;
+            if (receivedBuf == null)
+                return false;
+            if (receivedLen < expected.Length)
+                return false;
+            if (receivedBuf.Length < expected.Length)
+                return false;
+
+            for (int i = 0; i < expected.Length; i++)
+            {
+                if (receivedBuf[i] != expected[i])
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static string FormatData(byte[] data, int length = -1)
+        {
+            if (data == null)
+                return string.Empty;
+
+            var len = length;
+            if (len < 0)
+                len = data.Length;
+
+            len = Math.Min(len, data.Length);
+            if (len <= 0)
+                return string.Empty;
+
+            return string.Join(" ", data.Take(len).Select(b => b.ToString("X2")));
         }
 
         private static double GetTargetResistanceOhm(string gear)
