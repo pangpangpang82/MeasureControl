@@ -1543,7 +1543,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
             }
 
             // dispatcher 注册会在 LoadDeviceConfig 中进行（确保使用服务中的权威 Device 实例）
-            
+
             // 订阅设备修改事件，以便在面板未打开时被机箱回退执行后刷新 UI
             try
             {
@@ -1809,6 +1809,21 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
             return await SendRemoteCommandWithRetryAsync(ipAddress, port, inputIndex, outputIndex, state);
         }
 
+        private async Task<bool> SendMatrixCommandAsync(string inputNodeId, string outputNodeId, byte state, int slotIndex)
+        {
+            if (!TryParseNodeIndex(inputNodeId, out var inputIndex) ||
+                !TryParseNodeIndex(outputNodeId, out var outputIndex))
+            {
+                Debug.WriteLine($"[SendMatrixCommandAsync] 节点解析失败: {inputNodeId} -> {outputNodeId}");
+                return false;
+            }
+
+            int port = 50200 + slotIndex;
+            var ipAddress = ResolveControlledChassisIpAddress();
+            Debug.WriteLine($"[SendMatrixCommandAsync] 发送矩阵命令: {inputNodeId}({inputIndex})->{outputNodeId}({outputIndex}), state={state}");
+            return await SendRemoteCommandWithRetryAsync(ipAddress, port, inputIndex, outputIndex, state);
+        }
+
         private async Task DisconnectAllRemoteConnectionsAsync()
         {
             try
@@ -1893,7 +1908,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
                         await Dispatcher.InvokeAsync(() =>
                         {
 
-                            File.AppendAllText(@"C:\LOG\LOG.TXT", "ConnectNodesAsync+FFFF" + Environment.NewLine);
+
                             IsDeviceOpened = true;
                             RaisePropertyChanged(nameof(IsDeviceOpened));
                             if (connection != null)
@@ -2269,7 +2284,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
                 Debug.WriteLine($"[ConnectNodesAsync] 更新UI为连接中状态");
                 Dispatcher.Invoke(() =>
                 {
-                   
+
                     var crossPoint = CrossPoints.FirstOrDefault(cp =>
                         cp.InputNodeId == inputNodeId &&
                         cp.OutputNodeId == outputNodeId);

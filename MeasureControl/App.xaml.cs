@@ -95,6 +95,7 @@ namespace MeasureControl
             containerRegistry.RegisterSingleton<INavigationStateService, NavigationStateService>();
             containerRegistry.RegisterSingleton<IDocumentManagerService, DocumentManagerService>();
             containerRegistry.RegisterSingleton<SignalValueUpdateService>();
+            containerRegistry.RegisterSingleton<ISingleBoardTestContextService, SingleBoardTestContextService>();
             
             // 注册导航服务（新重构的服务）
             containerRegistry.RegisterSingleton<NavigationRegistry>();
