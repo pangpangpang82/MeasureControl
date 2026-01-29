@@ -225,7 +225,7 @@
                         <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding Ports}" SelectedItem="{Binding SelectedPort}" IsEnabled="{Binding IsNotOpen}" Height="26" />
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Text="波特率" />
-                        <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" ItemsSource="{Binding BaudRates}" SelectedItem="{Binding SelectedBaudRate}" IsEnabled="{Binding IsNotOpen}" Height="26" />
+                        <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" ItemsSource="{Binding BaudRates}" SelectedItem="{Binding SelectedBaudRate}" Text="{Binding BaudRateText, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" IsEnabled="{Binding IsNotOpen}" Height="26" />
 
                         <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Text="校验位" />
                         <ComboBox Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" ItemsSource="{Binding ParityOptions}" SelectedItem="{Binding SelectedParity}" IsEnabled="{Binding IsNotOpen}" Height="26" />
