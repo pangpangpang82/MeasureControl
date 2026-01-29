@@ -16,11 +16,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest
     public class BoardTestViewModel : BindableBase, INavigationAware
     {
         private readonly IEventAggregator _eventAggregator;
+        private readonly MeasureControl.Services.ISingleBoardTestContextService _singleBoardTestContext;
 
         private static readonly IReadOnlyDictionary<string, Func<UserControl>> TestItemViewFactories =
             new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
             {
-                { "控制通道光耦供电测试", () => new AC_6_4() },
+                { "控制通道光耦供电测试", () => new AC_6_4CommTabView() },
+                { "PT500型温度传感器测试", () => new PT500TemperatureSensorCommTabView() },
             };
 
         private string _testTaskName;
@@ -56,9 +58,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
         public DelegateCommand CloseInRegionCommand { get; }
 
-        public BoardTestViewModel(IEventAggregator eventAggregator)
+        public BoardTestViewModel(IEventAggregator eventAggregator, MeasureControl.Services.ISingleBoardTestContextService singleBoardTestContext)
         {
             _eventAggregator = eventAggregator ?? throw new ArgumentNullException(nameof(eventAggregator));
+            _singleBoardTestContext = singleBoardTestContext ?? throw new ArgumentNullException(nameof(singleBoardTestContext));
             CloseInRegionCommand = new DelegateCommand(OnCloseInRegion);
         }
 
@@ -103,6 +106,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                                 ?? parameters?.GetValue<string>("ChassisName")
                                 ?? string.Empty;
 
+            _singleBoardTestContext.Update(ParentChassisName, TestTaskName, BoardType);
+
             var instanceId = string.IsNullOrWhiteSpace(ParentChassisName) ? TestTaskName : $"{ParentChassisName}-{TestTaskName}";
             PageKey = string.IsNullOrWhiteSpace(instanceId) ? "BoardTest" : $"BoardTest_{instanceId}";
 
@@ -128,6 +133,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 TestSequenceItems.Add(new TestSequenceItem("电源对地阻抗检查"));
                 TestSequenceItems.Add(new TestSequenceItem("电源模块测试"));
+                TestSequenceItems.Add(new TestSequenceItem("PT500型温度传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("5V传感器供电电压测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道光耦供电测试"));
                 TestSequenceItems.Add(new TestSequenceItem("ARINC429通讯测试"));

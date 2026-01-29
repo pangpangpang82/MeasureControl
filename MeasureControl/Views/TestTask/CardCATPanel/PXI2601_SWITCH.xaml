@@ -308,46 +308,7 @@
                     Grid.Column="2"
                     HorizontalAlignment="Right"
                     Orientation="Horizontal">
-                    <!--  刷新拓扑按钮 - 新样式但功能不变  -->
-                    <Button
-                        Width="80"
-                        Height="28"
-                        Margin="5,0"
-                        Background="#3b82f6"
-                        BorderThickness="0"
-                        Command="{Binding RefreshTopologyCommand}"
-                        IsEnabled="{Binding IsDeviceConnected}">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border
-                                    x:Name="border"
-                                    Background="{TemplateBinding Background}"
-                                    CornerRadius="4">
-                                    <TextBlock
-                                        Margin="5,0,5,0"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        Foreground="White"
-                                        Text="刷新拓扑" />
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <!--  鼠标悬停效果  -->
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                                    </Trigger>
-                                    <!--  按下效果  -->
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                    </Trigger>
-                                    <!--  禁用状态效果  -->
-                                    <Trigger Property="IsEnabled" Value="False">
-                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                        <Setter TargetName="border" Property="Opacity" Value="0.6" />
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
+
                     <!--  全部断开按钮 - 新样式  -->
                     <Button
                         Width="80"
@@ -690,97 +651,14 @@
                                     Grid.Column="2"
                                     VerticalAlignment="Center"
                                     Orientation="Horizontal">
-                                    <StackPanel Margin="3,0" Orientation="Horizontal">
-                                        <TextBlock
-                                            Margin="0,0,5,0"
-                                            VerticalAlignment="Center"
-                                            Text="连接次数:" />
-                                        <TextBlock
-                                            Margin="0,0,30,0"
-                                            VerticalAlignment="Center"
-                                            FontWeight="Bold"
-                                            Foreground="Green"
-                                            Text="{Binding TotalConnectionCount}" />
-                                    </StackPanel>
 
-                                    <StackPanel Margin="3,0" Orientation="Horizontal">
-                                        <TextBlock
-                                            Margin="0,0,5,0"
-                                            VerticalAlignment="Center"
-                                            Text="继电器:" />
-                                        <TextBlock
-                                            Margin="0,0,2,0"
-                                            VerticalAlignment="Center"
-                                            FontWeight="Bold"
-                                            Foreground="Green"
-                                            Text="{Binding ActiveRelayCount}" />
-                                        <TextBlock Margin="0,0,2,0" Text="/" />
-                                        <TextBlock Margin="0,0,10,0" Text="{Binding TotalRelayCount}" />
-                                    </StackPanel>
                                 </StackPanel>
                             </Grid>
                         </Border>
                     </Grid>
                 </TabItem>
 
-                <!--  选项卡2: 继电器状态  -->
-                <TabItem Header="继电器状态">
-                    <Grid Margin="2">
-                        <!--  128个继电器网格显示  -->
-                        <ItemsControl ItemsSource="{Binding RelayStatusList}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <!--  4x32的网格布局（每行32个，共4行）  -->
-                                    <UniformGrid
-                                        Width="Auto"
-                                        Height="Auto"
-                                        Columns="16"
-                                        Rows="8" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <!--  单个继电器显示  -->
-                                    <Border
-                                        Width="48"
-                                        Height="40"
-                                        Style="{StaticResource RelayStatusItemStyle}">
-                                        <Grid Margin="5">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                            </Grid.RowDefinitions>
 
-                                            <!--  继电器名称  -->
-                                            <TextBlock
-                                                Grid.Row="0"
-                                                HorizontalAlignment="Center"
-                                                FontSize="11"
-                                                FontWeight="Bold"
-                                                Text="{Binding RelayName}" />
-
-                                            <!--  连接计数  -->
-                                            <StackPanel
-                                                Grid.Row="1"
-                                                HorizontalAlignment="Center"
-                                                Orientation="Horizontal">
-                                                <TextBlock
-                                                    Margin="0,0,2,0"
-                                                    FontSize="9"
-                                                    Text="计数:" />
-                                                <TextBlock
-                                                    FontSize="10"
-                                                    FontWeight="Bold"
-                                                    Foreground="#2196F3"
-                                                    Text="{Binding ConnectionCount}" />
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </Grid>
-                </TabItem>
             </TabControl>
         </Border>
     </Grid>

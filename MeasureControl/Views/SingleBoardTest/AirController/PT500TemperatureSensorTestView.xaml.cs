@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,20 +12,17 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using MeasureControl.ViewModels.SingleBoardTest.AirController;
-using Prism.Ioc;
 
 namespace MeasureControl.Views.SingleBoardTest.AirController
 {
     /// <summary>
-    /// AC_6_4.xaml 的交互逻辑
+    /// PT500TemperatureSensorTestView.xaml 的交互逻辑
     /// </summary>
-    public partial class AC_6_4 : UserControl
+    public partial class PT500TemperatureSensorTestView : UserControl
     {
-        public AC_6_4()
+        public PT500TemperatureSensorTestView()
         {
             InitializeComponent();
-            DataContext = ContainerLocator.Container.Resolve<AC_6_4ViewModel>();
         }
 
         private void RootGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)

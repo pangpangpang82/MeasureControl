@@ -349,8 +349,103 @@ namespace MeasureControl.Services
                     }
                 }
 
+                // 新建项目：一次性写入机箱1默认仪器清单到 proj.json。
+                // 后续加载项目完全以 proj.json 为准，不在 UI 层重复补齐，避免覆盖用户配置。
+                ApplyDefaultFixedDemoInstrumentsIfNeeded(chassis);
+
                 rootNode.PxiChassisData.Add(chassis);
             }
+        }
+
+        private static void ApplyDefaultFixedDemoInstrumentsIfNeeded(ChassisModel chassis)
+        {
+            if (chassis == null)
+            {
+                return;
+            }
+
+            if (!string.Equals(chassis.Name, "PXI机箱1", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            chassis.Devices ??= new ObservableCollection<Models.Devices.DeviceBase>();
+
+            int CountInstrumentByName(string name)
+            {
+                try
+                {
+                    return chassis.Devices.Count(d => d != null &&
+                                                    string.Equals(d.DeviceType, "Instrument", StringComparison.Ordinal) &&
+                                                    string.Equals(d.Name, name, StringComparison.Ordinal));
+                }
+                catch
+                {
+                    return 0;
+                }
+            }
+
+            void EnsureInstrument(string name, int requiredCount, Action<Models.Devices.DeviceBase, int> configure = null)
+            {
+                if (string.IsNullOrWhiteSpace(name) || requiredCount <= 0)
+                {
+                    return;
+                }
+
+                var existing = CountInstrumentByName(name);
+                var need = requiredCount - existing;
+                for (int i = 0; i < need; i++)
+                {
+                    var created = Helpers.DeviceFactory.CreateDevice(name, string.Empty);
+                    if (created == null)
+                    {
+                        continue;
+                    }
+
+                    // 某些自定义设备可能会被工厂识别为 Card（如 GenericDevice），
+                    // 但在演示模板中我们将其作为独立仪器设备保存。
+                    created.DeviceType = "Instrument";
+                    if (string.IsNullOrWhiteSpace(created.Name))
+                    {
+                        created.Name = name;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(created.DisplayName))
+                    {
+                        created.DisplayName = name;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(created.ParentNode))
+                    {
+                        created.ParentNode = "其他自定义设备";
+                    }
+
+                    configure?.Invoke(created, existing + i);
+                    chassis.Devices.Add(created);
+                }
+            }
+
+            // 仪器/模块清单
+            EnsureInstrument("普源 DG1032Z", 1);
+            EnsureInstrument("普源 DM3068", 1);
+            EnsureInstrument("是德 53220A", 1);
+            EnsureInstrument("普源 DH04804", 1);
+
+            // 三台电源默认 IP：192.168.1.15/16/17
+            var ips = new[] { "192.168.1.15", "192.168.1.16", "192.168.1.17" };
+            EnsureInstrument("艾德克斯 IT-N6332B", 3, (d, index) =>
+            {
+                if (d is Models.Devices.DeviceCategories.InstrumentDeviceBase inst)
+                {
+                    if (index >= 0 && index < ips.Length)
+                    {
+                        inst.IpAddress = ips[index];
+                    }
+                }
+            });
+
+            EnsureInstrument("RS422模块", 2);
+            EnsureInstrument("RS232模块", 1);
         }
 
         private static FixedLayoutTemplate LoadOrCreateFixedLayoutTemplate()
