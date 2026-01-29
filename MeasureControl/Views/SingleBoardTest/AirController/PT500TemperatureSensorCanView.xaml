@@ -362,13 +362,13 @@
                         FontSize="18"
                         Text="接入电阻：" />
                     <ComboBox
-                        Width="140"
-                        Height="36"
-                        Margin="0,0,0,0"
+                        Width="100"
+                        Height="30"
                         HorizontalAlignment="Left"
                         FontSize="16"
                         ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                        SelectedItem="{Binding ResistorGear, Mode=TwoWay}">
+                        SelectedValuePath="Content"
+                        SelectedValue="{Binding ResistorGear, Mode=TwoWay}">
                         <ComboBoxItem Content="1挡" />
                         <ComboBoxItem Content="2挡" />
                         <ComboBoxItem Content="3挡" />
@@ -381,7 +381,7 @@
                         BorderBrush="#D9D9D9"
                         BorderThickness="1"
                         CornerRadius="3">
-                        <TextBlock Margin="1" FontSize="16" Text="{Binding ResistorGearValueText}" />
+                        <TextBlock Margin="1" FontSize="16" Text="{Binding MeasuredResistanceValueText}" />
                     </Border>
                     <Button
                         Width="80"

@@ -3,6 +3,7 @@ using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -34,7 +35,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] AbPdtsTemperature = { 0x07, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
         private PXI4004Driver _canDriver;
-        private IDeviceDriver _resistorDriver;
+        private ACTS6010Driver _resistorDriver;
         private ResourceManager _dmmResourceManager;
         private MessageBasedSession _dmmSession;
         private readonly SemaphoreSlim _dmmIoLock = new SemaphoreSlim(1, 1);
@@ -57,12 +58,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             _resistorGear = "1挡";
             ResistorGearValueText = _resistorGear;
+            MeasuredResistanceValueText = "--";
             TemperatureTelemetryValueText = "--";
             LastTestTime = "--";
             LastTestResult = "--";
 
             SendEnterAtpCommand = new DelegateCommand(async () => await OnSendEnterAtpAsync());
-            SendSetControllerResistorCommand = new DelegateCommand(() => AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：接入电阻，档位={ResistorGear}"));
+            SendSetControllerResistorCommand = new DelegateCommand(async () => await SendSetControllerResistorAsync(), () => !IsResistorMeasuring)
+                .ObservesProperty(() => IsResistorMeasuring);
             TestControllerTemperatureCommand = new DelegateCommand(async () => await OnTestControllerTemperatureAsync());
             TestTemperatureTelemetryCommand = new DelegateCommand(() =>
             {
@@ -86,12 +89,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private string _resistorGear;
         private string _resistorGearValueText;
+        private string _measuredResistanceValueText;
         private string _temperatureTelemetryValueText;
         private string _lastTestTime;
         private string _lastTestResult;
 
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
+        private bool _isResistorMeasuring;
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
 
@@ -163,6 +168,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _resistorGearValueText;
             set => SetProperty(ref _resistorGearValueText, value);
+        }
+
+        public string MeasuredResistanceValueText
+        {
+            get => _measuredResistanceValueText;
+            private set => SetProperty(ref _measuredResistanceValueText, value);
+        }
+
+        public bool IsResistorMeasuring
+        {
+            get => _isResistorMeasuring;
+            private set => SetProperty(ref _isResistorMeasuring, value);
         }
 
         public string ControllerTemperatureTestTxChannel
@@ -493,7 +510,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             try
             {
-                for (uint logicalId = 0; logicalId <= 7; logicalId++)
+                var candidates = new uint[] { 1, 0, 2, 3, 4, 5, 6, 7 };
+                foreach (var logicalId in candidates)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡直连：尝试ACTS6010逻辑ID={logicalId}");
                     var dummy = new ProgrammableResistorDevice
@@ -1090,6 +1108,200 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return string.Empty;
 
             return string.Join(" ", data.Take(len).Select(b => b.ToString("X2")));
+        }
+
+        private static double GetTargetResistanceOhm(string gear)
+        {
+            return gear switch
+            {
+                "1挡" => 371.65,
+                "2挡" => 550.0,
+                "3挡" => 758.55,
+                _ => 371.65
+            };
+        }
+
+        private static async Task<(MessageBasedSession Session, ResourceManager Rm)> OpenDmmAsync()
+        {
+            var rm = new ResourceManager();
+            var resource = "TCPIP0::192.168.1.13::inst0::INSTR";
+            try
+            {
+                var session = (MessageBasedSession)rm.Open(resource);
+                session.TimeoutMilliseconds = 3000;
+                session.RawIO.Write("*CLS\n");
+                session.RawIO.Write(":SYST:REM\n");
+                session.RawIO.Write(":CONF:RES\n");
+                await Task.Yield();
+                return (session, rm);
+            }
+            catch
+            {
+                try { rm.Dispose(); } catch { }
+                throw;
+            }
+        }
+
+        private static double QueryDmmResistance(MessageBasedSession session)
+        {
+            session.RawIO.Write(":MEAS:RES?\n");
+            var resp = session.RawIO.ReadString();
+            if (double.TryParse(resp?.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var r))
+            {
+                return r;
+            }
+
+            if (double.TryParse(resp?.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out r))
+            {
+                return r;
+            }
+
+            return double.NaN;
+        }
+
+        private static DeviceBase Resolve7012Device(string chassisName, IPxiChassisService pxiChassisService)
+        {
+            if (pxiChassisService == null) return null;
+
+            var chassis = pxiChassisService.GetAllChassis()?.FirstOrDefault(c =>
+                string.Equals(c?.Name, chassisName, StringComparison.OrdinalIgnoreCase));
+
+            var devices = chassis?.Devices;
+            if (devices == null) return null;
+
+            return devices.FirstOrDefault(d => d is ProgrammableResistorDevice)
+                   ?? devices.FirstOrDefault(d => (d?.Model ?? string.Empty).ToUpperInvariant().Contains("7012"));
+        }
+
+        private async Task SendSetControllerResistorAsync()
+        {
+            if (IsResistorMeasuring)
+            {
+                return;
+            }
+
+            IsResistorMeasuring = true;
+            MeasuredResistanceValueText = "--";
+
+            MessageBasedSession dmmSession = null;
+            ResourceManager dmmRm = null;
+            bool matrix1Connected = false;
+            bool matrix2Connected = false;
+            bool resistorReady = false;
+
+            try
+            {
+                // 优先使用上游新增的“电阻板卡直连(逻辑ID探测)”能力，不依赖机箱上下文
+                resistorReady = await EnsureResistorReadyAsync();
+                if (!resistorReady || _resistorDriver == null || !_resistorDriver.IsConnected)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 接入电阻失败：电阻板卡未就绪");
+                    return;
+                }
+
+                var targetOhm = GetTargetResistanceOhm(ResistorGear);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：接入电阻，档位={ResistorGear}，目标={targetOhm.ToString("F2", CultureInfo.InvariantCulture)}Ω");
+
+                var relayOk = await _resistorDriver.SetRelayStateAsync("RO0", true, false);
+                if (!relayOk)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012设置RO0继电器失败(通路闭合/短路断开)");
+                    return;
+                }
+
+                var writeOk = await _resistorDriver.WriteChannelAsync("RO0", targetOhm);
+                if (!writeOk)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012写入RO0失败");
+                    return;
+                }
+
+                await Task.Delay(50);
+
+                var matrixSvc = MatrixControlService.Instance;
+                matrix1Connected = await matrixSvc.ConnectNodesAsync("I1", "O8", 6, "192.168.1.3");
+                if (!matrix1Connected)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关1连接失败(I1->O8 slot6)");
+                    return;
+                }
+
+                matrix2Connected = await matrixSvc.ConnectNodesAsync("I4", "O2", 4, "192.168.1.3");
+                if (!matrix2Connected)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关2连接失败(I4->O2 slot4)");
+                    return;
+                }
+
+                (dmmSession, dmmRm) = await OpenDmmAsync();
+                await Task.Delay(200);
+                var measured = QueryDmmResistance(dmmSession);
+
+                if (double.IsNaN(measured))
+                {
+                    MeasuredResistanceValueText = "NaN";
+                }
+                else
+                {
+                    MeasuredResistanceValueText = $"{measured.ToString("F5", CultureInfo.InvariantCulture)}Ω";
+                }
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 万用表实测电阻：{MeasuredResistanceValueText}");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 接入电阻异常：{ex.Message}");
+            }
+            finally
+            {
+                var matrixSvc = MatrixControlService.Instance;
+
+                try
+                {
+                    if (matrix2Connected)
+                    {
+                        await matrixSvc.DisconnectNodesAsync("I4", "O2", 4, "192.168.1.3");
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (matrix1Connected)
+                    {
+                        await matrixSvc.DisconnectNodesAsync("I1", "O8", 6, "192.168.1.3");
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (dmmSession != null)
+                    {
+                        try { dmmSession.RawIO.Write(":SYST:LOC\n"); } catch { }
+                        try { dmmSession.Dispose(); } catch { }
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (dmmRm != null)
+                    {
+                        try { dmmRm.Dispose(); } catch { }
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (resistorReady)
+                        await DisconnectResistorAsync();
+                }
+                catch { }
+
+                IsResistorMeasuring = false;
+            }
         }
     }
 }
