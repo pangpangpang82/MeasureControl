@@ -36,8 +36,8 @@ namespace MeasureControl.ViewModels
         private PXI4004Driver _driver;
 
 
-        private readonly IPxiChassisService _pxiChassisService;
-        private readonly IEventAggregator _eventAggregator;
+        private IPxiChassisService _pxiChassisService;
+        private IEventAggregator _eventAggregator;
         // 跳过空帧日志节流：记录每个通道上次打印跳过空帧的时间
         private readonly System.Collections.Generic.Dictionary<int, DateTime> _lastSkipEmptyFrameLog = new System.Collections.Generic.Dictionary<int, DateTime>();
         private static readonly TimeSpan SkipEmptyFrameLogInterval = TimeSpan.FromSeconds(20);
