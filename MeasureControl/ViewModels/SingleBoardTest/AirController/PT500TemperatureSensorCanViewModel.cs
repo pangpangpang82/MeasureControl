@@ -78,7 +78,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             LastTestResult = "--";
 
             SendEnterAtpCommand = new DelegateCommand(async () => await OnSendEnterAtpAsync());
-            SendSetControllerResistorCommand = new DelegateCommand(() => AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：接入电阻，档位={ResistorGear}"));
+            SendSetControllerResistorCommand = new DelegateCommand(async () => await SendSetControllerResistorAsync(), () => !IsResistorMeasuring)
+                .ObservesProperty(() => IsResistorMeasuring);
             TestControllerTemperatureCommand = new DelegateCommand(async () => await OnTestControllerTemperatureAsync());
             TestTemperatureTelemetryCommand = new DelegateCommand(async () => await OnTestTemperatureTelemetryAsync());
             SendExitAtpCommand = new DelegateCommand(async () => await OnSendExitAtpAsync());
