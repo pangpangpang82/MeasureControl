@@ -21,8 +21,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         private static readonly IReadOnlyDictionary<string, Func<UserControl>> TestItemViewFactories =
             new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
             {
-                { "控制通道光耦供电测试", () => new AC_6_4() },
-                { "PT500型温度传感器测试", () => new PT500TemperatureSensorTestView() },
+                { "控制通道光耦供电测试", () => new AC_6_4CommTabView() },
+                { "PT500型温度传感器测试", () => new PT500TemperatureSensorCommTabView() },
             };
 
         private string _testTaskName;
