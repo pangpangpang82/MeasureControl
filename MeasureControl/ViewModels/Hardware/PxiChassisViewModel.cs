@@ -2374,6 +2374,51 @@ namespace MeasureControl.ViewModels
 
             }
 
+            else if (device is ElectronicLoadDevice)
+
+            {
+
+                var key = ((ElectronicLoadDevice)device)?.Id ?? "ElectronicLoad";
+
+                if (_cachedInstrumentPanels.TryGetValue(key, out var cachedPanel) && cachedPanel != null)
+
+                {
+
+                    if (cachedPanel.DataContext is MeasureControl.ViewModels.TestTask.ElectronicLoadTestPanelViewModel cachedVm &&
+
+                        (cachedVm.IsElectronicLoadConnecting || cachedVm.IsElectronicLoadConnected))
+
+                    {
+
+                        RightPanelContent = cachedPanel;
+
+                        return;
+
+                    }
+
+
+
+                    _cachedInstrumentPanels.Remove(key);
+
+                }
+
+
+
+                var viewModel = new MeasureControl.ViewModels.TestTask.ElectronicLoadTestPanelViewModel(
+                    testTaskName,
+                    configTableName,
+                    chassisName,
+                    (ElectronicLoadDevice)device,
+                    _pxiChassisService);
+
+                var panel = new MeasureControl.Views.TestTask.ElectronicLoadTestPanelView { DataContext = viewModel };
+
+                _cachedInstrumentPanels[key] = panel;
+
+                RightPanelContent = panel;
+
+            }
+
         }
 
 
