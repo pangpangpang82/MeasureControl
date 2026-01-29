@@ -1186,6 +1186,26 @@ namespace MeasureControl.ViewModels
                 _cachedInstrumentPanels[key] = panel;
                 RightPanelContent = panel;
             }
+            else if (device is ElectronicLoadDevice)
+            {
+                var key = ((ElectronicLoadDevice)device)?.Id ?? "ElectronicLoad";
+                if (_cachedInstrumentPanels.TryGetValue(key, out var cachedPanel) && cachedPanel != null)
+                {
+                    if (cachedPanel.DataContext is MeasureControl.ViewModels.TestTask.ElectronicLoadTestPanelViewModel cachedVm &&
+                        (cachedVm.IsElectronicLoadConnecting || cachedVm.IsElectronicLoadConnected))
+                    {
+                        RightPanelContent = cachedPanel;
+                        return;
+                    }
+
+                    _cachedInstrumentPanels.Remove(key);
+                }
+
+                var viewModel = new MeasureControl.ViewModels.TestTask.ElectronicLoadTestPanelViewModel(testTaskName, configTableName, chassisName, (ElectronicLoadDevice)device, _pxiChassisService);
+                var panel = new MeasureControl.Views.TestTask.ElectronicLoadTestPanelView { DataContext = viewModel };
+                _cachedInstrumentPanels[key] = panel;
+                RightPanelContent = panel;
+            }
         }
 
         /// <summary>
@@ -3327,7 +3347,7 @@ namespace MeasureControl.ViewModels
             if (projectItem.Name.Contains("负载")) return "电子负载";
             
             // Chroma设备具体类型识别
-            if (projectItem.Name.Contains("Chroma 6314A")) return "程控电源";
+            if (projectItem.Name.Contains("Chroma 6314A")) return "电子负载";
             if (projectItem.Name.Contains("Chroma 6312A")) return "电子负载";
             if (projectItem.Name.Contains("Chroma")) return "程控仪器仪表";
             
@@ -3336,7 +3356,7 @@ namespace MeasureControl.ViewModels
             if (projectItem.Name.Contains("DM3068") || projectItem.Name.Contains("数字多用表")) return "数字多用表";
             if (projectItem.Name.Contains("DH04804") || projectItem.Name.Contains("示波器")) return "示波器";
             if (projectItem.Name.Contains("53220A") || projectItem.Name.Contains("频率计")) return "频率计";
-            if (projectItem.Name.Contains("6314A")) return "串口";
+            if (projectItem.Name.Contains("6314A")) return "电子负载";
             
             // 其他程控仪器仪表设备
             if (projectItem.Name.Contains("普源") || projectItem.Name.Contains("是德") || 
@@ -3760,6 +3780,7 @@ namespace MeasureControl.ViewModels
                 { "是德 53220A", 1 },
                 { "普源 DH04804", 1 },
                 { "艾德克斯 IT-N6332B", 3 },
+                { "Chroma 6314A", 1 },
                 { "RS422模块", 2 },
                 { "RS232模块", 1 },
             };
@@ -3801,6 +3822,7 @@ namespace MeasureControl.ViewModels
                 { "是德 53220A", 1 },
                 { "普源 DH04804", 1 },
                 { "艾德克斯 IT-N6332B", 3 },
+                { "Chroma 6314A", 1 },
                 { "RS422模块", 2 },
                 { "RS232模块", 1 },
             };
