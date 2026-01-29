@@ -11,22 +11,22 @@
     mc:Ignorable="d">
     <UserControl.Resources>
         <x:Array x:Key="Arinc429Channels" Type="sys:String">
-            <sys:String>ARINC429 CH0</sys:String>
-            <sys:String>ARINC429 CH1</sys:String>
-            <sys:String>ARINC429 CH2</sys:String>
-            <sys:String>ARINC429 CH3</sys:String>
-            <sys:String>ARINC429 CH4</sys:String>
-            <sys:String>ARINC429 CH5</sys:String>
-            <sys:String>ARINC429 CH6</sys:String>
-            <sys:String>ARINC429 CH7</sys:String>
-            <sys:String>ARINC429 CH8</sys:String>
-            <sys:String>ARINC429 CH9</sys:String>
-            <sys:String>ARINC429 CH10</sys:String>
-            <sys:String>ARINC429 CH11</sys:String>
-            <sys:String>ARINC429 CH12</sys:String>
-            <sys:String>ARINC429 CH13</sys:String>
-            <sys:String>ARINC429 CH14</sys:String>
-            <sys:String>ARINC429 CH15</sys:String>
+            <sys:String>CH0</sys:String>
+            <sys:String>CH1</sys:String>
+            <sys:String>CH2</sys:String>
+            <sys:String>CH3</sys:String>
+            <sys:String>CH4</sys:String>
+            <sys:String>CH5</sys:String>
+            <sys:String>CH6</sys:String>
+            <sys:String>CH7</sys:String>
+            <sys:String>CH8</sys:String>
+            <sys:String>CH9</sys:String>
+            <sys:String>CH10</sys:String>
+            <sys:String>CH11</sys:String>
+            <sys:String>CH12</sys:String>
+            <sys:String>CH13</sys:String>
+            <sys:String>CH14</sys:String>
+            <sys:String>CH15</sys:String>
         </x:Array>
 
         <Style x:Key="EnableCheckBoxStyle" TargetType="CheckBox">
@@ -328,7 +328,7 @@
                         Text="进入ATP模式：" />
                     <TextBlock VerticalAlignment="Center" FontSize="16" Text="TX" />
                     <ComboBox
-                        Width="140"
+                        Width="70"
                         Height="36"
                         Margin="5,0,0,0"
                         HorizontalAlignment="Left"
@@ -338,7 +338,7 @@
                         SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
                     <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
                     <ComboBox
-                        Width="140"
+                        Width="70"
                         Height="36"
                         Margin="5,0,0,0"
                         HorizontalAlignment="Left"
@@ -367,7 +367,7 @@
                         FontSize="18"
                         Text="接入电阻：" />
                     <ComboBox
-                        Width="140"
+                        Width="70"
                         Height="36"
                         Margin="0,0,0,0"
                         HorizontalAlignment="Left"
@@ -379,7 +379,7 @@
                         <ComboBoxItem Content="3挡" />
                     </ComboBox>
                     <Border
-                        Width="140"
+                        Width="70"
                         Height="36"
                         Margin="15,0,0,0"
                         VerticalAlignment="Center"
@@ -410,7 +410,7 @@
                         Text="控制器温度测试：" />
                     <TextBlock VerticalAlignment="Center" FontSize="16" Text="TX" />
                     <ComboBox
-                        Width="140"
+                        Width="70"
                         Height="36"
                         Margin="0,0,0,0"
                         HorizontalAlignment="Left"
@@ -420,7 +420,7 @@
                         SelectedItem="{Binding ControllerTemperatureTestTxChannel, Mode=TwoWay}" />
                     <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
                     <ComboBox
-                        Width="140"
+                        Width="70"
                         Height="36"
                         Margin="0,0,0,0"
                         HorizontalAlignment="Left"
@@ -450,7 +450,7 @@
                         Text="温度回采值：" />
                     <TextBlock VerticalAlignment="Center" FontSize="16" Text="RX" />
                     <ComboBox
-                        Width="140"
+                        Width="70"
                         Height="36"
                         Margin="5,0,0,0"
                         HorizontalAlignment="Left"
@@ -459,7 +459,7 @@
                         ItemsSource="{StaticResource Arinc429Channels}"
                         SelectedItem="{Binding TemperatureTelemetryRxChannel, Mode=TwoWay}" />
                     <Border
-                        Width="140"
+                        Width="70"
                         Height="38"
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
@@ -490,7 +490,7 @@
                         Text="退出ATP模式：" />
                     <TextBlock VerticalAlignment="Center" FontSize="16" Text="TX" />
                     <ComboBox
-                        Width="140"
+                        Width="70"
                         Height="38"
                         Margin="5,0,0,0"
                         HorizontalAlignment="Left"
@@ -500,7 +500,7 @@
                         SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
                     <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
                     <ComboBox
-                        Width="140"
+                        Width="70"
                         Height="38"
                         Margin="5,0,0,0"
                         HorizontalAlignment="Left"
