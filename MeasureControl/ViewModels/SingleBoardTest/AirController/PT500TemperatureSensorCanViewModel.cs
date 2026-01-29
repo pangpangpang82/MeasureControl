@@ -35,7 +35,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] AbPdtsTemperature = { 0x07, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
         private PXI4004Driver _canDriver;
-        private IDeviceDriver _resistorDriver;
+        private ACTS6010Driver _resistorDriver;
         private ResourceManager _dmmResourceManager;
         private MessageBasedSession _dmmSession;
         private readonly SemaphoreSlim _dmmIoLock = new SemaphoreSlim(1, 1);
@@ -510,7 +510,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             try
             {
-                for (uint logicalId = 0; logicalId <= 7; logicalId++)
+                var candidates = new uint[] { 1, 0, 2, 3, 4, 5, 6, 7 };
+                foreach (var logicalId in candidates)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡直连：尝试ACTS6010逻辑ID={logicalId}");
                     var dummy = new ProgrammableResistorDevice
@@ -1186,47 +1187,36 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             ResourceManager dmmRm = null;
             bool matrix1Connected = false;
             bool matrix2Connected = false;
-            bool resistorConnected = false;
-
-            ACTS6010Driver resistorDriver = null;
+            bool resistorReady = false;
 
             try
             {
-                var contextSvc = ContainerLocator.Container?.Resolve(typeof(ISingleBoardTestContextService)) as ISingleBoardTestContextService;
-                var chassisName = contextSvc?.ChassisName ?? string.Empty;
-                var pxiChassisService = ContainerLocator.Container?.Resolve(typeof(IPxiChassisService)) as IPxiChassisService;
-
-                var device = Resolve7012Device(chassisName, pxiChassisService);
-                if (device == null)
+                // 优先使用上游新增的“电阻板卡直连(逻辑ID探测)”能力，不依赖机箱上下文
+                resistorReady = await EnsureResistorReadyAsync();
+                if (!resistorReady || _resistorDriver == null || !_resistorDriver.IsConnected)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 接入电阻失败：未找到PXI-7012设备，机箱={chassisName}");
-                    return;
-                }
-
-                resistorDriver = DriverFactory.CreateDriver(device) as ACTS6010Driver;
-                if (resistorDriver == null)
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 接入电阻失败：未找到7012驱动");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 接入电阻失败：电阻板卡未就绪");
                     return;
                 }
 
                 var targetOhm = GetTargetResistanceOhm(ResistorGear);
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：接入电阻，档位={ResistorGear}，目标={targetOhm.ToString("F2", CultureInfo.InvariantCulture)}Ω");
 
-                resistorConnected = await resistorDriver.ConnectAsync();
-                resistorConnected = resistorConnected && resistorDriver.IsConnected;
-                if (!resistorConnected)
+                var relayOk = await _resistorDriver.SetRelayStateAsync("RO0", true, false);
+                if (!relayOk)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012连接失败");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012设置RO0继电器失败(通路闭合/短路断开)");
                     return;
                 }
 
-                var writeOk = await resistorDriver.WriteChannelAsync("RO0", targetOhm);
+                var writeOk = await _resistorDriver.WriteChannelAsync("RO0", targetOhm);
                 if (!writeOk)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 7012写入RO0失败");
                     return;
                 }
+
+                await Task.Delay(50);
 
                 var matrixSvc = MatrixControlService.Instance;
                 matrix1Connected = await matrixSvc.ConnectNodesAsync("I1", "O8", 6, "192.168.1.3");
@@ -1305,10 +1295,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 try
                 {
-                    if (resistorDriver != null && resistorConnected)
-                    {
-                        await resistorDriver.DisconnectAsync();
-                    }
+                    if (resistorReady)
+                        await DisconnectResistorAsync();
                 }
                 catch { }
 
