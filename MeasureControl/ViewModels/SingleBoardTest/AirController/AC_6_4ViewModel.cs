@@ -54,6 +54,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private readonly SemaphoreSlim _matrixSwitchLock = new SemaphoreSlim(1, 1);
         private bool _fixedMatrixConnected;
 
+        private CancellationTokenSource _telemetryListeningCts;
+        private Task _telemetryListeningTask;
+
         private SubscriptionToken _projectSavingToken;
 
         private bool _isManualTestRunning;
@@ -134,6 +137,151 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 return $"{taskName}/{TestItemKey}";
             }
+        }
+
+        private static bool IsTelemetryPayload(byte[] b)
+        {
+            return b != null && b.Length == 8 && b[0] == 0x01 && b[1] == 0x04 && b[2] == 0x01 && b[3] == 0x02;
+        }
+
+        private static bool TryParseTelemetryVoltage(byte[] resp, out double voltage)
+        {
+            voltage = 0;
+            if (!IsTelemetryPayload(resp))
+                return false;
+
+            // New protocol: bytes[4..7] = IEEE754 float, fixed endian (big-endian)
+            try
+            {
+                var fbytes = new byte[4] { resp[4], resp[5], resp[6], resp[7] };
+                if (BitConverter.IsLittleEndian)
+                    Array.Reverse(fbytes);
+                float f = BitConverter.ToSingle(fbytes, 0);
+                if (!float.IsNaN(f) && !float.IsInfinity(f) && f > -1000 && f < 1000)
+                {
+                    voltage = f;
+                    return true;
+                }
+            }
+            catch
+            {
+            }
+
+            // Legacy fallback: bytes[4..5] = UInt16 millivolt (big-endian)
+            ushort mv = (ushort)((resp[4] << 8) | resp[5]);
+            voltage = mv / 1000.0;
+            return true;
+        }
+
+        private void UpdateTelemetryUi(double voltage)
+        {
+            try
+            {
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null && !dispatcher.CheckAccess())
+                {
+                    dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        LatestTelemetryVoltage = voltage;
+                        TelemetryVoltageText = $"{voltage:0.000} V";
+                    }));
+                }
+                else
+                {
+                    LatestTelemetryVoltage = voltage;
+                    TelemetryVoltageText = $"{voltage:0.000} V";
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private void StartTelemetryListeningIfNeeded()
+        {
+            if (_telemetryListeningTask != null)
+                return;
+            if (string.IsNullOrWhiteSpace(TelemetryRxChannel))
+                return;
+
+            _telemetryListeningCts?.Cancel();
+            _telemetryListeningCts?.Dispose();
+            _telemetryListeningCts = new CancellationTokenSource();
+            var token = _telemetryListeningCts.Token;
+
+            _telemetryListeningTask = Task.Run(async () =>
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        var resp = await _simulation.WaitBenchResponseAsync(
+                            TelemetryRxChannel,
+                            DefaultLabel,
+                            IsTelemetryPayload,
+                            timeoutMs: 300,
+                            msg => { },
+                            token);
+
+                        if (resp != null && TryParseTelemetryVoltage(resp, out var v))
+                        {
+                            UpdateTelemetryUi(v);
+                        }
+                        else
+                        {
+                            await Task.Delay(30, token);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                    catch
+                    {
+                        try
+                        {
+                            await Task.Delay(100, token);
+                        }
+                        catch
+                        {
+                            break;
+                        }
+                    }
+                }
+            }, token);
+        }
+
+        private async Task StopTelemetryListeningAsync()
+        {
+            try
+            {
+                _telemetryListeningCts?.Cancel();
+            }
+            catch
+            {
+            }
+
+            var task = _telemetryListeningTask;
+            if (task != null)
+            {
+                try
+                {
+                    await Task.WhenAny(task, Task.Delay(500)).ConfigureAwait(true);
+                }
+                catch
+                {
+                }
+            }
+
+            _telemetryListeningTask = null;
+            try
+            {
+                _telemetryListeningCts?.Dispose();
+            }
+            catch
+            {
+            }
+            _telemetryListeningCts = null;
         }
 
         public string TelemetryVoltageText
@@ -553,6 +701,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
+                StartTelemetryListeningIfNeeded();
+
                 IsInAtpMode = false;
                 OutputEnabled = false;
                 _fixedMatrixConnected = false;
@@ -596,6 +746,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
+                StartTelemetryListeningIfNeeded();
+
                 IsInAtpMode = false;
                 OutputEnabled = false;
                 _fixedMatrixConnected = false;
@@ -620,6 +772,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 停止测试：发送退出ATP并关闭设备");
+
+                await StopTelemetryListeningAsync();
 
                 await StopDmmPollingAsync();
                 await DisconnectDmmAsync();
@@ -1000,6 +1154,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             try
             {
+                StopTelemetryListeningAsync().GetAwaiter().GetResult();
+            }
+            catch
+            {
+            }
+
+            try
+            {
                 DisconnectDmmAsync().GetAwaiter().GetResult();
             }
             catch
@@ -1132,7 +1294,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 var resp = await _simulation.WaitBenchResponseAsync(
                     TelemetryRxChannel,
                     DefaultLabel,
-                    b => b != null && b.Length == 8 && b[0] == 0x01 && b[1] == 0x04 && b[2] == 0x01 && b[3] == 0x02,
+                    IsTelemetryPayload,
                     timeoutMs: 300,
                     msg => AddLog(msg),
                     token);
@@ -1144,10 +1306,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
 
                 got = true;
-                ushort mv = (ushort)((resp[4] << 8) | resp[5]);
-                double v = mv / 1000.0;
-                LatestTelemetryVoltage = v;
-                TelemetryVoltageText = $"{v:0.000} V";
+                if (!TryParseTelemetryVoltage(resp, out var v))
+                    continue;
+
+                UpdateTelemetryUi(v);
                 lastTelemetry = v;
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 回采上报: {v:F3}V");
 
