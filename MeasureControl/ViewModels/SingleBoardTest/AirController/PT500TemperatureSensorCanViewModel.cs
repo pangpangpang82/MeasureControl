@@ -108,6 +108,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _exitAtpTxChannel;
         private string _exitAtpRxChannel;
 
+        private string _enterAtpRxDataText = "--";
+        private string _controllerTemperatureTestRxDataText = "--";
+        private string _temperatureTelemetryRxDataText = "--";
+        private string _exitAtpRxDataText = "--";
+
         private string _resistorGear;
         private string _resistorGearValueText;
         private string _measuredResistanceValueText;
@@ -209,6 +214,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             set => SetProperty(ref _enterAtpRxChannel, value);
         }
 
+        public string EnterAtpRxDataText
+        {
+            get => _enterAtpRxDataText;
+            private set => SetProperty(ref _enterAtpRxDataText, value);
+        }
+
         public string ResistorGear
         {
             get => _resistorGear;
@@ -251,10 +262,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             set => SetProperty(ref _controllerTemperatureTestRxChannel, value);
         }
 
+        public string ControllerTemperatureTestRxDataText
+        {
+            get => _controllerTemperatureTestRxDataText;
+            private set => SetProperty(ref _controllerTemperatureTestRxDataText, value);
+        }
+
         public string TemperatureTelemetryRxChannel
         {
             get => _temperatureTelemetryRxChannel;
             set => SetProperty(ref _temperatureTelemetryRxChannel, value);
+        }
+
+        public string TemperatureTelemetryRxDataText
+        {
+            get => _temperatureTelemetryRxDataText;
+            private set => SetProperty(ref _temperatureTelemetryRxDataText, value);
         }
 
         public string ExitAtpTxChannel
@@ -267,6 +290,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _exitAtpRxChannel;
             set => SetProperty(ref _exitAtpRxChannel, value);
+        }
+
+        public string ExitAtpRxDataText
+        {
+            get => _exitAtpRxDataText;
+            private set => SetProperty(ref _exitAtpRxDataText, value);
         }
 
         public string TemperatureTelemetryValueText
@@ -838,6 +867,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _canOpLock.WaitAsync();
             try
             {
+                EnterAtpRxDataText = "--";
+
                 var txIndex = ParseCanChannelIndex(EnterAtpTxChannel);
                 var rxIndex = ParseCanChannelIndex(EnterAtpRxChannel);
                 if (txIndex < 0 || rxIndex < 0)
@@ -895,6 +926,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
+                EnterAtpRxDataText = FormatData(responseData);
+
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 LastTestResult = controllerReceived ? "进入ATP成功" : "进入ATP失败(FAULT)";
             }
@@ -913,6 +946,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _canOpLock.WaitAsync();
             try
             {
+                ControllerTemperatureTestRxDataText = "--";
+
                 var txIndex = ParseCanChannelIndex(ControllerTemperatureTestTxChannel);
                 var rxIndex = ParseCanChannelIndex(ControllerTemperatureTestRxChannel);
                 if (txIndex < 0 || rxIndex < 0)
@@ -930,10 +965,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 ok = await OpenCanChannelForPt500Async(txIndex)
                     && await OpenCanChannelForPt500Async(rxIndex)
-                    && await OpenCanChannelForPt500Async(SimControllerRxChannel);
+                    && await OpenCanChannelForPt500Async(SimControllerRxChannel)
+                    && await OpenCanChannelForPt500Async(SimControllerTxChannel);
                 if (!ok)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试失败：打开通道失败 UI_TX={ControllerTemperatureTestTxChannel}, UI_RX={ControllerTemperatureTestRxChannel}, CTRL_RX=CH{SimControllerRxChannel}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试失败：打开通道失败 UI_TX={ControllerTemperatureTestTxChannel}, UI_RX={ControllerTemperatureTestRxChannel}, CTRL_RX=CH{SimControllerRxChannel}, CTRL_TX=CH{SimControllerTxChannel}");
                     return;
                 }
 
@@ -945,6 +981,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试失败：发送失败");
                     return;
+                }
+
+                // 控制器RX(模拟)收到后，回显给UI_RX，用于界面显示RX数据
+                var controllerReceived = await WaitSpecificDataFrameAsync(StepControllerTemp, SimControllerRxChannel, AbPdtsTemperature, TimeSpan.FromMilliseconds(300));
+                if (controllerReceived)
+                {
+                    var echo = PXI4004.CreateDataFrame(DefaultCanFrameId, AbPdtsTemperature);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepControllerTemp}] 控制器TX(模拟)->UI_RX：CTRL_TX=CH{SimControllerTxChannel} -> UI_RX={ControllerTemperatureTestRxChannel}, ID=0x{DefaultCanFrameId:X}, Data={FormatData(AbPdtsTemperature)}");
+
+                    ok = await _canDriver.SendFrameAsync(SimControllerTxChannel, echo, 0.2);
+                    if (ok)
+                    {
+                        var uiGot = await WaitSpecificDataFrameAsync(StepControllerTemp, rxIndex, AbPdtsTemperature, TimeSpan.FromMilliseconds(300));
+                        if (uiGot)
+                            ControllerTemperatureTestRxDataText = FormatData(AbPdtsTemperature);
+                    }
                 }
 
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
@@ -966,6 +1018,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 TemperatureTelemetryValueText = "--";
+                TemperatureTelemetryRxDataText = "--";
                 LastTelemetryTemperatureC = null;
 
                 var rxIndex = ParseCanChannelIndex(TemperatureTelemetryRxChannel);
@@ -1025,6 +1078,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
+                try
+                {
+                    var rxText = FormatData(received.Temperature);
+                    if (received.Raw != null)
+                        rxText = rxText + " | " + FormatData(received.Raw);
+                    TemperatureTelemetryRxDataText = rxText;
+                }
+                catch
+                {
+                }
+
                 var temperatureText = TryParseTelemetryTemperature(received.Temperature, out var temperature)
                     ? temperature.ToString("0.####")
                     : "--";
@@ -1072,6 +1136,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _canOpLock.WaitAsync();
             try
             {
+                ExitAtpRxDataText = "--";
+
                 var txIndex = ParseCanChannelIndex(ExitAtpTxChannel);
                 var rxIndex = ParseCanChannelIndex(ExitAtpRxChannel);
                 if (txIndex < 0 || rxIndex < 0)
@@ -1128,6 +1194,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     LastTestResult = controllerReceived ? "退出ATP：UI未收到OK" : "退出ATP：UI未收到FAULT";
                     return;
                 }
+
+                ExitAtpRxDataText = FormatData(responseData);
 
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 LastTestResult = controllerReceived ? "退出ATP成功" : "退出ATP失败(FAULT)";
