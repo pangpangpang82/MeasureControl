@@ -59,6 +59,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private readonly SemaphoreSlim _canOpLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
+        private CancellationTokenSource _autoTestCts;
+        private bool _autoTestEnteredAtp;
+        private static readonly Random _tempRandom = new Random();
 
         public PT500TemperatureSensorCanViewModel()
         {
@@ -77,16 +81,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             LastTestTime = "--";
             LastTestResult = "--";
 
-            SendEnterAtpCommand = new DelegateCommand(async () => await OnSendEnterAtpAsync());
-            SendSetControllerResistorCommand = new DelegateCommand(async () => await SendSetControllerResistorAsync(), () => !IsResistorMeasuring)
+            SendEnterAtpCommand = new DelegateCommand(async () => await OnSendEnterAtpAsync(), () => CanEditStepControls)
+                .ObservesProperty(() => IsAutoTestRunning);
+            SendSetControllerResistorCommand = new DelegateCommand(async () => await SendSetControllerResistorAsync(), () => CanEditStepControls && !IsResistorMeasuring)
+                .ObservesProperty(() => IsAutoTestRunning)
                 .ObservesProperty(() => IsResistorMeasuring);
-            TestControllerTemperatureCommand = new DelegateCommand(async () => await OnTestControllerTemperatureAsync());
-            TestTemperatureTelemetryCommand = new DelegateCommand(async () => await OnTestTemperatureTelemetryAsync());
-            SendExitAtpCommand = new DelegateCommand(async () => await OnSendExitAtpAsync());
+            TestControllerTemperatureCommand = new DelegateCommand(async () => await OnTestControllerTemperatureAsync(), () => CanEditStepControls)
+                .ObservesProperty(() => IsAutoTestRunning);
+            TestTemperatureTelemetryCommand = new DelegateCommand(async () => await OnTestTemperatureTelemetryAsync(), () => CanEditStepControls)
+                .ObservesProperty(() => IsAutoTestRunning);
+            SendExitAtpCommand = new DelegateCommand(async () => await OnSendExitAtpAsync(), () => CanEditStepControls)
+                .ObservesProperty(() => IsAutoTestRunning);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
-            ManualTestCommand = new DelegateCommand(OnManualTest);
-            AutoTestCommand = new DelegateCommand(OnAutoTest);
+            ManualTestCommand = new DelegateCommand(OnManualTest, () => CanClickManualTestButton)
+                .ObservesProperty(() => IsAutoTestRunning);
+            AutoTestCommand = new DelegateCommand(OnAutoTest, () => CanClickAutoTestButton)
+                .ObservesProperty(() => IsManualTestRunning);
         }
 
         private string _enterAtpTxChannel;
@@ -107,6 +118,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private bool _isResistorMeasuring;
+        private double? _lastTelemetryTemperatureC;
+        private double? _gear1TemperatureC;
+        private double? _gear2TemperatureC;
+        private double? _gear3TemperatureC;
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
 
@@ -149,6 +164,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
             }
         }
+
+        public bool CanEditStepControls => !IsAutoTestRunning;
+
+        public bool CanClickManualTestButton => !IsAutoTestRunning;
+
+        public bool CanClickAutoTestButton => !IsManualTestRunning;
+
+        public double? LastTelemetryTemperatureC
+        {
+            get => _lastTelemetryTemperatureC;
+            private set => SetProperty(ref _lastTelemetryTemperatureC, value);
+        }
+
+        public double? Gear1TemperatureC
+        {
+            get => _gear1TemperatureC;
+            private set => SetProperty(ref _gear1TemperatureC, value);
+        }
+
+        public double? Gear2TemperatureC
+        {
+            get => _gear2TemperatureC;
+            private set => SetProperty(ref _gear2TemperatureC, value);
+        }
+
+        public double? Gear3TemperatureC
+        {
+            get => _gear3TemperatureC;
+            private set => SetProperty(ref _gear3TemperatureC, value);
+        }
+
+        private bool IsAutoTestCancelRequested => IsAutoTestRunning && (_autoTestCts?.IsCancellationRequested ?? false);
 
         public string EnterAtpTxChannel
         {
@@ -256,14 +303,158 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             if (IsAutoTestRunning)
             {
-                IsAutoTestRunning = false;
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试停止");
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                try { _autoTestCts?.Cancel(); } catch { }
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试停止请求");
                 return;
             }
 
-            IsAutoTestRunning = true;
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动");
+            _ = StartAutoTestAsync();
+        }
+
+        private async Task StartAutoTestAsync()
+        {
+            await _autoTestLock.WaitAsync();
+            try
+            {
+                if (IsAutoTestRunning)
+                    return;
+
+                IsAutoTestRunning = true;
+                _autoTestEnteredAtp = false;
+                LastTestTime = "--";
+                LastTestResult = "--";
+                Gear1TemperatureC = null;
+                Gear2TemperatureC = null;
+                Gear3TemperatureC = null;
+                LastTelemetryTemperatureC = null;
+
+                _enterAtpTxChannel = "CH0";
+                _enterAtpRxChannel = "CH1";
+                _controllerTemperatureTestTxChannel = "CH0";
+                _controllerTemperatureTestRxChannel = "CH1";
+                _temperatureTelemetryRxChannel = "CH1";
+                _exitAtpTxChannel = "CH0";
+                _exitAtpRxChannel = "CH1";
+                RaisePropertyChanged(nameof(EnterAtpTxChannel));
+                RaisePropertyChanged(nameof(EnterAtpRxChannel));
+                RaisePropertyChanged(nameof(ControllerTemperatureTestTxChannel));
+                RaisePropertyChanged(nameof(ControllerTemperatureTestRxChannel));
+                RaisePropertyChanged(nameof(TemperatureTelemetryRxChannel));
+                RaisePropertyChanged(nameof(ExitAtpTxChannel));
+                RaisePropertyChanged(nameof(ExitAtpRxChannel));
+
+                _autoTestCts?.Dispose();
+                _autoTestCts = new CancellationTokenSource();
+                var token = _autoTestCts.Token;
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动");
+                await RunAutoTestAsync(token);
+            }
+            finally
+            {
+                _autoTestLock.Release();
+            }
+        }
+
+        private async Task RunAutoTestAsync(CancellationToken token)
+        {
+            var failures = new System.Collections.Generic.List<string>();
+            try
+            {
+                token.ThrowIfCancellationRequested();
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：开始打开设备");
+                var ready = await EnsureAllDevicesReadyAsync();
+                if (!ready)
+                {
+                    failures.Add("设备未准备就绪");
+                    return;
+                }
+
+                await OnSendEnterAtpAsync();
+                if (!string.Equals(LastTestResult, "进入ATP成功", StringComparison.Ordinal))
+                {
+                    failures.Add($"进入ATP失败：{LastTestResult}");
+                    return;
+                }
+
+                _autoTestEnteredAtp = true;
+
+                await RunGearAsync("1挡", t => Gear1TemperatureC = t, token, failures);
+                token.ThrowIfCancellationRequested();
+                await RunGearAsync("2挡", t => Gear2TemperatureC = t, token, failures);
+                token.ThrowIfCancellationRequested();
+                await RunGearAsync("3挡", t => Gear3TemperatureC = t, token, failures);
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = failures.Count == 0 ? "合格" : "不合格";
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试汇总：{LastTestResult}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 1挡温度={(Gear1TemperatureC?.ToString("F2", CultureInfo.InvariantCulture) ?? "--")}℃");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 2挡温度={(Gear2TemperatureC?.ToString("F2", CultureInfo.InvariantCulture) ?? "--")}℃");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 3挡温度={(Gear3TemperatureC?.ToString("F2", CultureInfo.InvariantCulture) ?? "--")}℃");
+                foreach (var f in failures)
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 不合格：{f}");
+            }
+            catch (OperationCanceledException)
+            {
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = "已停止";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试已停止");
+            }
+            catch (Exception ex)
+            {
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = "异常";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试异常：{ex.Message}");
+            }
+            finally
+            {
+                try
+                {
+                    if (_autoTestEnteredAtp)
+                        await OnSendExitAtpAsync();
+                }
+                catch { }
+
+                try { await DisconnectCanAsync(); } catch { }
+                try { await DisconnectDmmAsync(); } catch { }
+                try { await DisconnectMatrixAsync(); } catch { }
+                try { await DisconnectResistorAsync(); } catch { }
+
+                IsAutoTestRunning = false;
+            }
+        }
+
+        private async Task RunGearAsync(string gear, Action<double?> setTemp, CancellationToken token, System.Collections.Generic.List<string> failures)
+        {
+            token.ThrowIfCancellationRequested();
+
+            ResistorGear = gear;
+            await SendSetControllerResistorAsync();
+            token.ThrowIfCancellationRequested();
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：{gear}接入电阻后等待温度稳定10s");
+            await Task.Delay(TimeSpan.FromSeconds(10), token);
+            token.ThrowIfCancellationRequested();
+
+            await OnTestControllerTemperatureAsync();
+            token.ThrowIfCancellationRequested();
+            await OnTestTemperatureTelemetryAsync();
+
+            var t = LastTelemetryTemperatureC;
+            setTemp(t);
+            if (t == null)
+            {
+                failures.Add($"{gear}温度回采失败");
+                return;
+            }
+
+            var (min, max) = GetQualifiedTemperatureRangeForGear(gear);
+            if (t.Value < min || t.Value > max)
+            {
+                failures.Add($"{gear}回采温度={t.Value.ToString("F2", CultureInfo.InvariantCulture)}℃ 不在[{min.ToString("F2", CultureInfo.InvariantCulture)},{max.ToString("F2", CultureInfo.InvariantCulture)}]℃");
+            }
         }
 
         private async Task StartManualTestAsync()
@@ -775,6 +966,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 TemperatureTelemetryValueText = "--";
+                LastTelemetryTemperatureC = null;
 
                 var rxIndex = ParseCanChannelIndex(TemperatureTelemetryRxChannel);
                 if (rxIndex < 0)
@@ -799,7 +991,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 await FlushRxChannelAsync(rxIndex, TimeSpan.FromMilliseconds(120));
 
-                var temperatureSimulated = BuildTelemetryFrameData(TelemetryTemperaturePrefix, 25, 5000);
+                var simulatedTemperature = GenerateSimulatedTemperatureCByGear(ResistorGear);
+                EncodeTemperature(simulatedTemperature, out var intPart, out var fracPart);
+                var temperatureSimulated = BuildTelemetryFrameData(TelemetryTemperaturePrefix, intPart, fracPart);
                 var rawSimulated = BuildRawFrameData(TelemetryRawPrefix, 0x01020304);
 
                 var frameTemperature = PXI4004.CreateDataFrame(DefaultCanFrameId, temperatureSimulated);
@@ -836,6 +1030,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     : "--";
 
                 TemperatureTelemetryValueText = temperatureText;
+                if (TryParseTelemetryTemperature(received.Temperature, out temperature))
+                {
+                    LastTelemetryTemperatureC = temperature;
+                    if (string.Equals(ResistorGear, "1挡", StringComparison.Ordinal))
+                        Gear1TemperatureC = temperature;
+                    else if (string.Equals(ResistorGear, "2挡", StringComparison.Ordinal))
+                        Gear2TemperatureC = temperature;
+                    else if (string.Equals(ResistorGear, "3挡", StringComparison.Ordinal))
+                        Gear3TemperatureC = temperature;
+                }
 
                 if (received.Raw != null)
                 {
@@ -938,7 +1142,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private static byte[] BuildTelemetryFrameData(byte[] prefix, ushort integerPart, ushort fractionalPart)
+        private static byte[] BuildTelemetryFrameData(byte[] prefix, short integerPart, ushort fractionalPart)
         {
             var data = new byte[8];
             data[0] = prefix[0];
@@ -946,11 +1150,57 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             data[2] = prefix[2];
             data[3] = prefix[3];
 
-            data[4] = (byte)(integerPart >> 8);
-            data[5] = (byte)(integerPart & 0xFF);
+            var intEncoded = unchecked((ushort)integerPart);
+            data[4] = (byte)(intEncoded >> 8);
+            data[5] = (byte)(intEncoded & 0xFF);
             data[6] = (byte)(fractionalPart >> 8);
             data[7] = (byte)(fractionalPart & 0xFF);
             return data;
+        }
+
+        private static void EncodeTemperature(double temperature, out short integerPart, out ushort fractionalPart)
+        {
+            var abs = Math.Abs(temperature);
+            var intAbs = (int)Math.Floor(abs);
+            var frac = abs - intAbs;
+            var fracScaled = (int)Math.Round(frac * 10000.0);
+            if (fracScaled >= 10000)
+            {
+                fracScaled = 0;
+                intAbs += 1;
+            }
+
+            integerPart = (short)(temperature < 0 ? -intAbs : intAbs);
+            fractionalPart = (ushort)Math.Max(0, Math.Min(9999, fracScaled));
+        }
+
+        private static double GenerateSimulatedTemperatureCByGear(string gear)
+        {
+            var (min, max) = GetQualifiedTemperatureRangeForGear(gear);
+            var width = Math.Max(0.1, max - min);
+            var p = _tempRandom.NextDouble();
+
+            if (p <= 0.9)
+            {
+                return min + _tempRandom.NextDouble() * (max - min);
+            }
+
+            var margin = Math.Max(0.5, width);
+            if (_tempRandom.NextDouble() < 0.5)
+                return min - (0.2 + _tempRandom.NextDouble() * margin);
+
+            return max + (0.2 + _tempRandom.NextDouble() * margin);
+        }
+
+        private static (double Min, double Max) GetQualifiedTemperatureRangeForGear(string gear)
+        {
+            return gear switch
+            {
+                "1挡" => (-65.93, -64.07),
+                "2挡" => (24.75, 26.61),
+                "3挡" => (134.06, 135.94),
+                _ => (double.NegativeInfinity, double.PositiveInfinity)
+            };
         }
 
         private static byte[] BuildRawFrameData(byte[] prefix, uint raw)
@@ -979,6 +1229,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             var result = new TelemetryReceive();
             while ((DateTime.UtcNow - start) < timeout)
             {
+                if (IsAutoTestCancelRequested)
+                    return null;
+
                 var frames = await _canDriver.ReceiveFramesBatchAsync(rxChannelIndex, 8, 0.02);
                 if (frames != null && frames.Count > 0)
                 {
@@ -1036,10 +1289,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 || frameData[3] != TelemetryTemperaturePrefix[3])
                 return false;
 
-            var intPart = (ushort)((frameData[4] << 8) | frameData[5]);
+            var intPartRaw = (ushort)((frameData[4] << 8) | frameData[5]);
             var fracPart = (ushort)((frameData[6] << 8) | frameData[7]);
 
-            temperature = intPart + fracPart / 10000.0;
+            var signedInt = unchecked((short)intPartRaw);
+            var frac = fracPart / 10000.0;
+            temperature = signedInt < 0 ? signedInt - frac : signedInt + frac;
             return true;
         }
 
@@ -1073,6 +1328,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             var start = DateTime.UtcNow;
             while ((DateTime.UtcNow - start) < timeout)
             {
+                if (IsAutoTestCancelRequested)
+                    return null;
+
                 var frames = await _canDriver.ReceiveFramesBatchAsync(rxChannelIndex, 5, 0.02);
                 if (frames != null && frames.Count > 0)
                 {
@@ -1104,6 +1362,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             var start = DateTime.UtcNow;
             while ((DateTime.UtcNow - start) < duration)
             {
+                if (IsAutoTestCancelRequested)
+                    break;
+
                 var frames = await _canDriver.ReceiveFramesBatchAsync(rxChannelIndex, 20, 0.001);
                 if (frames == null || frames.Count == 0)
                     break;
@@ -1272,6 +1533,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             var start = DateTime.UtcNow;
             while ((DateTime.UtcNow - start) < timeout)
             {
+                if (IsAutoTestCancelRequested)
+                    return false;
+
                 var frames = await _canDriver.ReceiveFramesBatchAsync(rxChannelIndex, 5, 0.02);
                 if (frames != null && frames.Count > 0)
                 {
@@ -1297,6 +1561,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             var start = DateTime.UtcNow;
             while ((DateTime.UtcNow - start) < timeout)
             {
+                if (IsAutoTestCancelRequested)
+                    return false;
+
                 var frames = await _canDriver.ReceiveFramesBatchAsync(rxChannelIndex, 5, 0.02);
                 if (frames != null && frames.Count > 0)
                 {

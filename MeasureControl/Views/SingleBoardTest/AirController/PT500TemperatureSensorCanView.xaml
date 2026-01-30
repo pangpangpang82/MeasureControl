@@ -301,6 +301,7 @@
                         FontSize="16"
                         ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                         ItemsSource="{StaticResource CanChannels}"
+                        IsEnabled="{Binding CanEditStepControls}"
                         SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
                     <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
                     <ComboBox
@@ -311,6 +312,7 @@
                         FontSize="16"
                         ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                         ItemsSource="{StaticResource CanChannels}"
+                        IsEnabled="{Binding CanEditStepControls}"
                         SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
                     <Button
                         Width="80"
@@ -369,6 +371,7 @@
                         FontSize="16"
                         ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                         SelectedValuePath="Content"
+                        IsEnabled="{Binding CanEditStepControls}"
                         SelectedValue="{Binding ResistorGear, Mode=TwoWay}">
                         <ComboBoxItem Content="1挡" />
                         <ComboBoxItem Content="2挡" />
@@ -442,6 +445,7 @@
                         FontSize="16"
                         ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                         ItemsSource="{StaticResource CanChannels}"
+                        IsEnabled="{Binding CanEditStepControls}"
                         SelectedItem="{Binding ControllerTemperatureTestTxChannel, Mode=TwoWay}" />
                     <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
                     <ComboBox
@@ -452,6 +456,7 @@
                         FontSize="16"
                         ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                         ItemsSource="{StaticResource CanChannels}"
+                        IsEnabled="{Binding CanEditStepControls}"
                         SelectedItem="{Binding ControllerTemperatureTestRxChannel, Mode=TwoWay}" />
                     <Button
                         Width="80"
@@ -511,6 +516,7 @@
                         FontSize="16"
                         ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                         ItemsSource="{StaticResource CanChannels}"
+                        IsEnabled="{Binding CanEditStepControls}"
                         SelectedItem="{Binding TemperatureTelemetryRxChannel, Mode=TwoWay}" />
                     <Border
                         Width="70"
@@ -580,6 +586,7 @@
                         FontSize="16"
                         ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                         ItemsSource="{StaticResource CanChannels}"
+                        IsEnabled="{Binding CanEditStepControls}"
                         SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
                     <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
                     <ComboBox
@@ -590,6 +597,7 @@
                         FontSize="16"
                         ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                         ItemsSource="{StaticResource CanChannels}"
+                        IsEnabled="{Binding CanEditStepControls}"
                         SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}" />
                     <Button
                         Width="80"
