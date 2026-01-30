@@ -662,10 +662,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
-                ok = await _canDriver.OpenChannelAsync(txIndex)
-                    && await _canDriver.OpenChannelAsync(rxIndex)
-                    && await _canDriver.OpenChannelAsync(SimControllerRxChannel)
-                    && await _canDriver.OpenChannelAsync(SimControllerTxChannel);
+                ok = await OpenCanChannelForPt500Async(txIndex)
+                    && await OpenCanChannelForPt500Async(rxIndex)
+                    && await OpenCanChannelForPt500Async(SimControllerRxChannel)
+                    && await OpenCanChannelForPt500Async(SimControllerTxChannel);
                 if (!ok)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：打开通道失败 UI_TX={EnterAtpTxChannel}, UI_RX={EnterAtpRxChannel}, CTRL_RX=CH{SimControllerRxChannel}, CTRL_TX=CH{SimControllerTxChannel}");
@@ -737,9 +737,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
-                ok = await _canDriver.OpenChannelAsync(txIndex)
-                    && await _canDriver.OpenChannelAsync(rxIndex)
-                    && await _canDriver.OpenChannelAsync(SimControllerRxChannel);
+                ok = await OpenCanChannelForPt500Async(txIndex)
+                    && await OpenCanChannelForPt500Async(rxIndex)
+                    && await OpenCanChannelForPt500Async(SimControllerRxChannel);
                 if (!ok)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试失败：打开通道失败 UI_TX={ControllerTemperatureTestTxChannel}, UI_RX={ControllerTemperatureTestRxChannel}, CTRL_RX=CH{SimControllerRxChannel}");
@@ -790,7 +790,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
-                ok = await _canDriver.OpenChannelAsync(rxIndex) && await _canDriver.OpenChannelAsync(SimControllerTxChannel);
+                ok = await OpenCanChannelForPt500Async(rxIndex) && await OpenCanChannelForPt500Async(SimControllerTxChannel);
                 if (!ok)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：打开通道失败 UI_RX={TemperatureTelemetryRxChannel}, CTRL_TX=CH{SimControllerTxChannel}");
@@ -883,10 +883,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
-                ok = await _canDriver.OpenChannelAsync(txIndex)
-                    && await _canDriver.OpenChannelAsync(rxIndex)
-                    && await _canDriver.OpenChannelAsync(SimControllerRxChannel)
-                    && await _canDriver.OpenChannelAsync(SimControllerTxChannel);
+                ok = await OpenCanChannelForPt500Async(txIndex)
+                    && await OpenCanChannelForPt500Async(rxIndex)
+                    && await OpenCanChannelForPt500Async(SimControllerRxChannel)
+                    && await OpenCanChannelForPt500Async(SimControllerTxChannel);
                 if (!ok)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP失败：打开通道失败 UI_TX={ExitAtpTxChannel}, UI_RX={ExitAtpRxChannel}, CTRL_RX=CH{SimControllerRxChannel}, CTRL_TX=CH{SimControllerTxChannel}");
@@ -1108,6 +1108,64 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (frames == null || frames.Count == 0)
                     break;
                 await Task.Delay(1);
+            }
+        }
+
+        private async Task<bool> OpenCanChannelForPt500Async(int channelIndex)
+        {
+            if (_canDriver == null)
+                return false;
+            if (!_canDriver.IsConnected)
+                return false;
+            if (channelIndex < 0)
+                return false;
+
+            try
+            {
+                PXI4004.ARTCANX1_CAN_PARAM param;
+                try
+                {
+                    var handle = _canDriver.DeviceHandle;
+                    if (handle != IntPtr.Zero)
+                    {
+                        param = PXI4004.GetDefaultCANParam(handle, (uint)channelIndex);
+                    }
+                    else
+                    {
+                        param = new PXI4004.ARTCANX1_CAN_PARAM();
+                    }
+                }
+                catch
+                {
+                    param = new PXI4004.ARTCANX1_CAN_PARAM();
+                }
+
+                if (param.nReserved1 == null || param.nReserved1.Length != 7)
+                    param.nReserved1 = new uint[7];
+                if (param.nReserved2 == null || param.nReserved2.Length != 32)
+                    param.nReserved2 = new uint[32];
+
+                if (param.SendTrig.nReserved == null || param.SendTrig.nReserved.Length != 20)
+                    param.SendTrig.nReserved = new uint[20];
+
+                param.nBaudRate = PXI4004.CAN_BAUD_500K;
+                param.nWorkMode = (byte)PXI4004.ARTCANX1_CAN_WORKMODE_NORMAL;
+                param.bRecvTimestampEn = 1;
+                param.bAccExtID = 0;
+                param.nAccFilterCnt = (byte)PXI4004.ARTCANX1_CAN_ACC_NUM_NONE;
+                param.nAccCodeA = 0x00000000;
+                param.nAccCodeB = 0x00000000;
+                param.nAccMaskA = 0xFFFFFFFF;
+                param.nAccMaskB = 0xFFFFFFFF;
+                param.nFrameInterval = 0;
+                param.SendTrig.nTriggerType = PXI4004.ARTCANX1_TRIGTYPE_NONE;
+
+                return await _canDriver.OpenChannelAsync(channelIndex, param);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 打开通道CH{channelIndex}失败：{ex.Message}");
+                return false;
             }
         }
 
@@ -1389,23 +1447,43 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
 
                 var targetOhm = GetTargetResistanceOhm(ResistorGear);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：接入电阻，档位={ResistorGear}，目标={targetOhm.ToString("F2", CultureInfo.InvariantCulture)}Ω");
+                var channelId = "RO0";
 
-                var relayOk = await _resistorDriver.SetRelayStateAsync("RO0", true, false);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：接入电阻，档位={ResistorGear}({channelId})，目标={targetOhm.ToString("F2", CultureInfo.InvariantCulture)}Ω");
+
+                // 先断开其他档位，避免并联/串扰导致测量值异常
+                foreach (var ch in new[] { "RO0", "RO1", "RO2" })
+                {
+                    if (!string.Equals(ch, channelId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        try { await _resistorDriver.SetRelayStateAsync(ch, false, false); } catch { }
+                    }
+                }
+
+                var relayOk = await _resistorDriver.SetRelayStateAsync(channelId, true, false);
                 if (!relayOk)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012设置RO0继电器失败(通路闭合/短路断开)");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012设置{channelId}继电器失败(通路闭合/短路断开)");
                     return;
                 }
 
-                var writeOk = await _resistorDriver.WriteChannelAsync("RO0", targetOhm);
+                var writeOk = await _resistorDriver.WriteChannelAsync(channelId, targetOhm);
                 if (!writeOk)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012写入RO0失败");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012写入{channelId}失败");
                     return;
                 }
 
                 await Task.Delay(50);
+
+                try
+                {
+                    var boardReadback = await _resistorDriver.ReadChannelAsync(channelId);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012回读({channelId})={boardReadback.ToString("F5", CultureInfo.InvariantCulture)}Ω");
+                }
+                catch
+                {
+                }
 
                 var matrixSvc = MatrixControlService.Instance;
                 matrix1Connected = await matrixSvc.ConnectNodesAsync("I1", "O8", 6, "192.168.1.3");
