@@ -154,7 +154,7 @@ namespace MeasureControl.Simulations.AC_6_4
 
                 await _arincDriver.ConfigureTxChannelAsync(tx, txRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
                 await _arincDriver.ConfigureRxChannelAsync(rx, rxRate, parity: parity, wordFormat: wordFormat,
-                    enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
+                    enableInterrupt: false, interruptDepth: 0, enableTimeTag: false);
 
                 bool ok = await _arincDriver.StartReceiveAsync(rx);
                 if (ok)
@@ -201,7 +201,7 @@ namespace MeasureControl.Simulations.AC_6_4
                 }
 
                 await _arincDriver.ConfigureRxChannelAsync(rx, rxRate, parity: parity, wordFormat: wordFormat,
-                    enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
+                    enableInterrupt: false, interruptDepth: 0, enableTimeTag: false);
 
                 bool ok = await _arincDriver.StartReceiveAsync(rx);
                 if (ok)
@@ -255,6 +255,45 @@ namespace MeasureControl.Simulations.AC_6_4
                 token);
         }
 
+        public async Task SendBenchCommandOnlyAsync(
+            string benchTxChannel,
+            byte label,
+            byte[] command8,
+            Action<string> log,
+            CancellationToken token)
+        {
+            if (!_started || _arincDriver == null)
+                throw new InvalidOperationException("Simulation not started");
+            if (command8 == null || command8.Length != 8)
+                throw new ArgumentException("command8 must be 8 bytes", nameof(command8));
+
+            int txIndex = ParseChannelIndex(benchTxChannel);
+
+            bool openTxOk = await _arincDriver.OpenTxChannelAsync(txIndex);
+            if (!openTxOk)
+                throw new InvalidOperationException($"[SIM] TX通道打开失败: tx={txIndex}");
+
+            await _arincDriver.ConfigureTxChannelAsync(txIndex, ArincRate, sendMode: 0, parity: 1, wordFormat: 0);
+
+            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送(仅发送): tx={txIndex}, label=0x{label:X2}, payload8={FormatBytes(command8)}");
+            await SendMultiFrameOnChannelAsync(txIndex, label, command8, log, token);
+        }
+
+        public async Task ClearRxFifoAsync(string benchRxChannel)
+        {
+            if (_arincDriver == null)
+                return;
+
+            int rxIndex = ParseChannelIndex(benchRxChannel);
+            try
+            {
+                await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false);
+            }
+            catch
+            {
+            }
+        }
+
         public async Task<byte[]> WaitBenchResponseAsync(
             string benchRxChannel,
             byte label,
@@ -279,7 +318,7 @@ namespace MeasureControl.Simulations.AC_6_4
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
             {
-                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: true);
+                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
                 if (list != null && list.Count > 0)
                 {
                     foreach (var item in list)
@@ -386,7 +425,7 @@ namespace MeasureControl.Simulations.AC_6_4
             {
                 try
                 {
-                    var list = await _arincDriver.ReadReceiveDataAsync(SimProductRxChannelIndex, maxCount: 1024, enableTimeTag: false, enableRateAdaption: true);
+                    var list = await _arincDriver.ReadReceiveDataAsync(SimProductRxChannelIndex, maxCount: 1024, enableTimeTag: false, enableRateAdaption: false);
                     if (list != null && list.Count > 0)
                     {
                         foreach (var item in list)
@@ -554,8 +593,8 @@ namespace MeasureControl.Simulations.AC_6_4
         {
             // 协议假设（可调整）：
             // - 产品开启输出后，周期性上报“传感器供电电压回采并上传”
-            // - 上报8字节包：01 04 01 02 vv vv 00 00
-            //   其中 vv vv 为回采电压的 mV (UInt16, big-endian)，范围 [2.25V, 2.75V] -> [2250, 2750]
+            // - 上报8字节包：01 04 01 02 ff ff ff ff
+            //   其中 ff ff ff ff 为回采电压的 IEEE754 float(4字节)，固定字节序：big-endian
             while (!token.IsCancellationRequested)
             {
                 try
@@ -567,20 +606,20 @@ namespace MeasureControl.Simulations.AC_6_4
                     }
 
                     double sense = NextDouble(2.25, 2.75);
-                    int mvInt = (int)Math.Round(sense * 1000.0);
-                    if (mvInt < 0) mvInt = 0;
-                    if (mvInt > 65535) mvInt = 65535;
-                    ushort mv = (ushort)mvInt;
+                    float senseF = (float)sense;
+                    var fbytes = BitConverter.GetBytes(senseF);
+                    if (BitConverter.IsLittleEndian)
+                        Array.Reverse(fbytes);
 
                     var payload = new byte[8];
                     payload[0] = 0x01;
                     payload[1] = 0x04;
                     payload[2] = 0x01;
                     payload[3] = 0x02;
-                    payload[4] = (byte)((mv >> 8) & 0xFF);
-                    payload[5] = (byte)(mv & 0xFF);
-                    payload[6] = 0x00;
-                    payload[7] = 0x00;
+                    payload[4] = fbytes[0];
+                    payload[5] = fbytes[1];
+                    payload[6] = fbytes[2];
+                    payload[7] = fbytes[3];
 
                     await SendMultiFrameResponseAsync(label, payload, log, token);
 
@@ -697,11 +736,11 @@ namespace MeasureControl.Simulations.AC_6_4
 
             await _arincDriver.ConfigureTxChannelAsync(benchTxIndex, benchTxRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
             await _arincDriver.ConfigureRxChannelAsync(benchRxIndex, benchRxRate, parity: parity, wordFormat: wordFormat,
-                enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
+                enableInterrupt: false, interruptDepth: 0, enableTimeTag: false);
 
             // 仿真产品侧：固定占用通道
             await _arincDriver.ConfigureRxChannelAsync(SimProductRxChannelIndex, simRxRate, parity: parity, wordFormat: wordFormat,
-                enableInterrupt: false, interruptDepth: 512, enableTimeTag: false);
+                enableInterrupt: false, interruptDepth: 0, enableTimeTag: false);
             await _arincDriver.ConfigureTxChannelAsync(SimProductTxChannelIndex, simTxRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] ARINC429 通道已配置: benchTX={benchTxIndex}, benchRX={benchRxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
@@ -716,22 +755,37 @@ namespace MeasureControl.Simulations.AC_6_4
 
         private static int ParseChannelIndex(string channel)
         {
-            if (string.IsNullOrWhiteSpace(channel)) return 0;
+            if (string.IsNullOrWhiteSpace(channel)) return -1;
 
-            // 允许 ARINC429_0 / arinc429_15
-            const string prefix = "ARINC429_";
             var trimmed = channel.Trim();
-            if (trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+
+            // 支持 ARINC429_0 / arinc429_15 格式
+            const string prefix1 = "ARINC429_";
+            if (trimmed.StartsWith(prefix1, StringComparison.OrdinalIgnoreCase))
             {
-                trimmed = trimmed.Substring(prefix.Length);
+                trimmed = trimmed.Substring(prefix1.Length);
+                if (int.TryParse(trimmed, out var idx1))
+                    return idx1;
+                return -1;
             }
 
+            // 支持 429_CH0 / 429_CH15 格式
+            const string prefix2 = "429_CH";
+            if (trimmed.StartsWith(prefix2, StringComparison.OrdinalIgnoreCase))
+            {
+                trimmed = trimmed.Substring(prefix2.Length);
+                if (int.TryParse(trimmed, out var idx2))
+                    return idx2;
+                return -1;
+            }
+
+            // 尝试直接解析数字
             if (int.TryParse(trimmed, out var idx))
             {
                 return idx;
             }
 
-            return 0;
+            return -1;
         }
 
         private async Task ConnectPowerSupplyAsync(Action<string> log)
