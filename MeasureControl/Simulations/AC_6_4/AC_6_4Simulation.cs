@@ -255,6 +255,45 @@ namespace MeasureControl.Simulations.AC_6_4
                 token);
         }
 
+        public async Task SendBenchCommandOnlyAsync(
+            string benchTxChannel,
+            byte label,
+            byte[] command8,
+            Action<string> log,
+            CancellationToken token)
+        {
+            if (!_started || _arincDriver == null)
+                throw new InvalidOperationException("Simulation not started");
+            if (command8 == null || command8.Length != 8)
+                throw new ArgumentException("command8 must be 8 bytes", nameof(command8));
+
+            int txIndex = ParseChannelIndex(benchTxChannel);
+
+            bool openTxOk = await _arincDriver.OpenTxChannelAsync(txIndex);
+            if (!openTxOk)
+                throw new InvalidOperationException($"[SIM] TX通道打开失败: tx={txIndex}");
+
+            await _arincDriver.ConfigureTxChannelAsync(txIndex, ArincRate, sendMode: 0, parity: 1, wordFormat: 0);
+
+            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送(仅发送): tx={txIndex}, label=0x{label:X2}, payload8={FormatBytes(command8)}");
+            await SendMultiFrameOnChannelAsync(txIndex, label, command8, log, token);
+        }
+
+        public async Task ClearRxFifoAsync(string benchRxChannel)
+        {
+            if (_arincDriver == null)
+                return;
+
+            int rxIndex = ParseChannelIndex(benchRxChannel);
+            try
+            {
+                await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false);
+            }
+            catch
+            {
+            }
+        }
+
         public async Task<byte[]> WaitBenchResponseAsync(
             string benchRxChannel,
             byte label,
@@ -716,22 +755,37 @@ namespace MeasureControl.Simulations.AC_6_4
 
         private static int ParseChannelIndex(string channel)
         {
-            if (string.IsNullOrWhiteSpace(channel)) return 0;
+            if (string.IsNullOrWhiteSpace(channel)) return -1;
 
-            // 允许 ARINC429_0 / arinc429_15
-            const string prefix = "ARINC429_";
             var trimmed = channel.Trim();
-            if (trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+
+            // 支持 ARINC429_0 / arinc429_15 格式
+            const string prefix1 = "ARINC429_";
+            if (trimmed.StartsWith(prefix1, StringComparison.OrdinalIgnoreCase))
             {
-                trimmed = trimmed.Substring(prefix.Length);
+                trimmed = trimmed.Substring(prefix1.Length);
+                if (int.TryParse(trimmed, out var idx1))
+                    return idx1;
+                return -1;
             }
 
+            // 支持 429_CH0 / 429_CH15 格式
+            const string prefix2 = "429_CH";
+            if (trimmed.StartsWith(prefix2, StringComparison.OrdinalIgnoreCase))
+            {
+                trimmed = trimmed.Substring(prefix2.Length);
+                if (int.TryParse(trimmed, out var idx2))
+                    return idx2;
+                return -1;
+            }
+
+            // 尝试直接解析数字
             if (int.TryParse(trimmed, out var idx))
             {
                 return idx;
             }
 
-            return 0;
+            return -1;
         }
 
         private async Task ConnectPowerSupplyAsync(Action<string> log)

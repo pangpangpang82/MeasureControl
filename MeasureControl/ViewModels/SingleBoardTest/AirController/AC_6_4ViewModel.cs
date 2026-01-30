@@ -33,7 +33,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const string PersistKeyEnterAtpTx = "EnterAtpTxChannel";
         private const string PersistKeyEnterAtpRx = "EnterAtpRxChannel";
         private const string PersistKeySetVoltageTx = "SetVoltageTxChannel";
-        private const string PersistKeySetVoltageRx = "SetVoltageRxChannel";
         private const string PersistKeyTelemetryRx = "TelemetryRxChannel";
         private const string PersistKeyExitAtpTx = "ExitAtpTxChannel";
         private const string PersistKeyExitAtpRx = "ExitAtpRxChannel";
@@ -74,7 +73,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _enterAtpTxChannel;
         private string _enterAtpRxChannel;
         private string _setVoltageTxChannel;
-        private string _setVoltageRxChannel;
         private string _telemetryRxChannel;
         private string _exitAtpTxChannel;
         private string _exitAtpRxChannel;
@@ -85,6 +83,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private string _dmmVoltageText;
         private string _telemetryVoltageText;
+
+        private string _enterAtpRxDataText = "--";
+        private string _telemetryRxDataText = "--";
+        private string _exitAtpRxDataText = "--";
 
         private string _lastTestTime;
         private string _lastTestResult;
@@ -97,18 +99,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _singleBoardTestContext = singleBoardTestContext;
             _projectService = projectService;
             _eventAggregator = eventAggregator;
-            _enterAtpTxChannel = "ARINC429_0";
-            _enterAtpRxChannel = "ARINC429_1";
-            _setVoltageTxChannel = "ARINC429_2";
-            _setVoltageRxChannel = "ARINC429_3";
-            _telemetryRxChannel = "ARINC429_4";
-            _exitAtpTxChannel = "ARINC429_5";
-            _exitAtpRxChannel = "ARINC429_6";
+            _enterAtpTxChannel = "429_CH0";
+            _enterAtpRxChannel = "429_CH1";
+            _setVoltageTxChannel = "429_CH2";
+            _telemetryRxChannel = "429_CH4";
+            _exitAtpTxChannel = "429_CH5";
+            _exitAtpRxChannel = "429_CH6";
 
             _dmmChannel = "Port1";
 
             DmmVoltageText = "--";
             TelemetryVoltageText = "--";
+            EnterAtpRxDataText = "--";
+            TelemetryRxDataText = "--";
+            ExitAtpRxDataText = "--";
 
             _simulation.OnOutputEnabledAsync = OnSimulationOutputEnabledAsync;
 
@@ -199,6 +203,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        private void UpdateTelemetryRxDataText(byte[] resp)
+        {
+            try
+            {
+                var text = $"0x{FormatBytesHex(resp)}";
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null && !dispatcher.CheckAccess())
+                {
+                    dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        TelemetryRxDataText = text;
+                    }));
+                }
+                else
+                {
+                    TelemetryRxDataText = text;
+                }
+            }
+            catch
+            {
+            }
+        }
+
         private void StartTelemetryListeningIfNeeded()
         {
             if (_telemetryListeningTask != null)
@@ -228,6 +255,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         if (resp != null && TryParseTelemetryVoltage(resp, out var v))
                         {
                             UpdateTelemetryUi(v);
+                            UpdateTelemetryRxDataText(resp);
                         }
                         else
                         {
@@ -308,6 +336,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _latestTelemetryVoltage;
             private set => SetProperty(ref _latestTelemetryVoltage, value);
+        }
+
+        public string EnterAtpRxDataText
+        {
+            get => _enterAtpRxDataText;
+            private set => SetProperty(ref _enterAtpRxDataText, value);
+        }
+
+        public string TelemetryRxDataText
+        {
+            get => _telemetryRxDataText;
+            private set => SetProperty(ref _telemetryRxDataText, value);
+        }
+
+        public string ExitAtpRxDataText
+        {
+            get => _exitAtpRxDataText;
+            private set => SetProperty(ref _exitAtpRxDataText, value);
         }
 
         public DelegateCommand ManualTestCommand { get; }
@@ -458,19 +504,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        public string SetVoltageRxChannel
-        {
-            get => _setVoltageRxChannel;
-            set
-            {
-                if (SetProperty(ref _setVoltageRxChannel, value))
-                {
-                    UpdateCommandStates();
-                    SavePersistedState();
-                }
-            }
-        }
-
         public string TelemetryRxChannel
         {
             get => _telemetryRxChannel;
@@ -577,7 +610,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _enterAtpTxChannel = Read(PersistKeyEnterAtpTx) ?? _enterAtpTxChannel;
                 _enterAtpRxChannel = Read(PersistKeyEnterAtpRx) ?? _enterAtpRxChannel;
                 _setVoltageTxChannel = Read(PersistKeySetVoltageTx) ?? _setVoltageTxChannel;
-                _setVoltageRxChannel = Read(PersistKeySetVoltageRx) ?? _setVoltageRxChannel;
                 _telemetryRxChannel = Read(PersistKeyTelemetryRx) ?? _telemetryRxChannel;
                 _exitAtpTxChannel = Read(PersistKeyExitAtpTx) ?? _exitAtpTxChannel;
                 _exitAtpRxChannel = Read(PersistKeyExitAtpRx) ?? _exitAtpRxChannel;
@@ -593,7 +625,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 RaisePropertyChanged(nameof(EnterAtpTxChannel));
                 RaisePropertyChanged(nameof(EnterAtpRxChannel));
                 RaisePropertyChanged(nameof(SetVoltageTxChannel));
-                RaisePropertyChanged(nameof(SetVoltageRxChannel));
                 RaisePropertyChanged(nameof(TelemetryRxChannel));
                 RaisePropertyChanged(nameof(ExitAtpTxChannel));
                 RaisePropertyChanged(nameof(ExitAtpRxChannel));
@@ -640,7 +671,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 Upsert(PersistKeyEnterAtpTx, EnterAtpTxChannel);
                 Upsert(PersistKeyEnterAtpRx, EnterAtpRxChannel);
                 Upsert(PersistKeySetVoltageTx, SetVoltageTxChannel);
-                Upsert(PersistKeySetVoltageRx, SetVoltageRxChannel);
                 Upsert(PersistKeyTelemetryRx, TelemetryRxChannel);
                 Upsert(PersistKeyExitAtpTx, ExitAtpTxChannel);
                 Upsert(PersistKeyExitAtpRx, ExitAtpRxChannel);
@@ -697,8 +727,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动(仿真模式)：开始打开设备");
 
                 // 仿真模式：固定占用产品侧通道
-                _simulation.SimProductRxChannelIndex = 6;
-                _simulation.SimProductTxChannelIndex = 7;
+                _simulation.SimProductRxChannelIndex = 4;
+                _simulation.SimProductTxChannelIndex = 5;
                 _simulation.ArincRate = ArincRate;
 
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
@@ -742,8 +772,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _opCts = new CancellationTokenSource();
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动(仿真模式)：开始打开设备");
 
-                _simulation.SimProductRxChannelIndex = 6;
-                _simulation.SimProductTxChannelIndex = 7;
+                _simulation.SimProductRxChannelIndex = 4;
+                _simulation.SimProductTxChannelIndex = 5;
                 _simulation.ArincRate = ArincRate;
 
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
@@ -1236,27 +1266,51 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             IsBusy = true;
             try
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送进入ATP：TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}, Label=0x{DefaultLabel:X2}, Data=00 01 00 01 00 00 00 00");
-
                 var token = _opCts?.Token ?? CancellationToken.None;
-                var resp = await _simulation.SendBenchCommandAndWaitAsync(
-                    EnterAtpTxChannel,
-                    EnterAtpRxChannel,
-                    DefaultLabel,
-                    EnterAtpCommand,
-                    b => b.SequenceEqual(EnterAtpOk),
-                    timeoutMs: 2000,
-                    msg => AddLog(msg),
-                    token);
+                const int maxRetries = 3;
+                const int timeoutMs = 3000;
 
-                if (resp == null)
+                for (int attempt = 1; attempt <= maxRetries; attempt++)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP超时，未收到OK");
-                    return;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送进入ATP(第{attempt}次)：TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}, Label=0x{DefaultLabel:X2}");
+
+                    try
+                    {
+                        await _simulation.ClearRxFifoAsync(EnterAtpRxChannel);
+                    }
+                    catch
+                    {
+                    }
+
+                    await Task.Delay(50, token);
+
+                    var resp = await _simulation.SendBenchCommandAndWaitAsync(
+                        EnterAtpTxChannel,
+                        EnterAtpRxChannel,
+                        DefaultLabel,
+                        EnterAtpCommand,
+                        b => b.SequenceEqual(EnterAtpOk),
+                        timeoutMs: timeoutMs,
+                        msg => AddLog(msg),
+                        token);
+
+                    if (resp != null)
+                    {
+                        EnterAtpRxDataText = $"0x{FormatBytesHex(resp)}";
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 收到ATP OK，进入ATP成功");
+                        IsInAtpMode = true;
+                        return;
+                    }
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP第{attempt}次超时，未收到OK");
+
+                    if (attempt < maxRetries)
+                    {
+                        await Task.Delay(200, token);
+                    }
                 }
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 收到ATP OK，进入ATP成功");
-                IsInAtpMode = true;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：已重试{maxRetries}次均超时");
             }
             catch (Exception ex)
             {
@@ -1272,8 +1326,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             if (IsBusy) return false;
             if (!IsInAtpMode) return false;
-            if (string.IsNullOrWhiteSpace(SetVoltageTxChannel) || string.IsNullOrWhiteSpace(SetVoltageRxChannel)) return false;
-            return !string.Equals(SetVoltageTxChannel, SetVoltageRxChannel, StringComparison.OrdinalIgnoreCase);
+            return !string.IsNullOrWhiteSpace(SetVoltageTxChannel);
         }
 
         private void OnSendSetVoltage()
@@ -1293,24 +1346,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 await EnsureFixedMatrixConnectedAsync(msg => AddLog(msg), token);
                 await SwitchMatrixForSelectedDmmChannelAsync(msg => AddLog(msg), token);
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送开启输出：TX={SetVoltageTxChannel}, RX={SetVoltageRxChannel}, Label=0x{DefaultLabel:X2}, Data=01 04 01 01 00 00 00 00");
-                var resp = await _simulation.SendBenchCommandAndWaitAsync(
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送开启输出：TX={SetVoltageTxChannel}, Label=0x{DefaultLabel:X2}, Data=01 04 01 01 00 00 00 00");
+                await _simulation.SendBenchCommandOnlyAsync(
                     SetVoltageTxChannel,
-                    SetVoltageRxChannel,
                     DefaultLabel,
                     EnableOutputCommand,
-                    b => b.SequenceEqual(EnableOutputAck),
-                    timeoutMs: 2000,
                     msg => AddLog(msg),
                     token);
 
-                if (resp == null)
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 开启输出超时，未收到ACK");
-                    return;
-                }
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 收到开启输出ACK");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 开启输出指令已发送");
                 OutputEnabled = true;
 
                 // 简单判定：收到回采上报的电压 (01 04 01 02 vv vv 00 00) 并在范围内即 PASS
@@ -1328,54 +1372,68 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task EvaluateResultFromTelemetryAsync(CancellationToken token)
         {
-            // 取样窗口（可按你后续规则调整）：2秒内收到任意一帧回采上报，且电压在[2.25,2.75]V则PASS，否则FAIL
-            var deadline = DateTime.UtcNow.AddSeconds(2);
-            bool got = false;
-            bool pass = false;
-            bool dmmOk = false;
+            const int requiredPassCount = 10;
+            const double dmmMin = 13.5;
+            const double dmmMax = 16.5;
+            const double teleMin = 2.25;
+            const double teleMax = 2.75;
+
+            int passCount = 0;
+            int sampleCount = 0;
+            double? lastDmm = null;
             double? lastTelemetry = null;
 
-            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
-            {
-                var resp = await _simulation.WaitBenchResponseAsync(
-                    TelemetryRxChannel,
-                    DefaultLabel,
-                    IsTelemetryPayload,
-                    timeoutMs: 300,
-                    msg => AddLog(msg),
-                    token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 开始循环采集，需连续{requiredPassCount}次合格判定PASS");
 
-                if (resp == null)
+            while (!token.IsCancellationRequested && passCount < requiredPassCount)
+            {
+                await Task.Delay(200, token);
+
+                var dmm = LatestDmmVoltage;
+                var tele = LatestTelemetryVoltage;
+
+                if (!dmm.HasValue || dmm.Value == 0 || !tele.HasValue || tele.Value == 0)
                 {
-                    await Task.Delay(50, token);
                     continue;
                 }
 
-                got = true;
-                if (!TryParseTelemetryVoltage(resp, out var v))
-                    continue;
+                sampleCount++;
+                lastDmm = dmm;
+                lastTelemetry = tele;
 
-                UpdateTelemetryUi(v);
-                lastTelemetry = v;
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 回采上报: {v:F3}V");
+                bool dmmOk = dmm.Value >= dmmMin && dmm.Value <= dmmMax;
+                bool teleOk = tele.Value >= teleMin && tele.Value <= teleMax;
 
-                var dmm = LatestDmmVoltage;
-                dmmOk = dmm.HasValue && dmm.Value >= 13.5 && dmm.Value <= 16.5;
-                bool teleOk = v >= 2.25 && v <= 2.75;
-                pass = dmmOk && teleOk;
-                if (pass)
-                    break;
+                if (dmmOk && teleOk)
+                {
+                    passCount++;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 采样#{sampleCount}: DMM={dmm.Value:F3}V, 回采={tele.Value:F3}V -> 合格({passCount}/{requiredPassCount})");
+                }
+                else
+                {
+                    passCount = 0;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 采样#{sampleCount}: DMM={dmm.Value:F3}V(需{dmmMin}~{dmmMax}), 回采={tele.Value:F3}V(需{teleMin}~{teleMax}) -> 不合格，重新计数");
+                }
             }
 
             LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            LastTestResult = (!got) ? "FAIL" : (pass ? "PASS" : "FAIL");
+            if (passCount >= requiredPassCount)
+            {
+                LastTestResult = "PASS";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试结果: PASS (连续{requiredPassCount}次合格)");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 最终值: 供电模块={lastDmm:F3}V, 回采={lastTelemetry:F3}V");
+            }
+            else
+            {
+                LastTestResult = "FAIL";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试结果: FAIL (被取消或未达到连续{requiredPassCount}次合格)");
+            }
         }
 
         private bool CanSendExitAtp()
         {
             if (IsBusy) return false;
             if (!IsManualTestRunning && !IsAutoTestRunning) return false;
-            if (!OutputEnabled) return false;
             if (string.IsNullOrWhiteSpace(ExitAtpTxChannel) || string.IsNullOrWhiteSpace(ExitAtpRxChannel)) return false;
             return !string.Equals(ExitAtpTxChannel, ExitAtpRxChannel, StringComparison.OrdinalIgnoreCase);
         }
@@ -1412,6 +1470,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 else
                 {
+                    ExitAtpRxDataText = $"0x{FormatBytesHex(resp)}";
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 收到退出ATP OK");
                 }
 
@@ -1440,6 +1499,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             SendEnterAtpCommand.RaiseCanExecuteChanged();
             SendSetVoltageCommand.RaiseCanExecuteChanged();
             SendExitAtpCommand.RaiseCanExecuteChanged();
+        }
+
+        private static string FormatBytesHex(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length == 0)
+                return "--";
+            return string.Join(" ", bytes.Select(b => b.ToString("X2")));
         }
     }
 }
