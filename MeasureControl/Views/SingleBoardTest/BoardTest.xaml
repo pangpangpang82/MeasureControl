@@ -237,9 +237,9 @@
                                     </Grid.RowDefinitions>
 
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="30*" />
+                                        <ColumnDefinition Width="28*" />
                                         <ColumnDefinition Width="2" />
-                                        <ColumnDefinition Width="87*" />
+                                        <ColumnDefinition Width="90*" />
                                     </Grid.ColumnDefinitions>
 
                                     <Border
@@ -275,6 +275,7 @@
                                             </Style>
                                         </Border.Style>
                                         <ScrollViewer
+                                            Margin="0,0,-8,0"
                                             HorizontalScrollBarVisibility="Disabled"
                                             Style="{StaticResource SimpleScrollViewerStyle}"
                                             VerticalScrollBarVisibility="Auto">

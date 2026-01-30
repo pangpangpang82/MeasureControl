@@ -24,6 +24,7 @@ namespace MeasureControl.ViewModels.TestTask
         private bool _isOpen;
         private string _selectedPort;
         private int _selectedBaudRate;
+        private string _baudRateText;
         private string _selectedParity;
         private int _selectedDataBits;
         private string _selectedStopBits;
@@ -98,7 +99,31 @@ namespace MeasureControl.ViewModels.TestTask
         public int SelectedBaudRate
         {
             get => _selectedBaudRate;
-            set => SetProperty(ref _selectedBaudRate, value);
+            set
+            {
+                if (SetProperty(ref _selectedBaudRate, value))
+                {
+                    var text = value > 0 ? value.ToString() : string.Empty;
+                    if (!string.Equals(_baudRateText, text, StringComparison.Ordinal))
+                        SetProperty(ref _baudRateText, text, nameof(BaudRateText));
+                }
+            }
+        }
+
+        public string BaudRateText
+        {
+            get => _baudRateText;
+            set
+            {
+                if (SetProperty(ref _baudRateText, value))
+                {
+                    if (int.TryParse((value ?? string.Empty).Trim(), out var br) && br > 0)
+                    {
+                        if (_selectedBaudRate != br)
+                            SetProperty(ref _selectedBaudRate, br, nameof(SelectedBaudRate));
+                    }
+                }
+            }
         }
 
         public string SelectedParity
@@ -235,6 +260,7 @@ namespace MeasureControl.ViewModels.TestTask
             Title = string.IsNullOrWhiteSpace(deviceDisplayName) ? $"{_rsType} 串口调试" : deviceDisplayName;
 
             SelectedBaudRate = BaudRates.FirstOrDefault();
+            BaudRateText = SelectedBaudRate.ToString();
             SelectedParity = ParityOptions.FirstOrDefault();
             SelectedDataBits = DataBitsOptions.LastOrDefault();
             SelectedStopBits = StopBitsOptions.FirstOrDefault();
@@ -261,6 +287,37 @@ namespace MeasureControl.ViewModels.TestTask
 
             ReceiveText = (ReceiveText ?? string.Empty) + line;
         }
+        private void AppendReceiveChunk(string chunk)
+        {
+            if (chunk == null) chunk = string.Empty;
+
+            var newLinePerChunk = string.Equals(_rsType, "RS422", StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(_rsType, "RS232", StringComparison.OrdinalIgnoreCase);
+
+            var current = ReceiveText ?? string.Empty;
+            if (newLinePerChunk && current.Length > 0 && !current.EndsWith(Environment.NewLine, StringComparison.Ordinal))
+            {
+                current += Environment.NewLine;
+            }
+
+            if (IsHexDisplay && current.Length > 0)
+            {
+                var last = current[current.Length - 1];
+                if (!char.IsWhiteSpace(last))
+                {
+                    current += " ";
+                }
+            }
+
+            var next = current + chunk;
+            if (newLinePerChunk && !next.EndsWith(Environment.NewLine, StringComparison.Ordinal))
+            {
+                next += Environment.NewLine;
+            }
+
+            ReceiveText = next;
+        }
+
 
         private void RefreshPorts()
         {
@@ -332,6 +389,12 @@ namespace MeasureControl.ViewModels.TestTask
             if (string.IsNullOrWhiteSpace(SelectedPort))
             {
                 StatusText = "未选择端口";
+                return Task.CompletedTask;
+            }
+
+            if (SelectedBaudRate <= 0)
+            {
+                StatusText = "波特率无效";
                 return Task.CompletedTask;
             }
 
@@ -580,7 +643,7 @@ namespace MeasureControl.ViewModels.TestTask
                 Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     IsReceiving = true;
-                    AppendReceiveLine(append);
+                    AppendReceiveChunk(append);
                 }));
             }
             catch (Exception ex)

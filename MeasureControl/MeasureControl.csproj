@@ -247,6 +247,7 @@
     <Compile Include="ViewModels\TestTask\OscilloscopeTestPanelViewModel.cs" />
     <Compile Include="ViewModels\TestTask\SignalGeneratorTestPanelViewModel.cs" />
     <Compile Include="ViewModels\TestTask\PowerSupplyTestPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ElectronicLoadTestPanelViewModel.cs" />
     <Compile Include="ViewModels\TestTask\MatrixSwitchConfigTableViewModel.cs" />
     <Compile Include="ViewModels\TestTask\PXI4004CANConfigPanelViewModel.cs" />
     <Compile Include="ViewModels\TestTask\ART4229ConfigPanelViewModel.cs" />
@@ -546,6 +547,9 @@
     <Compile Include="Views\TestTask\PowerSupplyTestPanelView.xaml.cs">
       <DependentUpon>PowerSupplyTestPanelView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\TestTask\ElectronicLoadTestPanelView.xaml.cs">
+      <DependentUpon>ElectronicLoadTestPanelView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\TestTask\OscilloscopeTestPanelView.xaml.cs">
       <DependentUpon>OscilloscopeTestPanelView.xaml</DependentUpon>
     </Compile>
@@ -825,6 +829,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\TestTask\PowerSupplyTestPanelView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\TestTask\ElectronicLoadTestPanelView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
