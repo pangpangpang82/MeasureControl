@@ -399,25 +399,26 @@
                                         <Style BasedOn="{StaticResource OutputToggleButtonStyle}" TargetType="Button">
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding Ch1OutputEnabled}" Value="True">
-                                                    <Setter Property="Background" Value="#bfdbfe" />
-                                                    <Setter Property="BorderBrush" Value="#60a5fa" />
-                                                    <Setter Property="Foreground" Value="#1e3a8a" />
+                                                    <Setter Property="Background" Value="#3b82f6" />
+                                                    <Setter Property="BorderBrush" Value="#2563eb" />
+                                                    <Setter Property="Foreground" Value="White" />
                                                 </DataTrigger>
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding Ch1OutputEnabled}" Value="True" />
                                                         <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True" />
                                                     </MultiDataTrigger.Conditions>
-                                                    <Setter Property="Background" Value="#93c5fd" />
-                                                    <Setter Property="BorderBrush" Value="#3b82f6" />
+                                                    <Setter Property="Background" Value="#2563eb" />
+                                                    <Setter Property="BorderBrush" Value="#1d4ed8" />
+                                                    <Setter Property="Foreground" Value="White" />
                                                 </MultiDataTrigger>
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding Ch1OutputEnabled}" Value="True" />
                                                         <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsPressed}" Value="True" />
                                                     </MultiDataTrigger.Conditions>
-                                                    <Setter Property="Background" Value="#60a5fa" />
-                                                    <Setter Property="BorderBrush" Value="#2563eb" />
+                                                    <Setter Property="Background" Value="#1d4ed8" />
+                                                    <Setter Property="BorderBrush" Value="#1e40af" />
                                                     <Setter Property="Foreground" Value="White" />
                                                 </MultiDataTrigger>
                                             </Style.Triggers>
@@ -635,24 +636,6 @@
                                 VerticalAlignment="Center"
                                 FontSize="18"
                                 Text="W" />
-
-                            <TextBlock
-                                Grid.Row="3"
-                                Grid.Column="0"
-                                Margin="0,0,0,5"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Center"
-                                FontSize="18"
-                                Text="输出：" />
-                            <Border
-                                Grid.Row="3"
-                                Grid.Column="1"
-                                Style="{StaticResource ReadbackValueBorderStyle}">
-                                <TextBlock
-                                    VerticalAlignment="Center"
-                                    FontSize="18"
-                                    Text="{Binding Ch1OutputEnabled, StringFormat={}{0}}" />
-                            </Border>
                         </Grid>
                     </Grid>
                 </Border>
@@ -693,25 +676,26 @@
                                         <Style BasedOn="{StaticResource OutputToggleButtonStyle}" TargetType="Button">
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding Ch2OutputEnabled}" Value="True">
-                                                    <Setter Property="Background" Value="#bfdbfe" />
-                                                    <Setter Property="BorderBrush" Value="#60a5fa" />
-                                                    <Setter Property="Foreground" Value="#1e3a8a" />
+                                                    <Setter Property="Background" Value="#3b82f6" />
+                                                    <Setter Property="BorderBrush" Value="#2563eb" />
+                                                    <Setter Property="Foreground" Value="White" />
                                                 </DataTrigger>
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding Ch2OutputEnabled}" Value="True" />
                                                         <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True" />
                                                     </MultiDataTrigger.Conditions>
-                                                    <Setter Property="Background" Value="#93c5fd" />
-                                                    <Setter Property="BorderBrush" Value="#3b82f6" />
+                                                    <Setter Property="Background" Value="#2563eb" />
+                                                    <Setter Property="BorderBrush" Value="#1d4ed8" />
+                                                    <Setter Property="Foreground" Value="White" />
                                                 </MultiDataTrigger>
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding Ch2OutputEnabled}" Value="True" />
                                                         <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsPressed}" Value="True" />
                                                     </MultiDataTrigger.Conditions>
-                                                    <Setter Property="Background" Value="#60a5fa" />
-                                                    <Setter Property="BorderBrush" Value="#2563eb" />
+                                                    <Setter Property="Background" Value="#1d4ed8" />
+                                                    <Setter Property="BorderBrush" Value="#1e40af" />
                                                     <Setter Property="Foreground" Value="White" />
                                                 </MultiDataTrigger>
                                             </Style.Triggers>
@@ -926,23 +910,6 @@
                                 VerticalAlignment="Center"
                                 FontSize="18"
                                 Text="W" />
-
-                            <TextBlock
-                                Grid.Row="3"
-                                Grid.Column="0"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Center"
-                                FontSize="18"
-                                Text="输出：" />
-                            <Border
-                                Grid.Row="3"
-                                Grid.Column="1"
-                                Style="{StaticResource ReadbackValueBorderStyle}">
-                                <TextBlock
-                                    VerticalAlignment="Center"
-                                    FontSize="18"
-                                    Text="{Binding Ch2OutputEnabled, StringFormat={}{0}}" />
-                            </Border>
                         </Grid>
                     </Grid>
                 </Border>
@@ -982,25 +949,26 @@
                                         <Style BasedOn="{StaticResource OutputToggleButtonStyle}" TargetType="Button">
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding Ch3OutputEnabled}" Value="True">
-                                                    <Setter Property="Background" Value="#bfdbfe" />
-                                                    <Setter Property="BorderBrush" Value="#60a5fa" />
-                                                    <Setter Property="Foreground" Value="#1e3a8a" />
+                                                    <Setter Property="Background" Value="#3b82f6" />
+                                                    <Setter Property="BorderBrush" Value="#2563eb" />
+                                                    <Setter Property="Foreground" Value="White" />
                                                 </DataTrigger>
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding Ch3OutputEnabled}" Value="True" />
                                                         <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True" />
                                                     </MultiDataTrigger.Conditions>
-                                                    <Setter Property="Background" Value="#93c5fd" />
-                                                    <Setter Property="BorderBrush" Value="#3b82f6" />
+                                                    <Setter Property="Background" Value="#2563eb" />
+                                                    <Setter Property="BorderBrush" Value="#1d4ed8" />
+                                                    <Setter Property="Foreground" Value="White" />
                                                 </MultiDataTrigger>
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding Ch3OutputEnabled}" Value="True" />
                                                         <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsPressed}" Value="True" />
                                                     </MultiDataTrigger.Conditions>
-                                                    <Setter Property="Background" Value="#60a5fa" />
-                                                    <Setter Property="BorderBrush" Value="#2563eb" />
+                                                    <Setter Property="Background" Value="#1d4ed8" />
+                                                    <Setter Property="BorderBrush" Value="#1e40af" />
                                                     <Setter Property="Foreground" Value="White" />
                                                 </MultiDataTrigger>
                                             </Style.Triggers>
@@ -1215,23 +1183,6 @@
                                 VerticalAlignment="Center"
                                 FontSize="18"
                                 Text="W" />
-
-                            <TextBlock
-                                Grid.Row="3"
-                                Grid.Column="0"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Center"
-                                FontSize="18"
-                                Text="输出：" />
-                            <Border
-                                Grid.Row="3"
-                                Grid.Column="1"
-                                Style="{StaticResource ReadbackValueBorderStyle}">
-                                <TextBlock
-                                    VerticalAlignment="Center"
-                                    FontSize="18"
-                                    Text="{Binding Ch3OutputEnabled, StringFormat={}{0}}" />
-                            </Border>
                         </Grid>
                     </Grid>
                 </Border>
