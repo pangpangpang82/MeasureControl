@@ -22,6 +22,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public class PT500TemperatureSensorCanViewModel : BindableBase
     {
+        private const string StepEnterAtp = "进入ATP模式";
+        private const string StepResistor = "接入电阻";
+        private const string StepControllerTemp = "控制器温度测试";
+        private const string StepTelemetry = "温度回采值";
+        private const string StepExitAtp = "退出ATP模式";
+
         private const uint DefaultCanFrameId = 0;
         private const int DmmDefaultPort = 5555;
         private const string DmmDefaultIp = "192.168.1.13";
@@ -29,10 +35,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const int MatrixFixedSlotIndex = 4;
         private const int MatrixDmmSlotIndex = 7;
 
+        private const int SimControllerRxChannel = 2;
+        private const int SimControllerTxChannel = 3;
+
         private static readonly byte[] AtpR = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] AtpEnterOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
+        private static readonly byte[] AtpFault = { 0x00, 0x01, 0x00, 0x01, 0x11, 0x11, 0x11, 0x11 };
         private static readonly byte[] AtpE = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
+        private static readonly byte[] ExitOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        private static readonly byte[] ExitFault = { 0x00, 0x02, 0x00, 0x01, 0x11, 0x11, 0x11, 0x11 };
         private static readonly byte[] AbPdtsTemperature = { 0x07, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x01, 0x02 };
+        private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x01, 0x03 };
 
         private PXI4004Driver _canDriver;
         private ACTS6010Driver _resistorDriver;
@@ -45,16 +59,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private readonly SemaphoreSlim _canOpLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
+        private CancellationTokenSource _autoTestCts;
+        private bool _autoTestEnteredAtp;
+        private static readonly Random _tempRandom = new Random();
 
         public PT500TemperatureSensorCanViewModel()
         {
-            _enterAtpTxChannel = "CAN CH0";
-            _enterAtpRxChannel = "CAN CH1";
-            _controllerTemperatureTestTxChannel = "CAN CH2";
-            _controllerTemperatureTestRxChannel = "CAN CH3";
-            _temperatureTelemetryRxChannel = "CAN CH4";
-            _exitAtpTxChannel = "CAN CH5";
-            _exitAtpRxChannel = "CAN CH6";
+            _enterAtpTxChannel = "CH0";
+            _enterAtpRxChannel = "CH1";
+            _controllerTemperatureTestTxChannel = "CH0";
+            _controllerTemperatureTestRxChannel = "CH1";
+            _temperatureTelemetryRxChannel = "CH1";
+            _exitAtpTxChannel = "CH0";
+            _exitAtpRxChannel = "CH1";
 
             _resistorGear = "1挡";
             ResistorGearValueText = _resistorGear;
@@ -63,20 +81,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             LastTestTime = "--";
             LastTestResult = "--";
 
-            SendEnterAtpCommand = new DelegateCommand(async () => await OnSendEnterAtpAsync());
-            SendSetControllerResistorCommand = new DelegateCommand(async () => await SendSetControllerResistorAsync(), () => !IsResistorMeasuring)
+            SendEnterAtpCommand = new DelegateCommand(async () => await OnSendEnterAtpAsync(), () => CanEditStepControls)
+                .ObservesProperty(() => IsAutoTestRunning);
+            SendSetControllerResistorCommand = new DelegateCommand(async () => await SendSetControllerResistorAsync(), () => CanEditStepControls && !IsResistorMeasuring)
+                .ObservesProperty(() => IsAutoTestRunning)
                 .ObservesProperty(() => IsResistorMeasuring);
-            TestControllerTemperatureCommand = new DelegateCommand(async () => await OnTestControllerTemperatureAsync());
-            TestTemperatureTelemetryCommand = new DelegateCommand(() =>
-            {
-                TemperatureTelemetryValueText = "--";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：温度回采值，RX通道={TemperatureTelemetryRxChannel}");
-            });
-            SendExitAtpCommand = new DelegateCommand(async () => await OnSendExitAtpAsync());
+            TestControllerTemperatureCommand = new DelegateCommand(async () => await OnTestControllerTemperatureAsync(), () => CanEditStepControls)
+                .ObservesProperty(() => IsAutoTestRunning);
+            TestTemperatureTelemetryCommand = new DelegateCommand(async () => await OnTestTemperatureTelemetryAsync(), () => CanEditStepControls)
+                .ObservesProperty(() => IsAutoTestRunning);
+            SendExitAtpCommand = new DelegateCommand(async () => await OnSendExitAtpAsync(), () => CanEditStepControls)
+                .ObservesProperty(() => IsAutoTestRunning);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
-            ManualTestCommand = new DelegateCommand(OnManualTest);
-            AutoTestCommand = new DelegateCommand(OnAutoTest);
+            ManualTestCommand = new DelegateCommand(OnManualTest, () => CanClickManualTestButton)
+                .ObservesProperty(() => IsAutoTestRunning);
+            AutoTestCommand = new DelegateCommand(OnAutoTest, () => CanClickAutoTestButton)
+                .ObservesProperty(() => IsManualTestRunning);
         }
 
         private string _enterAtpTxChannel;
@@ -86,6 +107,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _temperatureTelemetryRxChannel;
         private string _exitAtpTxChannel;
         private string _exitAtpRxChannel;
+
+        private string _enterAtpRxDataText = "--";
+        private string _controllerTemperatureTestRxDataText = "--";
+        private string _temperatureTelemetryRxDataText = "--";
+        private string _exitAtpRxDataText = "--";
 
         private string _resistorGear;
         private string _resistorGearValueText;
@@ -97,6 +123,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private bool _isResistorMeasuring;
+        private bool _suppressResultUpdates;
+        private double? _lastTelemetryTemperatureC;
+        private double? _gear1TemperatureC;
+        private double? _gear2TemperatureC;
+        private double? _gear3TemperatureC;
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
 
@@ -140,6 +171,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        public bool CanEditStepControls => !IsAutoTestRunning;
+
+        public bool CanClickManualTestButton => !IsAutoTestRunning;
+
+        public bool CanClickAutoTestButton => !IsManualTestRunning;
+
+        public double? LastTelemetryTemperatureC
+        {
+            get => _lastTelemetryTemperatureC;
+            private set => SetProperty(ref _lastTelemetryTemperatureC, value);
+        }
+
+        public double? Gear1TemperatureC
+        {
+            get => _gear1TemperatureC;
+            private set => SetProperty(ref _gear1TemperatureC, value);
+        }
+
+        public double? Gear2TemperatureC
+        {
+            get => _gear2TemperatureC;
+            private set => SetProperty(ref _gear2TemperatureC, value);
+        }
+
+        public double? Gear3TemperatureC
+        {
+            get => _gear3TemperatureC;
+            private set => SetProperty(ref _gear3TemperatureC, value);
+        }
+
+        private bool IsAutoTestCancelRequested => IsAutoTestRunning && (_autoTestCts?.IsCancellationRequested ?? false);
+
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
@@ -150,6 +213,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _enterAtpRxChannel;
             set => SetProperty(ref _enterAtpRxChannel, value);
+        }
+
+        public string EnterAtpRxDataText
+        {
+            get => _enterAtpRxDataText;
+            private set => SetProperty(ref _enterAtpRxDataText, value);
         }
 
         public string ResistorGear
@@ -194,10 +263,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             set => SetProperty(ref _controllerTemperatureTestRxChannel, value);
         }
 
+        public string ControllerTemperatureTestRxDataText
+        {
+            get => _controllerTemperatureTestRxDataText;
+            private set => SetProperty(ref _controllerTemperatureTestRxDataText, value);
+        }
+
         public string TemperatureTelemetryRxChannel
         {
             get => _temperatureTelemetryRxChannel;
             set => SetProperty(ref _temperatureTelemetryRxChannel, value);
+        }
+
+        public string TemperatureTelemetryRxDataText
+        {
+            get => _temperatureTelemetryRxDataText;
+            private set => SetProperty(ref _temperatureTelemetryRxDataText, value);
         }
 
         public string ExitAtpTxChannel
@@ -210,6 +291,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _exitAtpRxChannel;
             set => SetProperty(ref _exitAtpRxChannel, value);
+        }
+
+        public string ExitAtpRxDataText
+        {
+            get => _exitAtpRxDataText;
+            private set => SetProperty(ref _exitAtpRxDataText, value);
         }
 
         public string TemperatureTelemetryValueText
@@ -246,14 +333,160 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             if (IsAutoTestRunning)
             {
-                IsAutoTestRunning = false;
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试停止");
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                try { _autoTestCts?.Cancel(); } catch { }
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试停止请求");
                 return;
             }
 
-            IsAutoTestRunning = true;
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动");
+            _ = StartAutoTestAsync();
+        }
+
+        private async Task StartAutoTestAsync()
+        {
+            await _autoTestLock.WaitAsync();
+            try
+            {
+                if (IsAutoTestRunning)
+                    return;
+
+                IsAutoTestRunning = true;
+                _suppressResultUpdates = true;
+                _autoTestEnteredAtp = false;
+                LastTestTime = "--";
+                LastTestResult = "--";
+                Gear1TemperatureC = null;
+                Gear2TemperatureC = null;
+                Gear3TemperatureC = null;
+                LastTelemetryTemperatureC = null;
+
+                _enterAtpTxChannel = "CH0";
+                _enterAtpRxChannel = "CH1";
+                _controllerTemperatureTestTxChannel = "CH0";
+                _controllerTemperatureTestRxChannel = "CH1";
+                _temperatureTelemetryRxChannel = "CH1";
+                _exitAtpTxChannel = "CH0";
+                _exitAtpRxChannel = "CH1";
+                RaisePropertyChanged(nameof(EnterAtpTxChannel));
+                RaisePropertyChanged(nameof(EnterAtpRxChannel));
+                RaisePropertyChanged(nameof(ControllerTemperatureTestTxChannel));
+                RaisePropertyChanged(nameof(ControllerTemperatureTestRxChannel));
+                RaisePropertyChanged(nameof(TemperatureTelemetryRxChannel));
+                RaisePropertyChanged(nameof(ExitAtpTxChannel));
+                RaisePropertyChanged(nameof(ExitAtpRxChannel));
+
+                _autoTestCts?.Dispose();
+                _autoTestCts = new CancellationTokenSource();
+                var token = _autoTestCts.Token;
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动");
+                await RunAutoTestAsync(token);
+            }
+            finally
+            {
+                _autoTestLock.Release();
+            }
+        }
+
+        private async Task RunAutoTestAsync(CancellationToken token)
+        {
+            var failures = new System.Collections.Generic.List<string>();
+            try
+            {
+                token.ThrowIfCancellationRequested();
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：开始打开设备");
+                var ready = await EnsureAllDevicesReadyAsync();
+                if (!ready)
+                {
+                    failures.Add("设备未准备就绪");
+                    return;
+                }
+
+                var enteredAtpOk = await SendEnterAtpCoreAsync();
+                if (!enteredAtpOk)
+                {
+                    failures.Add("进入ATP失败");
+                    return;
+                }
+
+                _autoTestEnteredAtp = true;
+
+                await RunGearAsync("1挡", t => Gear1TemperatureC = t, token, failures);
+                token.ThrowIfCancellationRequested();
+                await RunGearAsync("2挡", t => Gear2TemperatureC = t, token, failures);
+                token.ThrowIfCancellationRequested();
+                await RunGearAsync("3挡", t => Gear3TemperatureC = t, token, failures);
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = failures.Count == 0 ? "三档电阻温度PASS" : "三档电阻温度不通过";
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试汇总：{LastTestResult}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 1挡温度={(Gear1TemperatureC?.ToString("F2", CultureInfo.InvariantCulture) ?? "--")}℃");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 2挡温度={(Gear2TemperatureC?.ToString("F2", CultureInfo.InvariantCulture) ?? "--")}℃");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 3挡温度={(Gear3TemperatureC?.ToString("F2", CultureInfo.InvariantCulture) ?? "--")}℃");
+                foreach (var f in failures)
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 不合格：{f}");
+            }
+            catch (OperationCanceledException)
+            {
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = "已停止";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试已停止");
+            }
+            catch (Exception ex)
+            {
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = "异常";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试异常：{ex.Message}");
+            }
+            finally
+            {
+                try
+                {
+                    if (_autoTestEnteredAtp)
+                        await OnSendExitAtpAsync();
+                }
+                catch { }
+
+                try { await DisconnectCanAsync(); } catch { }
+                try { await DisconnectDmmAsync(); } catch { }
+                try { await DisconnectMatrixAsync(); } catch { }
+                try { await DisconnectResistorAsync(); } catch { }
+
+                _suppressResultUpdates = false;
+                IsAutoTestRunning = false;
+            }
+        }
+
+        private async Task RunGearAsync(string gear, Action<double?> setTemp, CancellationToken token, System.Collections.Generic.List<string> failures)
+        {
+            token.ThrowIfCancellationRequested();
+
+            ResistorGear = gear;
+            await SendSetControllerResistorAsync();
+            token.ThrowIfCancellationRequested();
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：{gear}接入电阻后等待温度稳定10s");
+            await Task.Delay(TimeSpan.FromSeconds(10), token);
+            token.ThrowIfCancellationRequested();
+
+            await OnTestControllerTemperatureAsync();
+            token.ThrowIfCancellationRequested();
+            await OnTestTemperatureTelemetryAsync();
+
+            var t = LastTelemetryTemperatureC;
+            setTemp(t);
+            if (t == null)
+            {
+                failures.Add($"{gear}温度回采失败");
+                return;
+            }
+
+            var (min, max) = GetQualifiedTemperatureRangeForGear(gear);
+            if (t.Value < min || t.Value > max)
+            {
+                failures.Add($"{gear}回采温度={t.Value.ToString("F2", CultureInfo.InvariantCulture)}℃ 不在[{min.ToString("F2", CultureInfo.InvariantCulture)},{max.ToString("F2", CultureInfo.InvariantCulture)}]℃");
+            }
         }
 
         private async Task StartManualTestAsync()
@@ -634,74 +867,80 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task OnSendEnterAtpAsync()
         {
+            await SendEnterAtpCoreAsync();
+        }
+
+        private async Task<bool> SendEnterAtpCoreAsync()
+        {
             await _canOpLock.WaitAsync();
             try
             {
+                EnterAtpRxDataText = "--";
+
                 var txIndex = ParseCanChannelIndex(EnterAtpTxChannel);
                 var rxIndex = ParseCanChannelIndex(EnterAtpRxChannel);
                 if (txIndex < 0 || rxIndex < 0)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：通道选择无效");
-                    return;
+                    return false;
                 }
 
                 var ok = await EnsureCanDriverReadyAsync();
                 if (!ok)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：CAN驱动未就绪");
-                    return;
+                    return false;
                 }
 
-                ok = await _canDriver.OpenChannelAsync(txIndex) && await _canDriver.OpenChannelAsync(rxIndex);
+                ok = await OpenCanChannelForPt500Async(txIndex)
+                    && await OpenCanChannelForPt500Async(rxIndex)
+                    && await OpenCanChannelForPt500Async(SimControllerRxChannel)
+                    && await OpenCanChannelForPt500Async(SimControllerTxChannel);
                 if (!ok)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：打开通道失败 TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}");
-                    return;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：打开通道失败 UI_TX={EnterAtpTxChannel}, UI_RX={EnterAtpRxChannel}, CTRL_RX=CH{SimControllerRxChannel}, CTRL_TX=CH{SimControllerTxChannel}");
+                    return false;
                 }
 
                 var frame = PXI4004.CreateDataFrame(DefaultCanFrameId, AtpR);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：进入ATP(ATP R)，TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}, Data={FormatData(AtpR)}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepEnterAtp}] UI_TX发送->控制器RX(模拟)：UI_TX={EnterAtpTxChannel} -> CTRL_RX=CH{SimControllerRxChannel}, ID=0x{DefaultCanFrameId:X}, Data={FormatData(AtpR)}");
 
                 ok = await _canDriver.SendFrameAsync(txIndex, frame, 0.2);
                 if (!ok)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：发送失败");
-                    return;
+                    return false;
                 }
 
-                var received = await WaitSpecificDataFrameAsync(rxIndex, AtpR, TimeSpan.FromMilliseconds(800));
-                if (!received)
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：RX未收到ATP R返回(Data={FormatData(AtpR)})");
-                    return;
-                }
+                var controllerReceived = await WaitSpecificDataFrameAsync(StepEnterAtp, SimControllerRxChannel, AtpR, TimeSpan.FromMilliseconds(800));
+                var responseData = controllerReceived ? AtpEnterOk : AtpFault;
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP：RX已收到返回，发送进入ATP成功帧(固定 CAN CH2->CH3)");
+                var respFrame = PXI4004.CreateDataFrame(DefaultCanFrameId, responseData);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepEnterAtp}] 控制器TX(模拟)->UI_RX：CTRL_TX=CH{SimControllerTxChannel} -> UI_RX={EnterAtpRxChannel}, ID=0x{DefaultCanFrameId:X}, Data={FormatData(responseData)}");
 
-                var fixedTx = 2;
-                var fixedRx = 3;
-                ok = await _canDriver.OpenChannelAsync(fixedTx) && await _canDriver.OpenChannelAsync(fixedRx);
+                ok = await _canDriver.SendFrameAsync(SimControllerTxChannel, respFrame, 0.2);
                 if (!ok)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP成功帧发送失败：打开固定通道失败");
-                    return;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP：控制器响应帧发送失败");
+                    return false;
                 }
 
-                var okFrame = PXI4004.CreateDataFrame(DefaultCanFrameId, AtpEnterOk);
-                ok = await _canDriver.SendFrameAsync(fixedTx, okFrame, 0.2);
-                if (!ok)
+                var uiGotResponse = await WaitSpecificDataFrameAsync(StepEnterAtp, rxIndex, responseData, TimeSpan.FromMilliseconds(800));
+                if (!uiGotResponse)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP成功帧发送失败");
-                    return;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP：UI_RX未收到控制器响应");
+                    return false;
                 }
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP成功帧已发送：TX=CAN CH2, RX=CAN CH3, Data={FormatData(AtpEnterOk)}");
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = "进入ATP成功";
+                EnterAtpRxDataText = FormatData(responseData);
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP{(controllerReceived ? "成功" : "失败(FAULT)")}");
+                return controllerReceived;
             }
             catch (Exception ex)
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP异常：{ex.Message}");
+                return false;
             }
             finally
             {
@@ -714,6 +953,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _canOpLock.WaitAsync();
             try
             {
+                ControllerTemperatureTestRxDataText = "--";
+
                 var txIndex = ParseCanChannelIndex(ControllerTemperatureTestTxChannel);
                 var rxIndex = ParseCanChannelIndex(ControllerTemperatureTestRxChannel);
                 if (txIndex < 0 || rxIndex < 0)
@@ -729,15 +970,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
-                ok = await _canDriver.OpenChannelAsync(txIndex) && await _canDriver.OpenChannelAsync(rxIndex);
+                ok = await OpenCanChannelForPt500Async(txIndex)
+                    && await OpenCanChannelForPt500Async(rxIndex)
+                    && await OpenCanChannelForPt500Async(SimControllerRxChannel)
+                    && await OpenCanChannelForPt500Async(SimControllerTxChannel);
                 if (!ok)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试失败：打开通道失败 TX={ControllerTemperatureTestTxChannel}, RX={ControllerTemperatureTestRxChannel}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试失败：打开通道失败 UI_TX={ControllerTemperatureTestTxChannel}, UI_RX={ControllerTemperatureTestRxChannel}, CTRL_RX=CH{SimControllerRxChannel}, CTRL_TX=CH{SimControllerTxChannel}");
                     return;
                 }
 
                 var frame = PXI4004.CreateDataFrame(DefaultCanFrameId, AbPdtsTemperature);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：控制器温度(AB_PDTS_Temperature)，TX={ControllerTemperatureTestTxChannel}, RX={ControllerTemperatureTestRxChannel}, Data={FormatData(AbPdtsTemperature)}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepControllerTemp}] UI_TX发送->控制器RX(模拟)：UI_TX={ControllerTemperatureTestTxChannel} -> CTRL_RX=CH{SimControllerRxChannel}, ID=0x{DefaultCanFrameId:X}, Data={FormatData(AbPdtsTemperature)}");
 
                 ok = await _canDriver.SendFrameAsync(txIndex, frame, 0.2);
                 if (!ok)
@@ -746,12 +990,161 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = "控制器温度测试已发送";
+                // 控制器RX(模拟)收到后，回显给UI_RX，用于界面显示RX数据
+                var controllerReceived = await WaitSpecificDataFrameAsync(StepControllerTemp, SimControllerRxChannel, AbPdtsTemperature, TimeSpan.FromMilliseconds(300));
+                if (controllerReceived)
+                {
+                    var echo = PXI4004.CreateDataFrame(DefaultCanFrameId, AbPdtsTemperature);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepControllerTemp}] 控制器TX(模拟)->UI_RX：CTRL_TX=CH{SimControllerTxChannel} -> UI_RX={ControllerTemperatureTestRxChannel}, ID=0x{DefaultCanFrameId:X}, Data={FormatData(AbPdtsTemperature)}");
+
+                    ok = await _canDriver.SendFrameAsync(SimControllerTxChannel, echo, 0.2);
+                    if (ok)
+                    {
+                        var uiGot = await WaitSpecificDataFrameAsync(StepControllerTemp, rxIndex, AbPdtsTemperature, TimeSpan.FromMilliseconds(300));
+                        if (uiGot)
+                            ControllerTemperatureTestRxDataText = FormatData(AbPdtsTemperature);
+                    }
+                }
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试已发送");
             }
             catch (Exception ex)
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试异常：{ex.Message}");
+            }
+            finally
+            {
+                _canOpLock.Release();
+            }
+        }
+
+        private async Task OnTestTemperatureTelemetryAsync()
+        {
+            await _canOpLock.WaitAsync();
+            try
+            {
+                TemperatureTelemetryValueText = "--";
+                TemperatureTelemetryRxDataText = "--";
+                LastTelemetryTemperatureC = null;
+
+                var rxIndex = ParseCanChannelIndex(TemperatureTelemetryRxChannel);
+                if (rxIndex < 0)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：通道选择无效");
+                    return;
+                }
+
+                var ok = await EnsureCanDriverReadyAsync();
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：CAN驱动未就绪");
+                    return;
+                }
+
+                ok = await OpenCanChannelForPt500Async(rxIndex) && await OpenCanChannelForPt500Async(SimControllerTxChannel);
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：打开通道失败 UI_RX={TemperatureTelemetryRxChannel}, CTRL_TX=CH{SimControllerTxChannel}");
+                    return;
+                }
+
+                await FlushRxChannelAsync(rxIndex, TimeSpan.FromMilliseconds(120));
+
+                var simulatedTemperature = GenerateSimulatedTemperatureCByGear(ResistorGear);
+                EncodeTemperature(simulatedTemperature, out var intPart, out var fracPart);
+                var temperatureSimulated = BuildTelemetryFrameData(TelemetryTemperaturePrefix, intPart, fracPart);
+                var rawSimulated = BuildRawFrameData(TelemetryRawPrefix, 0x01020304);
+
+                var frameTemperature = PXI4004.CreateDataFrame(DefaultCanFrameId, temperatureSimulated);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepTelemetry}] 控制器TX(模拟)->UI_RX：CTRL_TX=CH{SimControllerTxChannel} -> UI_RX={TemperatureTelemetryRxChannel}, ID=0x{DefaultCanFrameId:X}, Data={FormatData(temperatureSimulated)}");
+
+                ok = await _canDriver.SendFrameAsync(SimControllerTxChannel, frameTemperature, 0.2);
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：控制器发送温度采集值指令失败");
+                    return;
+                }
+
+                var frameRaw = PXI4004.CreateDataFrame(DefaultCanFrameId, rawSimulated);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepTelemetry}] 控制器TX(模拟)->UI_RX：CTRL_TX=CH{SimControllerTxChannel} -> UI_RX={TemperatureTelemetryRxChannel}, ID=0x{DefaultCanFrameId:X}, Data={FormatData(rawSimulated)}");
+
+                ok = await _canDriver.SendFrameAsync(SimControllerTxChannel, frameRaw, 0.2);
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：控制器发送传感器温度原始数据指令失败");
+                    return;
+                }
+
+                var received = await WaitTelemetryTemperatureAndRawAsync(rxIndex, TimeSpan.FromMilliseconds(800));
+                if (received?.Temperature == null)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：UI_RX未收到温度采集值帧(07 01 01 02)" );
+
+                    if (!_suppressResultUpdates)
+                    {
+                        LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                        LastTestResult = $"{FormatGearForResult(ResistorGear)}电阻温度不通过";
+                    }
+                    return;
+                }
+
+                try
+                {
+                    TemperatureTelemetryRxDataText = "0x" + FormatData(received.Temperature);
+                }
+                catch
+                {
+                }
+
+                var temperatureText = TryParseTelemetryTemperature(received.Temperature, out var temperature)
+                    ? temperature.ToString("0.####")
+                    : "--";
+
+                TemperatureTelemetryValueText = temperatureText;
+                if (TryParseTelemetryTemperature(received.Temperature, out temperature))
+                {
+                    LastTelemetryTemperatureC = temperature;
+                    if (string.Equals(ResistorGear, "1挡", StringComparison.Ordinal))
+                        Gear1TemperatureC = temperature;
+                    else if (string.Equals(ResistorGear, "2挡", StringComparison.Ordinal))
+                        Gear2TemperatureC = temperature;
+                    else if (string.Equals(ResistorGear, "3挡", StringComparison.Ordinal))
+                        Gear3TemperatureC = temperature;
+                }
+
+                if (!_suppressResultUpdates)
+                {
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    if (!TryParseTelemetryTemperature(received.Temperature, out temperature))
+                    {
+                        LastTestResult = $"{FormatGearForResult(ResistorGear)}电阻温度不通过";
+                    }
+                    else
+                    {
+                        var qualified = IsTemperatureQualified(ResistorGear, temperature);
+                        LastTestResult = qualified
+                            ? $"{FormatGearForResult(ResistorGear)}电阻温度PASS"
+                            : $"{FormatGearForResult(ResistorGear)}电阻温度不通过";
+                    }
+                }
+
+                if (received.Raw != null)
+                {
+                    var rawHex = FormatData(received.Raw, received.Raw.Length);
+                    if (TryParseBase6FromNibbles(received.Raw, out var rawBase6Decimal))
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepTelemetry}] 传感器温度原始数据(07 01 01 03) 后四字节(6进制)->10进制：{rawBase6Decimal}，Data={rawHex}");
+                    else
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepTelemetry}] 传感器温度原始数据(07 01 01 03) Data={rawHex}");
+                }
+                else
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepTelemetry}] 未收到传感器温度原始数据帧(07 01 01 03)(超时)");
+                }
+
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值异常：{ex.Message}");
             }
             finally
             {
@@ -764,6 +1157,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _canOpLock.WaitAsync();
             try
             {
+                ExitAtpRxDataText = "--";
+
                 var txIndex = ParseCanChannelIndex(ExitAtpTxChannel);
                 var rxIndex = ParseCanChannelIndex(ExitAtpRxChannel);
                 if (txIndex < 0 || rxIndex < 0)
@@ -779,15 +1174,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
-                ok = await _canDriver.OpenChannelAsync(txIndex) && await _canDriver.OpenChannelAsync(rxIndex);
+                ok = await OpenCanChannelForPt500Async(txIndex)
+                    && await OpenCanChannelForPt500Async(rxIndex)
+                    && await OpenCanChannelForPt500Async(SimControllerRxChannel)
+                    && await OpenCanChannelForPt500Async(SimControllerTxChannel);
                 if (!ok)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP失败：打开通道失败 TX={ExitAtpTxChannel}, RX={ExitAtpRxChannel}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP失败：打开通道失败 UI_TX={ExitAtpTxChannel}, UI_RX={ExitAtpRxChannel}, CTRL_RX=CH{SimControllerRxChannel}, CTRL_TX=CH{SimControllerTxChannel}");
                     return;
                 }
 
                 var frame = PXI4004.CreateDataFrame(DefaultCanFrameId, AtpE);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：退出ATP(ATP E)，TX={ExitAtpTxChannel}, RX={ExitAtpRxChannel}, Data={FormatData(AtpE)}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepExitAtp}] UI_TX发送->控制器RX(模拟)：UI_TX={ExitAtpTxChannel} -> CTRL_RX=CH{SimControllerRxChannel}, ID=0x{DefaultCanFrameId:X}, Data={FormatData(AtpE)}");
 
                 ok = await _canDriver.SendFrameAsync(txIndex, frame, 0.2);
                 if (!ok)
@@ -796,8 +1194,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = "退出ATP已发送";
+                var controllerReceived = await WaitSpecificDataFrameAsync(StepExitAtp, SimControllerRxChannel, AtpE, TimeSpan.FromMilliseconds(800));
+                var responseData = controllerReceived ? ExitOk : ExitFault;
+
+                var respFrame = PXI4004.CreateDataFrame(DefaultCanFrameId, responseData);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepExitAtp}] 控制器TX(模拟)->UI_RX：CTRL_TX=CH{SimControllerTxChannel} -> UI_RX={ExitAtpRxChannel}, ID=0x{DefaultCanFrameId:X}, Data={FormatData(responseData)}");
+
+                ok = await _canDriver.SendFrameAsync(SimControllerTxChannel, respFrame, 0.2);
+                if (!ok)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP：控制器响应帧发送失败");
+                    return;
+                }
+
+                var uiGotResponse = await WaitSpecificDataFrameAsync(StepExitAtp, rxIndex, responseData, TimeSpan.FromMilliseconds(800));
+                if (!uiGotResponse)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP：UI_RX未收到控制器响应");
+                    return;
+                }
+
+                ExitAtpRxDataText = FormatData(responseData);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP{(controllerReceived ? "成功" : "失败(FAULT)")}");
             }
             catch (Exception ex)
             {
@@ -809,6 +1227,334 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        private static byte[] BuildTelemetryFrameData(byte[] prefix, short integerPart, ushort fractionalPart)
+        {
+            var data = new byte[8];
+            data[0] = prefix[0];
+            data[1] = prefix[1];
+            data[2] = prefix[2];
+            data[3] = prefix[3];
+
+            var intEncoded = unchecked((ushort)integerPart);
+            data[4] = (byte)(intEncoded >> 8);
+            data[5] = (byte)(intEncoded & 0xFF);
+            data[6] = (byte)(fractionalPart >> 8);
+            data[7] = (byte)(fractionalPart & 0xFF);
+            return data;
+        }
+
+        private static void EncodeTemperature(double temperature, out short integerPart, out ushort fractionalPart)
+        {
+            var abs = Math.Abs(temperature);
+            var intAbs = (int)Math.Floor(abs);
+            var frac = abs - intAbs;
+            var fracScaled = (int)Math.Round(frac * 10000.0);
+            if (fracScaled >= 10000)
+            {
+                fracScaled = 0;
+                intAbs += 1;
+            }
+
+            integerPart = (short)(temperature < 0 ? -intAbs : intAbs);
+            fractionalPart = (ushort)Math.Max(0, Math.Min(9999, fracScaled));
+        }
+
+        private static double GenerateSimulatedTemperatureCByGear(string gear)
+        {
+            var (min, max) = GetQualifiedTemperatureRangeForGear(gear);
+            var width = Math.Max(0.1, max - min);
+            var p = _tempRandom.NextDouble();
+
+            if (p <= 0.9)
+            {
+                return min + _tempRandom.NextDouble() * (max - min);
+            }
+
+            var margin = Math.Max(0.5, width);
+            if (_tempRandom.NextDouble() < 0.5)
+                return min - (0.2 + _tempRandom.NextDouble() * margin);
+
+            return max + (0.2 + _tempRandom.NextDouble() * margin);
+        }
+
+        private static (double Min, double Max) GetQualifiedTemperatureRangeForGear(string gear)
+        {
+            return gear switch
+            {
+                "1挡" => (-65.93, -64.07),
+                "2挡" => (24.75, 26.61),
+                "3挡" => (134.06, 135.94),
+                _ => (double.NegativeInfinity, double.PositiveInfinity)
+            };
+        }
+
+        private static string FormatGearForResult(string gear)
+        {
+            if (string.IsNullOrWhiteSpace(gear))
+                return "第?档";
+
+            return gear switch
+            {
+                "1挡" => "第1档",
+                "2挡" => "第2档",
+                "3挡" => "第3档",
+                _ => "第" + gear
+            };
+        }
+
+        private static bool IsTemperatureQualified(string gear, double temperature)
+        {
+            var (min, max) = GetQualifiedTemperatureRangeForGear(gear);
+            return temperature >= min && temperature <= max;
+        }
+
+        private static byte[] BuildRawFrameData(byte[] prefix, uint raw)
+        {
+            var data = new byte[8];
+            data[0] = prefix[0];
+            data[1] = prefix[1];
+            data[2] = prefix[2];
+            data[3] = prefix[3];
+            data[4] = (byte)(raw >> 24);
+            data[5] = (byte)((raw >> 16) & 0xFF);
+            data[6] = (byte)((raw >> 8) & 0xFF);
+            data[7] = (byte)(raw & 0xFF);
+            return data;
+        }
+
+        private sealed class TelemetryReceive
+        {
+            public byte[] Temperature { get; set; }
+            public byte[] Raw { get; set; }
+        }
+
+        private async Task<TelemetryReceive> WaitTelemetryTemperatureAndRawAsync(int rxChannelIndex, TimeSpan timeout)
+        {
+            var start = DateTime.UtcNow;
+            var result = new TelemetryReceive();
+            while ((DateTime.UtcNow - start) < timeout)
+            {
+                if (IsAutoTestCancelRequested)
+                    return null;
+
+                var frames = await _canDriver.ReceiveFramesBatchAsync(rxChannelIndex, 8, 0.02);
+                if (frames != null && frames.Count > 0)
+                {
+                    foreach (var f in frames)
+                    {
+                        var buf = f.DataBuf;
+                        var len = f.nDataLength;
+                        if (len <= 0 || f.nFrameType != (byte)PXI4004.ARTCANX1_CAN_FRAME_TYPE_DATA_FRM)
+                            continue;
+
+                        if (result.Temperature == null && IsDataPrefixMatch(buf, len, TelemetryTemperaturePrefix))
+                        {
+                            result.Temperature = CopyFrameData(buf, len);
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepTelemetry}] RX命中(温度采集值)：CH{rxChannelIndex}, ID=0x{f.nFrameID:X}, Len={len}, Data={FormatData(buf, len)}");
+                            continue;
+                        }
+
+                        if (result.Raw == null && IsDataPrefixMatch(buf, len, TelemetryRawPrefix))
+                        {
+                            result.Raw = CopyFrameData(buf, len);
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepTelemetry}] RX命中(原始数据)：CH{rxChannelIndex}, ID=0x{f.nFrameID:X}, Len={len}, Data={FormatData(buf, len)}");
+                            continue;
+                        }
+                    }
+                }
+
+                if (result.Temperature != null && result.Raw != null)
+                    return result;
+
+                await Task.Delay(10);
+            }
+
+            return result;
+        }
+
+        private static byte[] CopyFrameData(byte[] buf, int len)
+        {
+            var copyLen = Math.Min(8, Math.Min(len, buf?.Length ?? 0));
+            if (copyLen <= 0)
+                return Array.Empty<byte>();
+            var receivedData = new byte[copyLen];
+            Array.Copy(buf, receivedData, copyLen);
+            return receivedData;
+        }
+
+        private static bool TryParseTelemetryTemperature(byte[] frameData, out double temperature)
+        {
+            temperature = 0;
+            if (frameData == null || frameData.Length < 8)
+                return false;
+
+            if (frameData[0] != TelemetryTemperaturePrefix[0]
+                || frameData[1] != TelemetryTemperaturePrefix[1]
+                || frameData[2] != TelemetryTemperaturePrefix[2]
+                || frameData[3] != TelemetryTemperaturePrefix[3])
+                return false;
+
+            var intPartRaw = (ushort)((frameData[4] << 8) | frameData[5]);
+            var fracPart = (ushort)((frameData[6] << 8) | frameData[7]);
+
+            var signedInt = unchecked((short)intPartRaw);
+            var frac = fracPart / 10000.0;
+            temperature = signedInt < 0 ? signedInt - frac : signedInt + frac;
+            return true;
+        }
+
+        private static bool TryParseBase6FromNibbles(byte[] frameData, out long value)
+        {
+            value = 0;
+            if (frameData == null || frameData.Length < 8)
+                return false;
+            if (frameData[0] != TelemetryRawPrefix[0]
+                || frameData[1] != TelemetryRawPrefix[1]
+                || frameData[2] != TelemetryRawPrefix[2]
+                || frameData[3] != TelemetryRawPrefix[3])
+                return false;
+
+            for (var i = 4; i <= 7; i++)
+            {
+                var b = frameData[i];
+                var hi = (b >> 4) & 0xF;
+                var lo = b & 0xF;
+                if (hi > 5 || lo > 5)
+                    return false;
+                value = checked(value * 6 + hi);
+                value = checked(value * 6 + lo);
+            }
+
+            return true;
+        }
+
+        private async Task<byte[]> WaitDataFrameByPrefixAsync(string stepName, int rxChannelIndex, byte[] prefix, TimeSpan timeout)
+        {
+            var start = DateTime.UtcNow;
+            while ((DateTime.UtcNow - start) < timeout)
+            {
+                if (IsAutoTestCancelRequested)
+                    return null;
+
+                var frames = await _canDriver.ReceiveFramesBatchAsync(rxChannelIndex, 5, 0.02);
+                if (frames != null && frames.Count > 0)
+                {
+                    foreach (var f in frames)
+                    {
+                        var buf = f.DataBuf;
+                        var len = f.nDataLength;
+
+                        // 过滤空帧/非数据帧，避免底层在无帧时返回“成功但Len=0”的情况污染上层逻辑
+                        if (len <= 0 || f.nFrameType != (byte)PXI4004.ARTCANX1_CAN_FRAME_TYPE_DATA_FRM)
+                            continue;
+
+                        if (IsDataPrefixMatch(buf, len, prefix))
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] [{stepName}] RX命中：CH{rxChannelIndex}, ID=0x{f.nFrameID:X}, Len={len}, Data={FormatData(buf, len)}");
+                            return CopyFrameData(buf, len);
+                        }
+                    }
+                }
+
+                await Task.Delay(10);
+            }
+
+            return null;
+        }
+
+        private async Task FlushRxChannelAsync(int rxChannelIndex, TimeSpan duration)
+        {
+            var start = DateTime.UtcNow;
+            while ((DateTime.UtcNow - start) < duration)
+            {
+                if (IsAutoTestCancelRequested)
+                    break;
+
+                var frames = await _canDriver.ReceiveFramesBatchAsync(rxChannelIndex, 20, 0.001);
+                if (frames == null || frames.Count == 0)
+                    break;
+                await Task.Delay(1);
+            }
+        }
+
+        private async Task<bool> OpenCanChannelForPt500Async(int channelIndex)
+        {
+            if (_canDriver == null)
+                return false;
+            if (!_canDriver.IsConnected)
+                return false;
+            if (channelIndex < 0)
+                return false;
+
+            try
+            {
+                PXI4004.ARTCANX1_CAN_PARAM param;
+                try
+                {
+                    var handle = _canDriver.DeviceHandle;
+                    if (handle != IntPtr.Zero)
+                    {
+                        param = PXI4004.GetDefaultCANParam(handle, (uint)channelIndex);
+                    }
+                    else
+                    {
+                        param = new PXI4004.ARTCANX1_CAN_PARAM();
+                    }
+                }
+                catch
+                {
+                    param = new PXI4004.ARTCANX1_CAN_PARAM();
+                }
+
+                if (param.nReserved1 == null || param.nReserved1.Length != 7)
+                    param.nReserved1 = new uint[7];
+                if (param.nReserved2 == null || param.nReserved2.Length != 32)
+                    param.nReserved2 = new uint[32];
+
+                if (param.SendTrig.nReserved == null || param.SendTrig.nReserved.Length != 20)
+                    param.SendTrig.nReserved = new uint[20];
+
+                param.nBaudRate = PXI4004.CAN_BAUD_500K;
+                param.nWorkMode = (byte)PXI4004.ARTCANX1_CAN_WORKMODE_NORMAL;
+                param.bRecvTimestampEn = 1;
+                param.bAccExtID = 0;
+                param.nAccFilterCnt = (byte)PXI4004.ARTCANX1_CAN_ACC_NUM_NONE;
+                param.nAccCodeA = 0x00000000;
+                param.nAccCodeB = 0x00000000;
+                param.nAccMaskA = 0xFFFFFFFF;
+                param.nAccMaskB = 0xFFFFFFFF;
+                param.nFrameInterval = 0;
+                param.SendTrig.nTriggerType = PXI4004.ARTCANX1_TRIGTYPE_NONE;
+
+                return await _canDriver.OpenChannelAsync(channelIndex, param);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 打开通道CH{channelIndex}失败：{ex.Message}");
+                return false;
+            }
+        }
+
+        private static bool IsDataPrefixMatch(byte[] receivedBuf, int receivedLen, byte[] prefix)
+        {
+            if (prefix == null || prefix.Length == 0)
+                return false;
+            if (receivedBuf == null)
+                return false;
+            if (receivedLen < prefix.Length)
+                return false;
+            if (receivedBuf.Length < prefix.Length)
+                return false;
+
+            for (var i = 0; i < prefix.Length; i++)
+            {
+                if (receivedBuf[i] != prefix[i])
+                    return false;
+            }
+
+            return true;
+        }
+
         private async Task<bool> EnsureCanDriverReadyAsync()
         {
             if (_canDriver != null && _canDriver.IsConnected)
@@ -816,174 +1562,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             try
             {
-                var pxiChassisService = ContainerLocator.Container?.Resolve(typeof(IPxiChassisService)) as IPxiChassisService;
-                if (pxiChassisService == null)
+                // PT500 视图：固定使用“直连探测”方式连接 CAN 板卡（避免首次依赖机箱枚举/DriverFactory）
+                for (var logicalIndex = 0; logicalIndex <= 7; logicalIndex++)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动未准备：未获取到IPxiChassisService");
-                    return false;
-                }
-
-                System.Collections.Generic.List<DeviceBase> allDevices = null;
-                var ctx = ContainerLocator.Container?.Resolve(typeof(ISingleBoardTestContextService)) as ISingleBoardTestContextService;
-                var chassisName = ctx?.ChassisName ?? string.Empty;
-                if (!string.IsNullOrWhiteSpace(chassisName))
-                {
-                    var chassisDevices = pxiChassisService.GetChassisDevices(chassisName);
-                    if (chassisDevices != null)
+                    var dummy = new CanBusDevice
                     {
-                        allDevices = FlattenDevices(chassisDevices).ToList();
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] CAN设备查找：使用当前机箱={chassisName}, 设备数={allDevices.Count}");
+                        Name = "PXI4004",
+                        Model = "PXI-4004",
+                        CardName = $"PXI4004(直连-{logicalIndex})",
+                        SlotIndex = logicalIndex
+                    };
+
+                    var direct = new PXI4004Driver(dummy, logicalIndex);
+                    var ok = await direct.ConnectAsync();
+                    if (ok)
+                    {
+                        _canDriver = direct;
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] CAN已连接(直连)：逻辑设备{logicalIndex}");
+                        return true;
                     }
                 }
 
-                if (allDevices == null)
-                {
-                    var chassisList = pxiChassisService.GetAllChassis();
-                    if (chassisList == null)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动未准备：GetAllChassis 返回空");
-                        return false;
-                    }
-
-                    allDevices = chassisList
-                        .Where(c => c?.Devices != null)
-                        .SelectMany(c => FlattenDevices(c.Devices))
-                        .Where(d => d != null)
-                        .ToList();
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] CAN设备查找：使用全局设备列表，设备数={allDevices.Count}");
-                }
-
-                if (allDevices.Count == 0)
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动未准备：机箱设备列表为空");
-                    return false;
-                }
-
-                try
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] CAN设备列表预览(前30条)：");
-                    int idx = 0;
-                    foreach (var d in allDevices.Take(30))
-                    {
-                        var slot = (d as PxiDeviceBase)?.SlotIndex;
-                        var typeName = d?.GetType()?.Name ?? "<null>";
-                        AddLog($"[{DateTime.Now:HH:mm:ss}]  #{idx} Type={typeName}, Model={d?.Model}, Name={d?.Name}, CardName={d?.CardName}, Slot={slot}, Children={(d?.Children?.Count ?? 0)}, Id={d?.Id}");
-                        idx++;
-                    }
-                }
-                catch
-                {
-                }
-
-                DeviceBase target = allDevices
-                    .OfType<CanBusDevice>()
-                    .FirstOrDefault(d => d != null && ((d.Model ?? string.Empty).ToUpperInvariant().Contains("4004") || (d.Name ?? string.Empty).ToUpperInvariant().Contains("4004")));
-
-                target ??= allDevices
-                    .OfType<CanBusDevice>()
-                    .FirstOrDefault();
-
-                target ??= allDevices
-                    .FirstOrDefault(d =>
-                        ((d.Model ?? string.Empty).ToUpperInvariant().Contains("4004") ||
-                         (d.Name ?? string.Empty).ToUpperInvariant().Contains("4004") ||
-                         (d.CardName ?? string.Empty).ToUpperInvariant().Contains("4004") ||
-                         (d.Model ?? string.Empty).ToUpperInvariant().Contains("CAN") ||
-                         (d.Name ?? string.Empty).ToUpperInvariant().Contains("CAN") ||
-                         (d.CardName ?? string.Empty).ToUpperInvariant().Contains("CAN")));
-
-                PXI4004Driver driver = null;
-                if (target == null)
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] CAN设备查找：字符串匹配未命中，开始按驱动类型探测(PXI4004Driver)...");
-                    foreach (var d in allDevices)
-                    {
-                        if (d == null)
-                            continue;
-
-                        try
-                        {
-                            var slotIndex = (d as PxiDeviceBase)?.SlotIndex ?? -1;
-                            var probed = DriverFactory.GetCachedDriver(d.Id, slotIndex) ?? DriverFactory.CreateDriver(d);
-                            if (probed is PXI4004Driver p)
-                            {
-                                target = d;
-                                driver = p;
-                                AddLog($"[{DateTime.Now:HH:mm:ss}] CAN设备查找：探测命中PXI4004Driver，Device={d?.Model ?? d?.Name ?? d?.CardName}, Slot={slotIndex}, Id={d?.Id}");
-                                break;
-                            }
-                        }
-                        catch
-                        {
-                        }
-                    }
-                }
-
-                if (target == null)
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动未准备：未找到CAN板卡设备(4004/CAN)，尝试直接连接PXI4004逻辑设备0");
-                    try
-                    {
-                        for (var logicalIndex = 0; logicalIndex <= 7; logicalIndex++)
-                        {
-                            AddLog($"[{DateTime.Now:HH:mm:ss}] CAN直接连接：尝试PXI4004逻辑设备{logicalIndex}");
-                            var dummy = new CanBusDevice
-                            {
-                                Name = "PXI4004",
-                                Model = "PXI-4004",
-                                CardName = $"PXI4004(自动探测-{logicalIndex})",
-                                SlotIndex = logicalIndex
-                            };
-
-                            var direct = new PXI4004Driver(dummy, logicalIndex);
-                            var directOk = await direct.ConnectAsync();
-                            if (directOk)
-                            {
-                                _canDriver = direct;
-                                AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动已连接：PXI4004(自动探测) 逻辑设备{logicalIndex}");
-                                return true;
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] CAN直接连接失败：{ex.Message}");
-                    }
-
-                    return false;
-                }
-
-                if (driver == null)
-                {
-                    try
-                    {
-                        var slotIndex = (target as PxiDeviceBase)?.SlotIndex ?? -1;
-                        driver = (DriverFactory.GetCachedDriver(target.Id, slotIndex) ?? DriverFactory.CreateDriver(target)) as PXI4004Driver;
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动未准备：DriverFactory.CreateDriver异常：{ex.Message}");
-                    }
-                }
-
-                if (driver == null)
-                {
-                    int slot = 0;
-                    if (target is CanBusDevice c) slot = c.SlotIndex > 0 ? c.SlotIndex : 0;
-                    else if (target is PxiDeviceBase p) slot = p.SlotIndex > 0 ? p.SlotIndex : 0;
-                    driver = new PXI4004Driver(target, slot);
-                }
-
-                var ok = await driver.ConnectAsync();
-                if (!ok)
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] CAN驱动未准备：ConnectAsync失败 (Device={target?.Model ?? target?.Name ?? target?.CardName})");
-                    return false;
-                }
-
-                _canDriver = driver;
-                return _canDriver.IsConnected;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] CAN连接失败：未探测到可用PXI4004逻辑设备(0-7)");
+                return false;
             }
             catch (Exception ex)
             {
@@ -1032,18 +1633,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return n;
         }
 
-        private async Task<bool> WaitAnyFrameAsync(int rxChannelIndex, TimeSpan timeout)
+        private async Task<bool> WaitAnyFrameAsync(string stepName, int rxChannelIndex, TimeSpan timeout)
         {
             var start = DateTime.UtcNow;
             while ((DateTime.UtcNow - start) < timeout)
             {
-                var frame = await _canDriver.ReceiveFrameAsync(rxChannelIndex, 0.02);
-                if (frame.HasValue)
+                if (IsAutoTestCancelRequested)
+                    return false;
+
+                var frames = await _canDriver.ReceiveFramesBatchAsync(rxChannelIndex, 5, 0.02);
+                if (frames != null && frames.Count > 0)
                 {
-                    var data = frame.Value.DataBuf;
-                    var len = frame.Value.nDataLength;
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] RX收到：CH{rxChannelIndex}, ID=0x{frame.Value.nFrameID:X}, Len={len}, Data={FormatData(data, len)}");
-                    return true;
+                    foreach (var f in frames)
+                    {
+                        var data = f.DataBuf;
+                        var len = f.nDataLength;
+                        if (len <= 0 || f.nFrameType != (byte)PXI4004.ARTCANX1_CAN_FRAME_TYPE_DATA_FRM)
+                            continue;
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] [{stepName}] RX：CH{rxChannelIndex}, ID=0x{f.nFrameID:X}, Len={len}, Data={FormatData(data, len)}");
+                        return true;
+                    }
                 }
 
                 await Task.Delay(10);
@@ -1052,20 +1661,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return false;
         }
 
-        private async Task<bool> WaitSpecificDataFrameAsync(int rxChannelIndex, byte[] expectedData, TimeSpan timeout)
+        private async Task<bool> WaitSpecificDataFrameAsync(string stepName, int rxChannelIndex, byte[] expectedData, TimeSpan timeout)
         {
             var start = DateTime.UtcNow;
             while ((DateTime.UtcNow - start) < timeout)
             {
-                var frame = await _canDriver.ReceiveFrameAsync(rxChannelIndex, 0.02);
-                if (frame.HasValue)
-                {
-                    var buf = frame.Value.DataBuf;
-                    var len = frame.Value.nDataLength;
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] RX收到：CH{rxChannelIndex}, ID=0x{frame.Value.nFrameID:X}, Len={len}, Data={FormatData(buf, len)}");
+                if (IsAutoTestCancelRequested)
+                    return false;
 
-                    if (IsDataMatch(buf, len, expectedData))
-                        return true;
+                var frames = await _canDriver.ReceiveFramesBatchAsync(rxChannelIndex, 5, 0.02);
+                if (frames != null && frames.Count > 0)
+                {
+                    foreach (var f in frames)
+                    {
+                        var buf = f.DataBuf;
+                        var len = f.nDataLength;
+                        if (len <= 0 || f.nFrameType != (byte)PXI4004.ARTCANX1_CAN_FRAME_TYPE_DATA_FRM)
+                            continue;
+
+                        if (IsDataMatch(buf, len, expectedData))
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] [{stepName}] RX命中：CH{rxChannelIndex}, ID=0x{f.nFrameID:X}, Len={len}, Data={FormatData(buf, len)}");
+                            return true;
+                        }
+                    }
                 }
 
                 await Task.Delay(10);
@@ -1200,23 +1819,43 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
 
                 var targetOhm = GetTargetResistanceOhm(ResistorGear);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：接入电阻，档位={ResistorGear}，目标={targetOhm.ToString("F2", CultureInfo.InvariantCulture)}Ω");
+                var channelId = "RO0";
 
-                var relayOk = await _resistorDriver.SetRelayStateAsync("RO0", true, false);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：接入电阻，档位={ResistorGear}({channelId})，目标={targetOhm.ToString("F2", CultureInfo.InvariantCulture)}Ω");
+
+                // 先断开其他档位，避免并联/串扰导致测量值异常
+                foreach (var ch in new[] { "RO0", "RO1", "RO2" })
+                {
+                    if (!string.Equals(ch, channelId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        try { await _resistorDriver.SetRelayStateAsync(ch, false, false); } catch { }
+                    }
+                }
+
+                var relayOk = await _resistorDriver.SetRelayStateAsync(channelId, true, false);
                 if (!relayOk)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012设置RO0继电器失败(通路闭合/短路断开)");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012设置{channelId}继电器失败(通路闭合/短路断开)");
                     return;
                 }
 
-                var writeOk = await _resistorDriver.WriteChannelAsync("RO0", targetOhm);
+                var writeOk = await _resistorDriver.WriteChannelAsync(channelId, targetOhm);
                 if (!writeOk)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012写入RO0失败");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012写入{channelId}失败");
                     return;
                 }
 
                 await Task.Delay(50);
+
+                try
+                {
+                    var boardReadback = await _resistorDriver.ReadChannelAsync(channelId);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012回读({channelId})={boardReadback.ToString("F5", CultureInfo.InvariantCulture)}Ω");
+                }
+                catch
+                {
+                }
 
                 var matrixSvc = MatrixControlService.Instance;
                 matrix1Connected = await matrixSvc.ConnectNodesAsync("I1", "O8", 6, "192.168.1.3");
