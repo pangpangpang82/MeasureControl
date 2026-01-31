@@ -838,7 +838,7 @@ namespace MeasureControl.Helpers
 
             string model = value.ToString();
 
-            // 品牌列表集中维护在 DeviceConstants，便于统一管理
+            // 品牌列表集中维护在 DeviceConstants，便于统一管理//
             var brands = DeviceConstants.Manufacturer.Brands;
 
             foreach (string brand in brands)
