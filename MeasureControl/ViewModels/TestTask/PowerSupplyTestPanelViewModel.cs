@@ -27,7 +27,8 @@ namespace MeasureControl.ViewModels.TestTask
 
         private CancellationTokenSource _measurementPollCts;
         private Task _measurementPollTask;
-        private int _measurementPollIntervalMs = 300;
+        private int _measurementPollIntervalMs = 800;
+        private int _measurementPollingSuspendCount;
 
         private CancellationTokenSource _ch1LiveVoltCts;
         private CancellationTokenSource _ch1LiveCurrCts;
@@ -35,6 +36,31 @@ namespace MeasureControl.ViewModels.TestTask
         private CancellationTokenSource _ch2LiveCurrCts;
         private CancellationTokenSource _ch3LiveVoltCts;
         private CancellationTokenSource _ch3LiveCurrCts;
+
+        private IDisposable SuspendMeasurementPolling()
+        {
+            Interlocked.Increment(ref _measurementPollingSuspendCount);
+            return new MeasurementPollingSuspension(this);
+        }
+
+        private sealed class MeasurementPollingSuspension : IDisposable
+        {
+            private PowerSupplyTestPanelViewModel _owner;
+
+            public MeasurementPollingSuspension(PowerSupplyTestPanelViewModel owner)
+            {
+                _owner = owner;
+            }
+
+            public void Dispose()
+            {
+                var owner = Interlocked.Exchange(ref _owner, null);
+                if (owner == null)
+                    return;
+
+                Interlocked.Decrement(ref owner._measurementPollingSuspendCount);
+            }
+        }
 
         private string _cardName;
         public string CardName
@@ -480,6 +506,19 @@ namespace MeasureControl.ViewModels.TestTask
             {
                 while (!token.IsCancellationRequested)
                 {
+                    if (Volatile.Read(ref _measurementPollingSuspendCount) > 0)
+                    {
+                        try
+                        {
+                            await Task.Delay(50, token);
+                        }
+                        catch
+                        {
+                        }
+
+                        continue;
+                    }
+
                     if (IsPowerSupplyConnected && _stream != null)
                     {
                         try
@@ -517,7 +556,7 @@ namespace MeasureControl.ViewModels.TestTask
             try { cts.Dispose(); } catch { }
         }
 
-        private async Task ApplyChannelAsync(string channel)
+        private async Task ApplyChannelAsync(string channel, bool refreshMeasurements = true)
         {
             if (!IsPowerSupplyConnected || _stream == null)
             {
@@ -532,18 +571,19 @@ namespace MeasureControl.ViewModels.TestTask
 
             if (string.IsNullOrWhiteSpace(v) && string.IsNullOrWhiteSpace(c))
             {
-                await RefreshMeasurementsAsync(ch);
+                if (refreshMeasurements)
+                    await RefreshMeasurementsAsync(ch);
                 return;
             }
 
             // IT-N6300 编程手册：APPLy <V>,<I>[,(@chanlist)]
             string vv = NormalizeScpiNumberOrDefault(v, "0");
             string cc = NormalizeScpiNumberOrDefault(c, "0");
-            await SendScpiAsync($"VOLT {vv},{chanList}", 5000);
-            await SendScpiAsync($"CURR {cc},{chanList}", 5000);
-            await ReportScpiErrorToStatusAsync($"VOLT/CURR CH{ch}");
+            await SendScpiAsync($"APPLy {vv},{cc},{chanList}", 5000);
+            await ReportScpiErrorToStatusAsync($"APPLy CH{ch}");
 
-            await RefreshMeasurementsAsync(ch);
+            if (refreshMeasurements)
+                await RefreshMeasurementsAsync(ch);
         }
 
         private void ScheduleLiveSetVoltage(string channel)
@@ -768,24 +808,27 @@ namespace MeasureControl.ViewModels.TestTask
             bool enabled = GetChannelOutputEnabled(ch);
             string chanList = FormatChanList(ch);
 
-            if (!enabled)
+            using (SuspendMeasurementPolling())
             {
-                await ApplyChannelAsync(ch);
-                await ApplyProtectionAsync(ch);
-                // 清除保护锁存（避免上一次保护导致无法开启输出）
-                await SendScpiAsync("OUTP:PROT:CLE", 5000);
-                await SendScpiAsync($"OUTP ON,{chanList}", 5000);
-                await ReportScpiErrorToStatusAsync($"OUTP ON CH{ch}");
-                SetChannelOutputEnabled(ch, true);
-            }
-            else
-            {
-                await SendScpiAsync($"OUTP OFF,{chanList}", 5000);
-                await ReportScpiErrorToStatusAsync($"OUTP OFF CH{ch}");
-                SetChannelOutputEnabled(ch, false);
-            }
+                if (!enabled)
+                {
+                    await ApplyChannelAsync(ch, refreshMeasurements: false);
+                    await ApplyProtectionAsync(ch);
+                    // 清除保护锁存（避免上一次保护导致无法开启输出）
+                    await SendScpiAsync("OUTP:PROT:CLE", 5000);
+                    await SendScpiAsync($"OUTP ON,{chanList}", 5000);
+                    await ReportScpiErrorToStatusAsync($"OUTP ON CH{ch}");
+                    SetChannelOutputEnabled(ch, true);
+                }
+                else
+                {
+                    await SendScpiAsync($"OUTP OFF,{chanList}", 5000);
+                    await ReportScpiErrorToStatusAsync($"OUTP OFF CH{ch}");
+                    SetChannelOutputEnabled(ch, false);
+                }
 
-            await RefreshMeasurementsAsync(ch);
+                await RefreshMeasurementsAsync(ch);
+            }
         }
 
         private async Task RefreshMeasurementsAsync(string channel)
