@@ -630,7 +630,7 @@ namespace MeasureControl.Services
                 var chassisDevice = chassis.Devices.FirstOrDefault(d => d.DeviceType == AppConstants.DeviceTypeChassis);
                 if (chassisDevice is Models.Devices.ChassisDevice chassisDeviceObj)
                 {
-                    int currentCardCount = chassisDeviceObj.Children?.Count(c => c.DeviceType == AppConstants.DeviceTypeCard) ?? 0;
+                    int currentCardCount = chassis.Devices.Count(d => d.DeviceType == AppConstants.DeviceTypeCard);
                     if (currentCardCount >= chassisDeviceObj.SlotCount)
                     {
                         return; // 静默返回，错误提示已在ViewModel中处理
@@ -762,6 +762,38 @@ namespace MeasureControl.Services
             // 获取 chassis.Devices 中的所有板卡（作为权威数据源）
             var cardsInDevices = chassis.Devices.Where(d => d.DeviceType == AppConstants.DeviceTypeCard).ToList();
 
+            if (chassisDevice.Children != null && chassisDevice.Children.Count > 0)
+            {
+                foreach (var child in chassisDevice.Children)
+                {
+                    if (child == null) continue;
+                    if (child.DeviceType != AppConstants.DeviceTypeCard) continue;
+
+                    var normalizedChildSlot = (child.SlotPosition ?? string.Empty).Replace(" ", "").Trim();
+                    bool exists = false;
+
+                    if (!string.IsNullOrWhiteSpace(normalizedChildSlot))
+                    {
+                        exists = cardsInDevices.Any(c => string.Equals((c.SlotPosition ?? string.Empty).Replace(" ", "").Trim(), normalizedChildSlot, StringComparison.OrdinalIgnoreCase));
+                    }
+                    else if (!string.IsNullOrWhiteSpace(child.Id))
+                    {
+                        exists = cardsInDevices.Any(c => string.Equals(c.Id, child.Id, StringComparison.OrdinalIgnoreCase));
+                    }
+                    else
+                    {
+                        exists = cardsInDevices.Any(c => string.Equals(c.CardName ?? string.Empty, child.CardName ?? string.Empty, StringComparison.Ordinal) &&
+                                                        string.Equals(c.Model ?? string.Empty, child.Model ?? string.Empty, StringComparison.Ordinal));
+                    }
+
+                    if (!exists)
+                    {
+                        chassis.Devices.Add(child);
+                        cardsInDevices.Add(child);
+                    }
+                }
+            }
+
             // 遍历 ChassisDevice.Children，用 chassis.Devices 中的对应板卡替换
             for (int i = 0; i < chassisDevice.Children.Count; i++)
             {
@@ -772,11 +804,33 @@ namespace MeasureControl.Services
 
 
                 DeviceBase matchingCard = null;
-                string matchStrategy = "Id";
+                string matchStrategy = "SlotPosition+Model";
 
-                if (!string.IsNullOrEmpty(child.Id))
+                var normalizedSlot = (child.SlotPosition ?? string.Empty).Replace(" ", "").Trim();
+                if (!string.IsNullOrWhiteSpace(normalizedSlot))
                 {
-                    matchingCard = cardsInDevices.FirstOrDefault(c => c.Id == child.Id);
+                    if (!string.IsNullOrWhiteSpace(child.Model))
+                    {
+                        matchingCard = cardsInDevices.FirstOrDefault(c =>
+                            string.Equals((c.SlotPosition ?? string.Empty).Replace(" ", "").Trim(), normalizedSlot, StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(c.Model ?? string.Empty, child.Model ?? string.Empty, StringComparison.Ordinal));
+                    }
+
+                    if (matchingCard == null)
+                    {
+                        matchStrategy = "SlotPosition";
+                        matchingCard = cardsInDevices.FirstOrDefault(c =>
+                            string.Equals((c.SlotPosition ?? string.Empty).Replace(" ", "").Trim(), normalizedSlot, StringComparison.OrdinalIgnoreCase));
+                    }
+                }
+
+                if (matchingCard == null)
+                {
+                    matchStrategy = "Id";
+                    if (!string.IsNullOrEmpty(child.Id))
+                    {
+                        matchingCard = cardsInDevices.FirstOrDefault(c => string.Equals(c.Id, child.Id, StringComparison.OrdinalIgnoreCase));
+                    }
                 }
 
                 if (matchingCard == null)
