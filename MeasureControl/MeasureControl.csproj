@@ -225,6 +225,7 @@
     <Compile Include="Events\ApplicationEvents.cs" />
     <Compile Include="Helpers\MethodCallConverter.cs" />
     <Compile Include="Helpers\Dpm8600Modbus.cs" />
+    <Compile Include="Helpers\ValueConverters.cs" />
     <Compile Include="Helpers\SelfInspection\ISelfInspectionTask.cs" />
     <Compile Include="Helpers\SelfInspection\SelfInspectionContext.cs" />
     <Compile Include="Helpers\SelfInspection\SelfInspectionTaskRegistry.cs" />
@@ -277,7 +278,6 @@
     <Compile Include="Helpers\ResourceCleanupHelper.cs" />
     <Compile Include="Helpers\ScrollViewerMouseWheelBehavior.cs" />
     <Compile Include="Helpers\TreeViewExtensions.cs" />
-    <Compile Include="Helpers\ValueConverters.cs" />
     <Compile Include="Helpers\FormattedTraceListener.cs" />
     <Compile Include="Helpers\OKAIPXIDevice\OKAIDaq.cs" />
     <Compile Include="Helpers\OKAIPXIDevice\pxi4087.cs" />

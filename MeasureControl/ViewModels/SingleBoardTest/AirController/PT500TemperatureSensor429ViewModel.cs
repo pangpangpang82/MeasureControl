@@ -17,13 +17,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
     {
         public PT500TemperatureSensor429ViewModel()
         {
-            _enterAtpTxChannel = "ARINC429 CH0";
-            _enterAtpRxChannel = "ARINC429 CH1";
-            _controllerTemperatureTestTxChannel = "ARINC429 CH2";
-            _controllerTemperatureTestRxChannel = "ARINC429 CH3";
-            _temperatureTelemetryRxChannel = "ARINC429 CH4";
-            _exitAtpTxChannel = "ARINC429 CH5";
-            _exitAtpRxChannel = "ARINC429 CH6";
+            _enterAtpTxChannel = "CH0";
+            _enterAtpRxChannel = "CH1";
+            _controllerTemperatureTestTxChannel = "CH0";
+            _controllerTemperatureTestRxChannel = "CH1";
+            _temperatureTelemetryRxChannel = "CH1";
+            _exitAtpTxChannel = "CH0";
+            _exitAtpRxChannel = "CH1";
+
+            _enterAtpRxDataText = "--";
+            _controllerTemperatureTestRxDataText = "--";
+            _temperatureTelemetryRxDataText = "--";
+            _exitAtpRxDataText = "--";
 
             _resistorGear = "1挡";
             ResistorGearValueText = _resistorGear;
@@ -57,6 +62,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _temperatureTelemetryRxChannel;
         private string _exitAtpTxChannel;
         private string _exitAtpRxChannel;
+
+        private string _enterAtpRxDataText;
+        private string _controllerTemperatureTestRxDataText;
+        private string _temperatureTelemetryRxDataText;
+        private string _exitAtpRxDataText;
 
         private string _resistorGear;
         private string _resistorGearValueText;
@@ -98,12 +108,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             get => _isAutoTestRunning;
             set
             {
-                if (SetProperty(ref _isAutoTestRunning, value) && value)
+                if (SetProperty(ref _isAutoTestRunning, value))
                 {
-                    IsManualTestRunning = false;
+                    RaisePropertyChanged(nameof(CanEditStepControls));
+                    RaisePropertyChanged(nameof(CanClickManualTestButton));
+                    RaisePropertyChanged(nameof(CanClickAutoTestButton));
+
+                    if (value)
+                    {
+                        IsManualTestRunning = false;
+                    }
                 }
             }
         }
+
+        public bool CanEditStepControls => !IsAutoTestRunning;
+
+        public bool CanClickManualTestButton => !IsAutoTestRunning;
+
+        public bool CanClickAutoTestButton => !IsManualTestRunning;
 
         public string EnterAtpTxChannel
         {
@@ -115,6 +138,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _enterAtpRxChannel;
             set => SetProperty(ref _enterAtpRxChannel, value);
+        }
+
+        public string EnterAtpRxDataText
+        {
+            get => _enterAtpRxDataText;
+            private set => SetProperty(ref _enterAtpRxDataText, value);
         }
 
         public string ResistorGear
@@ -159,10 +188,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             set => SetProperty(ref _controllerTemperatureTestRxChannel, value);
         }
 
+        public string ControllerTemperatureTestRxDataText
+        {
+            get => _controllerTemperatureTestRxDataText;
+            private set => SetProperty(ref _controllerTemperatureTestRxDataText, value);
+        }
+
         public string TemperatureTelemetryRxChannel
         {
             get => _temperatureTelemetryRxChannel;
             set => SetProperty(ref _temperatureTelemetryRxChannel, value);
+        }
+
+        public string TemperatureTelemetryRxDataText
+        {
+            get => _temperatureTelemetryRxDataText;
+            private set => SetProperty(ref _temperatureTelemetryRxDataText, value);
         }
 
         public string ExitAtpTxChannel
@@ -175,6 +216,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _exitAtpRxChannel;
             set => SetProperty(ref _exitAtpRxChannel, value);
+        }
+
+        public string ExitAtpRxDataText
+        {
+            get => _exitAtpRxDataText;
+            private set => SetProperty(ref _exitAtpRxDataText, value);
         }
 
         public string TemperatureTelemetryValueText
