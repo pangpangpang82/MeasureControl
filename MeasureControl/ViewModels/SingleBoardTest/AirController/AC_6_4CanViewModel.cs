@@ -21,6 +21,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             DmmVoltageText = "--";
             TelemetryVoltageText = "--";
+            EnterAtpRxDataText = "--";
+            TelemetryRxDataText = "--";
+            ExitAtpRxDataText = "--";
             LastTestTime = "--";
             LastTestResult = "--";
 
@@ -48,6 +51,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool _isAutoTestRunning;
         private string _dmmVoltageText;
         private string _telemetryVoltageText;
+        private string _enterAtpRxDataText;
+        private string _telemetryRxDataText;
+        private string _exitAtpRxDataText;
         private string _lastTestTime;
         private string _lastTestResult;
 
@@ -144,6 +150,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _telemetryVoltageText;
             set => SetProperty(ref _telemetryVoltageText, value);
+        }
+
+        public string EnterAtpRxDataText
+        {
+            get => _enterAtpRxDataText;
+            set => SetProperty(ref _enterAtpRxDataText, value);
+        }
+
+        public string TelemetryRxDataText
+        {
+            get => _telemetryRxDataText;
+            set => SetProperty(ref _telemetryRxDataText, value);
+        }
+
+        public string ExitAtpRxDataText
+        {
+            get => _exitAtpRxDataText;
+            set => SetProperty(ref _exitAtpRxDataText, value);
         }
 
         public string LastTestTime

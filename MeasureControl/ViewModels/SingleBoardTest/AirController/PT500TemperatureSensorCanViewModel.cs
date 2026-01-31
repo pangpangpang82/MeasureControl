@@ -123,6 +123,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private bool _isResistorMeasuring;
+        private bool _suppressResultUpdates;
         private double? _lastTelemetryTemperatureC;
         private double? _gear1TemperatureC;
         private double? _gear2TemperatureC;
@@ -349,6 +350,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
 
                 IsAutoTestRunning = true;
+                _suppressResultUpdates = true;
                 _autoTestEnteredAtp = false;
                 LastTestTime = "--";
                 LastTestResult = "--";
@@ -400,10 +402,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
-                await OnSendEnterAtpAsync();
-                if (!string.Equals(LastTestResult, "进入ATP成功", StringComparison.Ordinal))
+                var enteredAtpOk = await SendEnterAtpCoreAsync();
+                if (!enteredAtpOk)
                 {
-                    failures.Add($"进入ATP失败：{LastTestResult}");
+                    failures.Add("进入ATP失败");
                     return;
                 }
 
@@ -416,7 +418,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 await RunGearAsync("3挡", t => Gear3TemperatureC = t, token, failures);
 
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = failures.Count == 0 ? "合格" : "不合格";
+                LastTestResult = failures.Count == 0 ? "三档电阻温度PASS" : "三档电阻温度不通过";
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试汇总：{LastTestResult}");
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 1挡温度={(Gear1TemperatureC?.ToString("F2", CultureInfo.InvariantCulture) ?? "--")}℃");
@@ -451,6 +453,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 try { await DisconnectMatrixAsync(); } catch { }
                 try { await DisconnectResistorAsync(); } catch { }
 
+                _suppressResultUpdates = false;
                 IsAutoTestRunning = false;
             }
         }
@@ -864,6 +867,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task OnSendEnterAtpAsync()
         {
+            await SendEnterAtpCoreAsync();
+        }
+
+        private async Task<bool> SendEnterAtpCoreAsync()
+        {
             await _canOpLock.WaitAsync();
             try
             {
@@ -874,14 +882,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (txIndex < 0 || rxIndex < 0)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：通道选择无效");
-                    return;
+                    return false;
                 }
 
                 var ok = await EnsureCanDriverReadyAsync();
                 if (!ok)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：CAN驱动未就绪");
-                    return;
+                    return false;
                 }
 
                 ok = await OpenCanChannelForPt500Async(txIndex)
@@ -891,7 +899,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (!ok)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：打开通道失败 UI_TX={EnterAtpTxChannel}, UI_RX={EnterAtpRxChannel}, CTRL_RX=CH{SimControllerRxChannel}, CTRL_TX=CH{SimControllerTxChannel}");
-                    return;
+                    return false;
                 }
 
                 var frame = PXI4004.CreateDataFrame(DefaultCanFrameId, AtpR);
@@ -901,7 +909,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (!ok)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：发送失败");
-                    return;
+                    return false;
                 }
 
                 var controllerReceived = await WaitSpecificDataFrameAsync(StepEnterAtp, SimControllerRxChannel, AtpR, TimeSpan.FromMilliseconds(800));
@@ -914,26 +922,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (!ok)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP：控制器响应帧发送失败");
-                    return;
+                    return false;
                 }
 
                 var uiGotResponse = await WaitSpecificDataFrameAsync(StepEnterAtp, rxIndex, responseData, TimeSpan.FromMilliseconds(800));
                 if (!uiGotResponse)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP：UI_RX未收到控制器响应");
-                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                    LastTestResult = controllerReceived ? "进入ATP：UI未收到OK" : "进入ATP：UI未收到FAULT";
-                    return;
+                    return false;
                 }
 
                 EnterAtpRxDataText = FormatData(responseData);
 
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = controllerReceived ? "进入ATP成功" : "进入ATP失败(FAULT)";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP{(controllerReceived ? "成功" : "失败(FAULT)")}");
+                return controllerReceived;
             }
             catch (Exception ex)
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP异常：{ex.Message}");
+                return false;
             }
             finally
             {
@@ -999,8 +1006,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
                 }
 
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = "控制器温度测试已发送";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试已发送");
             }
             catch (Exception ex)
             {
@@ -1073,17 +1079,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (received?.Temperature == null)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：UI_RX未收到温度采集值帧(07 01 01 02)" );
-                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                    LastTestResult = "温度回采失败(超时)";
+
+                    if (!_suppressResultUpdates)
+                    {
+                        LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                        LastTestResult = $"{FormatGearForResult(ResistorGear)}电阻温度不通过";
+                    }
                     return;
                 }
 
                 try
                 {
-                    var rxText = FormatData(received.Temperature);
-                    if (received.Raw != null)
-                        rxText = rxText + " | " + FormatData(received.Raw);
-                    TemperatureTelemetryRxDataText = rxText;
+                    TemperatureTelemetryRxDataText = "0x" + FormatData(received.Temperature);
                 }
                 catch
                 {
@@ -1105,6 +1112,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         Gear3TemperatureC = temperature;
                 }
 
+                if (!_suppressResultUpdates)
+                {
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    if (!TryParseTelemetryTemperature(received.Temperature, out temperature))
+                    {
+                        LastTestResult = $"{FormatGearForResult(ResistorGear)}电阻温度不通过";
+                    }
+                    else
+                    {
+                        var qualified = IsTemperatureQualified(ResistorGear, temperature);
+                        LastTestResult = qualified
+                            ? $"{FormatGearForResult(ResistorGear)}电阻温度PASS"
+                            : $"{FormatGearForResult(ResistorGear)}电阻温度不通过";
+                    }
+                }
+
                 if (received.Raw != null)
                 {
                     var rawHex = FormatData(received.Raw, received.Raw.Length);
@@ -1118,8 +1141,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     AddLog($"[{DateTime.Now:HH:mm:ss}] [{StepTelemetry}] 未收到传感器温度原始数据帧(07 01 01 03)(超时)");
                 }
 
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = TryParseTelemetryTemperature(received.Temperature, out _) ? "温度回采成功" : "温度回采(解析失败)";
             }
             catch (Exception ex)
             {
@@ -1190,15 +1211,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (!uiGotResponse)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP：UI_RX未收到控制器响应");
-                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                    LastTestResult = controllerReceived ? "退出ATP：UI未收到OK" : "退出ATP：UI未收到FAULT";
                     return;
                 }
 
                 ExitAtpRxDataText = FormatData(responseData);
-
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = controllerReceived ? "退出ATP成功" : "退出ATP失败(FAULT)";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP{(controllerReceived ? "成功" : "失败(FAULT)")}");
             }
             catch (Exception ex)
             {
@@ -1269,6 +1286,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 "3挡" => (134.06, 135.94),
                 _ => (double.NegativeInfinity, double.PositiveInfinity)
             };
+        }
+
+        private static string FormatGearForResult(string gear)
+        {
+            if (string.IsNullOrWhiteSpace(gear))
+                return "第?档";
+
+            return gear switch
+            {
+                "1挡" => "第1档",
+                "2挡" => "第2档",
+                "3挡" => "第3档",
+                _ => "第" + gear
+            };
+        }
+
+        private static bool IsTemperatureQualified(string gear, double temperature)
+        {
+            var (min, max) = GetQualifiedTemperatureRangeForGear(gear);
+            return temperature >= min && temperature <= max;
         }
 
         private static byte[] BuildRawFrameData(byte[] prefix, uint raw)
