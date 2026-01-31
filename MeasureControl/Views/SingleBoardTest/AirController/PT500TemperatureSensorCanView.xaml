@@ -11,21 +11,21 @@
     mc:Ignorable="d">
     <UserControl.Resources>
         <x:Array x:Key="CanChannels" Type="sys:String">
-            <sys:String>CAN CH0</sys:String>
-            <sys:String>CAN CH1</sys:String>
-            <sys:String>CAN CH2</sys:String>
-            <sys:String>CAN CH3</sys:String>
-            <sys:String>CAN CH4</sys:String>
-            <sys:String>CAN CH5</sys:String>
-            <sys:String>CAN CH6</sys:String>
-            <sys:String>CAN CH7</sys:String>
-            <sys:String>CAN CH8</sys:String>
-            <sys:String>CAN CH9</sys:String>
-            <sys:String>CAN CH10</sys:String>
-            <sys:String>CAN CH11</sys:String>
-            <sys:String>CAN CH12</sys:String>
-            <sys:String>CAN CH13</sys:String>
-            <sys:String>CAN CH14</sys:String>
+            <sys:String>CH0</sys:String>
+            <sys:String>CH1</sys:String>
+            <sys:String>CH2</sys:String>
+            <sys:String>CH3</sys:String>
+            <sys:String>CH4</sys:String>
+            <sys:String>CH5</sys:String>
+            <sys:String>CH6</sys:String>
+            <sys:String>CH7</sys:String>
+            <sys:String>CH8</sys:String>
+            <sys:String>CH9</sys:String>
+            <sys:String>CH10</sys:String>
+            <sys:String>CH11</sys:String>
+            <sys:String>CH12</sys:String>
+            <sys:String>CH13</sys:String>
+            <sys:String>CH14</sys:String>
         </x:Array>
 
         <Style x:Key="EnableCheckBoxStyle" TargetType="CheckBox">
@@ -70,9 +70,9 @@
         Focusable="True"
         PreviewMouseDown="RootGrid_PreviewMouseDown">
         <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="5*" />
-            <RowDefinition Height="1.8*" />
+            <RowDefinition Height="0.8*" />
+            <RowDefinition Height="6*" />
+            <RowDefinition Height="1.2*" />
         </Grid.RowDefinitions>
         <Border
             Grid.Row="0"
@@ -83,17 +83,17 @@
             CornerRadius="8">
             <Grid>
                 <TextBlock
-                    Width="360"
-                    Margin="20,0,0,0"
+                    Width="300"
+                    Margin="10,0,0,0"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center"
-                    FontSize="30"
+                    FontSize="24"
                     FontWeight="Bold"
                     Text="PT500温度传感器测试" />
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                     <Button
-                        Width="110"
-                        Height="40"
+                        Width="100"
+                        Height="32"
                         Margin="0,0,20,0"
                         VerticalAlignment="Center"
                         BorderThickness="0"
@@ -107,15 +107,15 @@
                                     <StackPanel Orientation="Horizontal">
                                         <Image
                                             x:Name="DeviceImage"
-                                            Width="20"
-                                            Height="20"
+                                            Width="15"
+                                            Height="15"
                                             Margin="5,0,5,0"
                                             Source="/Resources/Logo/hand_w.png" />
                                         <TextBlock
                                             x:Name="DeviceAction"
                                             Margin="0,0,5,0"
                                             VerticalAlignment="Center"
-                                            FontSize="18"
+                                            FontSize="16"
                                             Foreground="White"
                                             Text="手动测试" />
                                     </StackPanel>
@@ -172,8 +172,8 @@
                         </Button.Template>
                     </Button>
                     <Button
-                        Width="110"
-                        Height="40"
+                        Width="100"
+                        Height="32"
                         Margin="0,0,30,0"
                         VerticalAlignment="Center"
                         BorderThickness="0"
@@ -187,15 +187,15 @@
                                     <StackPanel Orientation="Horizontal">
                                         <Image
                                             x:Name="DeviceImage"
-                                            Width="20"
-                                            Height="20"
+                                            Width="15"
+                                            Height="15"
                                             Margin="5,0,5,0"
                                             Source="/Resources/Logo/auto.png" />
                                         <TextBlock
                                             x:Name="DeviceAction"
                                             Margin="0,0,5,0"
                                             VerticalAlignment="Center"
-                                            FontSize="18"
+                                            FontSize="16"
                                             Foreground="White"
                                             Text="自动测试" />
                                     </StackPanel>
@@ -271,121 +271,178 @@
                     <RowDefinition Height="2*" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2*" />
-                    <ColumnDefinition Width="1*" />
+                    <ColumnDefinition Width="300*" />
+                    <ColumnDefinition Width="180*"/>
+                    <ColumnDefinition Width="300*" />
                 </Grid.ColumnDefinitions>
 
                 <TextBlock
-                    Grid.Row="0"
-                    Margin="20,10,0,0"
+                    Margin="10,0,0,0"
                     VerticalAlignment="Center"
-                    FontSize="30"
+                    FontSize="20"
                     FontWeight="Bold"
-                    Text="测试步骤" />
+                    Text="测试步骤" Height="26" Grid.ColumnSpan="2" />
 
-                <StackPanel
-                    Grid.Row="1"
-                    Margin="10"
-                    Orientation="Horizontal">
+                <Grid Grid.Row="1" Margin="0,0,0,69" Grid.RowSpan="2" Grid.ColumnSpan="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
                     <TextBlock
-                        Margin="30,0,0,0"
+                        Grid.Row="0"
+                        Grid.Column="0"
+                        Margin="10,0,0,0"
                         VerticalAlignment="Center"
-                        FontSize="18"
-                        Text="进入ATP模式：" />
-                    <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="16" Text="TX" />
-                    <ComboBox
-                        Width="140"
-                        Height="36"
-                        Margin="5,0,0,0"
-                        HorizontalAlignment="Left"
                         FontSize="16"
-                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                        ItemsSource="{StaticResource CanChannels}"
-                        SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
-                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
-                    <ComboBox
-                        Width="140"
-                        Height="36"
-                        Margin="5,0,0,0"
-                        HorizontalAlignment="Left"
-                        FontSize="16"
-                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                        ItemsSource="{StaticResource CanChannels}"
-                        SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
-                    <Button
-                        Width="80"
-                        Height="36"
-                        Margin="15,0,0,0"
-                        VerticalAlignment="Center"
-                        BorderThickness="0"
-                        Command="{Binding SendEnterAtpCommand}">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border
-                                    x:Name="border"
-                                    Background="#3b82f6"
-                                    CornerRadius="4">
-                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                        <TextBlock
-                                            x:Name="DeviceAction"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="18"
-                                            Foreground="White"
-                                            Text="发送" />
-                                    </StackPanel>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                    </Trigger>
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                    </Trigger>
-                                    <Trigger Property="IsEnabled" Value="False">
-                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                        <Setter Property="Cursor" Value="Arrow" />
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-                </StackPanel>
+                        Text="1.进入ATP模式：" />
+
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0" Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
+                        <ComboBox
+                            Width="100"
+                            Height="28"
+                            Margin="5,0,0,0"
+                            HorizontalAlignment="Left"
+                            FontSize="12"
+                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                            ItemsSource="{StaticResource CanChannels}"
+                            IsEnabled="{Binding CanEditStepControls}"
+                            SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
+
+                        <Border
+                            Width="180"
+                            Height="28"
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="0x00 01 00 01 00 00 00 00" />
+                        </Border>
+
+                        <Button
+                            Width="50"
+                            Height="28"
+                            Margin="15,0,0,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding SendEnterAtpCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="4">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontSize="14"
+                                                Foreground="White"
+                                                Text="发送" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            <Setter Property="Cursor" Value="Arrow" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0" Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
+                        <ComboBox
+                            Width="100"
+                            Height="28"
+                            Margin="5,0,0,0"
+                            HorizontalAlignment="Left"
+                            FontSize="12"
+                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                            ItemsSource="{StaticResource CanChannels}"
+                            IsEnabled="{Binding CanEditStepControls}"
+                            SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
+
+                        <Border
+                            Width="180"
+                            Height="28"
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding EnterAtpRxDataText}" />
+                        </Border>
+                    </StackPanel>
+                </Grid>
 
                 <StackPanel
                     Grid.Row="2"
-                    Margin="10,5,5,5"
-                    Orientation="Horizontal">
+                    Orientation="Horizontal" Grid.ColumnSpan="2">
                     <TextBlock
-                        Margin="30,0,0,0"
+                        Margin="10,0,0,0"
                         VerticalAlignment="Center"
-                        FontSize="18"
-                        Text="接入电阻：" />
+                        FontSize="16"
+                        Text="2.接入挡位电阻：" />
+                    <TextBlock
+                       Margin="5,0,0,0"
+                       VerticalAlignment="Center"
+                       FontSize="16"
+                       Text="挡位" />
                     <ComboBox
                         Width="100"
-                        Height="30"
+                        Height="28"
+                        Margin="2,0,0,0"
                         HorizontalAlignment="Left"
-                        FontSize="16"
+                        FontSize="12"
                         ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                         SelectedValuePath="Content"
+                        IsEnabled="{Binding CanEditStepControls}"
                         SelectedValue="{Binding ResistorGear, Mode=TwoWay}">
                         <ComboBoxItem Content="1挡" />
                         <ComboBoxItem Content="2挡" />
                         <ComboBoxItem Content="3挡" />
                     </ComboBox>
                     <Border
-                        Width="140"
-                        Height="36"
+                        Width="70"
+                        Height="28"
                         Margin="15,0,0,0"
                         VerticalAlignment="Center"
                         BorderBrush="#D9D9D9"
                         BorderThickness="1"
                         CornerRadius="3">
-                        <TextBlock Margin="1" FontSize="16" Text="{Binding MeasuredResistanceValueText}" />
+                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding MeasuredResistanceValueText}" />
                     </Border>
                     <Button
-                        Width="80"
-                        Height="36"
+                        Width="50"
+                        Height="28"
                         Margin="15,0,0,0"
                         VerticalAlignment="Center"
                         BorderThickness="0"
@@ -401,76 +458,7 @@
                                             x:Name="DeviceAction"
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
-                                            FontSize="18"
-                                            Foreground="White"
-                                            Text="发送" />
-                                    </StackPanel>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                    </Trigger>
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                    </Trigger>
-                                    <Trigger Property="IsEnabled" Value="False">
-                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                        <Setter Property="Cursor" Value="Arrow" />
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-                </StackPanel>
-
-                <StackPanel
-                    Grid.Row="3"
-                    Margin="10"
-                    Orientation="Horizontal">
-                    <TextBlock
-                        Margin="30,0,0,0"
-                        VerticalAlignment="Center"
-                        FontSize="20"
-                        Text="控制器温度测试：" />
-                    <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="16" Text="TX" />
-                    <ComboBox
-                        Width="140"
-                        Height="36"
-                        Margin="0,0,0,0"
-                        HorizontalAlignment="Left"
-                        FontSize="16"
-                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                        ItemsSource="{StaticResource CanChannels}"
-                        SelectedItem="{Binding ControllerTemperatureTestTxChannel, Mode=TwoWay}" />
-                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
-                    <ComboBox
-                        Width="140"
-                        Height="36"
-                        Margin="0,0,0,0"
-                        HorizontalAlignment="Left"
-                        FontSize="16"
-                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                        ItemsSource="{StaticResource CanChannels}"
-                        SelectedItem="{Binding ControllerTemperatureTestRxChannel, Mode=TwoWay}" />
-                    <Button
-                        Width="80"
-                        Height="36"
-                        Margin="15,0,0,0"
-                        VerticalAlignment="Center"
-                        BorderThickness="0"
-                        Command="{Binding TestControllerTemperatureCommand}">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border
-                                    x:Name="border"
-                                    Background="#3b82f6"
-                                    CornerRadius="4">
-                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                        <TextBlock
-                                            x:Name="DeviceAction"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="18"
+                                            FontSize="14"
                                             Foreground="White"
                                             Text="测试" />
                                     </StackPanel>
@@ -492,42 +480,176 @@
                     </Button>
                 </StackPanel>
 
-                <StackPanel
-                    Grid.Row="4"
-                    Margin="10"
-                    Orientation="Horizontal">
+                <Grid Grid.Row="2" Margin="0,69,0,0" Grid.RowSpan="2" Grid.ColumnSpan="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
                     <TextBlock
-                        Margin="30,0,0,0"
+                        Grid.Row="0"
+                        Grid.Column="0"
+                        Margin="10,0,0,0"
                         VerticalAlignment="Center"
-                        FontSize="20"
-                        Text="温度回采值：" />
-                    <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
+                        FontSize="16"
+                        Text="3.控制器温度测试：" />
+
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0" Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
+                        <ComboBox
+                            Width="100"
+                            Height="28"
+                            Margin="5,0,0,0"
+                            HorizontalAlignment="Left"
+                            FontSize="12"
+                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                            ItemsSource="{StaticResource CanChannels}"
+                            IsEnabled="{Binding CanEditStepControls}"
+                            SelectedItem="{Binding ControllerTemperatureTestTxChannel, Mode=TwoWay}" />
+
+                        <Border
+                            Width="180"
+                            Height="28"
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="0x07 01 01 01 00 00 00 00" />
+                        </Border>
+
+                        <Button
+                            Width="50"
+                            Height="28"
+                            Margin="15,0,0,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding TestControllerTemperatureCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="4">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontSize="14"
+                                                Foreground="White"
+                                                Text="发送" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            <Setter Property="Cursor" Value="Arrow" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0" Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
+                        <ComboBox
+                            Width="100"
+                            Height="28"
+                            Margin="5,0,0,0"
+                            HorizontalAlignment="Left"
+                            FontSize="12"
+                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                            ItemsSource="{StaticResource CanChannels}"
+                            IsEnabled="{Binding CanEditStepControls}"
+                            SelectedItem="{Binding ControllerTemperatureTestRxChannel, Mode=TwoWay}" />
+
+                        <Border
+                            Width="180"
+                            Height="28"
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding ControllerTemperatureTestRxDataText}" />
+                        </Border>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel
+                    Grid.Row="3"
+                    Margin="0,60,0,0"
+                    Orientation="Horizontal" Grid.RowSpan="2" Grid.ColumnSpan="2">
+                    <TextBlock
+                        Margin="10,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="4.温度回采值：" />
+                    <TextBlock Margin="25,0,0,0" VerticalAlignment="Center" FontSize="14" Text="RX" />
                     <ComboBox
-                        Width="140"
-                        Height="36"
+                        Width="100"
+                        Height="28"
                         Margin="5,0,0,0"
                         HorizontalAlignment="Left"
-                        FontSize="16"
+                        FontSize="12"
                         ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                         ItemsSource="{StaticResource CanChannels}"
+                        IsEnabled="{Binding CanEditStepControls}"
                         SelectedItem="{Binding TemperatureTelemetryRxChannel, Mode=TwoWay}" />
+
                     <Border
-                        Width="140"
-                        Height="38"
+                        Width="180"
+                        Height="28"
+                        Margin="10,0,0,0"
+                        VerticalAlignment="Center"
+                        Background="AliceBlue"
+                        BorderBrush="#D9D9D9"
+                        BorderThickness="1"
+                        CornerRadius="3">
+                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TemperatureTelemetryRxDataText}" />
+                    </Border>
+
+                    <Border
+                        Width="70"
+                        Height="28"
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
                         BorderBrush="#D9D9D9"
                         BorderThickness="1"
                         CornerRadius="3">
-                        <TextBlock Margin="1" FontSize="16" Text="{Binding TemperatureTelemetryValueText}" />
+                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TemperatureTelemetryValueText}" />
                     </Border>
                     <Button
-                        Width="80"
-                        Height="38"
-                        Margin="15,0,0,0"
+                        Width="50"
+                        Height="28"
+                        Margin="10,0,0,0"
                         VerticalAlignment="Center"
                         BorderThickness="0"
-                        Command="{Binding TestTemperatureTelemetryCommand}">
+                        Command="{Binding TestTemperatureTelemetryCommand}" Click="Button_Click">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border
@@ -539,7 +661,7 @@
                                             x:Name="DeviceAction"
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
-                                            FontSize="18"
+                                            FontSize="14"
                                             Foreground="White"
                                             Text="测试" />
                                     </StackPanel>
@@ -561,83 +683,134 @@
                     </Button>
                 </StackPanel>
 
-                <StackPanel
-                    Grid.Row="5"
-                    Margin="10"
-                    Orientation="Horizontal">
+                <Grid Grid.Row="5" Margin="5,0,0,0" Grid.ColumnSpan="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+
                     <TextBlock
-                        Margin="30,0,0,0"
-                        VerticalAlignment="Center"
-                        FontSize="18"
-                        Text="退出ATP模式：" />
-                    <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="16" Text="TX" />
-                    <ComboBox
-                        Width="140"
-                        Height="38"
+                        Grid.Row="0"
+                        Grid.Column="0"
                         Margin="5,0,0,0"
-                        HorizontalAlignment="Left"
-                        FontSize="16"
-                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                        ItemsSource="{StaticResource CanChannels}"
-                        SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
-                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="RX" />
-                    <ComboBox
-                        Width="140"
-                        Height="38"
-                        Margin="5,0,0,0"
-                        HorizontalAlignment="Left"
-                        FontSize="16"
-                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                        ItemsSource="{StaticResource CanChannels}"
-                        SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}" />
-                    <Button
-                        Width="80"
-                        Height="38"
-                        Margin="15,0,0,0"
                         VerticalAlignment="Center"
-                        BorderThickness="0"
-                        Command="{Binding SendExitAtpCommand}">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border
-                                    x:Name="border"
-                                    Background="#3b82f6"
-                                    CornerRadius="4">
-                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                        <TextBlock
-                                            x:Name="DeviceAction"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="18"
-                                            Foreground="White"
-                                            Text="发送" />
-                                    </StackPanel>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                    </Trigger>
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                    </Trigger>
-                                    <Trigger Property="IsEnabled" Value="False">
-                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                        <Setter Property="Cursor" Value="Arrow" />
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-                </StackPanel>
+                        FontSize="16"
+                        Text="5.退出ATP模式：" />
+
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                        <ComboBox
+                            Width="100"
+                            Height="28"
+                            Margin="10,0,0,0"
+                            HorizontalAlignment="Left"
+                            FontSize="12"
+                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                            ItemsSource="{StaticResource CanChannels}"
+                            IsEnabled="{Binding CanEditStepControls}"
+                            SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
+
+                        <Border
+                            Width="180"
+                            Height="28"
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="0x00 02 00 01 00 00 00 01" />
+                        </Border>
+
+                        <Button
+                            Width="50"
+                            Height="28"
+                            Margin="15,0,0,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding SendExitAtpCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="4">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontSize="14"
+                                                Foreground="White"
+                                                Text="发送" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            <Setter Property="Cursor" Value="Arrow" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="RX" />
+                        <ComboBox
+                            Width="100"
+                            Height="28"
+                            Margin="10,0,0,0"
+                            HorizontalAlignment="Left"
+                            FontSize="12"
+                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                            ItemsSource="{StaticResource CanChannels}"
+                            IsEnabled="{Binding CanEditStepControls}"
+                            SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}" />
+
+                        <Border
+                            Width="180"
+                            Height="28"
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="0"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding ExitAtpRxDataText}" />
+                        </Border>
+                    </StackPanel>
+                </Grid>
 
                 <StackPanel
                     Grid.Row="0"
-                    Grid.Column="1"
-                    Margin="10,10,0,0"
-                    Orientation="Horizontal">
+                    Grid.Column="2"
+                    Margin="0,0,0,69"
+                    Orientation="Horizontal" Grid.RowSpan="2">
                     <TextBlock
                         VerticalAlignment="Center"
-                        FontSize="30"
+                        FontSize="22"
                         FontWeight="Bold"
                         Text="测试信息" />
                     <Button
@@ -658,7 +831,7 @@
                                             x:Name="DeviceAction"
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
-                                            FontSize="18"
+                                            FontSize="16"
                                             Foreground="White"
                                             Text="清除内容" />
                                     </StackPanel>
@@ -682,17 +855,18 @@
 
                 <Border
                     Grid.Row="1"
+                    Grid.Column="2"
                     Grid.RowSpan="5"
-                    Grid.Column="1"
-                    Width="300"
-                    Height="280"
+                    Width="350"
+                    Height="350"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     BorderBrush="#D9D9D9"
                     BorderThickness="1.5"
                     CornerRadius="4">
                     <ListBox
-                        Margin="6"
+                        Margin="0"
+                        
                         BorderThickness="0"
                         ItemsSource="{Binding Logs}"
                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -703,7 +877,7 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock
-                                    FontSize="16"
+                                    FontSize="12"
                                     Text="{Binding}"
                                     TextWrapping="Wrap" />
                             </DataTemplate>
@@ -726,9 +900,9 @@
                 </Grid.RowDefinitions>
                 <TextBlock
                     Grid.Row="0"
-                    Margin="20,0,0,0"
+                    Margin="10,0,0,0"
                     VerticalAlignment="Center"
-                    FontSize="30"
+                    FontSize="16"
                     FontWeight="Bold">
                     <Run Text="测试结果：" />
                     <Run Text=" " />
@@ -741,9 +915,9 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock
                         Grid.Column="0"
-                        Margin="20,0,0,0"
+                        Margin="10,0,0,0"
                         VerticalAlignment="Center"
-                        FontSize="18"
+                        FontSize="14"
                         FontWeight="Bold">
                         <Run Text="上次测试时间：" />
                         <Run Text="{Binding LastTestTime, TargetNullValue=--, FallbackValue=--}" />
@@ -752,7 +926,7 @@
                         Grid.Column="1"
                         Margin="30,0,0,0"
                         VerticalAlignment="Center"
-                        FontSize="18"
+                        FontSize="14"
                         FontWeight="Bold">
                         <Run Text="上次测试结果：" />
                         <Run Text="{Binding LastTestResult, TargetNullValue=--, FallbackValue=--}" />

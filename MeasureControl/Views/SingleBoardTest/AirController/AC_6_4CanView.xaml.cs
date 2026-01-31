@@ -64,5 +64,10 @@ namespace MeasureControl.Views.SingleBoardTest.AirController
 
             return false;
         }
+
+        private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
     }
 }

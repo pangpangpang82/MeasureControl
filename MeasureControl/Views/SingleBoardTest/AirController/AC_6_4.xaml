@@ -293,7 +293,7 @@
                                 FontSize="12"
                                 ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                                 ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}">
+                                SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" SelectionChanged="ComboBox_SelectionChanged">
                                 <ComboBox.Style>
                                     <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
                                         <Setter Property="Opacity" Value="1" />
