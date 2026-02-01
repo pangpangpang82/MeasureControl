@@ -339,6 +339,18 @@ namespace MeasureControl.ViewModels.TestTask
                 append = encoding.GetString(bytes, 0, bytes.Length);
             }
 
+            var newLinePerFlush = string.Equals(_rsType, "RS422", StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(_rsType, "RS232", StringComparison.OrdinalIgnoreCase);
+            if (newLinePerFlush)
+            {
+                var endsWithLineBreak = append.EndsWith("\n", StringComparison.Ordinal) ||
+                                        append.EndsWith("\r", StringComparison.Ordinal);
+                if (!endsWithLineBreak)
+                {
+                    append += Environment.NewLine;
+                }
+            }
+
             IsReceiving = true;
             AppendReceiveChunk(append);
         }
