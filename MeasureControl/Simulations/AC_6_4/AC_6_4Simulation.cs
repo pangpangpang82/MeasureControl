@@ -18,6 +18,7 @@ namespace MeasureControl.Simulations.AC_6_4
         private readonly SemaphoreSlim _powerSupplyIoLock = new SemaphoreSlim(1, 1);
 
         private ART4229Driver _arincDriver;
+        private readonly SemaphoreSlim _arincIoLock = new SemaphoreSlim(1, 1);
 
         private int _benchTxChannelIndex = -1;
         private int _benchRxChannelIndex = -1;
@@ -47,8 +48,8 @@ namespace MeasureControl.Simulations.AC_6_4
 
         public double SimProductArincRate { get; set; } = 100000.0;
 
-        public int SimProductRxChannelIndex { get; set; } = 6;
-        public int SimProductTxChannelIndex { get; set; } = 7;
+        public int SimProductRxChannelIndex { get; set; } = 4;
+        public int SimProductTxChannelIndex { get; set; } = 5;
 
         public string PowerSupplyIpAddress { get; set; } = "192.168.1.15";
         public int PowerSupplyPort { get; set; } = 30000;
@@ -56,6 +57,14 @@ namespace MeasureControl.Simulations.AC_6_4
         public int ArincDeviceIndex { get; set; } = 0;
 
         public Func<Action<string>, CancellationToken, Task> OnOutputEnabledAsync { get; set; }
+
+        /// <summary>
+        /// 停止遥测输出（不停止整个仿真），用于测试完成后停止遥测循环打印日志
+        /// </summary>
+        public void StopTelemetryOutput()
+        {
+            _outputEnabled = false;
+        }
 
         public async Task StartAsync(string benchTxChannel, string benchRxChannel, Action<string> log)
         {
@@ -66,12 +75,12 @@ namespace MeasureControl.Simulations.AC_6_4
 
             _simCts = new CancellationTokenSource();
 
-            await ConnectPowerSupplyAsync(log);
+            await ConnectPowerSupplyAsync(log);//连接程控电源
 
-            await OpenArincDeviceAsync(log);
+            await OpenArincDeviceAsync(log);//打开ARINC429板卡
 
-            int benchTxIndex = ParseChannelIndex(benchTxChannel);
-            int benchRxIndex = ParseChannelIndex(benchRxChannel);
+            int benchTxIndex = ParseChannelIndex(benchTxChannel);//解析Bench侧TX通道
+            int benchRxIndex = ParseChannelIndex(benchRxChannel);//解析Bench侧RX通道
 
             // 通道冲突保护：同一物理通道不能同时被当作 TX/RX，也不能与仿真产品侧通道冲突
             if (benchTxIndex == benchRxIndex)
@@ -306,29 +315,30 @@ namespace MeasureControl.Simulations.AC_6_4
                 throw new InvalidOperationException("Simulation not started");
 
             int rxIndex = ParseChannelIndex(benchRxChannel);
-            await EnsureBenchRxChannelAsync(benchRxChannel, log);
+            // 注意：不要在这里重新配置接收通道，因为SendBenchCommandAndWaitAsync已经配置过了
+            // 重新配置会清空已接收的数据，导致响应丢失
 
             // 注意：现场设备可能不会使用我们发送时的固定 label，
             // 这里不要强依赖 label 过滤，改为按“收到的 label”分别组包。
             // 这样即使 label 不一致，也能正确组出 8 字节响应并由 isExpectedResponse 判定。
-            var assemblers = new Dictionary<byte, MultiFrameCommandAssembler>();
+            var assemblers = new Dictionary<byte, MultiFrameCommandAssembler>();// 使用字典管理不同标签的组包器
             var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
             int rxLogCount = 0;
             const int maxRxLog = 32;
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
             {
-                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
+                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);//读取接收数据
                 if (list != null && list.Count > 0)
                 {
                     foreach (var item in list)
                     {
-                        if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
+                        if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))//解析接收到的429数据，对每个接收到的字进行解析
                             continue;
 
                         if (EnableFrameLogging)
                         {
-                            if (rxLogCount < maxRxLog)
+                            if (rxLogCount < maxRxLog)//日志打印数量限制
                             {
                                 log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} recv raw=0x{item.Data429:X8} label=0x{rxLabel:X2} sdi={sdi} payload=0x{payload:X4}");
                                 rxLogCount++;
@@ -350,12 +360,13 @@ namespace MeasureControl.Simulations.AC_6_4
                             assemblers[rxLabel] = assembler;
                         }
 
+                        // 尝试添加分片并检测是否完成组包
                         if (assembler.TryAddFragment(rxLabel, sdi, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
                         {
                             if (isExpectedResponse == null || isExpectedResponse(resp8))
                             {
                                 log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 label=0x{rxLabel:X2} resp8={FormatBytes(resp8)}");
-                                return resp8;
+                                return resp8;//返回拼包完成的8字节响应
                             }
                         }
                     }
@@ -369,14 +380,19 @@ namespace MeasureControl.Simulations.AC_6_4
 
         public async Task StopAsync(Action<string> log)
         {
+            if (log == null) log = _ => { };
+
             if (!_started)
             {
                 await CleanupAsync();
                 return;
             }
 
-            if (log == null) log = _ => { };
             log($"[{DateTime.Now:HH:mm:ss}] [SIM] 6_4 仿真停止：释放设备资源");
+
+            // 先设置_started为false，防止重入
+            _started = false;
+            _outputEnabled = false;
 
             try
             {
@@ -386,17 +402,27 @@ namespace MeasureControl.Simulations.AC_6_4
             {
             }
 
+            // 等待产品侧RX循环结束
             try
             {
                 if (_rxLoopTask != null)
-                    await _rxLoopTask;
+                    await _rxLoopTask.ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+
+            // 等待遥测循环结束
+            try
+            {
+                if (_telemetryTask != null)
+                    await _telemetryTask.ConfigureAwait(false);
             }
             catch
             {
             }
 
             await CleanupAsync();
-            _started = false;
         }
 
         private async Task StartSimProductRxAsync(Action<string> log, CancellationToken token)
@@ -455,18 +481,16 @@ namespace MeasureControl.Simulations.AC_6_4
                                     }
                                     else if (cmd8.SequenceEqual(EnableOutputCommand))
                                     {
-                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到开启输出指令 -> 回ACK并开启程控电源输出");
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到开启输出指令 -> 直接开启程控电源输出");
 
-                                        await SendMultiFrameResponseAsync(label, EnableOutputAck, log, token);
-
-                                        double outputVoltage = NextDouble(13.5, 16.5);
-                                        double outputCurrent = 0.2;
+                                        double outputVoltage = NextDouble(13.5, 16.5);//设置输出电压
+                                        double outputCurrent = NextDouble(0.1, 0.2);//设置输出电流
                                         try
                                         {
                                             await SendPowerSupplyScpiAsync($"VOLT {outputVoltage:F3},(@1)", 5000, token);
                                             await SendPowerSupplyScpiAsync($"CURR {outputCurrent:F3},(@1)", 5000, token);
-                                            await SendPowerSupplyScpiAsync("OUTP:PROT:CLE", 5000, token);
-                                            await SendPowerSupplyScpiAsync("OUTP ON,(@1)", 5000, token);
+                                            await SendPowerSupplyScpiAsync("OUTP:PROT:CLE", 5000, token);//清除保护
+                                            await SendPowerSupplyScpiAsync("OUTP ON,(@1)", 5000, token);//开启输出
                                         }
                                         catch
                                         {
@@ -484,7 +508,7 @@ namespace MeasureControl.Simulations.AC_6_4
                                         {
                                         }
 
-                                        StartTelemetryLoopIfNeeded(label, log);
+                                        StartTelemetryLoopIfNeeded(label, log);//开启遥测循环
                                     }
                                 }
                             }
@@ -528,7 +552,17 @@ namespace MeasureControl.Simulations.AC_6_4
                 parity[frag] = 1; // Odd
             }
 
-            bool ok = await _arincDriver.SendDataSingleAsync(SimProductTxChannelIndex, data429, parity);
+            await _arincIoLock.WaitAsync(token).ConfigureAwait(false);
+            bool ok;
+            try
+            {
+                ok = await _arincDriver.SendDataSingleAsync(SimProductTxChannelIndex, data429, parity);
+            }
+            finally
+            {
+                _arincIoLock.Release();
+            }
+
             if (!ok)
             {
                 log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧回包发送失败: simTX={SimProductTxChannelIndex}");
@@ -562,7 +596,17 @@ namespace MeasureControl.Simulations.AC_6_4
                 parity[frag] = 1;
             }
 
-            bool ok = await _arincDriver.SendDataSingleAsync(txChannelIndex, data429, parity);
+            await _arincIoLock.WaitAsync(token).ConfigureAwait(false);
+            bool ok;
+            try
+            {
+                ok = await _arincDriver.SendDataSingleAsync(txChannelIndex, data429, parity);
+            }
+            finally
+            {
+                _arincIoLock.Release();
+            }
+
             if (!ok)
             {
                 log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench侧发送失败: tx={txChannelIndex}");
@@ -720,7 +764,7 @@ namespace MeasureControl.Simulations.AC_6_4
             // 这里的配置参数参考 ART4229ConfigPanelViewModel 的常用默认值
             // wordFormat: 0 表示标准429
             const int wordFormat = 0;
-            const int parity = 1; // Odd
+            const int parity = 1; // Odd奇校验
             double benchTxRate = ArincRate;
             double benchRxRate = ArincRate;
             double simTxRate = SimProductArincRate;
@@ -793,14 +837,14 @@ namespace MeasureControl.Simulations.AC_6_4
             try
             {
                 _powerSupplyClient = new TcpClient();
-                await _powerSupplyClient.ConnectAsync(PowerSupplyIpAddress, PowerSupplyPort);
+                await _powerSupplyClient.ConnectAsync(PowerSupplyIpAddress, PowerSupplyPort);// 默认 192.168.1.15:30000
                 _powerSupplyStream = _powerSupplyClient.GetStream();
 
                 var idn = await QueryPowerSupplyScpiAsync("*IDN?", 5000, CancellationToken.None);
                 log($"[{DateTime.Now:HH:mm:ss}] [SIM] 程控电源已连接: {idn}");
 
-                await SendPowerSupplyScpiAsync("SYST:REM", 5000, CancellationToken.None);
-                await SendPowerSupplyScpiAsync("OUTP OFF,(@1)", 5000, CancellationToken.None);
+                await SendPowerSupplyScpiAsync("SYST:REM", 5000, CancellationToken.None);// 远程控制模式
+                await SendPowerSupplyScpiAsync("OUTP OFF,(@1)", 5000, CancellationToken.None);// 关闭输出
             }
             catch (Exception ex)
             {
