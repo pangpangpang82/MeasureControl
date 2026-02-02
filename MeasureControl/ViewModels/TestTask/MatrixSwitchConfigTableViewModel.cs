@@ -1371,6 +1371,18 @@ namespace MeasureControl.ViewModels
                 FrequencyAcquireRoutes.Add($"频率采集{i}");
             }
 
+
+
+            for (int i = 2; i <= 10; i++)
+            {
+                FrequencyOutputRoutes.Add($"频率输出{i}");
+            }
+
+            FrequencyOutput1MeasureOptions.Add("万用表");
+            FrequencyOutput1MeasureOptions.Add("示波器通道1");
+            FrequencyOutput1MeasureOptions.Add("示波器通道2");
+            FrequencyOutput1MeasureOptions.Add("示波器通道3");
+            FrequencyOutput1MeasureOptions.Add("示波器通道4");
             FrequencyAcquireMeasureOptions.Add("频率计");
             FrequencyAcquireMeasureOptions.Add("万用表测频率");
             FrequencyAcquireMeasureOptions.Add("示波器通道1");
