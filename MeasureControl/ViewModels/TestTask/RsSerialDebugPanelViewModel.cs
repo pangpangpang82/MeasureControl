@@ -20,6 +20,10 @@ namespace MeasureControl.ViewModels.TestTask
         private readonly string _rsType;
         private SerialPort _serialPort;
 
+        private readonly object _rxBufferLock = new object();
+        private readonly System.Collections.Generic.List<byte> _rxByteBuffer = new System.Collections.Generic.List<byte>(4096);
+        private DispatcherTimer _rxFlushTimer;
+
         private string _title;
         private bool _isOpen;
         private string _selectedPort;
@@ -277,6 +281,80 @@ namespace MeasureControl.ViewModels.TestTask
             RefreshPorts();
         }
 
+        private void EnsureRxFlushTimer()
+        {
+            if (_rxFlushTimer != null) return;
+
+            _rxFlushTimer = new DispatcherTimer(DispatcherPriority.Background, Application.Current.Dispatcher)
+            {
+                Interval = TimeSpan.FromMilliseconds(50)
+            };
+            _rxFlushTimer.Tick += RxFlushTimer_Tick;
+        }
+
+        private void RestartRxFlushTimer()
+        {
+            EnsureRxFlushTimer();
+            try
+            {
+                _rxFlushTimer.Stop();
+                _rxFlushTimer.Start();
+            }
+            catch
+            {
+            }
+        }
+
+        private void RxFlushTimer_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                _rxFlushTimer.Stop();
+            }
+            catch
+            {
+            }
+
+            FlushReceiveBufferToUi();
+        }
+
+        private void FlushReceiveBufferToUi()
+        {
+            byte[] bytes;
+            lock (_rxBufferLock)
+            {
+                if (_rxByteBuffer.Count == 0) return;
+                bytes = _rxByteBuffer.ToArray();
+                _rxByteBuffer.Clear();
+            }
+
+            string append;
+            if (IsHexDisplay)
+            {
+                append = BitConverter.ToString(bytes).Replace("-", " ");
+            }
+            else
+            {
+                var encoding = _serialPort?.Encoding ?? Encoding.ASCII;
+                append = encoding.GetString(bytes, 0, bytes.Length);
+            }
+
+            var newLinePerFlush = string.Equals(_rsType, "RS422", StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(_rsType, "RS232", StringComparison.OrdinalIgnoreCase);
+            if (newLinePerFlush)
+            {
+                var endsWithLineBreak = append.EndsWith("\n", StringComparison.Ordinal) ||
+                                        append.EndsWith("\r", StringComparison.Ordinal);
+                if (!endsWithLineBreak)
+                {
+                    append += Environment.NewLine;
+                }
+            }
+
+            IsReceiving = true;
+            AppendReceiveChunk(append);
+        }
+
         private void AppendReceiveLine(string line)
         {
             if (line == null) line = string.Empty;
@@ -285,20 +363,19 @@ namespace MeasureControl.ViewModels.TestTask
                 line += Environment.NewLine;
             }
 
-            ReceiveText = (ReceiveText ?? string.Empty) + line;
+            var current = ReceiveText ?? string.Empty;
+            if (current.Length > 0 && !current.EndsWith(Environment.NewLine, StringComparison.Ordinal))
+            {
+                current += Environment.NewLine;
+            }
+
+            ReceiveText = current + line;
         }
         private void AppendReceiveChunk(string chunk)
         {
             if (chunk == null) chunk = string.Empty;
 
-            var newLinePerChunk = string.Equals(_rsType, "RS422", StringComparison.OrdinalIgnoreCase) ||
-                                  string.Equals(_rsType, "RS232", StringComparison.OrdinalIgnoreCase);
-
             var current = ReceiveText ?? string.Empty;
-            if (newLinePerChunk && current.Length > 0 && !current.EndsWith(Environment.NewLine, StringComparison.Ordinal))
-            {
-                current += Environment.NewLine;
-            }
 
             if (IsHexDisplay && current.Length > 0)
             {
@@ -309,13 +386,7 @@ namespace MeasureControl.ViewModels.TestTask
                 }
             }
 
-            var next = current + chunk;
-            if (newLinePerChunk && !next.EndsWith(Environment.NewLine, StringComparison.Ordinal))
-            {
-                next += Environment.NewLine;
-            }
-
-            ReceiveText = next;
+            ReceiveText = current + chunk;
         }
 
 
@@ -513,6 +584,11 @@ namespace MeasureControl.ViewModels.TestTask
                         IsOpen = false;
                         IsSending = false;
                         IsReceiving = false;
+                        lock (_rxBufferLock)
+                        {
+                            _rxByteBuffer.Clear();
+                        }
+                        try { _rxFlushTimer?.Stop(); } catch { }
                         StopTimedSendInternal();
                         RaisePropertyChanged(nameof(SendStatusText));
                         RaisePropertyChanged(nameof(ReceiveStatusText));
@@ -630,20 +706,18 @@ namespace MeasureControl.ViewModels.TestTask
                 int read = sp.Read(buffer, 0, count);
                 if (read <= 0) return;
 
-                string append;
-                if (IsHexDisplay)
-                {
-                    append = BitConverter.ToString(buffer, 0, read).Replace("-", " ");
-                }
-                else
-                {
-                    append = sp.Encoding.GetString(buffer, 0, read);
-                }
-
+                var actual = buffer;
+                var actualLen = read;
                 Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    IsReceiving = true;
-                    AppendReceiveChunk(append);
+                    lock (_rxBufferLock)
+                    {
+                        for (int i = 0; i < actualLen; i++)
+                        {
+                            _rxByteBuffer.Add(actual[i]);
+                        }
+                    }
+                    RestartRxFlushTimer();
                 }));
             }
             catch (Exception ex)

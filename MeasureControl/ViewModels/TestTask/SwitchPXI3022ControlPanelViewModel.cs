@@ -2673,12 +2673,11 @@ namespace MeasureControl.ViewModels.TestTask
 
                 StopStatusTimer();
 
+                await DisconnectAllAsync();
+
+                // 2. 断开设备连接
                 if (_driver != null)
                 {
-                    // 1. 断开所有硬件连接
-                    await DisconnectAllAsync();
-
-                    // 2. 断开设备连接
                     await _driver.DisconnectAsync();
                     _driver = null;
 
@@ -2726,7 +2725,7 @@ namespace MeasureControl.ViewModels.TestTask
                     {
                         crossPoint.IsPendingConnection = false;
                         crossPoint.IsConnected = false;
-                        crossPoint.ConnectionColor = null;
+                        crossPoint.ConnectionColor = "#9E9E9E";
                     }
 
                     // 11. 更新交叉点状态
@@ -2761,14 +2760,90 @@ namespace MeasureControl.ViewModels.TestTask
         /// </summary>
         private async Task DisconnectAllAsync()
         {
-            if (_driver == null || !IsDeviceConnected) return;
+            if (!IsDeviceConnected) return;
 
             try
             {
                 Debug.WriteLine($"[DisconnectAllAsync] 开始断开所有连接");
 
-                // PXI3022 通过重置设备来断开所有连接
-                bool success = await _driver.ResetAsync();
+                if (IsRemoteChassis)
+                {
+                    await DisconnectAllRemoteConnectionsAsync().ConfigureAwait(false);
+
+                    if (_cardConfig != null)
+                    {
+                        int disconnectedCount = 0;
+                        foreach (var connection in _cardConfig.ConnectionMap.Values)
+                        {
+                            if (connection.State == SwitchConnectionState.Connected)
+                            {
+                                connection.SetConnectionState(SwitchConnectionState.Disconnected);
+                                disconnectedCount++;
+                                Debug.WriteLine($"[DisconnectAllAsync] 软件设置连接 {connection.InputChannel}->{connection.OutputChannel} 状态为 Disconnected");
+                            }
+                        }
+
+                        _cardConfig.UpdateCounts();
+                        _cardConfig.UpdateActiveConnectionsList();
+
+                        Debug.WriteLine($"[DisconnectAllAsync] 共断开 {disconnectedCount} 个软件连接");
+                    }
+
+                    Dispatcher.Invoke(() =>
+                    {
+                        Debug.WriteLine("[DisconnectAllAsync] 在UI线程更新显示");
+
+                        UpdateAllRelayStatus();
+                        ActiveConnections.Clear();
+                        UpdateConnectionCounts();
+
+                        foreach (var crossPoint in CrossPoints)
+                        {
+                            crossPoint.IsPendingConnection = false;
+                            crossPoint.IsConnected = false;
+                            crossPoint.ConnectionColor = "#9E9E9E";
+                        }
+
+                        UpdateCrossPointsConnectionStatus();
+                        UpdateMatrixNodesConnectionStatus();
+                        RefreshMatrixTopology();
+                        ClearAllSelectionStates();
+                        RaisePropertyChanged(nameof(MatrixSelectionStatus));
+
+                        Debug.WriteLine("[DisconnectAllAsync] UI状态更新完成");
+                    });
+
+                    SaveDeviceConfig();
+                    Debug.WriteLine($"[SwitchPXI3022Control] 所有硬件和软件连接已断开，ActiveRelayCount: {ActiveRelayCount}");
+                    return;
+                }
+
+                if (_driver == null) return;
+
+                bool success;
+                try
+                {
+                    var allChannels = new Dictionary<string, double>(OKAIPXIDevice.PXI3022Constants.RELAY_FLAG_ARRAY_SIZE);
+                    for (int row = 0; row < OKAIPXIDevice.PXI3022Constants.PXI3022_ROW_4ROW; row++)
+                    {
+                        for (int col = 0; col < OKAIPXIDevice.PXI3022Constants.PXI3022_COL_64COL; col++)
+                        {
+                            allChannels[$"R{row}C{col}"] = 0.0;
+                        }
+                    }
+
+                    success = await _driver.WriteChannelsBatchAsync(allChannels).ConfigureAwait(false);
+                }
+                catch
+                {
+                    success = false;
+                }
+
+                if (!success)
+                {
+                    // PXI3022 通过重置设备来断开所有连接
+                    success = await _driver.ResetAsync().ConfigureAwait(false);
+                }
 
                 if (success)
                 {
@@ -2782,14 +2857,12 @@ namespace MeasureControl.ViewModels.TestTask
                         {
                             if (connection.State == SwitchConnectionState.Connected)
                             {
-                                // 更新软件连接状态为断开
                                 connection.SetConnectionState(SwitchConnectionState.Disconnected);
                                 disconnectedCount++;
                                 Debug.WriteLine($"[DisconnectAllAsync] 软件设置连接 {connection.InputChannel}->{connection.OutputChannel} 状态为 Disconnected");
                             }
                         }
 
-                        // 更新配置统计
                         _cardConfig.UpdateCounts();
                         _cardConfig.UpdateActiveConnectionsList();
 
@@ -2815,7 +2888,6 @@ namespace MeasureControl.ViewModels.TestTask
                         {
                             crossPoint.IsPendingConnection = false;
                             crossPoint.IsConnected = false;
-                            // 与 PXI2601 保持一致：断开时显示灰色而非 null，以便 UI 立即显示为断开状态
                             crossPoint.ConnectionColor = "#9E9E9E";
                         }
 
@@ -2825,13 +2897,15 @@ namespace MeasureControl.ViewModels.TestTask
                         // 更新节点连接状态
                         UpdateMatrixNodesConnectionStatus();
 
+                        RefreshMatrixTopology();
+
                         // 清除所有选择状态
                         ClearAllSelectionStates();
 
                         // 更新状态显示
                         RaisePropertyChanged(nameof(MatrixSelectionStatus));
 
-                        Debug.WriteLine($"[DisconnectAllAsync] UI状态更新完成");
+                        Debug.WriteLine("[DisconnectAllAsync] UI状态更新完成");
                     });
 
                     // 保存配置
@@ -2842,6 +2916,7 @@ namespace MeasureControl.ViewModels.TestTask
                 else
                 {
                     Debug.WriteLine($"[DisconnectAllAsync] 硬件断开失败");
+
                     ReMessageBox.Show("断开所有硬件连接失败",
                         "断开失败",
                         MessageBoxButton.OK, MessageBoxImage.Error);
@@ -2850,6 +2925,7 @@ namespace MeasureControl.ViewModels.TestTask
             catch (Exception ex)
             {
                 Debug.WriteLine($"[DisconnectAllAsync] 断开所有连接异常: {ex.Message}");
+
                 ReMessageBox.Show($"断开所有连接失败: {ex.Message}", "断开错误",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -4513,9 +4589,8 @@ namespace MeasureControl.ViewModels.TestTask
                     {
                         if (!KeepMatrixConnectionOnClose)
                         {
-                            if (_driver != null && IsDeviceConnected)
+                            if (IsDeviceConnected)
                             {
-                                await DisconnectAllAsync();
                                 await DisconnectDeviceAsync();
                             }
                         }
@@ -4760,6 +4835,46 @@ namespace MeasureControl.ViewModels.TestTask
             return true;
         }
 
+        private async Task<bool> SendRemoteCommandAsync(string ipAddress, int port, byte inputIndex, byte outputIndex, byte state)
+        {
+            try
+            {
+                var buffer = new[] { inputIndex, outputIndex, state };
+                Debug.WriteLine($"[SendRemoteCommandAsync] TX({ipAddress}:{port}): {BitConverter.ToString(buffer)}");
+
+                using (var client = new TcpClient())
+                {
+                    client.NoDelay = true;
+                    client.SendTimeout = 3000;
+                    client.ReceiveTimeout = 3000;
+
+                    await client.ConnectAsync(ipAddress, port);
+                    using (var stream = client.GetStream())
+                    {
+                        await stream.WriteAsync(buffer, 0, buffer.Length);
+                        await stream.FlushAsync();
+
+                        var ack = new byte[3];
+                        int read = await ReadExactAsync(stream, ack, 0, ack.Length, CancellationToken.None);
+                        if (read != 3)
+                        {
+                            return false;
+                        }
+
+                        bool success = ack[0] == inputIndex && ack[1] == outputIndex && ack[2] == state;
+                        Debug.WriteLine($"[SendRemoteCommandAsync] RX({ipAddress}:{port}): {BitConverter.ToString(ack)}, success={success}");
+                        return success;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SendRemoteCommandAsync] 异常: {ex.Message}");
+                CleanupTcpConnection();
+                return false;
+            }
+        }
+
         private async Task<bool> SendRemoteCommandWithRetryAsync(string ipAddress, int port, byte inputIndex, byte outputIndex, byte state, int maxRetries = 2)
         {
             for (int retry = 0; retry < maxRetries; retry++)
@@ -4784,187 +4899,6 @@ namespace MeasureControl.ViewModels.TestTask
             }
 
             return false;
-        }
-
-        private async Task<bool> EnsureTcpConnectedAsync(string ipAddress, int port)
-        {
-            try
-            {
-                if (_tcpClient != null && _tcpClient.Connected)
-                {
-                    if (DateTime.Now - _tcpLastActivityTime < _tcpInactivityTimeout)
-                    {
-                        return true;
-                    }
-                    else
-                    {
-                        CleanupTcpConnection();
-                    }
-                }
-
-                Debug.WriteLine($"[EnsureTcpConnectedAsync] 创建新TCP连接到 {ipAddress}:{port}, LocalIPv4=[{string.Join(",", GetLocalIpv4Addresses())}]");
-
-                var client = new TcpClient();
-                client.NoDelay = true;  // 禁用Nagle算法，减少延迟
-                client.SendTimeout = 3000;  // 减少发送超时时间
-                client.ReceiveTimeout = 3000;  // 减少接收超时时间
-
-                // 设置更大的发送/接收缓冲区，提高性能
-                client.SendBufferSize = 8192;
-                client.ReceiveBufferSize = 8192;
-
-                // 设置linger选项，确保数据完全发送
-                client.LingerState = new LingerOption(true, 0);
-
-                await client.ConnectAsync(ipAddress, port);
-
-                _tcpClient = client;
-                _tcpStream = client.GetStream();
-                _tcpLastActivityTime = DateTime.Now;
-
-                Debug.WriteLine($"[EnsureTcpConnectedAsync] TCP连接建立成功 Local={client.Client?.LocalEndPoint} Remote={client.Client?.RemoteEndPoint}");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                if (ex is SocketException se)
-                {
-                    Debug.WriteLine($"[EnsureTcpConnectedAsync] 连接失败(Socket): {se.SocketErrorCode}, {se.Message}");
-                }
-                else
-                {
-                    Debug.WriteLine($"[EnsureTcpConnectedAsync] 连接失败: {ex.Message}");
-                }
-                CleanupTcpConnection();
-                return false;
-            }
-        }
-
-        private async Task<bool> SendRemoteCommandAsync(string ipAddress, int port, byte inputIndex, byte outputIndex, byte state)
-        {
-            var startTime = DateTime.Now;
-            try
-            {
-                if (!await EnsureTcpConnectedAsync(ipAddress, port))
-                {
-                    Debug.WriteLine("[SendRemoteCommandAsync] TCP连接失败");
-                    return false;
-                }
-
-                _tcpLastActivityTime = DateTime.Now;
-
-                var buffer = new[] { inputIndex, outputIndex, state };
-                Debug.WriteLine($"[SendRemoteCommandAsync] TX({ipAddress}:{port}): {BitConverter.ToString(buffer)}");
-                await _tcpStream.WriteAsync(buffer, 0, buffer.Length);
-                await _tcpStream.FlushAsync();
-
-                var sendTime = DateTime.Now - startTime;
-                Debug.WriteLine($"[SendRemoteCommandAsync] 发送耗时: {(int)sendTime.TotalMilliseconds}ms");
-
-                var ack = new byte[3];
-                int timeoutMs = 2000; // 减少超时时间，从5秒改为2秒，提高响应速度
-
-                // 使用异步读取替代轮询，提高响应速度
-                using (var cts = new CancellationTokenSource(timeoutMs))
-                {
-                    try
-                    {
-                        int totalRead = 0;
-                        while (totalRead < ack.Length)
-                        {
-                            int read = await _tcpStream.ReadAsync(ack, totalRead, ack.Length - totalRead, cts.Token);
-                            if (read <= 0)
-                            {
-                                Debug.WriteLine("[SendRemoteCommandAsync] 连接中断");
-                                CleanupTcpConnection();
-                                return false;
-                            }
-                            totalRead += read;
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        Debug.WriteLine("[SendRemoteCommandAsync] 接收响应超时");
-                        CleanupTcpConnection();
-                        return false;
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"[SendRemoteCommandAsync] 读取异常: {ex.Message}");
-                        CleanupTcpConnection();
-                        return false;
-                    }
-                }
-
-                var totalTime = DateTime.Now - startTime;
-                bool success = ack[0] == inputIndex && ack[1] == outputIndex && ack[2] == state;
-                if (!success)
-                {
-                    Debug.WriteLine("[SendRemoteCommandAsync] 响应验证失败");
-                    CleanupTcpConnection();
-                }
-
-                Debug.WriteLine($"[SendRemoteCommandAsync] RX({ipAddress}:{port}): {BitConverter.ToString(ack)}, 总耗时: {(int)totalTime.TotalMilliseconds}ms");
-                return success;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SendRemoteCommandAsync] 异常: {ex.Message}");
-                CleanupTcpConnection();
-                return false;
-            }
-        }
-
-        #region TCP客户端方法
-
-        private async Task<bool> SendMatrixCommandAsync(string inputNodeId, string outputNodeId, byte state)
-        {
-            if (!TryParseNodeIndex(inputNodeId, out var inputIndex) ||
-                !TryParseNodeIndex(outputNodeId, out var outputIndex))
-            {
-                Debug.WriteLine($"[SendMatrixCommandAsync] 节点解析失败: {inputNodeId} -> {outputNodeId}");
-                return false;
-            }
-
-            int port = GetTcpListenPort();
-            var ipAddress = ResolveControlledChassisIpAddress();
-            Debug.WriteLine($"[SendMatrixCommandAsync] 发送矩阵命令: {inputNodeId}({inputIndex})->{outputNodeId}({outputIndex}), state={state}");
-            return await SendRemoteCommandWithRetryAsync(ipAddress, port, inputIndex, outputIndex, state);
-        }
-
-        private async Task DisconnectAllRemoteConnectionsAsync()
-        {
-            try
-            {
-                // 发送断开所有连接的命令
-                var cmd = new byte[] { 0xFF, 0xFF, 0 };
-
-                int slotIndex = (Device as MeasureControl.Models.Devices.DeviceCategories.PxiDeviceBase)?.SlotIndex ?? 0;
-                int port = TcpBasePort3022 + slotIndex;
-
-                Debug.WriteLine($"[DisconnectAllRemoteConnectionsAsync] Sending disconnect all to {RemoteClientIpAddress}:{port}");
-
-                using (var client = new TcpClient())
-                {
-                    await client.ConnectAsync(RemoteClientIpAddress, port);
-                    using (var stream = client.GetStream())
-                    {
-                        await stream.WriteAsync(cmd, 0, cmd.Length);
-                        await stream.FlushAsync();
-
-                        var ack = new byte[3];
-                        int read = await ReadExactAsync(stream, ack, 0, ack.Length, CancellationToken.None);
-                        if (read == 3)
-                        {
-                            Debug.WriteLine($"[DisconnectAllRemoteConnectionsAsync] ACK: {BitConverter.ToString(ack)}");
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[DisconnectAllRemoteConnectionsAsync] 异常: {ex.Message}");
-            }
         }
 
         private async Task SendRemoteDriverControlAsync(byte state)
@@ -4999,6 +4933,57 @@ namespace MeasureControl.ViewModels.TestTask
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SendRemoteDriverControlAsync] 异常: {ex.Message}");
+            }
+        }
+
+        #region TCP客户端方法
+
+        private async Task<bool> SendMatrixCommandAsync(string inputNodeId, string outputNodeId, byte state)
+        {
+            if (!TryParseNodeIndex(inputNodeId, out var inputIndex) ||
+                !TryParseNodeIndex(outputNodeId, out var outputIndex))
+            {
+                Debug.WriteLine($"[SendMatrixCommandAsync] 节点解析失败: {inputNodeId} -> {outputNodeId}");
+                return false;
+            }
+
+            int port = GetTcpListenPort();
+            var ipAddress = ResolveControlledChassisIpAddress();
+            Debug.WriteLine($"[SendMatrixCommandAsync] 发送矩阵命令: {inputNodeId}({inputIndex})->{outputNodeId}({outputIndex}), state={state}");
+            return await SendRemoteCommandWithRetryAsync(ipAddress, port, inputIndex, outputIndex, state);
+        }
+
+        private async Task DisconnectAllRemoteConnectionsAsync()
+        {
+            try
+            {
+                if (_cardConfig == null)
+                {
+                    return;
+                }
+
+                var activeConnections = _cardConfig.ConnectionMap.Values
+                    .Where(c => c != null && c.State == SwitchConnectionState.Connected)
+                    .ToList();
+
+                Debug.WriteLine($"[DisconnectAllRemoteConnectionsAsync] 开始断开所有远程连接，Count={activeConnections.Count}");
+
+                foreach (var conn in activeConnections)
+                {
+                    try
+                    {
+                        await SendMatrixCommandAsync(conn.InputChannel, conn.OutputChannel, RemoteCommandDisconnect).ConfigureAwait(false);
+                        await Task.Delay(10).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[DisconnectAllRemoteConnectionsAsync] 断开 {conn.InputChannel}->{conn.OutputChannel} 异常: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DisconnectAllRemoteConnectionsAsync] 异常: {ex.Message}");
             }
         }
 

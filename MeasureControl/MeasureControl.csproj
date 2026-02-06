@@ -393,6 +393,7 @@
     <Compile Include="Services\SingleBoardTestContextService.cs" />
     <Compile Include="Services\PxiChassisService.cs" />
     <Compile Include="Simulations\AC_6_4\AC_6_4Simulation.cs" />
+    <Compile Include="Simulations\PT500\PT500TemperatureSensor429Simulation.cs" />
     <Compile Include="Services\RemoteMatrixCommandDispatcher.cs" />
     <Compile Include="Services\WindowManagerService.cs" />
     <Compile Include="ViewModels\Dialogs\AddChannelDialogViewModel.cs" />
