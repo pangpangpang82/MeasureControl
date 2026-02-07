@@ -1619,19 +1619,17 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
             if (!isCalibrated)
                 return;
 
-            // 标定补偿：反向求解设定值，使实际输出达到目标值
-            // 标定模型：实际输出 = k * 设定值 + b
-            // 反向求解：设定值 = (目标值 - b) / k
-            // 例如：设置-10V时实际输出-9.97V，标定后会自动调整为-10.03V，使实际输出达到-10V
+            // 标定补偿：直接使用补偿系数
+            // command = target * k + b
             if (waveformType == OutputWaveformType.Dc)
             {
                 amplitude = 0;
-                offset = (offset - intercept) / slope;
+                offset = offset * slope + intercept;
             }
             else
             {
-                amplitude = amplitude / slope;
-                offset = (offset - intercept) / slope;
+                amplitude = amplitude * slope;
+                offset = offset * slope + intercept;
             }
 
             if (amplitude < 0) amplitude = 0;
