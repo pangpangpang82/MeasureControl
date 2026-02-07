@@ -546,13 +546,13 @@
                                             Canvas.Top="180"
                                             FontSize="13"
                                             Foreground="#333"
-                                            Text="设定值" />
+                                            Text="测量值" />
                                         <TextBlock
                                             Canvas.Left="-20"
                                             Canvas.Top="-5"
                                             FontSize="13"
                                             Foreground="#333"
-                                            Text="测量值" />
+                                            Text="设定值" />
 
                                         <!--  拟合曲线  -->
                                         <Polyline
