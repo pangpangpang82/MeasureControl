@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
@@ -38,10 +39,11 @@ namespace MeasureControl.ViewModels.TestTask
         private Task _oscilloscopeMeasureTask;
         private bool _oscilloscopeMeasureItemsDirty;
         private string _oscilloscopeMeasureCategory;
+        private CancellationTokenSource _ch1AutoApplyCts;
+        private CancellationTokenSource _ch2AutoApplyCts;
         private bool _disposed = false;
 
         public SignalGeneratorDevice Device => _signalGeneratorDevice;
-
 
         #region Properties
 
@@ -55,6 +57,47 @@ namespace MeasureControl.ViewModels.TestTask
             set => SetProperty(ref _cardName, value);
         }
 
+        private static string ConvertVrmsTextToVppTextForPreview(string waveformType, string vrmsText)
+        {
+            double vrms = TryParseDouble(vrmsText, 0);
+            if (vrms <= 0)
+                return vrmsText;
+
+            string wf = (waveformType ?? "").Trim().ToUpperInvariant();
+            double vpp;
+            if (wf == "SIN")
+                vpp = vrms * 2.0 * Math.Sqrt(2.0);
+            else if (wf == "RAMP")
+                vpp = vrms * 2.0 * Math.Sqrt(3.0);
+            else
+                vpp = vrms * 2.0;
+
+            return vpp.ToString("0.########", CultureInfo.InvariantCulture);
+        }
+
+        private static bool TryConvertVrmsVTextToVppVTextForScpi(string waveformType, string vrmsVText, out string vppVText)
+        {
+            vppVText = null;
+            if (string.IsNullOrWhiteSpace(vrmsVText))
+                return false;
+            if (!double.TryParse(vrmsVText.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double vrms))
+                return false;
+            if (double.IsNaN(vrms) || double.IsInfinity(vrms) || vrms <= 0)
+                return false;
+
+            string wf = (waveformType ?? "").Trim().ToUpperInvariant();
+            double vpp;
+            if (wf == "SIN")
+                vpp = vrms * 2.0 * Math.Sqrt(2.0);
+            else if (wf == "RAMP")
+                vpp = vrms * 2.0 * Math.Sqrt(3.0);
+            else
+                vpp = vrms * 2.0;
+
+            vppVText = vpp.ToString("0.########", CultureInfo.InvariantCulture);
+            return true;
+        }
+
         private async Task ApplyWaveformForChannelAsync(string channel)
         {
             if (!IsSignalGeneratorConnected || _signalGeneratorStream == null)
@@ -64,24 +107,87 @@ namespace MeasureControl.ViewModels.TestTask
                 return;
             }
 
+            await ApplyWaveformForChannelInternalAsync(channel, false);
+        }
+
+        private async Task<bool> ApplyWaveformForChannelInternalAsync(string channel, bool silent)
+        {
+            if (!IsSignalGeneratorConnected || _signalGeneratorStream == null)
+            {
+                if (!silent)
+                {
+                    ReMessageBox.Show("信号发生器设备未连接", "错误",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                return false;
+            }
+
             if (string.IsNullOrWhiteSpace(channel))
                 channel = "1";
 
             string waveformType = GetSelectedWaveformScpiFunction(channel);
 
             string frequency = channel == "2" ? (Ch2FrequencyHz ?? "") : (Ch1FrequencyHz ?? "");
-            string amplitude = channel == "2" ? (Ch2AmplitudeVpp ?? "") : (Ch1AmplitudeVpp ?? "");
+            string amplitudeUnit = channel == "2" ? (Ch2AmplitudeUnit ?? "") : (Ch1AmplitudeUnit ?? "");
+            string amplitudeValue = channel == "2" ? (Ch2AmplitudeValue ?? "") : (Ch1AmplitudeValue ?? "");
             string offset = channel == "2" ? (Ch2OffsetV ?? "") : (Ch1OffsetV ?? "");
             string duty = channel == "2" ? (Ch2DutyPercent ?? "") : (Ch1DutyPercent ?? "");
             string phase = channel == "2" ? (Ch2PhaseDeg ?? "") : (Ch1PhaseDeg ?? "");
             string symmetry = channel == "2" ? (Ch2SymmetryPercent ?? "") : (Ch1SymmetryPercent ?? "");
 
+            string hzText = null;
+            if (IsFrequencySupported(waveformType))
+            {
+                if (string.IsNullOrWhiteSpace(frequency) || !TryNormalizeFrequencyHzForScpi(frequency, out hzText))
+                {
+                    if (!silent)
+                    {
+                        ReMessageBox.Show("频率值无效，请输入如：1000、10K、0.5M", "错误",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                    return false;
+                }
+            }
+
+            string ampText = null;
+            string ampUnit = null;
+            if (IsAmplitudeSupported(waveformType))
+            {
+                string unit = string.IsNullOrWhiteSpace(amplitudeUnit) ? "Vpp" : amplitudeUnit.Trim();
+                if (string.IsNullOrWhiteSpace(amplitudeValue) || !TryNormalizeVoltageVForScpi(amplitudeValue, out ampText))
+                {
+                    if (!silent)
+                    {
+                        ReMessageBox.Show("幅度值无效，请输入如：2.6、2.6V、2600mV", "错误",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                    return false;
+                }
+
+                if (string.Equals(unit, "Vrms", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!TryConvertVrmsVTextToVppVTextForScpi(waveformType, ampText, out string vppText))
+                    {
+                        if (!silent)
+                        {
+                            ReMessageBox.Show("Vrms换算失败，请检查输入值", "错误",
+                                MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                        return false;
+                    }
+                    ampText = vppText;
+                }
+                ampUnit = "VPP";
+            }
+
             await SendSignalGeneratorScpiAsync($":SOURce{channel}:FUNCtion {waveformType}");
 
-            if (IsFrequencySupported(waveformType) && !string.IsNullOrWhiteSpace(frequency))
-                await SendSignalGeneratorScpiAsync($":SOURce{channel}:FREQuency {frequency}");
-            if (IsAmplitudeSupported(waveformType) && !string.IsNullOrWhiteSpace(amplitude))
-                await SendSignalGeneratorScpiAsync($":SOURce{channel}:VOLTage {amplitude}");
+            if (hzText != null)
+                await SendSignalGeneratorScpiAsync($":SOURce{channel}:FREQuency {hzText}");
+            if (ampText != null)
+                await SendSignalGeneratorScpiAsync($":SOURce{channel}:VOLTage:UNIT {ampUnit}");
+            if (ampText != null)
+                await SendSignalGeneratorScpiAsync($":SOURce{channel}:VOLTage {ampText}");
             if (IsOffsetSupported(waveformType) && !string.IsNullOrWhiteSpace(offset))
                 await SendSignalGeneratorScpiAsync($":SOURce{channel}:VOLTage:OFFSet {offset}");
             if (IsPhaseSupported(waveformType) && !string.IsNullOrWhiteSpace(phase))
@@ -90,6 +196,122 @@ namespace MeasureControl.ViewModels.TestTask
                 await SendSignalGeneratorScpiAsync($":SOURce{channel}:PULSe:DCYCle {NormalizePercentString(duty)}");
             if (IsSymmetrySupported(waveformType) && !string.IsNullOrWhiteSpace(symmetry))
                 await SendSignalGeneratorScpiAsync($":SOURce{channel}:FUNCtion:RAMP:SYMMetry {NormalizePercentString(symmetry)}");
+
+            return true;
+        }
+
+        private static bool TryNormalizeFrequencyHzForScpi(string input, out string hzText)
+        {
+            hzText = null;
+            if (string.IsNullOrWhiteSpace(input))
+                return false;
+
+            string raw = input.Trim();
+            raw = raw.Replace(" ", string.Empty).Replace("\t", string.Empty);
+            if (raw.Length == 0)
+                return false;
+
+            string s = raw;
+            double mul = 1.0;
+            string upper = s.ToUpperInvariant();
+
+            if (upper.EndsWith("MHZ", StringComparison.Ordinal))
+            {
+                mul = 1_000_000.0;
+                s = s.Substring(0, s.Length - 3);
+            }
+            else if (upper.EndsWith("KHZ", StringComparison.Ordinal))
+            {
+                mul = 1_000.0;
+                s = s.Substring(0, s.Length - 3);
+            }
+            else if (upper.EndsWith("HZ", StringComparison.Ordinal))
+            {
+                mul = 1.0;
+                s = s.Substring(0, s.Length - 2);
+            }
+            else if (upper.EndsWith("M", StringComparison.Ordinal))
+            {
+                mul = 1_000_000.0;
+                s = s.Substring(0, s.Length - 1);
+            }
+            else if (upper.EndsWith("K", StringComparison.Ordinal))
+            {
+                mul = 1_000.0;
+                s = s.Substring(0, s.Length - 1);
+            }
+
+            s = s.Trim();
+            if (s.Length == 0)
+                return false;
+
+            if (!double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double v))
+            {
+                if (!double.TryParse(s, NumberStyles.Float, CultureInfo.CurrentCulture, out v))
+                    return false;
+            }
+
+            if (double.IsNaN(v) || double.IsInfinity(v))
+                return false;
+
+            double hz = v * mul;
+            if (hz <= 0)
+                return false;
+
+            hzText = hz.ToString("0.########", CultureInfo.InvariantCulture);
+            return true;
+        }
+
+        private static bool TryNormalizeVoltageVForScpi(string input, out string vText)
+        {
+            vText = null;
+            if (string.IsNullOrWhiteSpace(input))
+                return false;
+
+            string raw = input.Trim();
+            raw = raw.Replace(" ", string.Empty).Replace("\t", string.Empty);
+            if (raw.Length == 0)
+                return false;
+
+            string s = raw;
+            double mul = 1.0;
+            string upper = s.ToUpperInvariant();
+
+            if (upper.EndsWith("MV", StringComparison.Ordinal))
+            {
+                mul = 0.001;
+                s = s.Substring(0, s.Length - 2);
+            }
+            else if (upper.EndsWith("VPP", StringComparison.Ordinal))
+            {
+                mul = 1.0;
+                s = s.Substring(0, s.Length - 3);
+            }
+            else if (upper.EndsWith("V", StringComparison.Ordinal))
+            {
+                mul = 1.0;
+                s = s.Substring(0, s.Length - 1);
+            }
+
+            s = s.Trim();
+            if (s.Length == 0)
+                return false;
+
+            if (!double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double v))
+            {
+                if (!double.TryParse(s, NumberStyles.Float, CultureInfo.CurrentCulture, out v))
+                    return false;
+            }
+
+            if (double.IsNaN(v) || double.IsInfinity(v))
+                return false;
+
+            double vv = v * mul;
+            if (vv <= 0)
+                return false;
+
+            vText = vv.ToString("0.########", CultureInfo.InvariantCulture);
+            return true;
         }
 
         private async Task ToggleOutputForChannelAsync(string channel)
@@ -104,26 +326,23 @@ namespace MeasureControl.ViewModels.TestTask
             if (string.IsNullOrWhiteSpace(channel))
                 channel = "1";
 
-            bool isOn = OutputEnabled;
-            if (channel == "1")
-            {
-                isOn = string.Equals(OutputStatus, "输出开启", StringComparison.OrdinalIgnoreCase);
-            }
-            else if (channel == "2")
-            {
-                isOn = string.Equals(OutputStatus, "输出开启", StringComparison.OrdinalIgnoreCase);
-            }
+            bool isOn = string.Equals(channel, "2", StringComparison.OrdinalIgnoreCase) ? Ch2OutputEnabled : Ch1OutputEnabled;
 
             await Task.Run(async () =>
             {
                 if (!isOn)
                 {
-                    await ApplyWaveformForChannelAsync(channel);
+                    bool ok = await ApplyWaveformForChannelInternalAsync(channel, false);
+                    if (!ok)
+                        return;
                     await SendSignalGeneratorScpiAsync($":OUTPut{channel} ON");
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        OutputEnabled = true;
-                        OutputStatus = "输出开启";
+                        if (string.Equals(channel, "2", StringComparison.OrdinalIgnoreCase))
+                            Ch2OutputEnabled = true;
+                        else
+                            Ch1OutputEnabled = true;
+                        UpdateOverallOutputState();
                     });
                 }
                 else
@@ -131,8 +350,11 @@ namespace MeasureControl.ViewModels.TestTask
                     await SendSignalGeneratorScpiAsync($":OUTPut{channel} OFF");
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        OutputEnabled = false;
-                        OutputStatus = "输出关闭";
+                        if (string.Equals(channel, "2", StringComparison.OrdinalIgnoreCase))
+                            Ch2OutputEnabled = false;
+                        else
+                            Ch1OutputEnabled = false;
+                        UpdateOverallOutputState();
                     });
                 }
             });
@@ -146,6 +368,61 @@ namespace MeasureControl.ViewModels.TestTask
                 await StopOscilloscopeMeasurementMonitoringAsync();
                 ClearOscilloscopeMeasurements();
             }
+        }
+
+        private void UpdateOverallOutputState()
+        {
+            bool anyOn = Ch1OutputEnabled || Ch2OutputEnabled;
+            OutputEnabled = anyOn;
+            OutputStatus = anyOn ? "输出开启" : "输出关闭";
+        }
+
+        private void ScheduleAutoApplyForChannel(string channel)
+        {
+            if (!IsSignalGeneratorConnected || _signalGeneratorStream == null)
+                return;
+
+            string ch = (channel ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(ch))
+                ch = "1";
+
+            bool enabled = string.Equals(ch, "2", StringComparison.OrdinalIgnoreCase) ? Ch2OutputEnabled : Ch1OutputEnabled;
+            if (!enabled)
+                return;
+
+            CancellationTokenSource oldCts;
+            if (string.Equals(ch, "2", StringComparison.OrdinalIgnoreCase))
+            {
+                oldCts = _ch2AutoApplyCts;
+                _ch2AutoApplyCts = new CancellationTokenSource();
+            }
+            else
+            {
+                oldCts = _ch1AutoApplyCts;
+                _ch1AutoApplyCts = new CancellationTokenSource();
+            }
+
+            try { oldCts?.Cancel(); } catch { }
+            try { oldCts?.Dispose(); } catch { }
+
+            var token = string.Equals(ch, "2", StringComparison.OrdinalIgnoreCase) ? _ch2AutoApplyCts.Token : _ch1AutoApplyCts.Token;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(250, token);
+                    if (token.IsCancellationRequested)
+                        return;
+                    await ApplyWaveformForChannelInternalAsync(ch, true);
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                catch
+                {
+                }
+            });
         }
 
         private bool _isSignalGeneratorConnecting;
@@ -190,6 +467,13 @@ namespace MeasureControl.ViewModels.TestTask
             set => SetProperty(ref _signalGeneratorPort, value);
         }
 
+        private int _signalGeneratorCommandDelayMs = 50;
+        public int SignalGeneratorCommandDelayMs
+        {
+            get => _signalGeneratorCommandDelayMs;
+            set => SetProperty(ref _signalGeneratorCommandDelayMs, value);
+        }
+
         private string _oscilloscopeIpAddress;
         /// <summary>
         /// 示波器设备IP地址（弹窗输入）
@@ -221,7 +505,6 @@ namespace MeasureControl.ViewModels.TestTask
         /// </summary>
         public string SignalGeneratorConnectButtonText => IsSignalGeneratorConnected ? "检测中" : "断开中";
 
-
         private string _connectionStatus;
         /// <summary>
         /// 连接状态
@@ -233,7 +516,6 @@ namespace MeasureControl.ViewModels.TestTask
         }
 
         private string _variableName;
-        
 
         private string _currentSwitchInput;
         public string CurrentSwitchInput
@@ -287,7 +569,58 @@ namespace MeasureControl.ViewModels.TestTask
             set
             {
                 if (SetProperty(ref _ch1AmplitudeVpp, value))
+                {
+                    RaisePropertyChanged(nameof(Ch1AmplitudeValue));
                     UpdateWaveformPreview("1");
+                    ScheduleAutoApplyForChannel("1");
+                }
+            }
+        }
+
+        private string _ch1AmplitudeVrms;
+        public string Ch1AmplitudeVrms
+        {
+            get => _ch1AmplitudeVrms;
+            set
+            {
+                if (SetProperty(ref _ch1AmplitudeVrms, value))
+                {
+                    RaisePropertyChanged(nameof(Ch1AmplitudeValue));
+                    UpdateWaveformPreview("1");
+                    ScheduleAutoApplyForChannel("1");
+                }
+            }
+        }
+
+        private string _ch1AmplitudeUnit;
+        public string Ch1AmplitudeUnit
+        {
+            get => _ch1AmplitudeUnit;
+            set
+            {
+                if (SetProperty(ref _ch1AmplitudeUnit, value))
+                {
+                    RaisePropertyChanged(nameof(Ch1AmplitudeValue));
+                    UpdateWaveformPreview("1");
+                    ScheduleAutoApplyForChannel("1");
+                }
+            }
+        }
+
+        public string Ch1AmplitudeValue
+        {
+            get
+            {
+                return string.Equals(Ch1AmplitudeUnit, "Vrms", StringComparison.OrdinalIgnoreCase)
+                    ? Ch1AmplitudeVrms
+                    : Ch1AmplitudeVpp;
+            }
+            set
+            {
+                if (string.Equals(Ch1AmplitudeUnit, "Vrms", StringComparison.OrdinalIgnoreCase))
+                    Ch1AmplitudeVrms = value;
+                else
+                    Ch1AmplitudeVpp = value;
             }
         }
 
@@ -298,7 +631,10 @@ namespace MeasureControl.ViewModels.TestTask
             set
             {
                 if (SetProperty(ref _ch1FrequencyHz, value))
+                {
                     UpdateWaveformPreview("1");
+                    ScheduleAutoApplyForChannel("1");
+                }
             }
         }
 
@@ -309,7 +645,10 @@ namespace MeasureControl.ViewModels.TestTask
             set
             {
                 if (SetProperty(ref _ch1OffsetV, value))
+                {
                     UpdateWaveformPreview("1");
+                    ScheduleAutoApplyForChannel("1");
+                }
             }
         }
 
@@ -320,7 +659,10 @@ namespace MeasureControl.ViewModels.TestTask
             set
             {
                 if (SetProperty(ref _ch1DutyPercent, value))
+                {
                     UpdateWaveformPreview("1");
+                    ScheduleAutoApplyForChannel("1");
+                }
             }
         }
 
@@ -331,7 +673,10 @@ namespace MeasureControl.ViewModels.TestTask
             set
             {
                 if (SetProperty(ref _ch1PhaseDeg, value))
+                {
                     UpdateWaveformPreview("1");
+                    ScheduleAutoApplyForChannel("1");
+                }
             }
         }
 
@@ -342,7 +687,10 @@ namespace MeasureControl.ViewModels.TestTask
             set
             {
                 if (SetProperty(ref _ch1SymmetryPercent, value))
+                {
                     UpdateWaveformPreview("1");
+                    ScheduleAutoApplyForChannel("1");
+                }
             }
         }
 
@@ -353,7 +701,58 @@ namespace MeasureControl.ViewModels.TestTask
             set
             {
                 if (SetProperty(ref _ch2AmplitudeVpp, value))
+                {
+                    RaisePropertyChanged(nameof(Ch2AmplitudeValue));
                     UpdateWaveformPreview("2");
+                    ScheduleAutoApplyForChannel("2");
+                }
+            }
+        }
+
+        private string _ch2AmplitudeVrms;
+        public string Ch2AmplitudeVrms
+        {
+            get => _ch2AmplitudeVrms;
+            set
+            {
+                if (SetProperty(ref _ch2AmplitudeVrms, value))
+                {
+                    RaisePropertyChanged(nameof(Ch2AmplitudeValue));
+                    UpdateWaveformPreview("2");
+                    ScheduleAutoApplyForChannel("2");
+                }
+            }
+        }
+
+        private string _ch2AmplitudeUnit;
+        public string Ch2AmplitudeUnit
+        {
+            get => _ch2AmplitudeUnit;
+            set
+            {
+                if (SetProperty(ref _ch2AmplitudeUnit, value))
+                {
+                    RaisePropertyChanged(nameof(Ch2AmplitudeValue));
+                    UpdateWaveformPreview("2");
+                    ScheduleAutoApplyForChannel("2");
+                }
+            }
+        }
+
+        public string Ch2AmplitudeValue
+        {
+            get
+            {
+                return string.Equals(Ch2AmplitudeUnit, "Vrms", StringComparison.OrdinalIgnoreCase)
+                    ? Ch2AmplitudeVrms
+                    : Ch2AmplitudeVpp;
+            }
+            set
+            {
+                if (string.Equals(Ch2AmplitudeUnit, "Vrms", StringComparison.OrdinalIgnoreCase))
+                    Ch2AmplitudeVrms = value;
+                else
+                    Ch2AmplitudeVpp = value;
             }
         }
 
@@ -364,7 +763,10 @@ namespace MeasureControl.ViewModels.TestTask
             set
             {
                 if (SetProperty(ref _ch2FrequencyHz, value))
+                {
                     UpdateWaveformPreview("2");
+                    ScheduleAutoApplyForChannel("2");
+                }
             }
         }
 
@@ -375,7 +777,10 @@ namespace MeasureControl.ViewModels.TestTask
             set
             {
                 if (SetProperty(ref _ch2OffsetV, value))
+                {
                     UpdateWaveformPreview("2");
+                    ScheduleAutoApplyForChannel("2");
+                }
             }
         }
 
@@ -386,7 +791,10 @@ namespace MeasureControl.ViewModels.TestTask
             set
             {
                 if (SetProperty(ref _ch2DutyPercent, value))
+                {
                     UpdateWaveformPreview("2");
+                    ScheduleAutoApplyForChannel("2");
+                }
             }
         }
 
@@ -397,7 +805,10 @@ namespace MeasureControl.ViewModels.TestTask
             set
             {
                 if (SetProperty(ref _ch2PhaseDeg, value))
+                {
                     UpdateWaveformPreview("2");
+                    ScheduleAutoApplyForChannel("2");
+                }
             }
         }
 
@@ -408,7 +819,10 @@ namespace MeasureControl.ViewModels.TestTask
             set
             {
                 if (SetProperty(ref _ch2SymmetryPercent, value))
+                {
                     UpdateWaveformPreview("2");
+                    ScheduleAutoApplyForChannel("2");
+                }
             }
         }
 
@@ -440,6 +854,7 @@ namespace MeasureControl.ViewModels.TestTask
                     RaisePropertyChanged(nameof(Ch1ShowSymmetry));
                     UpdateWaveformPreview("1");
                     UpdateOscilloscopeMeasurementVisibility();
+                    ScheduleAutoApplyForChannel("1");
                 }
             }
         }
@@ -461,6 +876,7 @@ namespace MeasureControl.ViewModels.TestTask
                     RaisePropertyChanged(nameof(Ch2ShowSymmetry));
                     UpdateWaveformPreview("2");
                     UpdateOscilloscopeMeasurementVisibility();
+                    ScheduleAutoApplyForChannel("2");
                 }
             }
         }
@@ -495,6 +911,13 @@ namespace MeasureControl.ViewModels.TestTask
         public bool Ch2ShowDuty => IsDutySupported(GetSelectedWaveformScpiFunction("2"));
         public bool Ch2ShowPhase => IsPhaseSupported(GetSelectedWaveformScpiFunction("2"));
         public bool Ch2ShowSymmetry => IsSymmetrySupported(GetSelectedWaveformScpiFunction("2"));
+
+        private ObservableCollection<string> _amplitudeUnits;
+        public ObservableCollection<string> AmplitudeUnits
+        {
+            get => _amplitudeUnits;
+            set => SetProperty(ref _amplitudeUnits, value);
+        }
 
         // 频率相关属性
         private ObservableCollection<string> _frequencies;
@@ -542,6 +965,20 @@ namespace MeasureControl.ViewModels.TestTask
                     UpdateOscilloscopeMeasurementVisibility();
                 }
             }
+        }
+
+        private bool _ch1OutputEnabled;
+        public bool Ch1OutputEnabled
+        {
+            get => _ch1OutputEnabled;
+            set => SetProperty(ref _ch1OutputEnabled, value);
+        }
+
+        private bool _ch2OutputEnabled;
+        public bool Ch2OutputEnabled
+        {
+            get => _ch2OutputEnabled;
+            set => SetProperty(ref _ch2OutputEnabled, value);
         }
 
         private bool _outputEnabled;
@@ -724,6 +1161,10 @@ namespace MeasureControl.ViewModels.TestTask
             Ch1SelectedWaveformType = WaveformTypes[0];
             Ch2SelectedWaveformType = WaveformTypes[0];
 
+            AmplitudeUnits = new ObservableCollection<string> { "Vpp", "Vrms" };
+            Ch1AmplitudeUnit = AmplitudeUnits[0];
+            Ch2AmplitudeUnit = AmplitudeUnits[0];
+
             // 初始化频率列表（Hz）
             Frequencies = new ObservableCollection<string>
             {
@@ -738,12 +1179,17 @@ namespace MeasureControl.ViewModels.TestTask
             OutputEnabled = false;
             OutputStatus = "输出关闭";
 
+            Ch1OutputEnabled = false;
+            Ch2OutputEnabled = false;
+
             Ch1AmplitudeVpp = "2.6";
+            Ch1AmplitudeVrms = "";
             Ch1FrequencyHz = "1000";
             Ch1OffsetV = "0";
             Ch1DutyPercent = "50";
 
             Ch2AmplitudeVpp = "2.6";
+            Ch2AmplitudeVrms = "";
             Ch2FrequencyHz = "1000";
             Ch2OffsetV = "0";
             Ch2DutyPercent = "50";
@@ -763,7 +1209,10 @@ namespace MeasureControl.ViewModels.TestTask
             try
             {
                 await WriteLineAsync(_signalGeneratorStream, command, timeoutMs);
-                return await ReadLineAsync(_signalGeneratorStream, timeoutMs);
+                string resp = await ReadLineAsync(_signalGeneratorStream, timeoutMs);
+                if (SignalGeneratorCommandDelayMs > 0)
+                    await Task.Delay(SignalGeneratorCommandDelayMs);
+                return resp;
             }
             finally
             {
@@ -780,6 +1229,8 @@ namespace MeasureControl.ViewModels.TestTask
             try
             {
                 await WriteLineAsync(_signalGeneratorStream, command, timeoutMs);
+                if (SignalGeneratorCommandDelayMs > 0)
+                    await Task.Delay(SignalGeneratorCommandDelayMs);
             }
             finally
             {
@@ -873,7 +1324,10 @@ namespace MeasureControl.ViewModels.TestTask
             {
                 if (!string.IsNullOrWhiteSpace(_signalGeneratorDevice.IpAddress))
                     SignalGeneratorIpAddress = _signalGeneratorDevice.IpAddress;
+                SignalGeneratorIpAddress = SignalGeneratorIpAddress.Trim();
                 SignalGeneratorPort = 5555;
+                _signalGeneratorDevice.IpAddress = SignalGeneratorIpAddress;
+                _signalGeneratorDevice.LanPort = SignalGeneratorPort;
             }
         }
 
@@ -909,9 +1363,8 @@ namespace MeasureControl.ViewModels.TestTask
                 ch => IsSignalGeneratorConnected)
                 .ObservesProperty(() => IsSignalGeneratorConnected);
 
-            ToggleOutputForChannelCommand = new DelegateCommand<string>(async ch => await ToggleOutputForChannelAsync(ch),
-                ch => IsSignalGeneratorConnected)
-                .ObservesProperty(() => IsSignalGeneratorConnected);
+            ToggleOutputForChannelCommand = new DelegateCommand<string>(async channel => await ToggleOutputForChannelAsync(channel))
+                .ObservesCanExecute(() => IsSignalGeneratorConnected);
 
             SelectWaveformTypeCommand = new DelegateCommand<string>(t =>
             {
@@ -1055,9 +1508,18 @@ namespace MeasureControl.ViewModels.TestTask
                 IsSignalGeneratorConnecting = true;
 
                 IsSignalGeneratorConnected = false;
+                Ch1OutputEnabled = false;
+                Ch2OutputEnabled = false;
                 OutputEnabled = false;
                 OutputStatus = "输出关闭";
                 ConnectionStatus = "离线";
+
+                try { _ch1AutoApplyCts?.Cancel(); } catch { }
+                try { _ch2AutoApplyCts?.Cancel(); } catch { }
+                try { _ch1AutoApplyCts?.Dispose(); } catch { }
+                try { _ch2AutoApplyCts?.Dispose(); } catch { }
+                _ch1AutoApplyCts = null;
+                _ch2AutoApplyCts = null;
 
 
                 await StopOscilloscopeMeasurementMonitoringAsync();
@@ -1228,7 +1690,19 @@ namespace MeasureControl.ViewModels.TestTask
 
             string waveformType = GetSelectedWaveformScpiFunction(ch);
 
-            string amplitudeVppText = ch == "2" ? Ch2AmplitudeVpp : Ch1AmplitudeVpp;
+            string amplitudeVppText;
+            if (string.Equals(ch, "2", StringComparison.OrdinalIgnoreCase))
+            {
+                amplitudeVppText = string.Equals(Ch2AmplitudeUnit, "Vrms", StringComparison.OrdinalIgnoreCase)
+                    ? ConvertVrmsTextToVppTextForPreview(waveformType, Ch2AmplitudeVrms)
+                    : Ch2AmplitudeVpp;
+            }
+            else
+            {
+                amplitudeVppText = string.Equals(Ch1AmplitudeUnit, "Vrms", StringComparison.OrdinalIgnoreCase)
+                    ? ConvertVrmsTextToVppTextForPreview(waveformType, Ch1AmplitudeVrms)
+                    : Ch1AmplitudeVpp;
+            }
             string offsetVText = ch == "2" ? Ch2OffsetV : Ch1OffsetV;
             string dutyPercentText = ch == "2" ? Ch2DutyPercent : Ch1DutyPercent;
             string phaseDegText = ch == "2" ? Ch2PhaseDeg : Ch1PhaseDeg;
@@ -1629,6 +2103,13 @@ namespace MeasureControl.ViewModels.TestTask
                     try
                     {
                         StopOscilloscopeMeasurementMonitoringAsync().Wait(TimeSpan.FromSeconds(1));
+
+                        try { _ch1AutoApplyCts?.Cancel(); } catch { }
+                        try { _ch2AutoApplyCts?.Cancel(); } catch { }
+                        try { _ch1AutoApplyCts?.Dispose(); } catch { }
+                        try { _ch2AutoApplyCts?.Dispose(); } catch { }
+                        _ch1AutoApplyCts = null;
+                        _ch2AutoApplyCts = null;
 
                         SafeCloseNetworkStream(ref _signalGeneratorStream);
                         SafeCloseTcpClient(ref _signalGeneratorClient);

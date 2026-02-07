@@ -20,10 +20,15 @@ namespace MeasureControl.ViewModels.TestTask
         private readonly string _rsType;
         private SerialPort _serialPort;
 
+        private readonly object _rxBufferLock = new object();
+        private readonly System.Collections.Generic.List<byte> _rxByteBuffer = new System.Collections.Generic.List<byte>(4096);
+        private DispatcherTimer _rxFlushTimer;
+
         private string _title;
         private bool _isOpen;
         private string _selectedPort;
         private int _selectedBaudRate;
+        private string _baudRateText;
         private string _selectedParity;
         private int _selectedDataBits;
         private string _selectedStopBits;
@@ -98,7 +103,31 @@ namespace MeasureControl.ViewModels.TestTask
         public int SelectedBaudRate
         {
             get => _selectedBaudRate;
-            set => SetProperty(ref _selectedBaudRate, value);
+            set
+            {
+                if (SetProperty(ref _selectedBaudRate, value))
+                {
+                    var text = value > 0 ? value.ToString() : string.Empty;
+                    if (!string.Equals(_baudRateText, text, StringComparison.Ordinal))
+                        SetProperty(ref _baudRateText, text, nameof(BaudRateText));
+                }
+            }
+        }
+
+        public string BaudRateText
+        {
+            get => _baudRateText;
+            set
+            {
+                if (SetProperty(ref _baudRateText, value))
+                {
+                    if (int.TryParse((value ?? string.Empty).Trim(), out var br) && br > 0)
+                    {
+                        if (_selectedBaudRate != br)
+                            SetProperty(ref _selectedBaudRate, br, nameof(SelectedBaudRate));
+                    }
+                }
+            }
         }
 
         public string SelectedParity
@@ -235,6 +264,7 @@ namespace MeasureControl.ViewModels.TestTask
             Title = string.IsNullOrWhiteSpace(deviceDisplayName) ? $"{_rsType} 串口调试" : deviceDisplayName;
 
             SelectedBaudRate = BaudRates.FirstOrDefault();
+            BaudRateText = SelectedBaudRate.ToString();
             SelectedParity = ParityOptions.FirstOrDefault();
             SelectedDataBits = DataBitsOptions.LastOrDefault();
             SelectedStopBits = StopBitsOptions.FirstOrDefault();
@@ -251,6 +281,80 @@ namespace MeasureControl.ViewModels.TestTask
             RefreshPorts();
         }
 
+        private void EnsureRxFlushTimer()
+        {
+            if (_rxFlushTimer != null) return;
+
+            _rxFlushTimer = new DispatcherTimer(DispatcherPriority.Background, Application.Current.Dispatcher)
+            {
+                Interval = TimeSpan.FromMilliseconds(50)
+            };
+            _rxFlushTimer.Tick += RxFlushTimer_Tick;
+        }
+
+        private void RestartRxFlushTimer()
+        {
+            EnsureRxFlushTimer();
+            try
+            {
+                _rxFlushTimer.Stop();
+                _rxFlushTimer.Start();
+            }
+            catch
+            {
+            }
+        }
+
+        private void RxFlushTimer_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                _rxFlushTimer.Stop();
+            }
+            catch
+            {
+            }
+
+            FlushReceiveBufferToUi();
+        }
+
+        private void FlushReceiveBufferToUi()
+        {
+            byte[] bytes;
+            lock (_rxBufferLock)
+            {
+                if (_rxByteBuffer.Count == 0) return;
+                bytes = _rxByteBuffer.ToArray();
+                _rxByteBuffer.Clear();
+            }
+
+            string append;
+            if (IsHexDisplay)
+            {
+                append = BitConverter.ToString(bytes).Replace("-", " ");
+            }
+            else
+            {
+                var encoding = _serialPort?.Encoding ?? Encoding.ASCII;
+                append = encoding.GetString(bytes, 0, bytes.Length);
+            }
+
+            var newLinePerFlush = string.Equals(_rsType, "RS422", StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(_rsType, "RS232", StringComparison.OrdinalIgnoreCase);
+            if (newLinePerFlush)
+            {
+                var endsWithLineBreak = append.EndsWith("\n", StringComparison.Ordinal) ||
+                                        append.EndsWith("\r", StringComparison.Ordinal);
+                if (!endsWithLineBreak)
+                {
+                    append += Environment.NewLine;
+                }
+            }
+
+            IsReceiving = true;
+            AppendReceiveChunk(append);
+        }
+
         private void AppendReceiveLine(string line)
         {
             if (line == null) line = string.Empty;
@@ -259,8 +363,32 @@ namespace MeasureControl.ViewModels.TestTask
                 line += Environment.NewLine;
             }
 
-            ReceiveText = (ReceiveText ?? string.Empty) + line;
+            var current = ReceiveText ?? string.Empty;
+            if (current.Length > 0 && !current.EndsWith(Environment.NewLine, StringComparison.Ordinal))
+            {
+                current += Environment.NewLine;
+            }
+
+            ReceiveText = current + line;
         }
+        private void AppendReceiveChunk(string chunk)
+        {
+            if (chunk == null) chunk = string.Empty;
+
+            var current = ReceiveText ?? string.Empty;
+
+            if (IsHexDisplay && current.Length > 0)
+            {
+                var last = current[current.Length - 1];
+                if (!char.IsWhiteSpace(last))
+                {
+                    current += " ";
+                }
+            }
+
+            ReceiveText = current + chunk;
+        }
+
 
         private void RefreshPorts()
         {
@@ -332,6 +460,12 @@ namespace MeasureControl.ViewModels.TestTask
             if (string.IsNullOrWhiteSpace(SelectedPort))
             {
                 StatusText = "未选择端口";
+                return Task.CompletedTask;
+            }
+
+            if (SelectedBaudRate <= 0)
+            {
+                StatusText = "波特率无效";
                 return Task.CompletedTask;
             }
 
@@ -450,6 +584,11 @@ namespace MeasureControl.ViewModels.TestTask
                         IsOpen = false;
                         IsSending = false;
                         IsReceiving = false;
+                        lock (_rxBufferLock)
+                        {
+                            _rxByteBuffer.Clear();
+                        }
+                        try { _rxFlushTimer?.Stop(); } catch { }
                         StopTimedSendInternal();
                         RaisePropertyChanged(nameof(SendStatusText));
                         RaisePropertyChanged(nameof(ReceiveStatusText));
@@ -567,20 +706,18 @@ namespace MeasureControl.ViewModels.TestTask
                 int read = sp.Read(buffer, 0, count);
                 if (read <= 0) return;
 
-                string append;
-                if (IsHexDisplay)
-                {
-                    append = BitConverter.ToString(buffer, 0, read).Replace("-", " ");
-                }
-                else
-                {
-                    append = sp.Encoding.GetString(buffer, 0, read);
-                }
-
+                var actual = buffer;
+                var actualLen = read;
                 Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    IsReceiving = true;
-                    AppendReceiveLine(append);
+                    lock (_rxBufferLock)
+                    {
+                        for (int i = 0; i < actualLen; i++)
+                        {
+                            _rxByteBuffer.Add(actual[i]);
+                        }
+                    }
+                    RestartRxFlushTimer();
                 }));
             }
             catch (Exception ex)

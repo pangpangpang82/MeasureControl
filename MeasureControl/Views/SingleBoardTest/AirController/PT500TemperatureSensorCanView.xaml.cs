@@ -64,5 +64,10 @@ namespace MeasureControl.Views.SingleBoardTest.AirController
 
             return false;
         }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 }

@@ -225,6 +225,7 @@
     <Compile Include="Events\ApplicationEvents.cs" />
     <Compile Include="Helpers\MethodCallConverter.cs" />
     <Compile Include="Helpers\Dpm8600Modbus.cs" />
+    <Compile Include="Helpers\ValueConverters.cs" />
     <Compile Include="Helpers\SelfInspection\ISelfInspectionTask.cs" />
     <Compile Include="Helpers\SelfInspection\SelfInspectionContext.cs" />
     <Compile Include="Helpers\SelfInspection\SelfInspectionTaskRegistry.cs" />
@@ -246,6 +247,7 @@
     <Compile Include="ViewModels\TestTask\OscilloscopeTestPanelViewModel.cs" />
     <Compile Include="ViewModels\TestTask\SignalGeneratorTestPanelViewModel.cs" />
     <Compile Include="ViewModels\TestTask\PowerSupplyTestPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ElectronicLoadTestPanelViewModel.cs" />
     <Compile Include="ViewModels\TestTask\MatrixSwitchConfigTableViewModel.cs" />
     <Compile Include="ViewModels\TestTask\PXI4004CANConfigPanelViewModel.cs" />
     <Compile Include="ViewModels\TestTask\ART4229ConfigPanelViewModel.cs" />
@@ -276,7 +278,6 @@
     <Compile Include="Helpers\ResourceCleanupHelper.cs" />
     <Compile Include="Helpers\ScrollViewerMouseWheelBehavior.cs" />
     <Compile Include="Helpers\TreeViewExtensions.cs" />
-    <Compile Include="Helpers\ValueConverters.cs" />
     <Compile Include="Helpers\FormattedTraceListener.cs" />
     <Compile Include="Helpers\OKAIPXIDevice\OKAIDaq.cs" />
     <Compile Include="Helpers\OKAIPXIDevice\pxi4087.cs" />
@@ -392,6 +393,7 @@
     <Compile Include="Services\SingleBoardTestContextService.cs" />
     <Compile Include="Services\PxiChassisService.cs" />
     <Compile Include="Simulations\AC_6_4\AC_6_4Simulation.cs" />
+    <Compile Include="Simulations\PT500\PT500TemperatureSensor429Simulation.cs" />
     <Compile Include="Services\RemoteMatrixCommandDispatcher.cs" />
     <Compile Include="Services\WindowManagerService.cs" />
     <Compile Include="ViewModels\Dialogs\AddChannelDialogViewModel.cs" />
@@ -545,6 +547,9 @@
     </Compile>
     <Compile Include="Views\TestTask\PowerSupplyTestPanelView.xaml.cs">
       <DependentUpon>PowerSupplyTestPanelView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\TestTask\ElectronicLoadTestPanelView.xaml.cs">
+      <DependentUpon>ElectronicLoadTestPanelView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\TestTask\OscilloscopeTestPanelView.xaml.cs">
       <DependentUpon>OscilloscopeTestPanelView.xaml</DependentUpon>
@@ -825,6 +830,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\TestTask\PowerSupplyTestPanelView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\TestTask\ElectronicLoadTestPanelView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

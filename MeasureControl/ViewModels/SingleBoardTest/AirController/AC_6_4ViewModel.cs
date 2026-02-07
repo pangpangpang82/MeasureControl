@@ -11,6 +11,7 @@ using MeasureControl.Services;
 using Prism.Commands;
 using Prism.Events;
 using Prism.Mvvm;
+using System.Windows;
 using MeasureControl.Simulations.AC_6_4;
 using System.Globalization;
 using Ivi.Visa;
@@ -32,7 +33,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const string PersistKeyEnterAtpTx = "EnterAtpTxChannel";
         private const string PersistKeyEnterAtpRx = "EnterAtpRxChannel";
         private const string PersistKeySetVoltageTx = "SetVoltageTxChannel";
-        private const string PersistKeySetVoltageRx = "SetVoltageRxChannel";
         private const string PersistKeyTelemetryRx = "TelemetryRxChannel";
         private const string PersistKeyExitAtpTx = "ExitAtpTxChannel";
         private const string PersistKeyExitAtpRx = "ExitAtpRxChannel";
@@ -55,6 +55,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private readonly SemaphoreSlim _matrixSwitchLock = new SemaphoreSlim(1, 1);
         private bool _fixedMatrixConnected;
 
+        private CancellationTokenSource _telemetryListeningCts;
+        private Task _telemetryListeningTask;
+
+        private CancellationTokenSource _samplingCts;
+        private Task _samplingTask;
+
         private SubscriptionToken _projectSavingToken;
 
         private bool _isManualTestRunning;
@@ -70,7 +76,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _enterAtpTxChannel;
         private string _enterAtpRxChannel;
         private string _setVoltageTxChannel;
-        private string _setVoltageRxChannel;
         private string _telemetryRxChannel;
         private string _exitAtpTxChannel;
         private string _exitAtpRxChannel;
@@ -82,8 +87,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _dmmVoltageText;
         private string _telemetryVoltageText;
 
-        private string _lastTestTime;
-        private string _lastTestResult;
+        private string _enterAtpRxDataText = "--";
+        private string _telemetryRxDataText = "--";
+        private string _exitAtpRxDataText = "--";
+
+        private string _lastTestTime = "--";
+        private string _lastTestResult = "--";
+        private string _previousTestTime = "--";
+        private string _previousTestResult = "--";
 
         public AC_6_4ViewModel(
             ISingleBoardTestContextService singleBoardTestContext,
@@ -93,18 +104,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _singleBoardTestContext = singleBoardTestContext;
             _projectService = projectService;
             _eventAggregator = eventAggregator;
-            _enterAtpTxChannel = "ARINC429_0";
-            _enterAtpRxChannel = "ARINC429_1";
-            _setVoltageTxChannel = "ARINC429_2";
-            _setVoltageRxChannel = "ARINC429_3";
-            _telemetryRxChannel = "ARINC429_4";
-            _exitAtpTxChannel = "ARINC429_5";
-            _exitAtpRxChannel = "ARINC429_6";
+            _enterAtpTxChannel = "429_CH0";
+            _enterAtpRxChannel = "429_CH1";
+            _setVoltageTxChannel = "429_CH2";
+            _telemetryRxChannel = "429_CH3";
+            _exitAtpTxChannel = "429_CH8";
+            _exitAtpRxChannel = "429_CH9";
 
             _dmmChannel = "Port1";
 
             DmmVoltageText = "--";
             TelemetryVoltageText = "--";
+            EnterAtpRxDataText = "--";
+            TelemetryRxDataText = "--";
+            ExitAtpRxDataText = "--";
 
             _simulation.OnOutputEnabledAsync = OnSimulationOutputEnabledAsync;
 
@@ -137,6 +150,175 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        private static bool IsTelemetryPayload(byte[] b)
+        {
+            return b != null && b.Length == 8 && b[0] == 0x01 && b[1] == 0x04 && b[2] == 0x01 && b[3] == 0x02;
+        }
+
+        private static bool TryParseTelemetryVoltage(byte[] resp, out double voltage)
+        {
+            voltage = 0;
+            if (!IsTelemetryPayload(resp))
+                return false;
+
+            // New protocol: bytes[4..7] = IEEE754 float, fixed endian (big-endian)
+            try
+            {
+                var fbytes = new byte[4] { resp[4], resp[5], resp[6], resp[7] };//遥测数据
+                if (BitConverter.IsLittleEndian)//小端            
+                    Array.Reverse(fbytes);//大端
+                float f = BitConverter.ToSingle(fbytes, 0);//遥测电压
+                if (!float.IsNaN(f) && !float.IsInfinity(f) && f > -1000 && f < 1000)//遥测电压范围
+                {
+                    voltage = f;
+                    return true;
+                }
+            }
+            catch
+            {
+            }
+
+            // Legacy fallback: bytes[4..5] = UInt16 millivolt (big-endian)
+            ushort mv = (ushort)((resp[4] << 8) | resp[5]);
+            voltage = mv / 1000.0;
+            return true;
+        }
+
+        private void UpdateTelemetryUi(double voltage)
+        {
+            try
+            {
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null && !dispatcher.CheckAccess())
+                {
+                    dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        LatestTelemetryVoltage = voltage;
+                        TelemetryVoltageText = $"{voltage:0.000} V";
+                    }));
+                }
+                else
+                {
+                    LatestTelemetryVoltage = voltage;
+                    TelemetryVoltageText = $"{voltage:0.000} V";
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private void UpdateTelemetryRxDataText(byte[] resp)
+        {
+            try
+            {
+                var text = $"0x{FormatBytesHex(resp)}";
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null && !dispatcher.CheckAccess())
+                {
+                    dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        TelemetryRxDataText = text;
+                    }));
+                }
+                else
+                {
+                    TelemetryRxDataText = text;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private void StartTelemetryListeningIfNeeded()//开始监听遥测数据
+        {
+            if (_telemetryListeningTask != null)//如果遥测监听任务不为空
+                return;
+            if (string.IsNullOrWhiteSpace(TelemetryRxChannel))//遥测RX通道为空
+                return;
+
+            _telemetryListeningCts?.Cancel();
+            _telemetryListeningCts?.Dispose();
+            _telemetryListeningCts = new CancellationTokenSource();//创建遥测监听任务
+            var token = _telemetryListeningCts.Token;//获取遥测监听任务的取消令牌
+
+            _telemetryListeningTask = Task.Run(async () =>//开始遥测监听任务
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        var resp = await _simulation.WaitBenchResponseAsync(
+                            TelemetryRxChannel, // 遥测接收通道（如429_CH3）
+                            DefaultLabel,       // 默认标签0x6A
+                            IsTelemetryPayload, // 判断是否为遥测数据的谓词（数据有效性判断函数）
+                            timeoutMs: 300,     // 300ms超时时间
+                            msg => { },        // 日志回调
+                            token);            // 取消令牌
+
+                        if (resp != null && TryParseTelemetryVoltage(resp, out var v))//解析遥测数据
+                        {
+                            UpdateTelemetryUi(v);//更新遥测电压
+                            UpdateTelemetryRxDataText(resp);//更新遥测RX数据
+                        }
+                        else
+                        {
+                            await Task.Delay(30, token);
+                        }
+                    }
+                    catch (OperationCanceledException)//操作取消异常
+                    {
+                        break;
+                    }
+                    catch
+                    {
+                        try
+                        {
+                            await Task.Delay(100, token);
+                        }
+                        catch
+                        {
+                            break;
+                        }
+                    }
+                }
+            }, token);
+        }
+
+        private async Task StopTelemetryListeningAsync()
+        {
+            try
+            {
+                _telemetryListeningCts?.Cancel();
+            }
+            catch
+            {
+            }
+
+            var task = _telemetryListeningTask;
+            if (task != null)
+            {
+                try
+                {
+                    await Task.WhenAny(task, Task.Delay(500)).ConfigureAwait(true);
+                }
+                catch
+                {
+                }
+            }
+
+            _telemetryListeningTask = null;
+            try
+            {
+                _telemetryListeningCts?.Dispose();
+            }
+            catch
+            {
+            }
+            _telemetryListeningCts = null;
+        }
+
         public string TelemetryVoltageText
         {
             get => _telemetryVoltageText;
@@ -161,6 +343,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _latestTelemetryVoltage, value);
         }
 
+        public string EnterAtpRxDataText
+        {
+            get => _enterAtpRxDataText;
+            private set => SetProperty(ref _enterAtpRxDataText, value);
+        }
+
+        public string TelemetryRxDataText
+        {
+            get => _telemetryRxDataText;
+            private set => SetProperty(ref _telemetryRxDataText, value);
+        }
+
+        public string ExitAtpRxDataText
+        {
+            get => _exitAtpRxDataText;
+            private set => SetProperty(ref _exitAtpRxDataText, value);
+        }
+
         public DelegateCommand ManualTestCommand { get; }
         public DelegateCommand AutoTestCommand { get; }
         public DelegateCommand SendEnterAtpCommand { get; }
@@ -177,7 +377,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             try
             {
-                Logs.Add(message);
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null && !dispatcher.CheckAccess())
+                {
+                    dispatcher.BeginInvoke(new Action(() => Logs.Add(message)));
+                }
+                else
+                {
+                    Logs.Add(message);
+                }
             }
             catch
             {
@@ -301,19 +509,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        public string SetVoltageRxChannel
-        {
-            get => _setVoltageRxChannel;
-            set
-            {
-                if (SetProperty(ref _setVoltageRxChannel, value))
-                {
-                    UpdateCommandStates();
-                    SavePersistedState();
-                }
-            }
-        }
-
         public string TelemetryRxChannel
         {
             get => _telemetryRxChannel;
@@ -389,6 +584,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        public string PreviousTestTime
+        {
+            get => _previousTestTime;
+            set => SetProperty(ref _previousTestTime, value);
+        }
+
+        public string PreviousTestResult
+        {
+            get => _previousTestResult;
+            set => SetProperty(ref _previousTestResult, value);
+        }
+
         public double ArincRate
         {
             get => _arincRate;
@@ -420,7 +627,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _enterAtpTxChannel = Read(PersistKeyEnterAtpTx) ?? _enterAtpTxChannel;
                 _enterAtpRxChannel = Read(PersistKeyEnterAtpRx) ?? _enterAtpRxChannel;
                 _setVoltageTxChannel = Read(PersistKeySetVoltageTx) ?? _setVoltageTxChannel;
-                _setVoltageRxChannel = Read(PersistKeySetVoltageRx) ?? _setVoltageRxChannel;
                 _telemetryRxChannel = Read(PersistKeyTelemetryRx) ?? _telemetryRxChannel;
                 _exitAtpTxChannel = Read(PersistKeyExitAtpTx) ?? _exitAtpTxChannel;
                 _exitAtpRxChannel = Read(PersistKeyExitAtpRx) ?? _exitAtpRxChannel;
@@ -436,7 +642,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 RaisePropertyChanged(nameof(EnterAtpTxChannel));
                 RaisePropertyChanged(nameof(EnterAtpRxChannel));
                 RaisePropertyChanged(nameof(SetVoltageTxChannel));
-                RaisePropertyChanged(nameof(SetVoltageRxChannel));
                 RaisePropertyChanged(nameof(TelemetryRxChannel));
                 RaisePropertyChanged(nameof(ExitAtpTxChannel));
                 RaisePropertyChanged(nameof(ExitAtpRxChannel));
@@ -483,7 +688,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 Upsert(PersistKeyEnterAtpTx, EnterAtpTxChannel);
                 Upsert(PersistKeyEnterAtpRx, EnterAtpRxChannel);
                 Upsert(PersistKeySetVoltageTx, SetVoltageTxChannel);
-                Upsert(PersistKeySetVoltageRx, SetVoltageRxChannel);
                 Upsert(PersistKeyTelemetryRx, TelemetryRxChannel);
                 Upsert(PersistKeyExitAtpTx, ExitAtpTxChannel);
                 Upsert(PersistKeyExitAtpRx, ExitAtpRxChannel);
@@ -528,29 +732,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private async Task StartManualTestAsync()
         {
             if (IsBusy) return;
+
+            // 先清理之前的采集任务
+            StopSamplingTask();
+
             IsBusy = true;
             try
             {
                 IsManualTestRunning = true;
+                IsInAtpMode = false;
+                OutputEnabled = false;
                 LastTestTime = "--";
                 LastTestResult = "--";
+                LatestDmmVoltage = null;
+                LatestTelemetryVoltage = null;
+                DmmVoltageText = "--";
+                TelemetryVoltageText = "--";
                 _opCts?.Cancel();
                 _opCts?.Dispose();
                 _opCts = new CancellationTokenSource();
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动(仿真模式)：开始打开设备");
 
                 // 仿真模式：固定占用产品侧通道
-                _simulation.SimProductRxChannelIndex = 6;
-                _simulation.SimProductTxChannelIndex = 7;
+                _simulation.SimProductRxChannelIndex = 4;
+                _simulation.SimProductTxChannelIndex = 5;
                 _simulation.ArincRate = ArincRate;
 
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
-                IsInAtpMode = false;
-                OutputEnabled = false;
+                // 遥测监听在开启输出后启动，避免干扰ATP指令收发
+
+                // 初始化矩阵开关（断开所有通路，防止其他测试遗留）
                 _fixedMatrixConnected = false;
-                DmmVoltageText = "--";
-                TelemetryVoltageText = "--";
                 await DisconnectMatrixAsync(msg => AddLog(msg), CancellationToken.None);
             }
             catch (Exception ex)
@@ -572,53 +785,316 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private async Task StartAutoTestAsync()
         {
             if (IsBusy) return;
+
+            // 先清理之前的采集任务
+            StopSamplingTask();
+
             IsBusy = true;
+            string testResult = "FAIL";
             try
             {
                 IsAutoTestRunning = true;
+                IsInAtpMode = false;
+                OutputEnabled = false;
                 LastTestTime = "--";
                 LastTestResult = "--";
+                LatestDmmVoltage = null;
+                LatestTelemetryVoltage = null;
+                DmmVoltageText = "--";
+                TelemetryVoltageText = "--";
                 _opCts?.Cancel();
                 _opCts?.Dispose();
                 _opCts = new CancellationTokenSource();
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动(仿真模式)：开始打开设备");
 
-                _simulation.SimProductRxChannelIndex = 6;
-                _simulation.SimProductTxChannelIndex = 7;
+                // 自动测试使用固定通道：TX=429_CH0, RX=429_CH1
+                const string autoTxChannel = "429_CH0";
+                const string autoRxChannel = "429_CH1";
+                const int stepTimeoutMs = 30000;
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] TX通道: {autoTxChannel}, RX通道: {autoRxChannel}");
+
+                _simulation.SimProductRxChannelIndex = 4;
+                _simulation.SimProductTxChannelIndex = 5;
                 _simulation.ArincRate = ArincRate;
 
-                await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
+                await _simulation.StartAsync(autoTxChannel, autoRxChannel, msg => AddLog(msg));
 
+                // 遥测监听在开启输出后启动，避免干扰ATP指令收发
+
+                // 初始化矩阵开关（断开所有通路，防止其他测试遗留）
+                _fixedMatrixConnected = false;
+                await DisconnectMatrixAsync(msg => AddLog(msg), CancellationToken.None);
+
+                var token = _opCts.Token;
+
+                // ========== 步骤1：进入ATP模式 ==========
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [步骤1/4] 进入ATP模式...");
+                using (var stepCts = CancellationTokenSource.CreateLinkedTokenSource(token))
+                {
+                    stepCts.CancelAfter(stepTimeoutMs);
+                    bool enterOk = await AutoEnterAtpAsync(autoTxChannel, autoRxChannel, stepCts.Token);
+                    if (!enterOk)
+                    {
+                        testResult = "FAIL (进入ATP超时)";
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试失败：进入ATP超时");
+                        return;
+                    }
+                }
+                IsInAtpMode = true;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [步骤1/4] 进入ATP成功");
+
+                await Task.Delay(200, token);
+
+                // ========== 步骤2：控制输出电压 ==========
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [步骤2/4] 发送控制输出电压指令...");
+                await EnsureFixedMatrixConnectedAsync(msg => AddLog(msg), token);
+                await SwitchMatrixForSelectedDmmChannelAsync(msg => AddLog(msg), token);
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送开启输出：TX={autoTxChannel}, Label=0x{DefaultLabel:X2}");
+                await _simulation.SendBenchCommandOnlyAsync(
+                    autoTxChannel,
+                    DefaultLabel,
+                    EnableOutputCommand,
+                    msg => AddLog(msg),
+                    token);
+                OutputEnabled = true;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [步骤2/4] 开启输出指令已发送");
+
+                await Task.Delay(500, token);
+
+                // ========== 步骤3：采集并判定 ==========
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [步骤3/4] 开始采集并判定...");
+                using (var stepCts = CancellationTokenSource.CreateLinkedTokenSource(token))
+                {
+                    stepCts.CancelAfter(stepTimeoutMs);
+                    testResult = await AutoEvaluateAsync(stepCts.Token);
+                }
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [步骤3/4] 采集判定完成: {testResult}");
+
+                await Task.Delay(200, token);
+
+                // ========== 步骤4：退出ATP模式 ==========
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [步骤4/4] 退出ATP模式...");
+                using (var stepCts = CancellationTokenSource.CreateLinkedTokenSource(token))
+                {
+                    stepCts.CancelAfter(stepTimeoutMs);
+                    bool exitOk = await AutoExitAtpAsync(autoTxChannel, autoRxChannel, stepCts.Token);
+                    if (!exitOk)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 警告：退出ATP超时，但测试结果已记录");
+                    }
+                    else
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] [步骤4/4] 退出ATP成功");
+                    }
+                }
                 IsInAtpMode = false;
                 OutputEnabled = false;
-                _fixedMatrixConnected = false;
-                DmmVoltageText = "--";
-                TelemetryVoltageText = "--";
+            }
+            catch (OperationCanceledException)
+            {
+                testResult = "FAIL (已取消)";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试被取消");
             }
             catch (Exception ex)
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动失败: {ex.Message}");
-                IsAutoTestRunning = false;
+                testResult = "FAIL (异常)";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试异常: {ex.Message}");
             }
             finally
             {
+                // 保存上次测试结果（在更新本次结果之前）
+                PreviousTestTime = LastTestTime;
+                PreviousTestResult = LastTestResult;
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = testResult;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试结束: {testResult} ==========");
+
+                await StopTelemetryListeningAsync();
+                await StopDmmPollingAsync();
+                await DisconnectDmmAsync();
+                await DisconnectMatrixAsync(msg => AddLog(msg), CancellationToken.None);
+                await _simulation.StopAsync(msg => AddLog(msg));
+
+                IsAutoTestRunning = false;
+                IsInAtpMode = false;
+                OutputEnabled = false;
                 IsBusy = false;
             }
         }
 
+        private async Task<bool> AutoEnterAtpAsync(string txChannel, string rxChannel, CancellationToken token)
+        {
+            const int timeoutMs = 3000;
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 发送进入ATP：TX={txChannel}, RX={rxChannel}");
+
+            try { await _simulation.ClearRxFifoAsync(rxChannel); } catch { }
+            await Task.Delay(50, token);
+
+            var resp = await _simulation.SendBenchCommandAndWaitAsync(
+                txChannel,
+                rxChannel,
+                DefaultLabel,
+                EnterAtpCommand,
+                b => b.SequenceEqual(EnterAtpOk),
+                timeoutMs: timeoutMs,
+                msg => AddLog(msg),
+                token);
+
+            if (resp != null)
+            {
+                EnterAtpRxDataText = $"0x{FormatBytesHex(resp)}";
+                return true;
+            }
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP超时，未收到OK");
+            return false;
+        }
+
+        private async Task<string> AutoEvaluateAsync(CancellationToken token)
+        {
+            const int testCount = 5;
+            const double dmmMin = 13.5;
+            const double dmmMax = 16.5;
+            const double teleMin = 2.25;
+            const double teleMax = 2.75;
+            const int stabilizeTimeoutSeconds = 10;
+
+            double? lastDmm = null;
+            double? lastTelemetry = null;
+            var startTime = DateTime.UtcNow;
+
+            // 阶段1：等待数据稳定
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 等待硬件稳定（{stabilizeTimeoutSeconds}秒超时）...");
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    await Task.Delay(200, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    return "FAIL (已取消)";
+                }
+
+                var dmm = LatestDmmVoltage;
+                var tele = LatestTelemetryVoltage;
+
+                if (dmm.HasValue && dmm.Value != 0 && tele.HasValue && tele.Value != 0)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 硬件已稳定: DMM={dmm.Value:F3}V, 回采={tele.Value:F3}V");
+                    break;
+                }
+
+                if ((DateTime.UtcNow - startTime).TotalSeconds > stabilizeTimeoutSeconds)
+                {
+                    return "FAIL (等待数据超时)";
+                }
+            }
+
+            // 阶段2：只测5次
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 开始采集判定，共{testCount}次");
+            int passCount = 0;
+            for (int i = 1; i <= testCount && !token.IsCancellationRequested; i++)
+            {
+                try
+                {
+                    await Task.Delay(300, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+
+                var dmm = LatestDmmVoltage;
+                var tele = LatestTelemetryVoltage;
+
+                if (!dmm.HasValue || !tele.HasValue)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 采样#{i}: 数据无效 -> 不合格");
+                    continue;
+                }
+
+                lastDmm = dmm;
+                lastTelemetry = tele;
+
+                bool dmmOk = dmm.Value >= dmmMin && dmm.Value <= dmmMax;
+                bool teleOk = tele.Value >= teleMin && tele.Value <= teleMax;
+
+                if (dmmOk && teleOk)
+                {
+                    passCount++;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 采样#{i}: DMM={dmm.Value:F3}V, 回采={tele.Value:F3}V -> 合格");
+                }
+                else
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 采样#{i}: DMM={dmm.Value:F3}V(需{dmmMin}~{dmmMax}), 回采={tele.Value:F3}V(需{teleMin}~{teleMax}) -> 不合格");
+                }
+            }
+
+            // 采集完成后停止DMM轮询和遥测监听，不再刷新显示
+            await StopDmmPollingAsync();
+            await StopTelemetryListeningAsync();
+            _simulation.StopTelemetryOutput(); // 停止仿真侧遥测输出，避免继续打印日志
+
+            if (passCount == testCount)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 最终值: 供电模块={lastDmm:F3}V, 回采={lastTelemetry:F3}V");
+                return "PASS";
+            }
+            else if (token.IsCancellationRequested)
+            {
+                return "FAIL (超时)";
+            }
+            else
+            {
+                return $"FAIL ({passCount}/{testCount}次合格)";
+            }
+        }
+
+        private async Task<bool> AutoExitAtpAsync(string txChannel, string rxChannel, CancellationToken token)
+        {
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 发送退出ATP：TX={txChannel}, RX={rxChannel}");
+
+            var resp = await _simulation.SendBenchCommandAndWaitAsync(
+                txChannel,
+                rxChannel,
+                DefaultLabel,
+                ExitAtpCommand,
+                b => b.SequenceEqual(ExitAtpOk),
+                timeoutMs: 2000,
+                msg => AddLog(msg),
+                token);
+
+            if (resp != null)
+            {
+                ExitAtpRxDataText = $"0x{FormatBytesHex(resp)}";
+                return true;
+            }
+            return false;
+        }
+
         private async Task StopTestAsync(bool sendExitAtp)
         {
-            if (IsBusy) return;
+            // 不检查IsBusy，停止测试必须随时可用
+            // 先停止采集任务
+            StopSamplingTask();
+
             IsBusy = true;
             try
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 停止测试：发送退出ATP并关闭设备");
 
+                await StopTelemetryListeningAsync();
+
                 await StopDmmPollingAsync();
                 await DisconnectDmmAsync();
                 await DisconnectMatrixAsync(msg => AddLog(msg), CancellationToken.None);
 
-                if (sendExitAtp && SendExitAtpCommand.CanExecute())
+                if (sendExitAtp && IsInAtpMode)
                 {
                     await SendExitAtpAsync(stopAfter: false);
                 }
@@ -632,17 +1108,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 DmmVoltageText = "--";
                 TelemetryVoltageText = "--";
+                LatestDmmVoltage = null;
+                LatestTelemetryVoltage = null;
+                EnterAtpRxDataText = "--";
+                TelemetryRxDataText = "--";
+                ExitAtpRxDataText = "--";
+                _fixedMatrixConnected = false;
 
                 try
                 {
                     _opCts?.Cancel();
+                    _opCts?.Dispose();
+                    _opCts = null;
                 }
                 catch
                 {
                 }
 
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = "--";
+                // 保留测试结果和时间，不清除（用户要求停止测试时保留结果显示）
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试已停止，资源已释放");
             }
             finally
             {
@@ -758,6 +1242,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 启动万用表回采失败: {ex.Message}");
             }
+
+            // 3) 启动遥测监听（在开启输出后启动，避免干扰ATP指令收发）
+            StartTelemetryListeningIfNeeded();
+            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM->VM] 遥测监听已启动");
         }
 
         private async Task EnsureDmmConnectedAsync(CancellationToken token)
@@ -1017,7 +1505,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             try
             {
+                StopSamplingTask();
+            }
+            catch
+            {
+            }
+
+            try
+            {
                 StopDmmPollingAsync().GetAwaiter().GetResult();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                StopTelemetryListeningAsync().GetAwaiter().GetResult();
             }
             catch
             {
@@ -1042,6 +1546,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 _dmmResourceManager = null;
             }
+
+            try
+            {
+                _simulation.StopAsync(msg => { }).GetAwaiter().GetResult();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                _opCts?.Cancel();
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+            catch
+            {
+            }
+
+            IsManualTestRunning = false;
+            IsAutoTestRunning = false;
+            IsInAtpMode = false;
+            OutputEnabled = false;
+            IsBusy = false;
         }
 
         private bool CanSendEnterAtp()
@@ -1049,7 +1577,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (IsBusy) return false;
             if (!IsManualTestRunning && !IsAutoTestRunning) return false;
             if (string.IsNullOrWhiteSpace(EnterAtpTxChannel) || string.IsNullOrWhiteSpace(EnterAtpRxChannel)) return false;
-            return !string.Equals(EnterAtpTxChannel, EnterAtpRxChannel, StringComparison.OrdinalIgnoreCase);
+            return true;
         }
 
         private void OnSendEnterAtp()
@@ -1065,27 +1593,41 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             IsBusy = true;
             try
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送进入ATP：TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}, Label=0x{DefaultLabel:X2}, Data=00 01 00 01 00 00 00 00");
-
                 var token = _opCts?.Token ?? CancellationToken.None;
+                const int timeoutMs = 3000;
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送进入ATP：TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}, Label=0x{DefaultLabel:X2}");
+
+                try
+                {
+                    await _simulation.ClearRxFifoAsync(EnterAtpRxChannel);
+                }
+                catch
+                {
+                }
+
+                await Task.Delay(50, token);
+
                 var resp = await _simulation.SendBenchCommandAndWaitAsync(
                     EnterAtpTxChannel,
                     EnterAtpRxChannel,
                     DefaultLabel,
                     EnterAtpCommand,
                     b => b.SequenceEqual(EnterAtpOk),
-                    timeoutMs: 2000,
+                    timeoutMs: timeoutMs,
                     msg => AddLog(msg),
                     token);
 
-                if (resp == null)
+                if (resp != null)
+                {
+                    EnterAtpRxDataText = $"0x{FormatBytesHex(resp)}";
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 收到ATP OK，进入ATP成功");
+                    IsInAtpMode = true;
+                }
+                else
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP超时，未收到OK");
-                    return;
                 }
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 收到ATP OK，进入ATP成功");
-                IsInAtpMode = true;
             }
             catch (Exception ex)
             {
@@ -1101,8 +1643,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             if (IsBusy) return false;
             if (!IsInAtpMode) return false;
-            if (string.IsNullOrWhiteSpace(SetVoltageTxChannel) || string.IsNullOrWhiteSpace(SetVoltageRxChannel)) return false;
-            return !string.Equals(SetVoltageTxChannel, SetVoltageRxChannel, StringComparison.OrdinalIgnoreCase);
+            return !string.IsNullOrWhiteSpace(SetVoltageTxChannel);
         }
 
         private void OnSendSetVoltage()
@@ -1122,28 +1663,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 await EnsureFixedMatrixConnectedAsync(msg => AddLog(msg), token);
                 await SwitchMatrixForSelectedDmmChannelAsync(msg => AddLog(msg), token);
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送开启输出：TX={SetVoltageTxChannel}, RX={SetVoltageRxChannel}, Label=0x{DefaultLabel:X2}, Data=01 04 01 01 00 00 00 00");
-                var resp = await _simulation.SendBenchCommandAndWaitAsync(
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送开启输出：TX={SetVoltageTxChannel}, Label=0x{DefaultLabel:X2}, Data=01 04 01 01 00 00 00 00");
+                await _simulation.SendBenchCommandOnlyAsync(
                     SetVoltageTxChannel,
-                    SetVoltageRxChannel,
                     DefaultLabel,
                     EnableOutputCommand,
-                    b => b.SequenceEqual(EnableOutputAck),
-                    timeoutMs: 2000,
                     msg => AddLog(msg),
                     token);
 
-                if (resp == null)
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 开启输出超时，未收到ACK");
-                    return;
-                }
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 收到开启输出ACK");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 开启输出指令已发送");
                 OutputEnabled = true;
 
-                // 简单判定：收到回采上报的电压 (01 04 01 02 vv vv 00 00) 并在范围内即 PASS
-                await EvaluateResultFromTelemetryAsync(token);
+                // 启动后台采集任务（不阻塞），让退出ATP/停止测试随时可用
+                StartSamplingTask();
             }
             catch (Exception ex)
             {
@@ -1155,58 +1687,162 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        private void StartSamplingTask()
+        {
+            StopSamplingTask();
+
+            _samplingCts = new CancellationTokenSource();
+            var token = _samplingCts.Token;
+
+            _samplingTask = Task.Run(async () =>
+            {
+                await EvaluateResultFromTelemetryAsync(token);
+            }, token);
+        }
+
+        private void StopSamplingTask()
+        {
+            try
+            {
+                _samplingCts?.Cancel();
+            }
+            catch { }
+
+            try
+            {
+                if (_samplingTask != null && !_samplingTask.IsCompleted)
+                {
+                    _samplingTask.Wait(500);
+                }
+            }
+            catch { }
+
+            _samplingCts?.Dispose();
+            _samplingCts = null;
+            _samplingTask = null;
+        }
+
         private async Task EvaluateResultFromTelemetryAsync(CancellationToken token)
         {
-            // 取样窗口（可按你后续规则调整）：2秒内收到任意一帧回采上报，且电压在[2.25,2.75]V则PASS，否则FAIL
-            var deadline = DateTime.UtcNow.AddSeconds(2);
-            bool got = false;
-            bool pass = false;
-            bool dmmOk = false;
+            const int testCount = 5;//测试次数
+            const double dmmMin = 13.5;//DMM电压下限
+            const double dmmMax = 16.5;//DMM电压上限
+            const double teleMin = 2.25;//回采电压下限
+            const double teleMax = 2.75;//回采电压上限
+            const int stabilizeTimeoutSeconds = 30;//稳定超时时间
+
+            double? lastDmm = null;
             double? lastTelemetry = null;
+            var startTime = DateTime.UtcNow;
 
-            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
+            // 阶段1：等待数据稳定（电压值和回采值都有数据后跳出）
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 等待硬件稳定（{stabilizeTimeoutSeconds}秒超时）...");
+            while (!token.IsCancellationRequested)
             {
-                var resp = await _simulation.WaitBenchResponseAsync(
-                    TelemetryRxChannel,
-                    DefaultLabel,
-                    b => b != null && b.Length == 8 && b[0] == 0x01 && b[1] == 0x04 && b[2] == 0x01 && b[3] == 0x02,
-                    timeoutMs: 300,
-                    msg => AddLog(msg),
-                    token);
-
-                if (resp == null)
+                try
                 {
-                    await Task.Delay(50, token);
+                    await Task.Delay(200, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    LastTestResult = "FAIL";
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 测试结果: FAIL (已取消)");
+                    return;
+                }
+
+                var dmm = LatestDmmVoltage;
+                var tele = LatestTelemetryVoltage;
+
+                if (dmm.HasValue && dmm.Value != 0 && tele.HasValue && tele.Value != 0)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 硬件已稳定: DMM={dmm.Value:F3}V, 回采={tele.Value:F3}V");
+                    break;
+                }
+
+                if ((DateTime.UtcNow - startTime).TotalSeconds > stabilizeTimeoutSeconds)
+                {
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    LastTestResult = "FAIL";
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 测试结果: FAIL (等待数据超时，请检查通道配置)");
+                    return;
+                }
+            }
+
+            // 阶段2：只测5次，判定PASS/FAIL
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 开始采集判定，共{testCount}次");
+            int passCount = 0;
+            for (int i = 1; i <= testCount && !token.IsCancellationRequested; i++)
+            {
+                try
+                {
+                    await Task.Delay(300, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+
+                var dmm = LatestDmmVoltage;
+                var tele = LatestTelemetryVoltage;
+
+                if (!dmm.HasValue || !tele.HasValue)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 采样#{i}: 数据无效 -> 不合格");
                     continue;
                 }
 
-                got = true;
-                ushort mv = (ushort)((resp[4] << 8) | resp[5]);
-                double v = mv / 1000.0;
-                LatestTelemetryVoltage = v;
-                TelemetryVoltageText = $"{v:0.000} V";
-                lastTelemetry = v;
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 回采上报: {v:F3}V");
+                lastDmm = dmm;
+                lastTelemetry = tele;
 
-                var dmm = LatestDmmVoltage;
-                dmmOk = dmm.HasValue && dmm.Value >= 13.5 && dmm.Value <= 16.5;
-                bool teleOk = v >= 2.25 && v <= 2.75;
-                pass = dmmOk && teleOk;
-                if (pass)
-                    break;
+                bool dmmOk = dmm.Value >= dmmMin && dmm.Value <= dmmMax;
+                bool teleOk = tele.Value >= teleMin && tele.Value <= teleMax;
+
+                if (dmmOk && teleOk)
+                {
+                    passCount++;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 采样#{i}: DMM={dmm.Value:F3}V, 回采={tele.Value:F3}V -> 合格");
+                }
+                else
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 采样#{i}: DMM={dmm.Value:F3}V(需{dmmMin}~{dmmMax}), 回采={tele.Value:F3}V(需{teleMin}~{teleMax}) -> 不合格");
+                }
             }
 
+            // 采集完成后停止DMM轮询和遥测监听，不再刷新显示
+            await StopDmmPollingAsync();
+            await StopTelemetryListeningAsync();
+            _simulation.StopTelemetryOutput(); // 停止仿真侧遥测输出，避免继续打印日志
+
+            // 保存上次测试结果（在更新本次结果之前）
+            PreviousTestTime = LastTestTime;
+            PreviousTestResult = LastTestResult;
+
             LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            LastTestResult = (!got) ? "FAIL" : (pass ? "PASS" : "FAIL");
+            if (passCount == testCount)
+            {
+                LastTestResult = "PASS";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试结果: PASS ({testCount}次全部合格)");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 最终值: 供电模块={lastDmm:F3}V, 回采={lastTelemetry:F3}V");
+            }
+            else if (token.IsCancellationRequested)
+            {
+                LastTestResult = "FAIL";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试结果: FAIL (已取消)");
+            }
+            else
+            {
+                LastTestResult = "FAIL";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试结果: FAIL ({passCount}/{testCount}次合格)");
+            }
         }
 
         private bool CanSendExitAtp()
         {
-            if (IsBusy) return false;
+            // 不检查IsBusy，让退出ATP按钮在采集过程中也可用
             if (!IsManualTestRunning && !IsAutoTestRunning) return false;
-            if (!OutputEnabled) return false;
             if (string.IsNullOrWhiteSpace(ExitAtpTxChannel) || string.IsNullOrWhiteSpace(ExitAtpRxChannel)) return false;
-            return !string.Equals(ExitAtpTxChannel, ExitAtpRxChannel, StringComparison.OrdinalIgnoreCase);
+            return true;
         }
 
         private void OnSendExitAtp()
@@ -1216,8 +1852,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task SendExitAtpAsync(bool stopAfter)
         {
-            if (!SendExitAtpCommand.CanExecute())
-                return;
+            // 先停止采集任务
+            StopSamplingTask();
 
             IsBusy = true;
             try
@@ -1241,6 +1877,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 else
                 {
+                    ExitAtpRxDataText = $"0x{FormatBytesHex(resp)}";
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 收到退出ATP OK");
                 }
 
@@ -1269,6 +1906,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             SendEnterAtpCommand.RaiseCanExecuteChanged();
             SendSetVoltageCommand.RaiseCanExecuteChanged();
             SendExitAtpCommand.RaiseCanExecuteChanged();
+        }
+
+        private static string FormatBytesHex(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length == 0)
+                return "--";
+            return string.Join(" ", bytes.Select(b => b.ToString("X2")));
         }
     }
 }
