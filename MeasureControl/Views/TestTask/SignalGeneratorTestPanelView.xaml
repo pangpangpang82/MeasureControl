@@ -278,6 +278,9 @@
                                                     <Trigger Property="IsPressed" Value="True">
                                                         <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
                                                     </Trigger>
+                                                    <DataTrigger Binding="{Binding Ch1OutputEnabled}" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                                    </DataTrigger>
                                                 </ControlTemplate.Triggers>
                                             </ControlTemplate>
                                         </Button.Template>
@@ -307,19 +310,25 @@
                                     BorderThickness="1"
                                     CornerRadius="3">
                                     <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
                                         <TextBox
                                             Margin="10,0,35,0"
                                             VerticalAlignment="Center"
                                             BorderThickness="0"
                                             FontSize="18"
-                                            Text="{Binding Ch1AmplitudeVpp, UpdateSourceTrigger=PropertyChanged}" />
-                                        <TextBlock
+                                            Text="{Binding Ch1AmplitudeValue, UpdateSourceTrigger=PropertyChanged}" />
+                                        <ComboBox
+                                            Grid.Column="1"
+                                            Width="70"
                                             Margin="0,0,10,0"
-                                            HorizontalAlignment="Right"
                                             VerticalAlignment="Center"
+                                            BorderThickness="0"
                                             FontSize="15"
-                                            Foreground="Black"
-                                            Text="V" />
+                                            ItemsSource="{Binding AmplitudeUnits}"
+                                            SelectedItem="{Binding Ch1AmplitudeUnit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     </Grid>
                                 </Border>
                             </StackPanel>
@@ -849,6 +858,9 @@
                                                     <Trigger Property="IsPressed" Value="True">
                                                         <Setter TargetName="border" Property="Background" Value="#FFC4E5FF" />
                                                     </Trigger>
+                                                    <DataTrigger Binding="{Binding Ch2OutputEnabled}" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
+                                                    </DataTrigger>
                                                 </ControlTemplate.Triggers>
                                             </ControlTemplate>
                                         </Button.Template>
@@ -878,19 +890,25 @@
                                     BorderThickness="1"
                                     CornerRadius="3">
                                     <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
                                         <TextBox
                                             Margin="10,0,35,0"
                                             VerticalAlignment="Center"
                                             BorderThickness="0"
                                             FontSize="18"
-                                            Text="{Binding Ch2AmplitudeVpp, UpdateSourceTrigger=PropertyChanged}" />
-                                        <TextBlock
+                                            Text="{Binding Ch2AmplitudeValue, UpdateSourceTrigger=PropertyChanged}" />
+                                        <ComboBox
+                                            Grid.Column="1"
+                                            Width="70"
                                             Margin="0,0,10,0"
-                                            HorizontalAlignment="Right"
                                             VerticalAlignment="Center"
+                                            BorderThickness="0"
                                             FontSize="15"
-                                            Foreground="Black"
-                                            Text="V" />
+                                            ItemsSource="{Binding AmplitudeUnits}"
+                                            SelectedItem="{Binding Ch2AmplitudeUnit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     </Grid>
                                 </Border>
                             </StackPanel>
