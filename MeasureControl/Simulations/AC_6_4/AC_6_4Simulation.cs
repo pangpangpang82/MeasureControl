@@ -707,19 +707,19 @@ namespace MeasureControl.Simulations.AC_6_4
                                     }
                                     else if (cmd8.SequenceEqual(CanCommTestCommand))
                                     {
-                                        var payload = new byte[8];
-                                        payload[0] = CanCommTestCommand[0];
-                                        payload[1] = CanCommTestCommand[1];
-                                        payload[2] = CanCommTestCommand[2];
-                                        payload[3] = CanCommTestCommand[3];
+                                        var canTxRespPayload8 = new byte[8];
+                                        canTxRespPayload8[0] = CanCommTestCommand[0];
+                                        canTxRespPayload8[1] = CanCommTestCommand[1];
+                                        canTxRespPayload8[2] = CanCommTestCommand[2];
+                                        canTxRespPayload8[3] = CanCommTestCommand[3];
 
-                                        payload[4] = (byte)((CanCommTestExpectedValue >> 24) & 0xFF);
-                                        payload[5] = (byte)((CanCommTestExpectedValue >> 16) & 0xFF);
-                                        payload[6] = (byte)((CanCommTestExpectedValue >> 8) & 0xFF);
-                                        payload[7] = (byte)(CanCommTestExpectedValue & 0xFF);
+                                        canTxRespPayload8[4] = (byte)((CanCommTestExpectedValue >> 24) & 0xFF);
+                                        canTxRespPayload8[5] = (byte)((CanCommTestExpectedValue >> 16) & 0xFF);
+                                        canTxRespPayload8[6] = (byte)((CanCommTestExpectedValue >> 8) & 0xFF);
+                                        canTxRespPayload8[7] = (byte)(CanCommTestExpectedValue & 0xFF);
 
-                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到CAN发送测试指令 -> 回包 payload8={FormatBytes(payload)}");
-                                        await SendMultiFrameResponseAsync(label, payload, log, token);
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到CAN发送测试指令 -> 回包 payload8={FormatBytes(canTxRespPayload8)}");
+                                        await SendMultiFrameResponseAsync(label, canTxRespPayload8, log, token);
                                     }
                                     else if (cmd8.SequenceEqual(CanCommReceiveCommand))
                                     {
