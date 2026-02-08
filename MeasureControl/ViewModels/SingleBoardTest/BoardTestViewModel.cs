@@ -28,6 +28,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "CAN发送测试", () => new CanCommTestView() },
                 { "CAN接收测试", () => new CanReceiveTestView() },
                 { "安全板CAN测试", () => new AirSimpleSequenceView("安全板CAN测试") },
+                { "RS422通信测试", () => new RS422CommTabView() },
             };
 
         private string _testTaskName;
@@ -145,6 +146,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("CAN发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("CAN接收测试"));
                 TestSequenceItems.Add(new TestSequenceItem("安全板CAN测试"));
+                TestSequenceItems.Add(new TestSequenceItem("RS422通信测试"));
                 return;
             }
 

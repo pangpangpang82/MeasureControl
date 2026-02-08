@@ -175,18 +175,6 @@ namespace MeasureControl.Services
                 {
                     return param;
                 }
-
-                // 兼容旧格式：若传入的是 "DeviceId/AI0"，但字典里只有 "AI0"，则尝试回退
-                var slashIdx = channelAddress.LastIndexOf('/');
-                if (slashIdx > 0 && slashIdx < channelAddress.Length - 1)
-                {
-                    var fallback = channelAddress.Substring(slashIdx + 1);
-                    if (_calibrationData.TryGetValue(fallback, out var fallbackParam))
-                    {
-                        return fallbackParam;
-                    }
-                }
-
                 return (1.0, 0.0, false); // 默认值：无标定
             }
         }
