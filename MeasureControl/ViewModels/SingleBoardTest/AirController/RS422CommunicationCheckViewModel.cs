@@ -19,6 +19,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private static readonly byte[] AtpR = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] AtpEnterOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
+        private static readonly byte[] AtpE = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
+        private static readonly byte[] ExitOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
         private static readonly byte[] AbRs422TransmitSpeedPos10 = { 0x06, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] AbRs422Receive = { 0x06, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
@@ -44,12 +46,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private string _enterAtpTxChannel;
         private string _enterAtpRxChannel;
+        private string _exitAtpTxChannel;
+        private string _exitAtpRxChannel;
         private string _rs422TransmitTxChannel;
         private string _rs422TransmitRxChannel;
         private string _rs422ReceiveTxChannel;
         private string _rs422ReceiveRxChannel;
 
         private string _enterAtpRxDataText;
+        private string _exitAtpRxDataText;
         private string _rs422TransmitRxDataText;
         private string _rs422TransmitResultText;
         private string _rs422ReceiveRxDataText;
@@ -78,12 +83,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             _enterAtpTxChannel = "429_CH0";
             _enterAtpRxChannel = "429_CH1";
+            _exitAtpTxChannel = "429_CH0";
+            _exitAtpRxChannel = "429_CH1";
             _rs422TransmitTxChannel = "429_CH0";
             _rs422TransmitRxChannel = "429_CH1";
             _rs422ReceiveTxChannel = "429_CH0";
             _rs422ReceiveRxChannel = "429_CH1";
 
             EnterAtpRxDataText = "--";
+            ExitAtpRxDataText = "--";
             Rs422TransmitRxDataText = "--";
             Rs422TransmitResultText = "--";
             Rs422ReceiveRxDataText = "--";
@@ -112,6 +120,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 .ObservesProperty(() => IsManualTestRunning);
 
             SendEnterAtpCommand = new DelegateCommand(async () => await OnSendEnterAtpAsync());
+            SendExitAtpCommand = new DelegateCommand(async () => await OnSendExitAtpAsync());
             Rs422TransmitTestCommand = new DelegateCommand(async () => await OnRs422TransmitTestAsync());
             Rs422ReceiveTestCommand = new DelegateCommand(async () => await OnRs422ReceiveTestAsync());
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
@@ -131,6 +140,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _enterAtpRxChannel;
             set => SetProperty(ref _enterAtpRxChannel, value);
+        }
+
+        public string ExitAtpTxChannel
+        {
+            get => _exitAtpTxChannel;
+            set => SetProperty(ref _exitAtpTxChannel, value);
+        }
+
+        public string ExitAtpRxChannel
+        {
+            get => _exitAtpRxChannel;
+            set => SetProperty(ref _exitAtpRxChannel, value);
         }
 
         public string Rs422TransmitTxChannel
@@ -161,6 +182,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _enterAtpRxDataText;
             set => SetProperty(ref _enterAtpRxDataText, value);
+        }
+
+        public string ExitAtpRxDataText
+        {
+            get => _exitAtpRxDataText;
+            set => SetProperty(ref _exitAtpRxDataText, value);
         }
 
         public string Rs422TransmitRxDataText
@@ -309,6 +336,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public DelegateCommand AutoTestCommand { get; }
 
         public DelegateCommand SendEnterAtpCommand { get; }
+        public DelegateCommand SendExitAtpCommand { get; }
         public DelegateCommand Rs422TransmitTestCommand { get; }
         public DelegateCommand Rs422ReceiveTestCommand { get; }
         public DelegateCommand ClearLogCommand { get; }
@@ -401,21 +429,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
-                await OnSendEnterAtpAsync();
+                bool enteredAtp = await OnSendEnterAtpAsync();
                 if (token.IsCancellationRequested) return;
 
-                await OnRs422TransmitTestAsync();
-                if (token.IsCancellationRequested) return;
+                try
+                {
+                    await OnRs422TransmitTestAsync();
+                    if (token.IsCancellationRequested) return;
 
-                await OnRs422ReceiveTestAsync();
-                if (token.IsCancellationRequested) return;
+                    await OnRs422ReceiveTestAsync();
+                    if (token.IsCancellationRequested) return;
 
-                bool pass = string.Equals(Rs422TransmitResultText, "PASS", StringComparison.OrdinalIgnoreCase)
-                            && string.Equals(Rs422ReceiveResultText, "PASS", StringComparison.OrdinalIgnoreCase);
+                    bool pass = enteredAtp
+                                && string.Equals(Rs422TransmitResultText, "PASS", StringComparison.OrdinalIgnoreCase)
+                                && string.Equals(Rs422ReceiveResultText, "PASS", StringComparison.OrdinalIgnoreCase);
 
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = pass ? "RS422自动测试PASS" : "RS422自动测试不通过";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试结束：{(pass ? "PASS" : "FAIL")}");
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    LastTestResult = pass ? "RS422自动测试PASS" : "RS422自动测试不通过";
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试结束：{(pass ? "PASS" : "FAIL")}");
+                }
+                finally
+                {
+                    if (enteredAtp)
+                    {
+                        try { await OnSendExitAtpAsync(); } catch { }
+                    }
+                }
             }
             catch (OperationCanceledException)
             {
@@ -690,7 +729,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _simulation.StartAsync(txChannel, rxChannel, msg => AddLog(msg));
         }
 
-        private async Task OnSendEnterAtpAsync()
+        private async Task<bool> OnSendEnterAtpAsync()
         {
             await _arincOpLock.WaitAsync();
             try
@@ -713,15 +752,56 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (resp == null)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP超时，未收到OK");
-                    return;
+                    return false;
                 }
 
                 EnterAtpRxDataText = "0x" + FormatData(resp);
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 收到ATP OK");
+                return true;
             }
             catch (Exception ex)
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP异常：{ex.Message}");
+                return false;
+            }
+            finally
+            {
+                _arincOpLock.Release();
+            }
+        }
+
+        private async Task OnSendExitAtpAsync()
+        {
+            await _arincOpLock.WaitAsync();
+            try
+            {
+                ExitAtpRxDataText = "--";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：退出ATP，TX={ExitAtpTxChannel}, RX={ExitAtpRxChannel}, Label=0x{DefaultLabel:X2}");
+
+                await EnsureArincStartedAsync(ExitAtpTxChannel, ExitAtpRxChannel);
+
+                try { await _simulation.ClearRxFifoAsync(ExitAtpRxChannel); } catch { }
+                await Task.Delay(50);
+
+                var resp = await _simulation.SendBenchCommandAndWaitAsync(
+                    ExitAtpTxChannel, ExitAtpRxChannel,
+                    DefaultLabel, AtpE,
+                    b => b.SequenceEqual(ExitOk),
+                    timeoutMs: 2000,
+                    msg => AddLog(msg), CancellationToken.None);
+
+                if (resp == null)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP超时，未收到OK");
+                    return;
+                }
+
+                ExitAtpRxDataText = "0x" + FormatData(resp);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 收到退出ATP OK");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP异常：{ex.Message}");
             }
             finally
             {
