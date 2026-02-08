@@ -373,6 +373,10 @@
     <Compile Include="Services\HardwareApis\DmmApi.cs" />
     <Compile Include="Services\HardwareApis\FrequencyCounterApi.cs" />
     <Compile Include="Services\HardwareApis\PowerSupplyApi.cs" />
+    <Compile Include="Services\HardwareApis\Jy7131Api.cs" />
+    <Compile Include="Services\HardwareApis\Pxi7012Api.cs" />
+    <Compile Include="Services\HardwareApis\Mtx532Api.cs" />
+    <Compile Include="Services\HardwareApis\Art9774Api.cs" />
     <Compile Include="Services\ChannelBindingService.cs" />
     <Compile Include="Services\ChannelManager.cs" />
     <Compile Include="Services\CalibrationDataService.cs" />
