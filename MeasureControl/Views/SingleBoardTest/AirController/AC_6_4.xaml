@@ -804,7 +804,7 @@
                             FontSize="14"
                             FontWeight="Bold">
                             <Run Text="上次测试时间：" />
-                            <Run Text="{Binding LastTestTime, TargetNullValue=--, FallbackValue=--}" />
+                            <Run Text="{Binding PreviousTestTime, TargetNullValue=--, FallbackValue=--}" />
                         </TextBlock>
                         <TextBlock
                             Grid.Column="1"
@@ -813,7 +813,7 @@
                             FontSize="14"
                             FontWeight="Bold">
                             <Run Text="上次测试结果：" />
-                            <Run Text="{Binding LastTestResult, TargetNullValue=--, FallbackValue=--}" />
+                            <Run Text="{Binding PreviousTestResult, TargetNullValue=--, FallbackValue=--}" />
                         </TextBlock>
                     </Grid>
                 </Grid>

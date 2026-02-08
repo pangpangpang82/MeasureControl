@@ -52,7 +52,7 @@ namespace MeasureControl.Views.Common
                 child.Measure(cellSize);
             }
 
-            // Desired as the available size (uniform grid fills its space)
+            // Desired as the 11available size (uniform grid fills its space)
             return availableSize;
         }
 
