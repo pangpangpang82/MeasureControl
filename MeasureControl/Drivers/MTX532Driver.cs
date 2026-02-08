@@ -45,6 +45,8 @@ namespace MeasureControl.Drivers
 
         // 当为 true 时，在调用厂商 SDK（MTDAQ）前做严格校验并避免直接调用可能弹出原生对话框的 API
         private readonly bool _suppressNativeDialogs;
+
+        private readonly int? _slotNumberOverride;
         /// <summary>设备基础信息对象，包含设备 ID、名称、型号等</summary>
         private readonly DeviceBase _device;
 
@@ -137,10 +139,11 @@ namespace MeasureControl.Drivers
         /// <summary>
         /// 构造函数，初始化 MT-X532 驱动实例
         /// </summary>
-        public MTX532Driver(DeviceBase device, bool suppressNativeDialogs = true)
+        public MTX532Driver(DeviceBase device, bool suppressNativeDialogs = true, int? slotNumberOverride = null)
         {
             _device = device ?? throw new ArgumentNullException(nameof(device));
             _suppressNativeDialogs = suppressNativeDialogs;
+            _slotNumberOverride = slotNumberOverride;
 
             // 初始化所有通道的默认配置
             InitializeChannelConfigs();
@@ -215,7 +218,8 @@ namespace MeasureControl.Drivers
                         return false;
                     }
 
-                    if (_device is PxiDeviceBase pxiDevice && pxiDevice.SlotIndex <= 0)
+                    var slot = GetSlotIndexForConfig();
+                    if (_device is PxiDeviceBase && slot <= 0)
                     {
                         Debug.WriteLine("[MTX532Driver] 跳过 MTDAQ.Open：PXI 槽位无效或未设置，已启用 suppressNativeDialogs");
                         _isConnected = false;
@@ -1391,11 +1395,7 @@ namespace MeasureControl.Drivers
             // 从 PXI 设备基类获取槽位编号（在机箱视图中拖拽后由 SlotIndex 设置）
             // 槽位编号用于在 PXI 机箱中定位设备，从 1 开始编号
             // 如果设备不是 PXI 设备或未设置槽位，默认使用 0
-            int slotIndex = 0;
-            if (_device is PxiDeviceBase pxiDevice && pxiDevice.SlotIndex > 0)
-            {
-                slotIndex = pxiDevice.SlotIndex;
-            }
+            int slotIndex = GetSlotIndexForConfig();
 
             // 构建完整的配置字符串，包含：
             // 1. 版权标识头
@@ -1419,6 +1419,17 @@ namespace MeasureControl.Drivers
                 "----------www.mangotree.cn----------";
 
             return config;
+        }
+
+        private int GetSlotIndexForConfig()
+        {
+            if (_slotNumberOverride.HasValue)
+                return _slotNumberOverride.Value;
+
+            if (_device is PxiDeviceBase pxiDevice && pxiDevice.SlotIndex > 0)
+                return pxiDevice.SlotIndex;
+
+            return 0;
         }
 
         /// <summary>

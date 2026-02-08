@@ -101,14 +101,21 @@ namespace MeasureControl.Drivers
 
         #region 构造函数
 
-        public Art9774Driver(DeviceBase device)
+        public Art9774Driver(DeviceBase device, string deviceNameOverride = null)
         {
             _device = device ?? throw new ArgumentNullException(nameof(device));
             _isConnected = false;
             _isAcquisitionRunning = false;
 
-            // 从设备名称中提取设备标识（如 "Dev1"）
-            ExtractDeviceName();
+            if (!string.IsNullOrWhiteSpace(deviceNameOverride))
+            {
+                _deviceName = deviceNameOverride.Trim();
+            }
+            else
+            {
+                // 从设备名称中提取设备标识（如 "Dev1"）
+                ExtractDeviceName();
+            }
 
             // 初始化通道配置（32通道）
             InitializeChannels();
