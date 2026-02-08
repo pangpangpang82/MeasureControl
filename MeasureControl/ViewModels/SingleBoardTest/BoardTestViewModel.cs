@@ -23,6 +23,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 { "控制通道光耦供电测试", () => new AC_6_4CommTabView() },
                 { "PT500型温度传感器测试", () => new PT500TemperatureSensorCommTabView() },
+                { "RS422通信测试", () => new RS422CommTabView() },
             };
 
         private string _testTaskName;
@@ -137,6 +138,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("5V传感器供电电压测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道光耦供电测试"));
                 TestSequenceItems.Add(new TestSequenceItem("ARINC429通讯测试"));
+                TestSequenceItems.Add(new TestSequenceItem("RS422通信测试"));
                 return;
             }
 

@@ -1,0 +1,569 @@
+<UserControl
+    x:Class="MeasureControl.Views.SingleBoardTest.AirController.RS422CommunicationCheckView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib"
+    d:DesignHeight="550"
+    d:DesignWidth="970"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <x:Array x:Key="Arinc429Channels" Type="sys:String">
+            <sys:String>CH0</sys:String>
+            <sys:String>CH1</sys:String>
+            <sys:String>CH2</sys:String>
+            <sys:String>CH3</sys:String>
+            <sys:String>CH4</sys:String>
+            <sys:String>CH5</sys:String>
+            <sys:String>CH6</sys:String>
+            <sys:String>CH7</sys:String>
+            <sys:String>CH8</sys:String>
+            <sys:String>CH9</sys:String>
+            <sys:String>CH10</sys:String>
+            <sys:String>CH11</sys:String>
+            <sys:String>CH12</sys:String>
+            <sys:String>CH13</sys:String>
+            <sys:String>CH14</sys:String>
+            <sys:String>CH15</sys:String>
+        </x:Array>
+    </UserControl.Resources>
+
+    <Grid Background="White">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border
+            Grid.Row="0"
+            Margin="8,8,8,4"
+            Background="White"
+            BorderBrush="#D9D9D9"
+            BorderThickness="1.5"
+            CornerRadius="8">
+            <Grid>
+                <TextBlock
+                    Width="300"
+                    Margin="10,0,0,0"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    FontSize="24"
+                    FontWeight="Bold"
+                    Text="RS422通信测试" />
+                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                    <Button
+                        Width="100"
+                        Height="32"
+                        Margin="0,0,20,0"
+                        VerticalAlignment="Center"
+                        BorderThickness="0"
+                        Command="{Binding ManualTestCommand}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border
+                                    x:Name="border"
+                                    Background="#3b82f6"
+                                    CornerRadius="6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image
+                                            x:Name="DeviceImage"
+                                            Width="15"
+                                            Height="15"
+                                            Margin="5,0,5,0"
+                                            Source="/Resources/Logo/hand_w.png" />
+                                        <TextBlock
+                                            x:Name="DeviceAction"
+                                            Margin="0,0,5,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Foreground="White"
+                                            Text="手动测试" />
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsManualTestRunning}" Value="True">
+                                        <Setter Property="Tag" Value="True" />
+                                        <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                        <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
+                                    </DataTrigger>
+
+                                    <DataTrigger Binding="{Binding IsManualTestRunning}" Value="False">
+                                        <Setter Property="Tag" Value="False" />
+                                    </DataTrigger>
+
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="False" />
+                                            <Condition Property="IsMouseOver" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                    </MultiTrigger>
+
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="False" />
+                                            <Condition Property="IsPressed" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                    </MultiTrigger>
+
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="True" />
+                                            <Condition Property="IsMouseOver" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                    </MultiTrigger>
+
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="True" />
+                                            <Condition Property="IsPressed" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                    </MultiTrigger>
+
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                        <Setter Property="Cursor" Value="Arrow" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button
+                        Width="100"
+                        Height="32"
+                        Margin="0,0,30,0"
+                        VerticalAlignment="Center"
+                        BorderThickness="0"
+                        Command="{Binding AutoTestCommand}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border
+                                    x:Name="border"
+                                    Background="#22c55e"
+                                    CornerRadius="6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image
+                                            x:Name="DeviceImage"
+                                            Width="15"
+                                            Height="15"
+                                            Margin="5,0,5,0"
+                                            Source="/Resources/Logo/auto.png" />
+                                        <TextBlock
+                                            x:Name="DeviceAction"
+                                            Margin="0,0,5,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Foreground="White"
+                                            Text="自动测试" />
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="True">
+                                        <Setter Property="Tag" Value="True" />
+                                        <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                        <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
+                                    </DataTrigger>
+
+                                    <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="False">
+                                        <Setter Property="Tag" Value="False" />
+                                    </DataTrigger>
+
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="False" />
+                                            <Condition Property="IsMouseOver" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                    </MultiTrigger>
+
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="False" />
+                                            <Condition Property="IsPressed" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                    </MultiTrigger>
+
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="True" />
+                                            <Condition Property="IsMouseOver" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                    </MultiTrigger>
+
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="Tag" Value="True" />
+                                            <Condition Property="IsPressed" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                    </MultiTrigger>
+
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                        <Setter Property="Cursor" Value="Arrow" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="2*" />
+            </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Margin="10" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="4">
+            <Grid Margin="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" FontSize="20" FontWeight="Bold" Text="测试步骤" />
+
+                <Grid Grid.Row="1" Margin="0,14,0,0" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="190" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="90" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="16" Text="1.进入ATP模式：" />
+
+                    <Grid Grid.Column="1" VerticalAlignment="Center">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                            <ComboBox
+                                Width="90"
+                                Height="28"
+                                Margin="5,0,0,0"
+                                ItemsSource="{StaticResource Arinc429Channels}"
+                                SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
+                            <ComboBox
+                                Width="90"
+                                Height="28"
+                                Margin="5,0,0,0"
+                                ItemsSource="{StaticResource Arinc429Channels}"
+                                SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Column="3" VerticalAlignment="Center">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Height="28" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x00 01 00 01 00 00 00 00" />
+                        </Border>
+
+                        <Border Grid.Row="1" Height="28" Margin="0,6,0,0" VerticalAlignment="Center" Background="White" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxDataText}" TextTrimming="CharacterEllipsis" />
+                        </Border>
+                    </Grid>
+
+                    <Button Grid.Column="5" Width="90" Height="28" VerticalAlignment="Center" Command="{Binding SendEnterAtpCommand}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="#3b82f6" CornerRadius="4">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" Text="发送" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Grid>
+
+                <Grid Grid.Row="2" Margin="0,14,0,0" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="190" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="16" Text="2.RS422发送测试：" />
+
+                    <Grid Grid.Column="1" VerticalAlignment="Center">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                            <ComboBox
+                                Width="90"
+                                Height="28"
+                                Margin="5,0,0,0"
+                                ItemsSource="{StaticResource Arinc429Channels}"
+                                SelectedItem="{Binding Rs422TransmitTxChannel, Mode=TwoWay}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
+                            <ComboBox
+                                Width="90"
+                                Height="28"
+                                Margin="5,0,0,0"
+                                ItemsSource="{StaticResource Arinc429Channels}"
+                                SelectedItem="{Binding Rs422TransmitRxChannel, Mode=TwoWay}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Column="3" VerticalAlignment="Center">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Height="28" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x06 01 01 01 00 00 00 00" />
+                        </Border>
+
+                        <Border Grid.Row="1" Height="28" Margin="0,6,0,0" VerticalAlignment="Center" Background="White" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding Rs422TransmitRxDataText}" TextTrimming="CharacterEllipsis" />
+                        </Border>
+                    </Grid>
+
+                    <Button Grid.Column="5" Width="90" Height="28" VerticalAlignment="Center" Command="{Binding Rs422TransmitTestCommand}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="#3b82f6" CornerRadius="4">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" Text="测试" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <TextBlock Grid.Column="7" VerticalAlignment="Center" FontSize="12" Text="结果:" />
+                    <TextBlock Grid.Column="8" Width="90" VerticalAlignment="Center" FontSize="12" Text="{Binding Rs422TransmitResultText}" />
+                </Grid>
+
+                <Grid Grid.Row="3" Margin="0,14,0,0" VerticalAlignment="Top">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="190" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="16" Text="3.RS422接收测试：" />
+
+                    <Grid Grid.Column="1" VerticalAlignment="Center">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                            <ComboBox
+                                Width="90"
+                                Height="28"
+                                Margin="5,0,0,0"
+                                ItemsSource="{StaticResource Arinc429Channels}"
+                                SelectedItem="{Binding Rs422ReceiveTxChannel, Mode=TwoWay}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
+                            <ComboBox
+                                Width="90"
+                                Height="28"
+                                Margin="5,0,0,0"
+                                ItemsSource="{StaticResource Arinc429Channels}"
+                                SelectedItem="{Binding Rs422ReceiveRxChannel, Mode=TwoWay}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Column="3" VerticalAlignment="Center">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Height="28" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x06 02 01 01 00 00 00 00" />
+                        </Border>
+
+                        <Border Grid.Row="1" Height="28" Margin="0,6,0,0" VerticalAlignment="Center" Background="White" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding Rs422ReceiveRxDataText}" TextTrimming="CharacterEllipsis" />
+                        </Border>
+                    </Grid>
+
+                    <Button Grid.Column="5" Width="90" Height="28" VerticalAlignment="Center" Command="{Binding Rs422ReceiveTestCommand}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="#3b82f6" CornerRadius="4">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" Text="测试" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <TextBlock Grid.Column="7" VerticalAlignment="Center" FontSize="12" Text="结果:" />
+                    <TextBlock Grid.Column="8" Width="90" VerticalAlignment="Center" FontSize="12" Text="{Binding Rs422ReceiveResultText}" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Column="1" Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="4" Padding="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="80" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="4" FontSize="16" FontWeight="Bold" Text="RS422串口设置" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Center" Text="COM" />
+                    <ComboBox
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Height="28"
+                        Margin="0,10,10,0"
+                        ItemsSource="{Binding AvailablePorts}"
+                        SelectedItem="{Binding SelectedPortName, Mode=TwoWay}" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="2" Margin="0,10,0,0" VerticalAlignment="Center" Text="波特率" />
+                    <ComboBox
+                        Grid.Row="1"
+                        Grid.Column="3"
+                        Height="28"
+                        Margin="0,10,0,0"
+                        ItemsSource="{Binding BaudRates}"
+                        SelectedItem="{Binding SelectedBaudRate, Mode=TwoWay}" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Center" Text="校验" />
+                    <ComboBox
+                        Grid.Row="2"
+                        Grid.Column="1"
+                        Height="28"
+                        Margin="0,10,10,0"
+                        ItemsSource="{Binding Parities}"
+                        SelectedItem="{Binding SelectedParity, Mode=TwoWay}" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="2" Margin="0,10,0,0" VerticalAlignment="Center" Text="数据位" />
+                    <ComboBox
+                        Grid.Row="2"
+                        Grid.Column="3"
+                        Height="28"
+                        Margin="0,10,0,0"
+                        ItemsSource="{Binding DataBitsList}"
+                        SelectedItem="{Binding SelectedDataBits, Mode=TwoWay}" />
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Center" Text="停止位" />
+                    <ComboBox
+                        Grid.Row="3"
+                        Grid.Column="1"
+                        Height="28"
+                        Margin="0,10,10,0"
+                        ItemsSource="{Binding StopBitsList}"
+                        SelectedItem="{Binding SelectedStopBits, Mode=TwoWay}" />
+
+                    <StackPanel Grid.Row="3" Grid.Column="2" Grid.ColumnSpan="2" Margin="0,10,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Width="70" Height="28" Margin="0,0,8,0" Command="{Binding RefreshPortsCommand}" Content="刷新" />
+                        <Button Width="70" Height="28" Margin="0,0,8,0" Command="{Binding OpenPortCommand}" Content="打开" />
+                        <Button Width="70" Height="28" Command="{Binding ClosePortCommand}" Content="关闭" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Margin="0,10,0,0" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="4" Padding="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontSize="16" FontWeight="Bold" Text="测试信息" />
+                        <Button Width="70" Height="28" Margin="10,0,0,0" Command="{Binding ClearLogCommand}" Content="清除" />
+                    </StackPanel>
+
+                    <ListBox Grid.Row="1" Margin="0,10,0,0" ItemsSource="{Binding Logs}" />
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2" Margin="0,10,0,0" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="4" Padding="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Text="测试结果：" />
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="{Binding LastTestResult}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,8,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Text="上次测试时间：" />
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="{Binding LastTestTime}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <TextBlock VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Text="上次测试结果：" />
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="{Binding LastTestResult}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+        </Grid>
+    </Grid>
+</UserControl>
