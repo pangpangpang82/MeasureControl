@@ -9,6 +9,7 @@ using MeasureControl.ViewModels.IcdConfig;
 using MeasureControl.ViewModels.TdmSystem;
 using MeasureControl.ViewModels.TestTask.ConfigTabel;
 using MeasureControl.ViewModels.SingleBoardTest;
+using MeasureControl.ViewModels.SingleBoardTest.HydraulicController;
 using MeasureControl.Views;
 using MeasureControl.Views.Common;
 using MeasureControl.Views.ConfigTabel;
@@ -116,6 +117,9 @@ namespace MeasureControl
             containerRegistry.Register<DatabaseConfigViewModel>();
             containerRegistry.Register<FloatingWindowViewModel>();
             containerRegistry.Register<DataCalibrationViewModel>();
+            containerRegistry.Register<HC_6_1ViewModel>();
+            containerRegistry.Register<HC_6_2ViewModel>();
+            containerRegistry.Register<HC_6_3ViewModel>();
 
             // 注册导航页面
             // 单例页面（IsNavigationTarget返回true，重用实例）
