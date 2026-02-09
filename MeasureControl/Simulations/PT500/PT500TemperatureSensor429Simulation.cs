@@ -261,6 +261,34 @@ namespace MeasureControl.Simulations.PT500
                 token);
         }
 
+        public async Task SendBenchCommandOnlyAsync(
+            string benchTxChannel,
+            byte label,
+            byte[] command8,
+            Action<string> log,
+            CancellationToken token)
+        {
+            if (!_started || _arincDriver == null)
+                throw new InvalidOperationException("Simulation not started");
+            if (command8 == null || command8.Length != 8)
+                throw new ArgumentException("command8 must be 8 bytes", nameof(command8));
+
+            int txIndex = ParseChannelIndex(benchTxChannel);
+
+            bool openTxOk = await _arincDriver.OpenTxChannelAsync(txIndex);
+            if (!openTxOk)
+                throw new InvalidOperationException($"[SIM] TX通道打开失败: tx={txIndex}");
+
+            await _arincDriver.ConfigureTxChannelAsync(txIndex, ArincRate, sendMode: 0, parity: 1, wordFormat: 0);
+
+            if (UseMultiLabelFragmentation)
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送(仅发送): tx={txIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
+            else
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送(仅发送): tx={txIndex}, label=0x{label:X2}, payload8={FormatBytes(command8)}");
+
+            await SendMultiFrameOnChannelAsync(txIndex, label, command8, log, token);
+        }
+
         public async Task ClearRxFifoAsync(string benchRxChannel)
         {
             if (_arincDriver == null)
