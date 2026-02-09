@@ -32,6 +32,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
                 { "8.3.2 S安全通道ARINC429接收通道1测试", () => new S_C_8_3_2View() },
                 { "8.3.3 S安全通道ARINC429接收通道2测试", () => new S_C_8_3_3View() },
+                { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
+                { "5V传感器供电电压测试", () => new AirSimpleSequenceView("5V传感器供电电压测试") },
+                { "CAN发送测试", () => new CanCommTestView() },
+                { "CAN接收测试", () => new CanReceiveTestView() },
+                { "安全板CAN测试", () => new AirSimpleSequenceView("安全板CAN测试") },
+                { "RS422通信测试", () => new RS422CommTabView() },
             };
 
         private string _testTaskName;
@@ -155,6 +161,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("8.3.2 S安全通道ARINC429接收通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.3 S安全通道ARINC429接收通道2测试"));
                 TestSequenceItems.Add(new TestSequenceItem("ARINC429通讯测试"));
+                TestSequenceItems.Add(new TestSequenceItem("CAN发送测试"));
+                TestSequenceItems.Add(new TestSequenceItem("CAN接收测试"));
+                TestSequenceItems.Add(new TestSequenceItem("安全板CAN测试"));
+                TestSequenceItems.Add(new TestSequenceItem("RS422通信测试"));
                 return;
             }
 

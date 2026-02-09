@@ -373,6 +373,13 @@
     <Compile Include="Models\TestInterfaceControlItem.cs" />
     <Compile Include="Models\ControlConfigItem.cs" />
     <Compile Include="Services\AsyncFileService.cs" />
+    <Compile Include="Services\HardwareApis\DmmApi.cs" />
+    <Compile Include="Services\HardwareApis\FrequencyCounterApi.cs" />
+    <Compile Include="Services\HardwareApis\PowerSupplyApi.cs" />
+    <Compile Include="Services\HardwareApis\Jy7131Api.cs" />
+    <Compile Include="Services\HardwareApis\Pxi7012Api.cs" />
+    <Compile Include="Services\HardwareApis\Mtx532Api.cs" />
+    <Compile Include="Services\HardwareApis\Art9774Api.cs" />
     <Compile Include="Services\ChannelBindingService.cs" />
     <Compile Include="Services\ChannelManager.cs" />
     <Compile Include="Services\CalibrationDataService.cs" />
@@ -462,8 +469,12 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_3ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\AirSimpleSequenceViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\CanCommTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\CanReceiveTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensorCanViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensor429ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\RS422CommunicationCheckViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\ReMessageBoxViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\RenameDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\TestProgressDialogViewModel.cs" />
@@ -543,6 +554,15 @@
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_3View.xaml.cs">
       <DependentUpon>S_C_8_3_3View.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\AirSimpleSequenceView.xaml.cs">
+      <DependentUpon>AirSimpleSequenceView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\CanCommTestView.xaml.cs">
+      <DependentUpon>CanCommTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\CanReceiveTestView.xaml.cs">
+      <DependentUpon>CanReceiveTestView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorTestView.xaml.cs">
       <DependentUpon>PT500TemperatureSensorTestView.xaml</DependentUpon>
     </Compile>
@@ -554,6 +574,12 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorCommTabView.xaml.cs">
       <DependentUpon>PT500TemperatureSensorCommTabView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\RS422CommTabView.xaml.cs">
+      <DependentUpon>RS422CommTabView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\RS422CommunicationCheckView.xaml.cs">
+      <DependentUpon>RS422CommunicationCheckView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\BoardTest.xaml.cs">
       <DependentUpon>BoardTest.xaml</DependentUpon>
@@ -831,6 +857,18 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Views\SingleBoardTest\AirController\AirSimpleSequenceView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\CanCommTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\CanReceiveTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorTestView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -844,6 +882,14 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorCommTabView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\RS422CommTabView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\RS422CommunicationCheckView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -240,39 +240,6 @@ namespace MeasureControl.ViewModels.TestTask.ConfigTabel
                         }
                     }
                 }
-
-                // 兼容旧项目：如果项目里只有未带 DeviceId 的 AI0/AI1...，默认归属于当前板卡并迁移到 scoped key
-                if (!appliedAny)
-                {
-                    foreach (var address in AvailableChannelAddresses)
-                    {
-                        if (string.IsNullOrWhiteSpace(address))
-                            continue;
-
-                        if (_projectCalibrationRecords.TryGetValue(address, out var legacyRecord) && legacyRecord != null)
-                        {
-                            var existing = CalibrationRecords.FirstOrDefault(r =>
-                                string.Equals(r.ChannelAddress, address, StringComparison.OrdinalIgnoreCase));
-                            if (existing != null)
-                            {
-                                existing.ChannelName = legacyRecord.ChannelName;
-                                existing.Slope = legacyRecord.Slope;
-                                existing.Intercept = legacyRecord.Intercept;
-                                existing.IsCalibrated = legacyRecord.IsCalibrated;
-                                existing.LastCalibrationTime = legacyRecord.LastCalibrationTime;
-                                existing.MeasurementPointCount = legacyRecord.MeasurementPointCount;
-                                existing.InstrumentSetValues = legacyRecord.InstrumentSetValues;
-                                existing.CardMeasuredValues = legacyRecord.CardMeasuredValues;
-
-                                var scopedKey = GetScopedKey(address);
-                                if (!string.IsNullOrWhiteSpace(scopedKey))
-                                {
-                                    _projectCalibrationRecords[scopedKey] = legacyRecord;
-                                }
-                            }
-                        }
-                    }
-                }
             }
 
             RaisePropertyChanged(nameof(CalibrationRecords));
@@ -1102,7 +1069,10 @@ namespace MeasureControl.ViewModels.TestTask.ConfigTabel
             {
                 if (InstrumentSetValues[i].Value.HasValue && CardMeasuredValues[i].Value.HasValue)
                 {
-                    validPoints.Add((InstrumentSetValues[i].Value.Value, CardMeasuredValues[i].Value.Value));
+                    // 直接回归补偿系数：y = kx + b
+                    // x: 板卡读数/实际值（raw/measured）
+                    // y: 目标真值/设定目标（true/target）
+                    validPoints.Add((CardMeasuredValues[i].Value.Value, InstrumentSetValues[i].Value.Value));
                 }
             }
 
@@ -1134,6 +1104,13 @@ namespace MeasureControl.ViewModels.TestTask.ConfigTabel
             double k = (n * sumXY - sumX * sumY) / denominator;
             double b = (sumY - k * sumX) / n;
 
+            if (double.IsNaN(k) || double.IsInfinity(k) || double.IsNaN(b) || double.IsInfinity(b))
+            {
+                Slope = 1.0;
+                Intercept = 0.0;
+                return;
+            }
+
             Slope = k;
             Intercept = b;
 
@@ -1155,7 +1132,8 @@ namespace MeasureControl.ViewModels.TestTask.ConfigTabel
             {
                 if (InstrumentSetValues[i].Value.HasValue && CardMeasuredValues[i].Value.HasValue)
                 {
-                    pairs.Add((InstrumentSetValues[i].Value.Value, CardMeasuredValues[i].Value.Value));
+                    // 与回归一致：x=实际/读数，y=目标真值
+                    pairs.Add((CardMeasuredValues[i].Value.Value, InstrumentSetValues[i].Value.Value));
                 }
             }
 
