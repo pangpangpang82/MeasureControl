@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Controls;
 using MeasureControl.Events;
 using MeasureControl.Views.SingleBoardTest.AirController;
+using MeasureControl.Views.SingleBoardTest.HydraulicController;
 using MeasureControl.Views.Dialogs;
 using Prism.Commands;
 using Prism.Events;
@@ -18,11 +19,39 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         private readonly IEventAggregator _eventAggregator;
         private readonly MeasureControl.Services.ISingleBoardTestContextService _singleBoardTestContext;
 
-        private static readonly IReadOnlyDictionary<string, Func<UserControl>> TestItemViewFactories =
-            new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
+        private const string CommonBoardTypeKey = "Common";
+
+        private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, Func<UserControl>>> TestItemViewFactoriesByBoardType =
+            new Dictionary<string, IReadOnlyDictionary<string, Func<UserControl>>>(StringComparer.OrdinalIgnoreCase)
             {
-                { "控制通道光耦供电测试", () => new AC_6_4CommTabView() },
-                { "PT500型温度传感器测试", () => new PT500TemperatureSensorCommTabView() },
+                {
+                    "空气单板",
+                    new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "控制通道光耦供电测试", () => new AC_6_4CommTabView() },
+                        { "PT500型温度传感器测试", () => new PT500TemperatureSensorCommTabView() },
+                    }
+                },
+                {
+                    "液压单板",
+                    new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "电源阻抗测试", () => new HC_6_1() },
+                        { "二次电源测试", () => new HC_6_2() },
+                        { "温度采集测试", () => new HC_6_3() },
+                        { "压力传感器信号采集测试", () => new HC_6_3() },
+                        { "压差传感器信号采集测试", () => new HC_6_3() },
+                        { "油量传感器信号采集测试", () => new HC_6_3() },
+                        { "离散量采集测试", () => new HC_6_3() },
+                        { "离散量输出测试", () => new HC_6_3() },
+                    }
+                },
+                {
+                    CommonBoardTypeKey,
+                    new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                    }
+                },
             };
 
         private string _testTaskName;
@@ -80,7 +109,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         return;
                     }
 
-                    if (TestItemViewFactories.TryGetValue(value.Name, out var viewFactory))
+                    if (TryGetViewFactory(BoardType, value.Name, out var viewFactory))
                     {
                         RightPanelContent = viewFactory();
                         return;
@@ -125,6 +154,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         {
         }
 
+        private static bool TryGetViewFactory(string boardType, string testItemName, out Func<UserControl> viewFactory)
+        {
+            viewFactory = null;
+
+            if (!string.IsNullOrWhiteSpace(boardType)
+                && TestItemViewFactoriesByBoardType.TryGetValue(boardType, out var perBoard)
+                && perBoard != null
+                && perBoard.TryGetValue(testItemName, out viewFactory))
+            {
+                return true;
+            }
+
+            if (TestItemViewFactoriesByBoardType.TryGetValue(CommonBoardTypeKey, out var common)
+                && common != null
+                && common.TryGetValue(testItemName, out viewFactory))
+            {
+                return true;
+            }
+
+            viewFactory = null;
+            return false;
+        }
+
         private void LoadFixedTestItems(string boardType)
         {
             TestSequenceItems.Clear();
@@ -142,6 +194,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
             if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
             {
+                TestSequenceItems.Add(new TestSequenceItem("电源阻抗测试"));
+                TestSequenceItems.Add(new TestSequenceItem("二次电源测试"));
+                TestSequenceItems.Add(new TestSequenceItem("温度采集测试"));
                 return;
             }
 
