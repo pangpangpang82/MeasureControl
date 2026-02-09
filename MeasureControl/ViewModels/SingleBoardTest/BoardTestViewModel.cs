@@ -23,6 +23,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 { "控制通道光耦供电测试", () => new AC_6_4CommTabView() },
                 { "PT500型温度传感器测试", () => new PT500TemperatureSensorCommTabView() },
+                { "6.5.1.1控制通道ARINC429发送通道1测试", () => new A_C_6_5_1_1View() },
+                { "6.5.1.2A控制通道ARINC429发送通道2/B控制通道ARINC429接收通道5测试", () => new A_C_6_5_1_2View() },
+                { "6.5.2.1A控制通道ARINC接收通道1测试", () => new A_C_6_5_2_1View() },
+                { "6.5.2.2A控制通道ARINC接收通道2测试", () => new A_C_6_5_2_2View() },
+                { "6.5.2.3A控制通道ARINC接收通道3测试", () => new A_C_6_5_2_3View() },
+                { "6.5.2.6A控制通道ARINC接收通道6测试", () => new A_C_6_5_2_6View() },
+                { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
+                { "8.3.2 S安全通道ARINC429接收通道1测试", () => new S_C_8_3_2View() },
+                { "8.3.3 S安全通道ARINC429接收通道2测试", () => new S_C_8_3_3View() },
                 { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
                 { "5V传感器供电电压测试", () => new AirSimpleSequenceView("5V传感器供电电压测试") },
                 { "CAN发送测试", () => new CanCommTestView() },
@@ -142,6 +151,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("PT500型温度传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("5V传感器供电电压测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道光耦供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.1.1控制通道ARINC429发送通道1测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.1.2A控制通道ARINC429发送通道2/B控制通道ARINC429接收通道5测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.1A控制通道ARINC接收通道1测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.2A控制通道ARINC接收通道2测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.3A控制通道ARINC接收通道3测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.6A控制通道ARINC接收通道6测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.3.1 S安全通道ARINC429发送通道1测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.3.2 S安全通道ARINC429接收通道1测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.3.3 S安全通道ARINC429接收通道2测试"));
                 TestSequenceItems.Add(new TestSequenceItem("ARINC429通讯测试"));
                 TestSequenceItems.Add(new TestSequenceItem("CAN发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("CAN接收测试"));
