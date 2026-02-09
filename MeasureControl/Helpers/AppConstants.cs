@@ -14,6 +14,10 @@ namespace MeasureControl.Helpers
         private static string _localChassisNameSource;
         private static bool? _enableLocalChassisDebug;
 
+        private static bool _arinc429RealProductInitialized;
+        private static bool _arinc429IsRealProduct;
+        private static string _arinc429RealProductSource;
+
         private static bool EnableLocalChassisDebug
         {
             get
@@ -50,6 +54,15 @@ namespace MeasureControl.Helpers
             {
                 EnsureLocalChassisInitialized();
                 return _localChassisName;
+            }
+        }
+
+        public static bool Arinc429IsRealProduct
+        {
+            get
+            {
+                EnsureArinc429RealProductInitialized();
+                return _arinc429IsRealProduct;
             }
         }
 
@@ -135,6 +148,78 @@ namespace MeasureControl.Helpers
             {
                 Debug.WriteLine("[LocalChassis] Initialized: LocalChassisName not found in args or app.config");
             }
+        }
+
+        private static void EnsureArinc429RealProductInitialized()
+        {
+            if (_arinc429RealProductInitialized) return;
+            _arinc429RealProductInitialized = true;
+
+            bool enabled = false;
+            string source = "none";
+
+            var fromArgs = TryGetBoolFromArgs("--arinc429RealProduct=", "-arinc429RealProduct=", "/arinc429RealProduct:");
+            if (fromArgs.HasValue)
+            {
+                enabled = fromArgs.Value;
+                source = "args";
+            }
+            else
+            {
+                try
+                {
+                    var raw = ConfigurationManager.AppSettings["Arinc429RealProduct"];
+                    if (!string.IsNullOrWhiteSpace(raw))
+                    {
+                        raw = raw.Trim();
+                        enabled = raw == "1" || raw.Equals("true", StringComparison.OrdinalIgnoreCase) || raw.Equals("yes", StringComparison.OrdinalIgnoreCase);
+                        source = "app.config";
+                    }
+                }
+                catch
+                {
+                    enabled = false;
+                    source = "error";
+                }
+            }
+
+            _arinc429IsRealProduct = enabled;
+            _arinc429RealProductSource = source;
+        }
+
+        private static bool? TryGetBoolFromArgs(string key1, string key2, string key3)
+        {
+            try
+            {
+                var args = Environment.GetCommandLineArgs();
+                if (args == null) return null;
+
+                foreach (var raw in args)
+                {
+                    if (string.IsNullOrWhiteSpace(raw)) continue;
+                    var arg = raw.Trim();
+
+                    if (!string.IsNullOrWhiteSpace(key1) && arg.StartsWith(key1, StringComparison.OrdinalIgnoreCase))
+                        return ParseBool(arg.Substring(key1.Length));
+                    if (!string.IsNullOrWhiteSpace(key2) && arg.StartsWith(key2, StringComparison.OrdinalIgnoreCase))
+                        return ParseBool(arg.Substring(key2.Length));
+                    if (!string.IsNullOrWhiteSpace(key3) && arg.StartsWith(key3, StringComparison.OrdinalIgnoreCase))
+                        return ParseBool(arg.Substring(key3.Length));
+                }
+            }
+            catch
+            {
+                return null;
+            }
+
+            return null;
+        }
+
+        private static bool ParseBool(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return false;
+            var s = raw.Trim();
+            return s == "1" || s.Equals("true", StringComparison.OrdinalIgnoreCase) || s.Equals("yes", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string TryGetLocalChassisNameFromArgs()

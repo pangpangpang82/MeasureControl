@@ -215,6 +215,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="App.xaml.cs">
+      <DependentUpon>App.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Drivers\ArtSwitch\artSwitch.cs" />
     <Compile Include="Drivers\ArtSwitch\ArtSwitchDriver.cs" />
     <Compile Include="Drivers\ArtSwitch\artSwitchTopologies_32.cs" />
@@ -400,6 +403,16 @@
     <Compile Include="Services\SingleBoardTestContextService.cs" />
     <Compile Include="Services\PxiChassisService.cs" />
     <Compile Include="Simulations\AC_6_4\AC_6_4Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_5_1_1\A_C_6_5_1_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_5_1_2\A_C_6_5_1_2Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_5_2_1\A_C_6_5_2_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_5_2_2\A_C_6_5_2_2Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_5_2_3\A_C_6_5_2_3Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_5_2_6\A_C_6_5_2_6Simulation.cs" />
+    <Compile Include="Simulations\S_C_8_3_1\S_C_8_3_1Simulation.cs" />
+    <Compile Include="Simulations\S_C_8_3_2\S_C_8_3_2Simulation.cs" />
+    <Compile Include="Simulations\S_C_8_3_3\S_C_8_3_3Simulation.cs" />
+    <Compile Include="Simulations\Common\ARINC429SimulationBase.cs" />
     <Compile Include="Simulations\PT500\PT500TemperatureSensor429Simulation.cs" />
     <Compile Include="Services\RemoteMatrixCommandDispatcher.cs" />
     <Compile Include="Services\WindowManagerService.cs" />
@@ -407,8 +420,8 @@
     <Compile Include="ViewModels\Dialogs\BCMessageEditDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\AddSignalDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\SignalCalibrationDialogViewModel.cs" />
-    <Compile Include="ViewModels\Dialogs\TestStartDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\SelfInspectionDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\TestStartDialogViewModel.cs" />
     <Compile Include="ViewModels\TestTask\ConfigTabel\ChannelConfigTabelViewModel.cs" />
     <Compile Include="ViewModels\TestTask\ConfigTabel\ChannelTreeNode.cs" />
     <Compile Include="ViewModels\Dialogs\ChassisConnectionDialogViewModel.cs" />
@@ -447,6 +460,15 @@
     <Compile Include="ViewModels\SingleBoardTest\BoardTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\AC_6_4ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\AC_6_4CanViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_1_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_1_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_2_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_2_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_2_3ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_2_6ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_3ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\AirSimpleSequenceViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\CanCommTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\CanReceiveTestViewModel.cs" />
@@ -493,6 +515,9 @@
     <Compile Include="Views\Dialogs\SelfInspectionDialog.xaml.cs">
       <DependentUpon>SelfInspectionDialog.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\TdmSystem\TDMSystem.xaml.cs">
+      <DependentUpon>TDMSystem.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\AC_6_4.xaml.cs">
       <DependentUpon>AC_6_4.xaml</DependentUpon>
     </Compile>
@@ -501,6 +526,33 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\AC_6_4CommTabView.xaml.cs">
       <DependentUpon>AC_6_4CommTabView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_5_1_1View.xaml.cs">
+      <DependentUpon>A_C_6_5_1_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_5_1_2View.xaml.cs">
+      <DependentUpon>A_C_6_5_1_2View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_5_2_1View.xaml.cs">
+      <DependentUpon>A_C_6_5_2_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_5_2_2View.xaml.cs">
+      <DependentUpon>A_C_6_5_2_2View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_5_2_3View.xaml.cs">
+      <DependentUpon>A_C_6_5_2_3View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_5_2_6View.xaml.cs">
+      <DependentUpon>A_C_6_5_2_6View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_1View.xaml.cs">
+      <DependentUpon>S_C_8_3_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_2View.xaml.cs">
+      <DependentUpon>S_C_8_3_2View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_3View.xaml.cs">
+      <DependentUpon>S_C_8_3_3View.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\AirSimpleSequenceView.xaml.cs">
       <DependentUpon>AirSimpleSequenceView.xaml</DependentUpon>
@@ -713,12 +765,6 @@
     <Compile Include="Views\Dialogs\CreateSingleBoardTestTaskDialog.xaml.cs">
       <DependentUpon>CreateSingleBoardTestTaskDialog.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Views\TdmSystem\TDMSystem.xaml.cs">
-      <DependentUpon>TDMSystem.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="App.xaml.cs">
-      <DependentUpon>App.xaml</DependentUpon>
-    </Compile>
     <Page Include="Styles\ComboBoxStyles.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -772,6 +818,42 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\SingleBoardTest\AirController\AC_6_4CommTabView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_5_1_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_5_1_2View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_5_2_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_5_2_2View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_5_2_3View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_5_2_6View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\S_C_8_3_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\S_C_8_3_2View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\S_C_8_3_3View.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
