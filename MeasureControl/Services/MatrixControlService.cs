@@ -209,9 +209,15 @@ namespace MeasureControl.Services
             var startTime = DateTime.Now;
             try
             {
-                // Use per-endpoint connection entry
                 var key = $"{ipAddress}:{port}";
                 var entry = await GetOrCreateConnectionAsync(ipAddress, port);
+
+                // 检查连接是否创建成功
+                if (entry == null)
+                {
+                    Debug.WriteLine($"[MatrixControlService] 无法创建到 {ipAddress}:{port} 的连接");
+                    return false;
+                }
 
                 // Serialize operations per-connection to avoid interleaving
                 bool acquired = await entry.Lock.WaitAsync(TimeSpan.FromSeconds(5));
