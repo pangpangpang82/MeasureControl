@@ -13,13 +13,13 @@ using MeasureControl.Helpers;
 using MeasureControl.Drivers;
 using MeasureControl.Models.Devices;
 using MeasureControl.Services;
-using MeasureControl.Simulations.PT500;
+using MeasureControl.Simulations.R_6_8_9;
 using NationalInstruments.Visa;
 using Prism.Ioc;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
-    public class PT500TemperatureSensor429ViewModel : BindableBase, IDisposable
+    public class R_6_8_9ViewModel : BindableBase, IDisposable
     {
         private const byte DefaultLabel = 0x6A;
 
@@ -27,11 +27,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] AtpEnterOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] AtpE = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
-        private static readonly byte[] AbPdtsTemperature = { 0x07, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x01, 0x02 };
-        private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x01, 0x03 };
+        private static readonly byte[] AbCdtsTemperature = { 0x07, 0x01, 0x09, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x09, 0x02 };
+        private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x09, 0x03 };
 
-        public PT500TemperatureSensor429ViewModel()
+        public R_6_8_9ViewModel()
         {
             _enterAtpTxChannel = "429_CH0";
             _enterAtpRxChannel = "429_CH1";
@@ -67,7 +67,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private ACTS6010Driver _resistorDriver;
 
-        private readonly PT500TemperatureSensor429Simulation _simulation = new PT500TemperatureSensor429Simulation();
+        private readonly R_6_8_9Simulation _simulation = new R_6_8_9Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
 
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
@@ -697,8 +697,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 var resp = await _simulation.SendBenchCommandAndWaitAsync(
                     ControllerTemperatureTestTxChannel, ControllerTemperatureTestRxChannel,
-                    DefaultLabel, AbPdtsTemperature,
-                    b => b != null && b.Length == 8 && b.SequenceEqual(AbPdtsTemperature),
+                    DefaultLabel, AbCdtsTemperature,
+                    b => b != null && b.Length == 8 && b.SequenceEqual(AbCdtsTemperature),
                     timeoutMs: 800,
                     msg => AddLog(msg), CancellationToken.None);
 
