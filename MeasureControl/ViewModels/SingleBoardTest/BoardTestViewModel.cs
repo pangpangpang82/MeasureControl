@@ -24,7 +24,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "控制通道光耦供电测试", () => new AC_6_4CommTabView() },
                 { "PT500型温度传感器测试", () => new PT500TemperatureSensorCommTabView() },
                 { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
-                { "5V传感器供电电压测试", () => new AirSimpleSequenceView("5V传感器供电电压测试") },
+                { "5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
                 { "CAN发送测试", () => new CanCommTestView() },
                 { "CAN接收测试", () => new CanReceiveTestView() },
                 { "安全板CAN测试", () => new AirSimpleSequenceView("安全板CAN测试") },
