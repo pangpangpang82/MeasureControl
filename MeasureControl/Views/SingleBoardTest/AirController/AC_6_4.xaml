@@ -694,9 +694,9 @@
                         Orientation="Horizontal">
                         <TextBlock
                             VerticalAlignment="Center"
-                            FontSize="22"
+                            FontSize="18"
                             FontWeight="Bold"
-                            Text="测试信息" />
+                            Text="  测试信息" />
                         <Button
                             Width="80"
                             Height="32"
