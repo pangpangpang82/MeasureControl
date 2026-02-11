@@ -66,7 +66,7 @@ namespace MeasureControl.Views.Dialogs
             }
         }
 
-        private void OnBoardTypeChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        public void OnBoardTypeChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
             UpdateCustomNameVisibility();
         }
@@ -98,7 +98,7 @@ namespace MeasureControl.Views.Dialogs
             }
         }
 
-        private void OnOkClick(object sender, RoutedEventArgs e)
+        public void OnOkClick(object sender, RoutedEventArgs e)
         {
             var selected = BoardTypeComboBox.SelectedItem as string;
             if (string.IsNullOrWhiteSpace(selected))
@@ -119,13 +119,13 @@ namespace MeasureControl.Views.Dialogs
             Close();
         }
 
-        private void OnCancelClick(object sender, RoutedEventArgs e)
+        public void OnCancelClick(object sender, RoutedEventArgs e)
         {
             DialogResult = false;
             Close();
         }
 
-        private void DragWindow(object sender, MouseButtonEventArgs e)
+        public void DragWindow(object sender, MouseButtonEventArgs e)
         {
             if (e.LeftButton == MouseButtonState.Pressed)
             {
