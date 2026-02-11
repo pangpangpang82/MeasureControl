@@ -13,13 +13,13 @@ using MeasureControl.Helpers;
 using MeasureControl.Drivers;
 using MeasureControl.Models.Devices;
 using MeasureControl.Services;
-using MeasureControl.Simulations.PT500;
+using MeasureControl.Simulations.R_6_8_7;
 using NationalInstruments.Visa;
 using Prism.Ioc;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
-    public class PT500TemperatureSensor429ViewModel : BindableBase, IDisposable
+    public class R_6_8_7ViewModel : BindableBase, IDisposable
     {
         private const byte DefaultLabel = 0x6A;
 
@@ -27,11 +27,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] AtpEnterOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] AtpE = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
-        private static readonly byte[] AbPdtsTemperature = { 0x07, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x01, 0x02 };
-        private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x01, 0x03 };
+        private static readonly byte[] AbBtsTemperature = { 0x07, 0x01, 0x07, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x07, 0x02 };
+        private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x07, 0x03 };
 
-        public PT500TemperatureSensor429ViewModel()
+        public R_6_8_7ViewModel()
         {
             _enterAtpTxChannel = "429_CH0";
             _enterAtpRxChannel = "429_CH1";
@@ -67,7 +67,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private ACTS6010Driver _resistorDriver;
 
-        private readonly PT500TemperatureSensor429Simulation _simulation = new PT500TemperatureSensor429Simulation();
+        private readonly R_6_8_7Simulation _simulation = new R_6_8_7Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
 
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
@@ -572,7 +572,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 Debug.WriteLine(message);
             }
             catch
-            {
+                       {
             }
         }
 
@@ -620,9 +620,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             return gear switch
             {
-                "1挡" => (-65.93, -64.07),
-                "2挡" => (24.75, 26.61),
-                "3挡" => (134.06, 135.94),
+                "1挡" => (-77.05, -72.95),
+                "2挡" => (23.63, 27.73),
+                "3挡" => (372.94, 377.06),
                 _ => (double.NegativeInfinity, double.PositiveInfinity)
             };
         }
@@ -697,8 +697,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 var resp = await _simulation.SendBenchCommandAndWaitAsync(
                     ControllerTemperatureTestTxChannel, ControllerTemperatureTestRxChannel,
-                    DefaultLabel, AbPdtsTemperature,
-                    b => b != null && b.Length == 8 && b.SequenceEqual(AbPdtsTemperature),
+                    DefaultLabel, AbBtsTemperature,
+                    b => b != null && b.Length == 8 && b.SequenceEqual(AbBtsTemperature),
                     timeoutMs: 800,
                     msg => AddLog(msg), CancellationToken.None);
 
@@ -872,10 +872,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             return gear switch
             {
-                "1挡" => 371.65,
+                "1挡" => 351.65,
                 "2挡" => 550.0,
-                "3挡" => 758.55,
-                _ => 371.65
+                "3挡" => 1192.2,
+                _ => 351.65
             };
         }
 
@@ -936,39 +936,53 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (_resistorDriver != null && _resistorDriver.IsConnected)
                 return true;
 
-            try
+            if (_resistorDriver == null)
             {
-                var candidates = new uint[] { 1, 0, 2, 3, 4, 5, 6, 7 };
-                foreach (var logicalId in candidates)
+                var device = new GenericDevice("ACTS6010", "ACTS6010")
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡直连：尝试ACTS6010逻辑ID={logicalId}");
-                    var dummy = new ProgrammableResistorDevice
-                    {
-                        Name = "电阻输出",
-                        Model = "PXI-7012",
-                        CardName = $"电阻输出(自动探测-{logicalId})",
-                        SlotIndex = (int)logicalId
-                    };
-
-                    var driver = new ACTS6010Driver(dummy, logicalId);
-                    var ok = await driver.ConnectAsync();
-                    if (ok)
-                    {
-                        _resistorDriver = driver;
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡已连接：ACTS6010 逻辑ID={logicalId}");
-                        return true;
-                    }
+                    Id = "ACTS6010_0",
+                    Name = "ACTS6010",
+                };
+                _resistorDriver = new ACTS6010Driver(device, 0);
+                bool connected = await _resistorDriver.ConnectAsync();
+                if (!connected)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板连接失败");
+                    return false;
                 }
+            }
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡打开失败：ACTS6010 逻辑ID 0-7 均连接失败");
-                return false;
-            }
-            catch (Exception ex)
+            string channelId = ResistorGear switch
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡打开异常：{ex.Message}");
-                _resistorDriver = null;
+                "1挡" => "RO0",
+                "2挡" => "RO1",
+                "3挡" => "RO2",
+                _ => "RO0"
+            };
+
+            double targetOhm = GetTargetResistanceOhm(ResistorGear);
+            bool setOk = await _resistorDriver.WriteChannelAsync(channelId, targetOhm);
+            if (!setOk)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 设置电阻档位失败");
                 return false;
             }
+
+            await Task.Delay(50);
+
+            double? measuredOhm = await _resistorDriver.ReadChannelAsync(channelId);
+            if (measuredOhm.HasValue)
+            {
+                MeasuredResistanceValueText = $"{measuredOhm.Value:F2}Ω";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 接入电阻成功，测量值={measuredOhm.Value:F2}Ω");
+            }
+            else
+            {
+                MeasuredResistanceValueText = "读取失败";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 读取电阻值失败");
+            }
+
+            return true;
         }
 
         private async Task DisconnectResistorAsync()
@@ -1007,7 +1021,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             try
             {
-                // 优先使用上游新增的“电阻板卡直连(逻辑ID探测)”能力，不依赖机箱上下文
                 resistorReady = await EnsureResistorReadyAsync();
                 if (!resistorReady || _resistorDriver == null || !_resistorDriver.IsConnected)
                 {
@@ -1124,13 +1137,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             try
             {
-                _simulation?.StopAsync(msg => AddLog(msg)).GetAwaiter().GetResult();
-            }
-            catch { }
-
-            try
-            {
-                DisconnectResistorAsync().GetAwaiter().GetResult();
+                _autoTestCts?.Cancel();
+                _simulation?.Dispose();
+                if (_resistorDriver != null)
+                {
+                    _ = _resistorDriver.DisconnectAsync();
+                }
             }
             catch { }
         }

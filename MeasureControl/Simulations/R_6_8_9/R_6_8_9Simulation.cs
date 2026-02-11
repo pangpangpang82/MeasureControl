@@ -7,9 +7,9 @@ using MeasureControl.Drivers;
 using MeasureControl.Drivers.ART4229;
 using MeasureControl.Models.Devices;
 
-namespace MeasureControl.Simulations.PT500
+namespace MeasureControl.Simulations.R_6_8_9
 {
-    public sealed class PT500TemperatureSensor429Simulation : IDisposable
+    public sealed class R_6_8_9Simulation : IDisposable
     {
         private ART4229Driver _arincDriver;
         private readonly SemaphoreSlim _arincIoLock = new SemaphoreSlim(1, 1);
@@ -34,9 +34,9 @@ namespace MeasureControl.Simulations.PT500
         private static readonly byte[] EnterAtpOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] ExitAtpCommand = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
-        private static readonly byte[] TemperatureTestCommand = { 0x07, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x01, 0x02 };
-        private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x01, 0x03 };
+        private static readonly byte[] TemperatureTestCommand = { 0x07, 0x01, 0x09, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x09, 0x02 };
+        private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x09, 0x03 };
 
         private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
         private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
