@@ -450,6 +450,7 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\AirSimpleSequenceViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\CanCommTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\CanReceiveTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\Pot5VSupplyTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensorCanViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensor429ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\RS422CommunicationCheckViewModel.cs" />
@@ -510,6 +511,9 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\CanReceiveTestView.xaml.cs">
       <DependentUpon>CanReceiveTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\Pot5VSupplyTestView.xaml.cs">
+      <DependentUpon>Pot5VSupplyTestView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorTestView.xaml.cs">
       <DependentUpon>PT500TemperatureSensorTestView.xaml</DependentUpon>
@@ -784,6 +788,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\SingleBoardTest\AirController\CanReceiveTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\Pot5VSupplyTestView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

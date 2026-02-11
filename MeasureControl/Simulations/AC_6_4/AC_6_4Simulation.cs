@@ -31,6 +31,8 @@ namespace MeasureControl.Simulations.AC_6_4
 
         private Task _telemetryTask;
         private volatile bool _outputEnabled;
+        private Task _potSupTask;
+        private volatile bool _potSupEnabled;
         private readonly Random _rand = new Random();
 
         private bool _started;
@@ -48,6 +50,9 @@ namespace MeasureControl.Simulations.AC_6_4
 
         private static readonly byte[] CanCommReceiveCommand = { 0x05, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] CanCommReceiveResponse = { 0x04, 0x01, 0x02, 0x03, 0x01, 0x01, 0x01, 0x01 };
+
+        private static readonly byte[] Ab5VPotSupplyCommand = { 0x01, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] PotSupVbitCommand = { 0x01, 0x02, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] CanBenchCommandFragLabels = { 0x31, 0x32, 0x33, 0x34 };
         private static readonly byte[] CanBenchResponseFragLabels = { 0x09, 0x0A, 0x0B, 0x0C };
@@ -74,6 +79,11 @@ namespace MeasureControl.Simulations.AC_6_4
         public void StopTelemetryOutput()
         {
             _outputEnabled = false;
+        }
+
+        public void StopPotSupOutput()
+        {
+            _potSupEnabled = false;
         }
 
         public async Task StartAsync(string benchTxChannel, string benchRxChannel, Action<string> log)
@@ -563,6 +573,7 @@ namespace MeasureControl.Simulations.AC_6_4
             // 先设置_started为false，防止重入
             _started = false;
             _outputEnabled = false;
+            _potSupEnabled = false;
 
             try
             {
@@ -587,6 +598,16 @@ namespace MeasureControl.Simulations.AC_6_4
             {
                 if (_telemetryTask != null)
                     await _telemetryTask.ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+
+            // 等待POT_SUP循环结束
+            try
+            {
+                if (_potSupTask != null)
+                    await _potSupTask.ConfigureAwait(false);
             }
             catch
             {
@@ -665,6 +686,7 @@ namespace MeasureControl.Simulations.AC_6_4
                                     {
                                         log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP指令 -> 回复 EXIT OK");
                                         _outputEnabled = false;
+                                        _potSupEnabled = false;
                                         try
                                         {
                                             await SendPowerSupplyScpiAsync("OUTP OFF,(@1)", 5000, token);
@@ -725,6 +747,32 @@ namespace MeasureControl.Simulations.AC_6_4
                                     {
                                         log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到CAN接收测试指令 -> 回包 payload8={FormatBytes(CanCommReceiveResponse)}");
                                         await SendMultiFrameResponseAsync(label, CanCommReceiveResponse, log, token);
+                                    }
+                                    else if (cmd8.SequenceEqual(Ab5VPotSupplyCommand))
+                                    {
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到AB_5VPOT_SUPPLY -> 回包 payload8={FormatBytes(Ab5VPotSupplyCommand)}");
+                                        await SendMultiFrameResponseAsync(label, Ab5VPotSupplyCommand, log, token);
+
+                                        _potSupEnabled = true;
+                                        StartPotSupLoopIfNeeded(label, log);
+                                    }
+                                    else if (cmd8.SequenceEqual(PotSupVbitCommand))
+                                    {
+                                        double v = NextDouble(2.25, 2.75);
+                                        uint mv = (uint)Math.Max(0, Math.Min(uint.MaxValue, Math.Round(v * 1000.0)));
+                                        var resp = new byte[8];
+                                        resp[0] = PotSupVbitCommand[0];
+                                        resp[1] = PotSupVbitCommand[1];
+                                        resp[2] = PotSupVbitCommand[2];
+                                        resp[3] = PotSupVbitCommand[3];
+
+                                        resp[4] = (byte)((mv >> 24) & 0xFF);
+                                        resp[5] = (byte)((mv >> 16) & 0xFF);
+                                        resp[6] = (byte)((mv >> 8) & 0xFF);
+                                        resp[7] = (byte)(mv & 0xFF);
+
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到POT_SUP_VBIT查询 -> 回包 payload8={FormatBytes(resp)} (mv=0x{mv:X8}, v={v:F5}V)");
+                                        await SendMultiFrameResponseAsync(label, resp, log, token);
                                     }
                                 }
                             }
@@ -847,6 +895,56 @@ namespace MeasureControl.Simulations.AC_6_4
                 return;
 
             _telemetryTask = Task.Run(() => TelemetryLoopAsync(label, log, _simCts.Token), _simCts.Token);
+        }
+
+        private void StartPotSupLoopIfNeeded(byte label, Action<string> log)
+        {
+            if (_potSupTask != null && !_potSupTask.IsCompleted)
+                return;
+
+            if (_simCts == null)
+                return;
+
+            _potSupTask = Task.Run(() => PotSupLoopAsync(label, log, _simCts.Token), _simCts.Token);
+        }
+
+        private async Task PotSupLoopAsync(byte label, Action<string> log, CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    if (!_potSupEnabled)
+                    {
+                        await Task.Delay(100, token);
+                        continue;
+                    }
+
+                    double v = NextDouble(2.25, 2.75);
+                    uint mv = (uint)Math.Max(0, Math.Min(uint.MaxValue, Math.Round(v * 1000.0)));
+
+                    var payload = new byte[8];
+                    payload[0] = 0x01;
+                    payload[1] = 0x02;
+                    payload[2] = 0x01;
+                    payload[3] = 0x02;
+                    payload[4] = (byte)((mv >> 24) & 0xFF);
+                    payload[5] = (byte)((mv >> 16) & 0xFF);
+                    payload[6] = (byte)((mv >> 8) & 0xFF);
+                    payload[7] = (byte)(mv & 0xFF);
+
+                    await SendMultiFrameResponseAsync(label, payload, log, token);
+                    await Task.Delay(200, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch
+                {
+                    try { await Task.Delay(100, token); } catch { break; }
+                }
+            }
         }
 
         private async Task TelemetryLoopAsync(byte label, Action<string> log, CancellationToken token)
@@ -1136,6 +1234,8 @@ namespace MeasureControl.Simulations.AC_6_4
                 if (_arincDriver != null)
                 {
                     _outputEnabled = false;
+                    _potSupEnabled = false;
+
                     try
                     {
                         await _arincDriver.StopReceiveAsync(SimProductRxChannelIndex);
@@ -1153,55 +1253,74 @@ namespace MeasureControl.Simulations.AC_6_4
                     {
                     }
 
-                    await _arincDriver.DisconnectAsync();
+                    try
+                    {
+                        await _arincDriver.DisconnectAsync();
+                    }
+                    catch
+                    {
+                    }
+
                     _arincDriver = null;
                 }
             }
             catch
             {
             }
-
-            try
-            {
-                _simCts?.Dispose();
-            }
-            catch
-            {
-            }
             finally
             {
-                _simCts = null;
-                _rxLoopTask = null;
-                _telemetryTask = null;
-                _rxAssembler.Reset();
-                _rxLabelAssembler.Reset();
-                _benchRxStarted = false;
+                try
+                {
+                    _simCts?.Cancel();
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    _simCts?.Dispose();
+                }
+                catch
+                {
+                }
+                finally
+                {
+                    _simCts = null;
+                    _rxLoopTask = null;
+                    _telemetryTask = null;
+                    _potSupTask = null;
+                    _rxAssembler.Reset();
+                    _rxLabelAssembler.Reset();
+                    _benchRxStarted = false;
+                }
+
                 _benchTxChannelIndex = -1;
                 _benchRxChannelIndex = -1;
-            }
 
-            try
-            {
-                _powerSupplyStream?.Dispose();
-            }
-            catch
-            {
-            }
-            finally
-            {
-                _powerSupplyStream = null;
-            }
+                try
+                {
+                    _powerSupplyStream?.Dispose();
+                }
+                catch
+                {
+                }
+                finally
+                {
+                    _powerSupplyStream = null;
+                }
 
-            try
-            {
-                _powerSupplyClient?.Close();
-            }
-            catch
-            {
-            }
-            finally
-            {
-                _powerSupplyClient = null;
+                try
+                {
+                    _powerSupplyClient?.Close();
+                }
+                catch
+                {
+                }
+                finally
+                {
+                    _powerSupplyClient = null;
+                }
             }
         }
 
