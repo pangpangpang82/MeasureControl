@@ -23,6 +23,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 { "控制通道光耦供电测试", () => new AC_6_4CommTabView() },
                 { "PT500型温度传感器测试", () => new PT500TemperatureSensorCommTabView() },
+                { "6.8.2控制通道MIXTS传感器测试", () => new R_6_8_2View() },
+                { "6.8.3控制通道CAR_TS传感器测试", () => new R_6_8_3View() },
+                { "6.8.4控制通道CKPT_DTS传感器测试", () => new R_6_8_4View() },
+                { "6.8.5控制通道CAB_DTS传感器测试", () => new R_6_8_5View() },
+                { "6.8.6控制通道CAR_DTS传感器测试", () => new R_6_8_6View() },
+                { "6.8.7控制通道BTS传感器测试", () => new R_6_8_7View() },
+                { "6.8.8控制通道PTS传感器测试", () => new R_6_8_8View() },
+                { "6.8.9控制通道CDTS传感器测试", () => new R_6_8_9View() },
                 { "6.5.1.1控制通道ARINC429发送通道1测试", () => new A_C_6_5_1_1View() },
                 { "6.5.1.2A控制通道ARINC429发送通道2/B控制通道ARINC429接收通道5测试", () => new A_C_6_5_1_2View() },
                 { "6.5.2.1A控制通道ARINC接收通道1测试", () => new A_C_6_5_2_1View() },
@@ -149,6 +157,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("电源对地阻抗检查"));
                 TestSequenceItems.Add(new TestSequenceItem("电源模块测试"));
                 TestSequenceItems.Add(new TestSequenceItem("PT500型温度传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.2控制通道MIXTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.3控制通道CAR_TS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.4控制通道CKPT_DTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.5控制通道CAB_DTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.6控制通道CAR_DTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.7控制通道BTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.8控制通道PTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.9控制通道CDTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("5V传感器供电电压测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道光耦供电测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.1.1控制通道ARINC429发送通道1测试"));
