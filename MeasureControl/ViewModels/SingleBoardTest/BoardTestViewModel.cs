@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Controls;
 using MeasureControl.Events;
 using MeasureControl.Views.SingleBoardTest.AirController;
+using MeasureControl.Views.SingleBoardTest.FuelController;
 using MeasureControl.Views.Dialogs;
 using Prism.Commands;
 using Prism.Events;
@@ -29,6 +30,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "CAN接收测试", () => new CanReceiveTestView() },
                 { "安全板CAN测试", () => new AirSimpleSequenceView("安全板CAN测试") },
                 { "RS422通信测试", () => new RS422CommTabView() },
+                { "电源阻抗测试", () => new PowerImpedanceTestView() },
+                { "二次电源测试", () => new SecondaryPowerTestView() },
             };
 
         private string _testTaskName;
@@ -162,6 +165,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
             if (string.Equals(boardType, "加放油单板", StringComparison.OrdinalIgnoreCase))
             {
+                TestSequenceItems.Add(new TestSequenceItem("电源阻抗测试"));
+                TestSequenceItems.Add(new TestSequenceItem("二次电源测试"));
                 return;
             }
         }
