@@ -7,9 +7,9 @@ using MeasureControl.Drivers;
 using MeasureControl.Drivers.ART4229;
 using MeasureControl.Models.Devices;
 
-namespace MeasureControl.Simulations.PT500
+namespace MeasureControl.Simulations.R_6_8_7
 {
-    public sealed class PT500TemperatureSensor429Simulation : IDisposable
+    public sealed class R_6_8_7Simulation : IDisposable
     {
         private ART4229Driver _arincDriver;
         private readonly SemaphoreSlim _arincIoLock = new SemaphoreSlim(1, 1);
@@ -29,14 +29,14 @@ namespace MeasureControl.Simulations.PT500
 
         private bool _started;
 
-        // PT500 协议命令定义
+        // BTS 协议命令定义
         private static readonly byte[] EnterAtpCommand = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] ExitAtpCommand = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
-        private static readonly byte[] TemperatureTestCommand = { 0x07, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x01, 0x02 };
-        private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x01, 0x03 };
+        private static readonly byte[] TemperatureTestCommand = { 0x07, 0x01, 0x07, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x07, 0x02 };
+        private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x07, 0x03 };
 
         private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
         private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
@@ -71,7 +71,7 @@ namespace MeasureControl.Simulations.PT500
             if (_started) return;
             if (log == null) log = _ => { };
 
-            log($"[{DateTime.Now:HH:mm:ss}] [SIM] PT500 仿真初始化开始");
+            log($"[{DateTime.Now:HH:mm:ss}] [SIM] BTS 仿真初始化开始");
 
             _simCts = new CancellationTokenSource();
 
@@ -103,7 +103,7 @@ namespace MeasureControl.Simulations.PT500
             }
 
             _started = true;
-            log($"[{DateTime.Now:HH:mm:ss}] [SIM] PT500 仿真初始化完成");
+            log($"[{DateTime.Now:HH:mm:ss}] [SIM] BTS 仿真初始化完成");
         }
 
         private async Task StartBenchRxAsync(Action<string> log)
@@ -485,7 +485,7 @@ namespace MeasureControl.Simulations.PT500
                 return;
             }
 
-            log($"[{DateTime.Now:HH:mm:ss}] [SIM] PT500 仿真停止：释放设备资源");
+            log($"[{DateTime.Now:HH:mm:ss}] [SIM] BTS 仿真停止：释放设备资源");
 
             _started = false;
             _telemetryEnabled = false;
@@ -634,7 +634,7 @@ namespace MeasureControl.Simulations.PT500
                     string gear = GetCurrentResistorGear?.Invoke() ?? "1挡";
                     double temperature = GenerateSimulatedTemperature(gear);
 
-                    // 构造温度遥测帧: 07 01 01 02 + 温度数据
+                    // 构造温度遥测帧: 07 01 07 02 + 温度数据
                     var tempPayload = new byte[8];
                     tempPayload[0] = TelemetryTemperaturePrefix[0];
                     tempPayload[1] = TelemetryTemperaturePrefix[1];
@@ -650,7 +650,7 @@ namespace MeasureControl.Simulations.PT500
 
                     await SendMultiFrameResponseAsync(label, tempPayload, log, token);
 
-                    // 构造原始数据遥测帧: 07 01 01 03 + 6进制编码
+                    // 构造原始数据遥测帧: 07 01 07 03 + 6进制编码
                     var rawPayload = new byte[8];
                     rawPayload[0] = TelemetryRawPrefix[0];
                     rawPayload[1] = TelemetryRawPrefix[1];
@@ -709,10 +709,10 @@ namespace MeasureControl.Simulations.PT500
         {
             return gear switch
             {
-                "1挡" => (-65.93, -64.07),
-                "2挡" => (24.75, 26.61),
-                "3挡" => (134.06, 135.94),
-                _ => (-65.93, -64.07)
+                "1挡" => (-77.05, -72.95),
+                "2挡" => (23.63, 27.73),
+                "3挡" => (372.94, 377.06),
+                _ => (-77.05, -72.95)
             };
         }
 
