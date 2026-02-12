@@ -12,7 +12,7 @@
     MinHeight="400"
     prism:ViewModelLocator.AutoWireViewModel="True"
     Background="White"
-    Icon="/Resources/Logo/logo.jpg"
+    Icon="pack://application:,,,/Resources/Logo.ico"
     ResizeMode="CanResize"
     WindowStartupLocation="CenterScreen"
     WindowStyle="None"
