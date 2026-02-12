@@ -13,13 +13,13 @@ using MeasureControl.Helpers;
 using MeasureControl.Drivers;
 using MeasureControl.Models.Devices;
 using MeasureControl.Services;
-using MeasureControl.Simulations.PT500;
+using MeasureControl.Simulations.R_6_8_3;
 using NationalInstruments.Visa;
 using Prism.Ioc;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
-    public class PT500TemperatureSensor429ViewModel : BindableBase, IDisposable
+    public class R_6_8_3ViewModel : BindableBase, IDisposable
     {
         private const byte DefaultLabel = 0x6A;
 
@@ -27,11 +27,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] AtpEnterOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] AtpE = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
-        private static readonly byte[] AbPdtsTemperature = { 0x07, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x01, 0x02 };
-        private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x01, 0x03 };
+        private static readonly byte[] AbCartsTemperature = { 0x07, 0x01, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x03, 0x02 };
+        private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x03, 0x03 };
 
-        public PT500TemperatureSensor429ViewModel()
+        public R_6_8_3ViewModel()
         {
             _enterAtpTxChannel = "429_CH0";
             _enterAtpRxChannel = "429_CH1";
@@ -67,7 +67,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private ACTS6010Driver _resistorDriver;
 
-        private readonly PT500TemperatureSensor429Simulation _simulation = new PT500TemperatureSensor429Simulation();
+        private readonly R_6_8_3Simulation _simulation = new R_6_8_3Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
 
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
@@ -690,22 +690,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 ControllerTemperatureTestRxDataText = "--";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：控制器温度，TX={ControllerTemperatureTestTxChannel}, RX={ControllerTemperatureTestRxChannel}, Label=0x{DefaultLabel:X2}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：AB_CARTS_Temperature，TX={ControllerTemperatureTestTxChannel}, RX={ControllerTemperatureTestRxChannel}, Label=0x{DefaultLabel:X2}");
 
                 try { await _simulation.ClearRxFifoAsync(ControllerTemperatureTestRxChannel); } catch { }
                 await Task.Delay(30);
 
                 var resp = await _simulation.SendBenchCommandAndWaitAsync(
                     ControllerTemperatureTestTxChannel, ControllerTemperatureTestRxChannel,
-                    DefaultLabel, AbPdtsTemperature,
-                    b => b != null && b.Length == 8 && b.SequenceEqual(AbPdtsTemperature),
+                    DefaultLabel, AbCartsTemperature,
+                    b => b != null && b.Length == 8 && b.SequenceEqual(AbCartsTemperature),
                     timeoutMs: 800,
                     msg => AddLog(msg), CancellationToken.None);
 
                 if (resp != null)
                 {
                     ControllerTemperatureTestRxDataText = "0x" + FormatData(resp);
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试收到回包");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] AB_CARTS_Temperature 收到回包");
                 }
             }
             catch (Exception ex)
@@ -743,7 +743,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 if (tempData == null)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：未收到温度采集值(07 01 01 02)");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：未收到温度采集值(07 01 03 02)");
 
                     if (!_suppressResultUpdates)
                     {
@@ -790,9 +790,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     var rawHex = FormatData(rawData, rawData.Length);
                     if (TryParseBase6FromNibbles(rawData, out var rawBase6Decimal))
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 传感器温度原始数据(07 01 01 03) 后四字节(6进制)->10进制：{rawBase6Decimal}，Data={rawHex}");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] CAR_TS温度原始数据(07 01 03 03) 后四字节(6进制)->10进制：{rawBase6Decimal}，Data={rawHex}");
                     else
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 传感器温度原始数据(07 01 01 03) Data={rawHex}");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] CAR_TS温度原始数据(07 01 03 03) Data={rawHex}");
                 }
             }
             catch (Exception ex)
