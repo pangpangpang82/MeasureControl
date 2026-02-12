@@ -220,15 +220,442 @@
                 CornerRadius="8">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="1.6*" />
+                        <ColumnDefinition Width="1.8*" />
                         <ColumnDefinition Width="1*" />
                     </Grid.ColumnDefinitions>
+                    <Grid Grid.Column="0" VerticalAlignment="Center">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <StackPanel
+                            Grid.Row="0"
+                            Height="180"
+                            Margin="10"
+                            VerticalAlignment="Center"
+                            Orientation="Vertical">
+                            <TextBlock
+                                FontSize="20"
+                                FontWeight="Bold"
+                                Text="开路对地阻抗" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2.5*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid Grid.ColumnSpan="2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <StackPanel
+                                        Grid.Row="0"
+                                        Margin="0,13,0,13"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚9阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚10阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚11阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel
+                                        Grid.Row="1"
+                                        Margin="0,13,0,13"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚12阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚13阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel
+                                        Grid.Row="2"
+                                        Margin="0,13,0,13"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚14阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚15阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+                                <Border
+                                    Grid.Column="2"
+                                    Margin="20,0,0,0"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center">
+                                    <Button
+                                        Width="50"
+                                        Height="28"
+                                        Margin="30,20,0,0"
+                                        VerticalAlignment="Center"
+                                        BorderThickness="0"
+                                        Command="{Binding Measure14Command}"
+                                        IsEnabled="{Binding CanMeasure14, FallbackValue=False}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Background="#3b82f6"
+                                                    CornerRadius="4">
+                                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                        <TextBlock
+                                                            x:Name="DeviceAction"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            FontSize="14"
+                                                            Foreground="White"
+                                                            Text="测量" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                        <Setter Property="Cursor" Value="Arrow" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel
+                            Grid.Row="1"
+                            Height="180"
+                            Margin="10"
+                            VerticalAlignment="Center"
+                            Orientation="Vertical">
+                            <TextBlock
+                                FontSize="20"
+                                FontWeight="Bold"
+                                Text="通路对地阻抗" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2.5*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid Grid.ColumnSpan="2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <StackPanel
+                                        Grid.Row="0"
+                                        Margin="0,13,0,13"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚9阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚10阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚11阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel
+                                        Grid.Row="1"
+                                        Margin="0,13,0,13"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚12阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚13阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel
+                                        Grid.Row="2"
+                                        Margin="0,13,0,13"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚14阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚15阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+                                <Border
+                                    Grid.Column="2"
+                                    Margin="20,0,0,0"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center">
+                                    <Button
+                                        Width="50"
+                                        Height="28"
+                                        Margin="30,20,0,0"
+                                        VerticalAlignment="Center"
+                                        BorderThickness="0"
+                                        Command="{Binding Measure14Command}"
+                                        IsEnabled="{Binding CanMeasure14, FallbackValue=False}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Background="#3b82f6"
+                                                    CornerRadius="4">
+                                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                        <TextBlock
+                                                            x:Name="DeviceAction"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            FontSize="14"
+                                                            Foreground="White"
+                                                            Text="测量" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                        <Setter Property="Cursor" Value="Arrow" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
 
+                    </Grid>
                     <Grid Grid.Column="1" VerticalAlignment="Center">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="auto" />
                             <RowDefinition Height="auto" />
                         </Grid.RowDefinitions>
+
 
                         <StackPanel
                             Grid.Column="1"
@@ -236,13 +663,13 @@
                             Orientation="Horizontal">
                             <TextBlock
                                 VerticalAlignment="Center"
-                                FontSize="22"
+                                FontSize="20"
                                 FontWeight="Bold"
                                 Text="测试信息" />
                             <Button
                                 Width="80"
                                 Height="32"
-                                Margin="150,0,0,0"
+                                Margin="150,5,0,0"
                                 VerticalAlignment="Center"
                                 BorderThickness="0"
                                 Command="{Binding ClearLogCommand}">
@@ -257,7 +684,7 @@
                                                     x:Name="DeviceAction"
                                                     HorizontalAlignment="Center"
                                                     VerticalAlignment="Center"
-                                                    FontSize="16"
+                                                    FontSize="15"
                                                     Foreground="White"
                                                     Text="清除内容" />
                                             </StackPanel>
@@ -282,7 +709,7 @@
                             Grid.Row="1"
                             Grid.RowSpan="5"
                             Grid.Column="1"
-                            Width="350"
+                            Width="320"
                             Height="360"
                             Margin="0,0,5,0"
                             HorizontalAlignment="Center"

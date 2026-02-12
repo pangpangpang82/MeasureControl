@@ -2,6 +2,8 @@
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using MeasureControl.ViewModels.SingleBoardTest.HydraulicController;
+using Prism.Ioc;
 
 namespace MeasureControl.Views.SingleBoardTest.HydraulicController
 {
@@ -13,6 +15,7 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
         public HC_6_4()
         {
             InitializeComponent();
+            DataContext = ContainerLocator.Container.Resolve<HC_6_4ViewModel>();
         }
 
         private void RootGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)
