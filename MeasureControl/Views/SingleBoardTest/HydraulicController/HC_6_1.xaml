@@ -235,14 +235,14 @@
                             VerticalAlignment="Center"
                             Orientation="Vertical">
                             <TextBlock
-                                FontSize="22"
+                                FontSize="20"
                                 FontWeight="Bold"
                                 Text="测量1和4间阻抗" />
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock
                                     Margin="20"
                                     FontSize="16"
-                                    Text="1和4阻抗：" />
+                                    Text="针脚1和4阻抗：" />
                                 <Border
                                     Width="100"
                                     Height="28"
@@ -252,9 +252,10 @@
                                     BorderThickness="1"
                                     CornerRadius="3">
                                     <TextBlock
-                                        Margin="1"
-                                        FontSize="14"
-                                        Text="{Binding Resistance14Text, TargetNullValue=--, FallbackValue=--}" />
+                                        Margin="5,0,1,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        Text="{Binding Resistance14Text, TargetNullValue=---, FallbackValue=---}" />
                                 </Border>
                                 <Button
                                     Width="50"
@@ -263,7 +264,7 @@
                                     VerticalAlignment="Center"
                                     BorderThickness="0"
                                     Command="{Binding Measure14Command}"
-                                    IsEnabled="{Binding CanMeasure, FallbackValue=False}">
+                                    IsEnabled="{Binding CanMeasure14, FallbackValue=False}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border
@@ -305,14 +306,14 @@
                             VerticalAlignment="Center"
                             Orientation="Vertical">
                             <TextBlock
-                                FontSize="22"
+                                FontSize="20"
                                 FontWeight="Bold"
                                 Text="测量1和82间阻抗" />
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock
                                     Margin="20"
                                     FontSize="16"
-                                    Text="1和82阻抗：" />
+                                    Text="针脚1和82阻抗：" />
                                 <Border
                                     Width="100"
                                     Height="28"
@@ -322,9 +323,10 @@
                                     BorderThickness="1"
                                     CornerRadius="3">
                                     <TextBlock
-                                        Margin="1"
-                                        FontSize="14"
-                                        Text="{Binding Resistance182Text, TargetNullValue=--, FallbackValue=--}" />
+                                        Margin="5,0,1,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        Text="{Binding Resistance182Text, TargetNullValue=---, FallbackValue=---}" />
                                 </Border>
                                 <Button
                                     Width="50"
@@ -333,7 +335,7 @@
                                     VerticalAlignment="Center"
                                     BorderThickness="0"
                                     Command="{Binding Measure182Command}"
-                                    IsEnabled="{Binding CanMeasure, FallbackValue=False}">
+                                    IsEnabled="{Binding CanMeasure182, FallbackValue=False}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border
@@ -380,13 +382,13 @@
                             Orientation="Horizontal">
                             <TextBlock
                                 VerticalAlignment="Center"
-                                FontSize="22"
+                                FontSize="20"
                                 FontWeight="Bold"
                                 Text="测试信息" />
                             <Button
                                 Width="80"
                                 Height="32"
-                                Margin="150,0,0,0"
+                                Margin="180,5,0,0"
                                 VerticalAlignment="Center"
                                 BorderThickness="0"
                                 Command="{Binding ClearLogCommand}">
@@ -401,7 +403,7 @@
                                                     x:Name="DeviceAction"
                                                     HorizontalAlignment="Center"
                                                     VerticalAlignment="Center"
-                                                    FontSize="16"
+                                                    FontSize="15"
                                                     Foreground="White"
                                                     Text="清除内容" />
                                             </StackPanel>

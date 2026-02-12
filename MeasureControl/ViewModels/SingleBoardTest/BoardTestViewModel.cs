@@ -18,7 +18,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest
     {
         private readonly IEventAggregator _eventAggregator;
         private readonly MeasureControl.Services.ISingleBoardTestContextService _singleBoardTestContext;
-@@
         private const string CommonBoardTypeKey = "Common";
 
         private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, Func<UserControl>>> TestItemViewFactoriesByBoardType =
@@ -45,11 +44,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "电源阻抗测试", () => new HC_6_1() },
                         { "二次电源测试", () => new HC_6_2() },
                         { "温度采集测试", () => new HC_6_3() },
-                        { "压力传感器信号采集测试", () => new HC_6_3() },
-                        { "压差传感器信号采集测试", () => new HC_6_3() },
-                        { "油量传感器信号采集测试", () => new HC_6_3() },
-                        { "离散量采集测试", () => new HC_6_3() },
-                        { "离散量输出测试", () => new HC_6_3() },
+                        { "压力传感器信号采集测试", () => new HC_6_4() },
+                        { "压差传感器信号采集测试", () => new HC_6_5() },
+                        { "油量传感器信号采集测试", () => new HC_6_6() },
+                        { "离散量采集测试", () => new HC_6_7() },
+                        { "离散量输出测试", () => new HC_6_8() },
                     }
                 },
                 {
@@ -60,12 +59,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 },
             };
 
+        private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> CriteriaTextsByBoardType =
+            new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                {
+                    "液压单板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "电源阻抗测试", "\t a) 阻抗值大于500Ω；\r\n \t b) 阻抗值大于500Ω。" },
+                        { "二次电源测试", "\t a) 5V隔离二次电源输出电压范围在[4.925，5.075]V；\r\n \t b) 15V隔离二次电源输出电压范围在[14.775，15.225]V；\r\n \t c) -15V隔离二次电源输出电压范围在[-14.775，-15.225]V。" },
+                        { "温度采集测试", "\t a) 阻值为763.3±2.0Ω，温度值在[-66.6,-53.4]°C;\r\n \t b) 阻值为763.3±2.0Ω，温度值在[193.4,206.6]°C;\r\n \t c) 阻值为763.3±2.0Ω，温度值在[32.4,46.6]°C。" },
+                        { "压力传感器信号采集测试", "\t a) 电压供电0.5±0.0717，压力值在[0,3.4]Psi;\r\n \t b) 电压供电7.17±0.0717V，压力值在[3915,4000]Psi;\r\n \t c) 电压供电3.0±0.0717V，压差力在[1414,1585]Psi。" },
+                        { "压差传感器信号采集测试", "\t a) 电流供电4±0.2mA，压力值在[0,85]Psid;\r\n \t b) 电流供电20±0.2mA，压力值在[121.5,128.4]Psid;\r\n \t c) 电流供电10±0.2mA，压力值在[43.44,50.31]Psid。" },
+                        { "油量传感器信号采集测试", "\t a);\r\n \t b);\r\n \t c)。" },
+                        { "离散量采集测试", "\t 采集结果均为1。" },
+                        { "离散量输出测试", "\t a) 置为开路时，针脚9~15对地阻抗均大于100kΩ;\r\n \t b) 置为通路时，针脚9~15对地阻抗均小于10Ω。" },
+                    }
+                },
+            };
+
         private string _testTaskName;
         private string _boardType;
         private string _parentChassisName;
         private string _pageKey;
         private object _rightPanelContent;
         private TestSequenceItem _selectedTestItem;
+        private string _selectedTestCriteriaText;
 
         public string TestTaskName
         {
@@ -102,6 +121,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
         public ObservableCollection<TestSequenceItem> TestSequenceItems { get; } = new ObservableCollection<TestSequenceItem>();
 
+        public string TestCriteriaTitle => "测试判据";
+
+        public double TestCriteriaFontSize => 15;
+
+        public double TestCriteriaLineHeight => 30;
+
+        public string SelectedTestCriteriaText
+        {
+            get => _selectedTestCriteriaText;
+            private set => SetProperty(ref _selectedTestCriteriaText, value);
+        }
+
         public TestSequenceItem SelectedTestItem
         {
             get => _selectedTestItem;
@@ -112,8 +143,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     if (value == null)
                     {
                         RightPanelContent = null;
+                        SelectedTestCriteriaText = string.Empty;
                         return;
                     }
+
+                    SelectedTestCriteriaText = ResolveCriteriaText(BoardType, value.Name);
 
                     if (TryGetViewFactory(BoardType, value.Name, out var viewFactory))
                     {
@@ -183,6 +217,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             return false;
         }
 
+        private static string ResolveCriteriaText(string boardType, string testItemName)
+        {
+            if (string.IsNullOrWhiteSpace(boardType) || string.IsNullOrWhiteSpace(testItemName))
+            {
+                return string.Empty;
+            }
+
+            if (CriteriaTextsByBoardType.TryGetValue(boardType, out var perBoard)
+                && perBoard != null
+                && perBoard.TryGetValue(testItemName, out var text))
+            {
+                return text ?? string.Empty;
+            }
+
+            return string.Empty;
+        }
+
         private void LoadFixedTestItems(string boardType)
         {
             TestSequenceItems.Clear();
@@ -207,7 +258,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("电源阻抗测试"));
                 TestSequenceItems.Add(new TestSequenceItem("二次电源测试"));
                 TestSequenceItems.Add(new TestSequenceItem("温度采集测试"));
-                return;
+                TestSequenceItems.Add(new TestSequenceItem("压力传感器信号采集测试"));
+                TestSequenceItems.Add(new TestSequenceItem("压差传感器信号采集测试"));
+                TestSequenceItems.Add(new TestSequenceItem("油量传感器信号采集测试"));
+                TestSequenceItems.Add(new TestSequenceItem("离散量采集测试"));
+                TestSequenceItems.Add(new TestSequenceItem("离散量输出测试"));
             }
 
             if (string.Equals(boardType, "惰化单板", StringComparison.OrdinalIgnoreCase))

@@ -120,6 +120,7 @@ namespace MeasureControl
             containerRegistry.Register<HC_6_1ViewModel>();
             containerRegistry.Register<HC_6_2ViewModel>();
             containerRegistry.Register<HC_6_3ViewModel>();
+            containerRegistry.Register<HC_6_4ViewModel>();
 
             // 注册导航页面
             // 单例页面（IsNavigationTarget返回true，重用实例）
