@@ -9,6 +9,7 @@ using MeasureControl.ViewModels.IcdConfig;
 using MeasureControl.ViewModels.TdmSystem;
 using MeasureControl.ViewModels.TestTask.ConfigTabel;
 using MeasureControl.ViewModels.SingleBoardTest;
+using MeasureControl.ViewModels.SingleBoardTest.HydraulicController;
 using MeasureControl.ViewModels.SingleBoardTest.FuelController;
 using MeasureControl.Services.HardwareApis;
 using MeasureControl.Views;
@@ -121,6 +122,10 @@ namespace MeasureControl
             containerRegistry.Register<DatabaseConfigViewModel>();
             containerRegistry.Register<FloatingWindowViewModel>();
             containerRegistry.Register<DataCalibrationViewModel>();
+            containerRegistry.Register<HC_6_1ViewModel>();
+            containerRegistry.Register<HC_6_2ViewModel>();
+            containerRegistry.Register<HC_6_3ViewModel>();
+            containerRegistry.Register<HC_6_4ViewModel>();
             containerRegistry.Register<PowerImpedanceTestViewModel>();
 
             // 注册导航页面

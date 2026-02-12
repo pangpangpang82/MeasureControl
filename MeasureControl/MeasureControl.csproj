@@ -380,6 +380,8 @@
     <Compile Include="Services\HardwareApis\Pxi7012Api.cs" />
     <Compile Include="Services\HardwareApis\Mtx532Api.cs" />
     <Compile Include="Services\HardwareApis\Art9774Api.cs" />
+    <Compile Include="Services\HardwareApis\Art4229Api.cs" />
+    <Compile Include="Services\HardwareApis\Pxi4087LvdtApi.cs" />
     <Compile Include="Services\ChannelBindingService.cs" />
     <Compile Include="Services\ChannelManager.cs" />
     <Compile Include="Services\CalibrationDataService.cs" />
@@ -485,6 +487,10 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\Pot5VSupplyTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensorCanViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensor429ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_3ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_4ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\R_6_8_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\R_6_8_3ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\R_6_8_4ViewModel.cs" />
@@ -637,6 +643,30 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\BoardTest.xaml.cs">
       <DependentUpon>BoardTest.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_1.xaml.cs">
+      <DependentUpon>HC_6_1.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_2.xaml.cs">
+      <DependentUpon>HC_6_2.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_3.xaml.cs">
+      <DependentUpon>HC_6_3.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_4.xaml.cs">
+      <DependentUpon>HC_6_4.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_5.xaml.cs">
+      <DependentUpon>HC_6_5.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_6.xaml.cs">
+      <DependentUpon>HC_6_6.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_7.xaml.cs">
+      <DependentUpon>HC_6_7.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_8.xaml.cs">
+      <DependentUpon>HC_6_8.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\TestControl\ButtonControl.xaml.cs">
       <DependentUpon>ButtonControl.xaml</DependentUpon>
@@ -994,6 +1024,38 @@
     <Page Include="Views\SingleBoardTest\BoardTest.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_1.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_2.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_3.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_4.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_5.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_6.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_7.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_8.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\TestControl\ButtonControl.xaml">
       <SubType>Designer</SubType>
