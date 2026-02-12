@@ -10,6 +10,8 @@ using MeasureControl.ViewModels.TdmSystem;
 using MeasureControl.ViewModels.TestTask.ConfigTabel;
 using MeasureControl.ViewModels.SingleBoardTest;
 using MeasureControl.ViewModels.SingleBoardTest.HydraulicController;
+using MeasureControl.ViewModels.SingleBoardTest.FuelController;
+using MeasureControl.Services.HardwareApis;
 using MeasureControl.Views;
 using MeasureControl.Views.Common;
 using MeasureControl.Views.ConfigTabel;
@@ -97,6 +99,9 @@ namespace MeasureControl
             containerRegistry.RegisterSingleton<IDocumentManagerService, DocumentManagerService>();
             containerRegistry.RegisterSingleton<SignalValueUpdateService>();
             containerRegistry.RegisterSingleton<ISingleBoardTestContextService, SingleBoardTestContextService>();
+
+            // 注册硬件API（可选，用于单板测试）
+            containerRegistry.Register<IDmmApi, DmmSocketApi>();
             
             // 注册导航服务（新重构的服务）
             containerRegistry.RegisterSingleton<NavigationRegistry>();
@@ -121,6 +126,7 @@ namespace MeasureControl
             containerRegistry.Register<HC_6_2ViewModel>();
             containerRegistry.Register<HC_6_3ViewModel>();
             containerRegistry.Register<HC_6_4ViewModel>();
+            containerRegistry.Register<PowerImpedanceTestViewModel>();
 
             // 注册导航页面
             // 单例页面（IsNavigationTarget返回true，重用实例）
