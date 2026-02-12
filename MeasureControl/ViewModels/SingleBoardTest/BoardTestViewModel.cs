@@ -22,13 +22,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
             {
                 { "控制通道光耦供电测试", () => new AC_6_4CommTabView() },
+                { "控制通道GND/OC离散输入通道输入测试", () => new GndOcDiscreteInputTestView() },
+                { "GND/OC型100mA离散输出通道3输出测试", () => new GndOcDiscreteOutputCh3TestView() },
+                { "GND/OC型100mA离散输出通道2输出测试", () => new GndOcDiscreteOutputCh2TestView() },
                 { "PT500型温度传感器测试", () => new PT500TemperatureSensorCommTabView() },
                 { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
                 { "5V传感器供电电压测试", () => new AirSimpleSequenceView("5V传感器供电电压测试") },
+                { "A控制通道功率板供电测试", () => new PowerBoardSupplyTestView("A", "A控制通道功率板供电测试") },
+                { "B控制通道功率板供电测试", () => new PowerBoardSupplyTestView("B", "B控制通道功率板供电测试") },
                 { "CAN发送测试", () => new CanCommTestView() },
                 { "CAN接收测试", () => new CanReceiveTestView() },
                 { "安全板CAN测试", () => new AirSimpleSequenceView("安全板CAN测试") },
-                { "RS422通信测试", () => new RS422CommTabView() },
+                { "控制通道422发送测试", () => new RS422Control422TransmitTestView() },
+                { "控制通道422接收测试", () => new RS422Control422ReceiveTestView() },
             };
 
         private string _testTaskName;
@@ -139,14 +145,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 TestSequenceItems.Add(new TestSequenceItem("电源对地阻抗检查"));
                 TestSequenceItems.Add(new TestSequenceItem("电源模块测试"));
+                TestSequenceItems.Add(new TestSequenceItem("A控制通道功率板供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("B控制通道功率板供电测试"));
                 TestSequenceItems.Add(new TestSequenceItem("PT500型温度传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("5V传感器供电电压测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道光耦供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("控制通道GND/OC离散输入通道输入测试"));
+                TestSequenceItems.Add(new TestSequenceItem("GND/OC型100mA离散输出通道3输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("GND/OC型100mA离散输出通道2输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("ARINC429通讯测试"));
                 TestSequenceItems.Add(new TestSequenceItem("CAN发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("CAN接收测试"));
                 TestSequenceItems.Add(new TestSequenceItem("安全板CAN测试"));
-                TestSequenceItems.Add(new TestSequenceItem("RS422通信测试"));
+                TestSequenceItems.Add(new TestSequenceItem("控制通道422发送测试"));
+                TestSequenceItems.Add(new TestSequenceItem("控制通道422接收测试"));
                 return;
             }
 
