@@ -258,9 +258,7 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <StackPanel
-                        Margin="5"
-                        Orientation="Horizontal">
+                    <StackPanel Margin="5" Orientation="Horizontal">
                         <TextBlock
                             Grid.Column="0"
                             Margin="10,0,0,0"
@@ -295,11 +293,16 @@
                             Height="28"
                             Margin="10,0,0,0"
                             VerticalAlignment="Center"
+                            Background="AliceBlue"
                             BorderBrush="#D9D9D9"
                             BorderThickness="1"
-                            Background="AliceBlue"
                             CornerRadius="3">
-                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="0x00 01 00 01 00 00 00 00" />
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="0x00 01 00 01 00 00 00 00" />
                         </Border>
 
                         <Button
@@ -341,7 +344,10 @@
                             </Button.Template>
                         </Button>
                     </StackPanel>
-                    <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
+                    <StackPanel
+                        Grid.Row="1"
+                        Margin="115,5,5,5"
+                        Orientation="Horizontal">
                         <TextBlock
                             Grid.Column="0"
                             Margin="10,0,0,0"
@@ -369,11 +375,16 @@
                             Height="28"
                             Margin="10,0,0,0"
                             VerticalAlignment="Center"
+                            Background="AliceBlue"
                             BorderBrush="#D9D9D9"
                             BorderThickness="1"
-                            Background="AliceBlue"
                             CornerRadius="3">
-                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxDataText}" />
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding EnterAtpRxDataText}" />
                         </Border>
                     </StackPanel>
                 </Grid>
@@ -415,11 +426,16 @@
                         Height="28"
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
+                        Background="AliceBlue"
                         BorderBrush="#D9D9D9"
                         BorderThickness="1"
-                        Background="AliceBlue"
                         CornerRadius="3">
-                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="0x01 04 01 01 00 00 00 00" />
+                        <TextBlock
+                            Margin="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Text="0x01 04 01 01 00 00 00 00" />
                     </Border>
                     <Button
                         Width="50"
@@ -494,7 +510,10 @@
                         BorderBrush="#D9D9D9"
                         BorderThickness="1"
                         CornerRadius="3">
-                        <TextBlock Margin="1" FontSize="14" Text="{Binding DmmVoltageText}" />
+                        <TextBlock
+                            Margin="1"
+                            FontSize="14"
+                            Text="{Binding DmmVoltageText}" />
                     </Border>
 
                 </StackPanel>
@@ -539,7 +558,10 @@
                         BorderBrush="#D9D9D9"
                         BorderThickness="1"
                         CornerRadius="3">
-                        <TextBlock Margin="1" FontSize="14" Text="{Binding TelemetryVoltageText}" />
+                        <TextBlock
+                            Margin="1"
+                            FontSize="14"
+                            Text="{Binding TelemetryVoltageText}" />
                     </Border>
 
                     <Border
@@ -547,11 +569,16 @@
                         Height="28"
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
+                        Background="LightYellow"
                         BorderBrush="#D9D9D9"
                         BorderThickness="1"
-                        Background="LightYellow"
                         CornerRadius="3">
-                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TelemetryRxDataText}" />
+                        <TextBlock
+                            Margin="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Text="{Binding TelemetryRxDataText}" />
                     </Border>
 
                 </StackPanel>
@@ -562,7 +589,10 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0" Margin="5" Orientation="Horizontal">
+                    <StackPanel
+                        Grid.Row="0"
+                        Margin="5"
+                        Orientation="Horizontal">
                         <TextBlock
                             Grid.Column="0"
                             Margin="10,0,0,0"
@@ -596,11 +626,16 @@
                             Height="28"
                             Margin="10,0,0,0"
                             VerticalAlignment="Center"
+                            Background="AliceBlue"
                             BorderBrush="#D9D9D9"
                             BorderThickness="1"
-                            Background="AliceBlue"
                             CornerRadius="3">
-                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="0x00 02 00 01 00 00 00 01" />
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="0x00 02 00 01 00 00 00 01" />
                         </Border>
 
                         <Button
@@ -643,7 +678,10 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
+                    <StackPanel
+                        Grid.Row="1"
+                        Margin="115,5,5,5"
+                        Orientation="Horizontal">
                         <TextBlock
                             Grid.Column="0"
                             Margin="10,0,0,0"
@@ -671,11 +709,16 @@
                             Height="28"
                             Margin="10,0,0,0"
                             VerticalAlignment="Center"
+                            Background="AliceBlue"
                             BorderBrush="#D9D9D9"
                             BorderThickness="1"
-                            Background="AliceBlue"
                             CornerRadius="3">
-                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding ExitAtpRxDataText}" />
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding ExitAtpRxDataText}" />
                         </Border>
                     </StackPanel>
                 </Grid>
@@ -734,9 +777,9 @@
                     Grid.Row="1"
                     Grid.RowSpan="5"
                     Grid.Column="1"
-                    Margin="0,0,5,0"
                     Width="350"
                     Height="350"
+                    Margin="0,0,5,0"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     BorderBrush="#D9D9D9"
@@ -749,7 +792,7 @@
                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                         ScrollViewer.VerticalScrollBarVisibility="Auto">
                         <ListBox.Resources>
-                            <Style TargetType="ScrollViewer" BasedOn="{StaticResource SimpleScrollViewerStyle}" />
+                            <Style BasedOn="{StaticResource SimpleScrollViewerStyle}" TargetType="ScrollViewer" />
                         </ListBox.Resources>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
