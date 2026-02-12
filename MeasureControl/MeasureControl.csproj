@@ -459,7 +459,17 @@
     <Compile Include="Simulations\A_C_6_12_1_1\A_C_6_12_1_1Simulation.cs" />
     <Compile Include="Simulations\Common\ARINC429SimulationBase.cs" />
     <Compile Include="Simulations\Common\MultiLabelCommandAssembler.cs" />
+    <Compile Include="Simulations\FuelController\PowerImpedanceSimulation.cs" />
+    <Compile Include="Simulations\FuelController\SecondaryPowerSimulation.cs" />
     <Compile Include="Simulations\PT500\PT500TemperatureSensor429Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_2\R_6_8_2Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_3\R_6_8_3Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_4\R_6_8_4Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_5\R_6_8_5Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_6\R_6_8_6Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_7\R_6_8_7Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_8\R_6_8_8Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_9\R_6_8_9Simulation.cs" />
     <Compile Include="Services\RemoteMatrixCommandDispatcher.cs" />
 
     <Compile Include="Services\WindowManagerService.cs" />
@@ -490,12 +500,23 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\AirSimpleSequenceViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\CanCommTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\CanReceiveTestViewModel.cs" />
-
+    <Compile Include="ViewModels\SingleBoardTest\AirController\Pot5VSupplyTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensorCanViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensor429ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\R_6_8_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\R_6_8_3ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\R_6_8_4ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\R_6_8_5ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\R_6_8_6ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\R_6_8_7ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\R_6_8_8ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\R_6_8_9ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\RS422CommunicationCheckViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\AC_6_4ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\AC_6_4CanViewModel.cs" />
+
+    <Compile Include="ViewModels\SingleBoardTest\FuelController\PowerImpedanceTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\FuelController\SecondaryPowerTestViewModel.cs" />
 
     <Compile Include="ViewModels\SingleBoardTest\BoardTestViewModel.cs" />
     <Compile Include="ViewModels\TestTask\TestContent\TestSequenceViewModel.cs" />
