@@ -39,7 +39,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "6.5.2.3A控制通道ARINC接收通道3测试", () => new A_C_6_5_2_3View() },
                 { "6.5.2.6A控制通道ARINC接收通道6测试", () => new A_C_6_5_2_6View() },
                 { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
+                { "6.9.1A控制通道CKPT_VENTS传感器测试", () => new A_C_6_9_1_1View() },
+                { "6.9.2控制通道CAB_VENTS传感器测试", () => new A_C_6_9_2_1View() },
                 { "6.10.1控制通道BMPS压力传感器测试", () => new A_C_6_10_1_1View() },
+                { "6.10.2A控制通道BPS传感器测试", () => new A_C_6_10_2_1View() },
                 { "6.10.7控制通道RAIA_POS传感器测试", () => new A_C_6_10_7_1View() },
                 { "6.11.1控制通道角度反馈传感器测试", () => new A_C_6_11_1_1View() },
                 { "6.12.1控制通道选气楔传感器测试", () => new A_C_6_12_1_1View() },
@@ -182,7 +185,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.2A控制通道ARINC接收通道2测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.3A控制通道ARINC接收通道3测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.6A控制通道ARINC接收通道6测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.9.1A控制通道CKPT_VENTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.9.2控制通道CAB_VENTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.1控制通道BMPS压力传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.10.2A控制通道BPS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.7控制通道RAIA_POS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.11.1控制通道角度反馈传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.12.1控制通道选气楔传感器测试"));
