@@ -451,7 +451,10 @@
     <Compile Include="Simulations\S_C_8_3_1\S_C_8_3_1Simulation.cs" />
     <Compile Include="Simulations\S_C_8_3_2\S_C_8_3_2Simulation.cs" />
     <Compile Include="Simulations\S_C_8_3_3\S_C_8_3_3Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_9_1_1\A_C_6_9_1_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_9_2_1\A_C_6_9_2_1Simulation.cs" />
     <Compile Include="Simulations\A_C_6_10_1_1\A_C_6_10_1_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_10_2_1\A_C_6_10_2_1Simulation.cs" />
     <Compile Include="Simulations\A_C_6_10_7_1\A_C_6_10_7_1Simulation.cs" />
     <Compile Include="Simulations\A_C_6_15_1_1\A_C_6_15_1_1Simulation.cs" />
     <Compile Include="Simulations\A_C_6_15_2_1\A_C_6_15_2_1Simulation.cs" />
@@ -471,7 +474,6 @@
     <Compile Include="Simulations\R_6_8_8\R_6_8_8Simulation.cs" />
     <Compile Include="Simulations\R_6_8_9\R_6_8_9Simulation.cs" />
     <Compile Include="Services\RemoteMatrixCommandDispatcher.cs" />
-
     <Compile Include="Services\WindowManagerService.cs" />
     <Compile Include="ViewModels\Dialogs\AddChannelDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\BCMessageEditDialogViewModel.cs" />
@@ -481,8 +483,8 @@
     <Compile Include="ViewModels\Dialogs\SelfInspectionDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\SignalCalibrationDialogViewModel.cs" />
     <Compile Include="ViewModels\TestTask\TestContent\TestInterfaceViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_2_3ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_2_6ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_2_3ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_1_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_1_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_2_1ViewModel.cs" />
@@ -490,8 +492,10 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_3ViewModel.cs" />
-
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_9_1_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_9_2_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_1_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_2_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_7_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_15_1_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_15_2_1ViewModel.cs" />
