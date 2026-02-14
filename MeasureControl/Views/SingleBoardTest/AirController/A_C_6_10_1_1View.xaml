@@ -186,7 +186,7 @@
 
                     FontWeight="Bold"
 
-                    ><Run Language="zh-cn" Text="6.10.1控制器BMPS压力传感器测试"/></TextBlock>
+                    ><Run Language="zh-CN" Text="6.10.1控制器BMPS压力传感器测试"/></TextBlock>
 
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
 
@@ -830,7 +830,7 @@
 
                         FontSize="16"
 
-                        ><Run Text="2.接入电"/><Run Language="zh-cn" Text="压"/><Run Text="："/></TextBlock>
+                        ><Run Text="2.接入电"/><Run Language="zh-CN" Text="压"/><Run Text="："/></TextBlock>
 
                     <ComboBox
 
@@ -992,7 +992,7 @@
 
                         FontSize="16"
 
-                        ><Run Text="3.控制器"/><Run Language="zh-cn" Text="压力"/><Run Text="测试："/></TextBlock>
+                        ><Run Text="3.控制器"/><Run Language="zh-CN" Text="压力"/><Run Text="测试："/></TextBlock>
 
 
 
@@ -1210,7 +1210,7 @@
 
                         FontSize="16"
 
-                        ><Run Text="4."/><Run Language="zh-cn" Text="压力"/><Run Text="回采值："/></TextBlock>
+                        ><Run Text="4."/><Run Language="zh-CN" Text="压力"/><Run Text="回采值："/></TextBlock>
 
                     <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="14" Text="RX" />
 

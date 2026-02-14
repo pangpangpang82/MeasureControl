@@ -128,7 +128,7 @@
 
                     FontWeight="Bold"
 
-                    ><Run Language="zh-cn" Text="6.15.1.1 控制通道RAIA直流电机驱动速度控制测试"/></TextBlock>
+                    ><Run Language="zh-CN" Text="6.15.1.1 控制通道RAIA直流电机驱动速度控制测试"/></TextBlock>
 
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
 

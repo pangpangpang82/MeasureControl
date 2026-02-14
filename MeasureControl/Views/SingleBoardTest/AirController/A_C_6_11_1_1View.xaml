@@ -114,7 +114,7 @@
 
                     FontWeight="Bold"
 
-                    ><Run Language="zh-cn" Text="6.11.1控制通道角度反馈传感器测试"/></TextBlock>
+                    ><Run Language="zh-CN" Text="6.11.1控制通道角度反馈传感器测试"/></TextBlock>
 
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
 
@@ -758,7 +758,7 @@
 
                         FontSize="16"
 
-                        ><Run Text="2.接入电"/><Run Language="zh-cn" Text="压"/><Run Text="："/></TextBlock>
+                        ><Run Text="2.接入电"/><Run Language="zh-CN" Text="压"/><Run Text="："/></TextBlock>
 
                     <ComboBox
 
@@ -920,7 +920,7 @@
 
                         FontSize="16"
 
-                        ><Run Text="3.控制器角度"/><Run Language="zh-cn" Text="测试"/><Run Text="："/></TextBlock>
+                        ><Run Text="3.控制器角度"/><Run Language="zh-CN" Text="测试"/><Run Text="："/></TextBlock>
 
 
 
@@ -1138,7 +1138,7 @@
 
                         FontSize="16"
 
-                        ><Run Text="4.角度"/><Run Language="zh-cn" Text="回采值"/><Run Text="："/></TextBlock>
+                        ><Run Text="4.角度"/><Run Language="zh-CN" Text="回采值"/><Run Text="："/></TextBlock>
 
                     <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="14" Text="RX" />
 
