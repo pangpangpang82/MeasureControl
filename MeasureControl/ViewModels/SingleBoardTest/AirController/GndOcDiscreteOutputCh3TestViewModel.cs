@@ -48,12 +48,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _ocLoopbackRxDataText = "--";
         private string _exitAtpRxDataText = "--";
 
-        private string _enterAtpTxChannelDisplay = "CH0";
-        private string _enterAtpRxChannelDisplay = "CH1";
-        private string _testTxChannelDisplay = "CH2";
-        private string _testRxChannelDisplay = "CH3";
-        private string _exitAtpTxChannelDisplay = "CH8";
-        private string _exitAtpRxChannelDisplay = "CH9";
+        private readonly string _enterAtpTxChannel = "429_CH0";
+        private readonly string _enterAtpRxChannel = "429_CH1";
+        private readonly string _testTxChannel = "429_CH2";
+        private readonly string _testRxChannel = "429_CH3";
+        private readonly string _exitAtpTxChannel = "429_CH8";
+        private readonly string _exitAtpRxChannel = "429_CH9";
 
         public GndOcDiscreteOutputCh3TestViewModel()
         {
@@ -86,43 +86,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public DelegateCommand SendExitAtpCommand { get; }
         public DelegateCommand ClearContentCommand { get; }
 
-        public string EnterAtpTxChannelDisplay
-        {
-            get => _enterAtpTxChannelDisplay;
-            set => SetProperty(ref _enterAtpTxChannelDisplay, value);
-        }
-
-        public string EnterAtpRxChannelDisplay
-        {
-            get => _enterAtpRxChannelDisplay;
-            set => SetProperty(ref _enterAtpRxChannelDisplay, value);
-        }
-
-        public string TestTxChannelDisplay
-        {
-            get => _testTxChannelDisplay;
-            set => SetProperty(ref _testTxChannelDisplay, value);
-        }
-
-        public string TestRxChannelDisplay
-        {
-            get => _testRxChannelDisplay;
-            set => SetProperty(ref _testRxChannelDisplay, value);
-        }
-
-        public string ExitAtpTxChannelDisplay
-        {
-            get => _exitAtpTxChannelDisplay;
-            set => SetProperty(ref _exitAtpTxChannelDisplay, value);
-        }
-
-        public string ExitAtpRxChannelDisplay
-        {
-            get => _exitAtpRxChannelDisplay;
-            set => SetProperty(ref _exitAtpRxChannelDisplay, value);
-        }
-
-        private static string ToSimChannel(string display) => display?.Replace("CH", "429_CH") ?? "429_CH0";
+        public string EnterAtpTxChannelDisplay => "CH0";
+        public string EnterAtpRxChannelDisplay => "CH1";
+        public string TestTxChannelDisplay => "CH2";
+        public string TestRxChannelDisplay => "CH3";
+        public string ExitAtpTxChannelDisplay => "CH8";
+        public string ExitAtpRxChannelDisplay => "CH9";
 
         public string EnterAtpRxDataText
         {
@@ -229,12 +198,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _cts?.Dispose();
                 _cts = new CancellationTokenSource();
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：打开ARINC429 (EnterATP TX={ToSimChannel(EnterAtpTxChannelDisplay)}, RX={ToSimChannel(EnterAtpRxChannelDisplay)})");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：打开ARINC429 (EnterATP TX={_enterAtpTxChannel}, RX={_enterAtpRxChannel})");
 
                 _simulation.SimProductRxChannelIndex = 4;
                 _simulation.SimProductTxChannelIndex = 5;
                 _simulation.ArincRate = 100000.0;
-                await _simulation.StartAsync(ToSimChannel(EnterAtpTxChannelDisplay), ToSimChannel(EnterAtpRxChannelDisplay), msg => AddLog(msg));
+                await _simulation.StartAsync(_enterAtpTxChannel, _enterAtpRxChannel, msg => AddLog(msg));
             }
             catch (Exception ex)
             {
@@ -308,13 +277,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试开始");
 
-                bool enterOk = await SendAndExpectAsync(ToSimChannel(EnterAtpTxChannelDisplay), ToSimChannel(EnterAtpRxChannelDisplay), EnterAtpCommand, b => b.SequenceEqual(EnterAtpOk), 3000, token, "进入ATP");
+                bool enterOk = await SendAndExpectAsync(_enterAtpTxChannel, _enterAtpRxChannel, EnterAtpCommand, b => b.SequenceEqual(EnterAtpOk), 3000, token, "进入ATP");
                 if (!enterOk)
                     throw new TimeoutException("进入ATP超时");
 
-                bool readyOk = await _simulation.EnsureBenchChannelsAsync(ToSimChannel(TestTxChannelDisplay), ToSimChannel(TestRxChannelDisplay), msg => { });
+                bool readyOk = await _simulation.EnsureBenchChannelsAsync(_testTxChannel, _testRxChannel, msg => { });
                 if (!readyOk)
-                    throw new InvalidOperationException($"bench通道未就绪：TX={ToSimChannel(TestTxChannelDisplay)}, RX={ToSimChannel(TestRxChannelDisplay)}");
+                    throw new InvalidOperationException($"bench通道未就绪：TX={_testTxChannel}, RX={_testRxChannel}");
 
                 await TestGndPhaseAsync(token);
                 await TestOcPhaseAsync(token);
@@ -339,7 +308,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 try
                 {
-                    await SendAndExpectAsync(ToSimChannel(ExitAtpTxChannelDisplay), ToSimChannel(ExitAtpRxChannelDisplay), ExitAtpCommand, b => b.SequenceEqual(ExitAtpOk), 2000, CancellationToken.None, "退出ATP");
+                    await SendAndExpectAsync(_exitAtpTxChannel, _exitAtpRxChannel, ExitAtpCommand, b => b.SequenceEqual(ExitAtpOk), 2000, CancellationToken.None, "退出ATP");
                 }
                 catch
                 {
@@ -354,26 +323,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             AddLog($"[{DateTime.Now:HH:mm:ss}] 阶段1：输出GND");
 
-            bool ackOk = await SendAndExpectAsync(ToSimChannel(TestTxChannelDisplay), ToSimChannel(TestRxChannelDisplay), A_GNDDSO1_GNDTEST, b => b.SequenceEqual(A_GNDDSO1_GNDTEST_ACK), 1500, token, "A_GNDDSO1_GNDTEST");
+            bool ackOk = await SendAndExpectAsync(_testTxChannel, _testRxChannel, A_GNDDSO1_GNDTEST, b => b.SequenceEqual(A_GNDDSO1_GNDTEST_ACK), 1500, token, "A_GNDDSO1_GNDTEST");
             if (!ackOk)
                 throw new TimeoutException("GNDTEST ACK超时");
 
-            bool loopOk = await SendAndExpectAsync(ToSimChannel(TestTxChannelDisplay), ToSimChannel(TestRxChannelDisplay), A_GNDDSO1_GNDTEST2, b => b.SequenceEqual(A_GNDDSO1_GND_LOOPBACK_UPLOAD), 2000, token, "回绕上传(GND)");
+            bool loopOk = await SendAndExpectAsync(_testTxChannel, _testRxChannel, A_GNDDSO1_GNDTEST2, b => b.SequenceEqual(A_GNDDSO1_GND_LOOPBACK_UPLOAD), 2000, token, "回绕上传(GND)");
             if (!loopOk)
                 throw new TimeoutException("回绕上传(GND)超时");
 
-            _ = await TryWaitOptionalAsync(ToSimChannel(TestRxChannelDisplay), b => b != null && b.Length == 8 && b[0] == A_GNDDSO1_CURRENT_UPLOAD_PREFIX[0] && b[1] == A_GNDDSO1_CURRENT_UPLOAD_PREFIX[1] && b[2] == A_GNDDSO1_CURRENT_UPLOAD_PREFIX[2] && b[3] == A_GNDDSO1_CURRENT_UPLOAD_PREFIX[3], 400, token);
+            _ = await TryWaitOptionalAsync(_testRxChannel, b => b != null && b.Length == 8 && b[0] == A_GNDDSO1_CURRENT_UPLOAD_PREFIX[0] && b[1] == A_GNDDSO1_CURRENT_UPLOAD_PREFIX[1] && b[2] == A_GNDDSO1_CURRENT_UPLOAD_PREFIX[2] && b[3] == A_GNDDSO1_CURRENT_UPLOAD_PREFIX[3], 400, token);
         }
 
         private async Task TestOcPhaseAsync(CancellationToken token)
         {
             AddLog($"[{DateTime.Now:HH:mm:ss}] 阶段2：输出OC");
 
-            bool ackOk = await SendAndExpectAsync(ToSimChannel(TestTxChannelDisplay), ToSimChannel(TestRxChannelDisplay), A_GNDDSO1_OCTEST, b => b.SequenceEqual(A_GNDDSO1_OCTEST_ACK), 1500, token, "A_GNDDSO1_OCTEST");
+            bool ackOk = await SendAndExpectAsync(_testTxChannel, _testRxChannel, A_GNDDSO1_OCTEST, b => b.SequenceEqual(A_GNDDSO1_OCTEST_ACK), 1500, token, "A_GNDDSO1_OCTEST");
             if (!ackOk)
                 throw new TimeoutException("OCTEST ACK超时");
 
-            bool loopOk = await SendAndExpectAsync(ToSimChannel(TestTxChannelDisplay), ToSimChannel(TestRxChannelDisplay), A_GNDDSO1_OCTEST2, b => b.SequenceEqual(A_GNDDSO1_OC_LOOPBACK_UPLOAD), 2000, token, "回绕上传(OC)");
+            bool loopOk = await SendAndExpectAsync(_testTxChannel, _testRxChannel, A_GNDDSO1_OCTEST2, b => b.SequenceEqual(A_GNDDSO1_OC_LOOPBACK_UPLOAD), 2000, token, "回绕上传(OC)");
             if (!loopOk)
                 throw new TimeoutException("回绕上传(OC)超时");
         }
@@ -438,8 +407,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private async Task SendEnterAtpAsync()
         {
             var resp = await SendStepAndCaptureAsync(
-                ToSimChannel(EnterAtpTxChannelDisplay),
-                ToSimChannel(EnterAtpRxChannelDisplay),
+                _enterAtpTxChannel,
+                _enterAtpRxChannel,
                 EnterAtpCommand,
                 b => b != null && b.SequenceEqual(EnterAtpOk),
                 3000,
@@ -451,8 +420,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private async Task SendGndTestAsync()
         {
             var resp = await SendStepAndCaptureAsync(
-                ToSimChannel(TestTxChannelDisplay),
-                ToSimChannel(TestRxChannelDisplay),
+                _testTxChannel,
+                _testRxChannel,
                 A_GNDDSO1_GNDTEST,
                 b => b != null && b.SequenceEqual(A_GNDDSO1_GNDTEST_ACK),
                 1500,
@@ -464,8 +433,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private async Task SendGndTest2Async()
         {
             var resp = await SendStepAndCaptureAsync(
-                ToSimChannel(TestTxChannelDisplay),
-                ToSimChannel(TestRxChannelDisplay),
+                _testTxChannel,
+                _testRxChannel,
                 A_GNDDSO1_GNDTEST2,
                 b => b != null && b.SequenceEqual(A_GNDDSO1_GND_LOOPBACK_UPLOAD),
                 2000,
@@ -477,8 +446,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private async Task SendOcTestAsync()
         {
             var resp = await SendStepAndCaptureAsync(
-                ToSimChannel(TestTxChannelDisplay),
-                ToSimChannel(TestRxChannelDisplay),
+                _testTxChannel,
+                _testRxChannel,
                 A_GNDDSO1_OCTEST,
                 b => b != null && b.SequenceEqual(A_GNDDSO1_OCTEST_ACK),
                 1500,
@@ -490,8 +459,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private async Task SendOcTest2Async()
         {
             var resp = await SendStepAndCaptureAsync(
-                ToSimChannel(TestTxChannelDisplay),
-                ToSimChannel(TestRxChannelDisplay),
+                _testTxChannel,
+                _testRxChannel,
                 A_GNDDSO1_OCTEST2,
                 b => b != null && b.SequenceEqual(A_GNDDSO1_OC_LOOPBACK_UPLOAD),
                 2000,
@@ -503,8 +472,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private async Task SendExitAtpAsync()
         {
             var resp = await SendStepAndCaptureAsync(
-                ToSimChannel(ExitAtpTxChannelDisplay),
-                ToSimChannel(ExitAtpRxChannelDisplay),
+                _exitAtpTxChannel,
+                _exitAtpRxChannel,
                 ExitAtpCommand,
                 b => b != null && b.SequenceEqual(ExitAtpOk),
                 2000,
