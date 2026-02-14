@@ -9,7 +9,7 @@ using MeasureControl.Simulations.AC_6_4;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
-    public class GndOcDiscreteOutputCh2TestViewModel : BindableBase
+    public class A28vOc400mADiscreteOutputTestViewModel : BindableBase
     {
         private const byte DefaultLabel = 0x6A;
 
@@ -18,18 +18,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] ExitAtpCommand = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
 
-        private static readonly byte[] A_GNDDSO2_GNDTEST = { 0x09, 0x01, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] A_GNDDSO2_GNDTEST_ACK = { 0x09, 0x01, 0x02, 0x02, 0xAA, 0xAA, 0xAA, 0xAA };
-        private static readonly byte[] A_GNDDSO2_GNDTEST2 = { 0x09, 0x01, 0x02, 0x03, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] A_GNDDSO2_GND_LOOPBACK_UPLOAD = { 0x09, 0x01, 0x02, 0x04, 0x00, 0x00, 0x00, 0x01 };
-        private static readonly byte[] A_GNDDSO2_CURRENT_UPLOAD_PREFIX = { 0x09, 0x01, 0x02, 0x05 };
-        private static readonly byte[] A_GNDDSO2_OCTEST = { 0x09, 0x01, 0x02, 0x06, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] A_GNDDSO2_OCTEST_ACK = { 0x09, 0x01, 0x02, 0x07, 0xAA, 0xAA, 0xAA, 0xAA };
-        private static readonly byte[] A_GNDDSO2_OCTEST2 = { 0x09, 0x01, 0x02, 0x08, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] A_GNDDSO2_OC_LOOPBACK_UPLOAD = { 0x09, 0x01, 0x02, 0x09, 0x00, 0x00, 0x00, 0x00 };
-
-        private static readonly byte[] AB_DSI34_TEST = { 0x08, 0x01, 0x1E, 0x01, 0x00, 0x00, 0x00, 0x00 };
-
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _opLock = new SemaphoreSlim(1, 1);
 
@@ -37,18 +25,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private CancellationTokenSource _autoCts;
         private readonly AC_6_4Simulation _simulation = new AC_6_4Simulation();
 
+        private readonly byte _channel;
+        private readonly string _pageTitle;
+
+        private readonly byte[] _out28vCmd;
+        private readonly byte[] _out28vAck;
+        private readonly byte[] _upload28vCmd;
+        private readonly byte[] _upload28vPrefix;
+        private readonly byte[] _upload28vCurrentPrefix;
+        private readonly byte[] _outOcCmd;
+        private readonly byte[] _outOcAck;
+        private readonly byte[] _uploadOcCmd;
+        private readonly byte[] _uploadOcResp;
+
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
 
         private string _enterAtpRxDataText = "--";
-        private string _gndTestAckRxDataText = "--";
-        private string _gndLoopbackRxDataText = "--";
-        private string _gndDsi34RxDataText = "--";
-        private string _ocTestAckRxDataText = "--";
-        private string _ocLoopbackRxDataText = "--";
-        private string _ocDsi34RxDataText = "--";
+        private string _out28vAckRxDataText = "--";
+        private string _upload28vRxDataText = "--";
+        private string _outOcAckRxDataText = "--";
+        private string _uploadOcRxDataText = "--";
         private string _exitAtpRxDataText = "--";
 
         private string _enterAtpTxChannelDisplay = "CH0";
@@ -58,24 +57,48 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _exitAtpTxChannelDisplay = "CH8";
         private string _exitAtpRxChannelDisplay = "CH9";
 
-        public GndOcDiscreteOutputCh2TestViewModel()
+        public A28vOc400mADiscreteOutputTestViewModel(int channelNumber, string pageTitle)
         {
+            if (channelNumber < 1 || channelNumber > 3)
+                channelNumber = 1;
+
+            _channel = (byte)channelNumber;
+            _pageTitle = pageTitle ?? $"A控制通道28V/OC型400mA离散输出通道{channelNumber}输出测试";
+
+            _out28vCmd = BuildCmd(_channel, 0x01);
+            _out28vAck = BuildAck(_channel, 0x02);
+            _upload28vCmd = BuildCmd(_channel, 0x03);
+            _upload28vPrefix = BuildPrefix(_channel, 0x04);
+            _upload28vCurrentPrefix = BuildPrefix(_channel, 0x05);
+
+            _outOcCmd = BuildCmd(_channel, 0x06);
+            _outOcAck = BuildAck(_channel, 0x07);
+            _uploadOcCmd = BuildCmd(_channel, 0x08);
+            _uploadOcResp = BuildResp(_channel, 0x09, 0x00, 0x00, 0x00, 0x01);
+
             ManualTestCommand = new DelegateCommand(OnManualTest);
             AutoTestCommand = new DelegateCommand(OnAutoTest);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
             SendEnterAtpCommand = new DelegateCommand(() => _ = SendEnterAtpAsync());
-            SendGndTestCommand = new DelegateCommand(() => _ = SendGndTestAsync());
-            SendGndTest2Command = new DelegateCommand(() => _ = SendGndTest2Async());
-            SendGndDsi34Command = new DelegateCommand(() => _ = SendDsi34Async(expectGnd: true));
-            SendOcTestCommand = new DelegateCommand(() => _ = SendOcTestAsync());
-            SendOcTest2Command = new DelegateCommand(() => _ = SendOcTest2Async());
-            SendOcDsi34Command = new DelegateCommand(() => _ = SendDsi34Async(expectGnd: false));
+            SendOut28vCommand = new DelegateCommand(() => _ = SendOut28vAsync());
+            SendUpload28vCommand = new DelegateCommand(() => _ = SendUpload28vAsync());
+            SendOutOcCommand = new DelegateCommand(() => _ = SendOutOcAsync());
+            SendUploadOcCommand = new DelegateCommand(() => _ = SendUploadOcAsync());
             SendExitAtpCommand = new DelegateCommand(() => _ = SendExitAtpAsync());
             ClearContentCommand = new DelegateCommand(ClearContent);
         }
 
-        public string PageTitle => "GND/OC型100mA离散输出通道2输出测试";
+        public string PageTitle => _pageTitle;
+
+        public bool IsChannel3 => _channel == 3;
+
+        public string EnterAtpCmdText => "0x" + FormatBytes(EnterAtpCommand);
+        public string Out28vCmdText => "0x" + FormatBytes(_out28vCmd);
+        public string Upload28vCmdText => "0x" + FormatBytes(_upload28vCmd);
+        public string OutOcCmdText => "0x" + FormatBytes(_outOcCmd);
+        public string UploadOcCmdText => "0x" + FormatBytes(_uploadOcCmd);
+        public string ExitAtpCmdText => "0x" + FormatBytes(ExitAtpCommand);
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
 
@@ -84,12 +107,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public DelegateCommand ClearLogCommand { get; }
 
         public DelegateCommand SendEnterAtpCommand { get; }
-        public DelegateCommand SendGndTestCommand { get; }
-        public DelegateCommand SendGndTest2Command { get; }
-        public DelegateCommand SendGndDsi34Command { get; }
-        public DelegateCommand SendOcTestCommand { get; }
-        public DelegateCommand SendOcTest2Command { get; }
-        public DelegateCommand SendOcDsi34Command { get; }
+        public DelegateCommand SendOut28vCommand { get; }
+        public DelegateCommand SendUpload28vCommand { get; }
+        public DelegateCommand SendOutOcCommand { get; }
+        public DelegateCommand SendUploadOcCommand { get; }
         public DelegateCommand SendExitAtpCommand { get; }
         public DelegateCommand ClearContentCommand { get; }
 
@@ -137,40 +158,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             set => SetProperty(ref _enterAtpRxDataText, value);
         }
 
-        public string GndTestAckRxDataText
+        public string Out28vAckRxDataText
         {
-            get => _gndTestAckRxDataText;
-            set => SetProperty(ref _gndTestAckRxDataText, value);
+            get => _out28vAckRxDataText;
+            set => SetProperty(ref _out28vAckRxDataText, value);
         }
 
-        public string GndLoopbackRxDataText
+        public string Upload28vRxDataText
         {
-            get => _gndLoopbackRxDataText;
-            set => SetProperty(ref _gndLoopbackRxDataText, value);
+            get => _upload28vRxDataText;
+            set => SetProperty(ref _upload28vRxDataText, value);
         }
 
-        public string GndDsi34RxDataText
+        public string OutOcAckRxDataText
         {
-            get => _gndDsi34RxDataText;
-            set => SetProperty(ref _gndDsi34RxDataText, value);
+            get => _outOcAckRxDataText;
+            set => SetProperty(ref _outOcAckRxDataText, value);
         }
 
-        public string OcTestAckRxDataText
+        public string UploadOcRxDataText
         {
-            get => _ocTestAckRxDataText;
-            set => SetProperty(ref _ocTestAckRxDataText, value);
-        }
-
-        public string OcLoopbackRxDataText
-        {
-            get => _ocLoopbackRxDataText;
-            set => SetProperty(ref _ocLoopbackRxDataText, value);
-        }
-
-        public string OcDsi34RxDataText
-        {
-            get => _ocDsi34RxDataText;
-            set => SetProperty(ref _ocDsi34RxDataText, value);
+            get => _uploadOcRxDataText;
+            set => SetProperty(ref _uploadOcRxDataText, value);
         }
 
         public string ExitAtpRxDataText
@@ -207,12 +216,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             Logs.Clear();
             EnterAtpRxDataText = "--";
-            GndTestAckRxDataText = "--";
-            GndLoopbackRxDataText = "--";
-            GndDsi34RxDataText = "--";
-            OcTestAckRxDataText = "--";
-            OcLoopbackRxDataText = "--";
-            OcDsi34RxDataText = "--";
+            Out28vAckRxDataText = "--";
+            Upload28vRxDataText = "--";
+            OutOcAckRxDataText = "--";
+            UploadOcRxDataText = "--";
             ExitAtpRxDataText = "--";
         }
 
@@ -240,12 +247,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 LastTestResult = "--";
 
                 EnterAtpRxDataText = "--";
-                GndTestAckRxDataText = "--";
-                GndLoopbackRxDataText = "--";
-                GndDsi34RxDataText = "--";
-                OcTestAckRxDataText = "--";
-                OcLoopbackRxDataText = "--";
-                OcDsi34RxDataText = "--";
+                Out28vAckRxDataText = "--";
+                Upload28vRxDataText = "--";
+                OutOcAckRxDataText = "--";
+                UploadOcRxDataText = "--";
                 ExitAtpRxDataText = "--";
 
                 _cts?.Cancel();
@@ -331,15 +336,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试开始");
 
-                bool enterOk = await SendAndExpectAsync(ToSimChannel(EnterAtpTxChannelDisplay), ToSimChannel(EnterAtpRxChannelDisplay), EnterAtpCommand, b => b.SequenceEqual(EnterAtpOk), 3000, token, "进入ATP");
+                bool enterOk = await SendAndExpectAsync(
+                    ToSimChannel(EnterAtpTxChannelDisplay),
+                    ToSimChannel(EnterAtpRxChannelDisplay),
+                    EnterAtpCommand,
+                    b => b != null && b.SequenceEqual(EnterAtpOk),
+                    3000,
+                    token,
+                    "进入ATP");
                 if (!enterOk)
                     throw new TimeoutException("进入ATP超时");
 
-                bool readyOk = await _simulation.EnsureBenchChannelsAsync(ToSimChannel(TestTxChannelDisplay), ToSimChannel(TestRxChannelDisplay), msg => { });
+                bool readyOk = await _simulation.EnsureBenchChannelsAsync(ToSimChannel(TestTxChannelDisplay), ToSimChannel(TestRxChannelDisplay), _ => { });
                 if (!readyOk)
                     throw new InvalidOperationException($"bench通道未就绪：TX={ToSimChannel(TestTxChannelDisplay)}, RX={ToSimChannel(TestRxChannelDisplay)}");
 
-                await TestGndPhaseAsync(token);
+                await Test28vPhaseAsync(token);
                 await TestOcPhaseAsync(token);
 
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
@@ -362,7 +374,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 try
                 {
-                    await SendAndExpectAsync(ToSimChannel(ExitAtpTxChannelDisplay), ToSimChannel(ExitAtpRxChannelDisplay), ExitAtpCommand, b => b.SequenceEqual(ExitAtpOk), 2000, CancellationToken.None, "退出ATP");
+                    await SendAndExpectAsync(
+                        ToSimChannel(ExitAtpTxChannelDisplay),
+                        ToSimChannel(ExitAtpRxChannelDisplay),
+                        ExitAtpCommand,
+                        b => b != null && b.SequenceEqual(ExitAtpOk),
+                        2000,
+                        CancellationToken.None,
+                        "退出ATP");
                 }
                 catch
                 {
@@ -373,44 +392,82 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private async Task TestGndPhaseAsync(CancellationToken token)
+        private async Task Test28vPhaseAsync(CancellationToken token)
         {
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 阶段1：输出GND");
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 阶段1：输出28V");
 
-            bool ackOk = await SendAndExpectAsync(ToSimChannel(TestTxChannelDisplay), ToSimChannel(TestRxChannelDisplay), A_GNDDSO2_GNDTEST, b => b.SequenceEqual(A_GNDDSO2_GNDTEST_ACK), 1500, token, "A_GNDDSO2_GNDTEST");
-            if (!ackOk)
-                throw new TimeoutException("GNDTEST ACK超时");
+            bool outOk = await SendAndExpectAsync(
+                ToSimChannel(TestTxChannelDisplay),
+                ToSimChannel(TestRxChannelDisplay),
+                _out28vCmd,
+                b => b != null && b.SequenceEqual(_out28vAck),
+                1500,
+                token,
+                "输出28V信号");
+            if (!outOk)
+                throw new TimeoutException("输出28V ACK超时");
 
-            bool loopOk = await SendAndExpectAsync(ToSimChannel(TestTxChannelDisplay), ToSimChannel(TestRxChannelDisplay), A_GNDDSO2_GNDTEST2, b => b.SequenceEqual(A_GNDDSO2_GND_LOOPBACK_UPLOAD), 2000, token, "回绕上传(GND)");
-            if (!loopOk)
-                throw new TimeoutException("回绕上传(GND)超时");
+            if (_channel == 3)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 提示：请测量负载两端实际电压值并计算负载电流(通道3)");
+            }
 
-            _ = await TryWaitOptionalAsync(ToSimChannel(TestRxChannelDisplay), b => b != null && b.Length == 8 && b[0] == A_GNDDSO2_CURRENT_UPLOAD_PREFIX[0] && b[1] == A_GNDDSO2_CURRENT_UPLOAD_PREFIX[1] && b[2] == A_GNDDSO2_CURRENT_UPLOAD_PREFIX[2] && b[3] == A_GNDDSO2_CURRENT_UPLOAD_PREFIX[3], 400, token);
+            var uploadResp = await SendAndWaitResponseAsync(
+                ToSimChannel(TestTxChannelDisplay),
+                ToSimChannel(TestRxChannelDisplay),
+                _upload28vCmd,
+                b => IsPrefixWithLength(b, _upload28vPrefix, 8),
+                2000,
+                token,
+                "上传离散和AD回采");
+            if (uploadResp == null)
+                throw new TimeoutException("上传离散和AD回采超时");
 
-            var (ok, stateText, respText) = await RunDsi34Async(expectGnd: true, token);
-            if (!ok)
-                throw new TimeoutException("DSI34回包超时(GND阶段)");
-            if (!string.Equals(stateText, "GND", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException($"DSI34判读不一致(GND阶段)：actual={stateText}, resp={respText}");
+            if (TryParseVoltageFromAdUpload(uploadResp, out var voltage, out var scheme))
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] AD回采解析电压={voltage:F3}V ({scheme})");
+                if (voltage < 25.0 || voltage > 28.0)
+                    throw new InvalidOperationException($"电压超限：{voltage:F3}V (要求[25,28]V)");
+            }
+            else
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] AD回采电压解析失败/数据为0：0x{FormatBytes(uploadResp)}");
+            }
+
+            var currentResp = await WaitRequiredAsync(
+                ToSimChannel(TestRxChannelDisplay),
+                b => IsPrefixWithLength(b, _upload28vCurrentPrefix, 8),
+                1200,
+                token,
+                "电流回采(09 04 xx 05)");
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 电流回采帧：0x{FormatBytes(currentResp)}");
         }
 
         private async Task TestOcPhaseAsync(CancellationToken token)
         {
             AddLog($"[{DateTime.Now:HH:mm:ss}] 阶段2：输出OC");
 
-            bool ackOk = await SendAndExpectAsync(ToSimChannel(TestTxChannelDisplay), ToSimChannel(TestRxChannelDisplay), A_GNDDSO2_OCTEST, b => b.SequenceEqual(A_GNDDSO2_OCTEST_ACK), 1500, token, "A_GNDDSO2_OCTEST");
-            if (!ackOk)
-                throw new TimeoutException("OCTEST ACK超时");
+            bool outOk = await SendAndExpectAsync(
+                ToSimChannel(TestTxChannelDisplay),
+                ToSimChannel(TestRxChannelDisplay),
+                _outOcCmd,
+                b => b != null && b.SequenceEqual(_outOcAck),
+                1500,
+                token,
+                "输出OC信号");
+            if (!outOk)
+                throw new TimeoutException("输出OC ACK超时");
 
-            bool loopOk = await SendAndExpectAsync(ToSimChannel(TestTxChannelDisplay), ToSimChannel(TestRxChannelDisplay), A_GNDDSO2_OCTEST2, b => b.SequenceEqual(A_GNDDSO2_OC_LOOPBACK_UPLOAD), 2000, token, "回绕上传(OC)");
-            if (!loopOk)
-                throw new TimeoutException("回绕上传(OC)超时");
-
-            var (ok, stateText, respText) = await RunDsi34Async(expectGnd: false, token);
-            if (!ok)
-                throw new TimeoutException("DSI34回包超时(OC阶段)");
-            if (!string.Equals(stateText, "OC", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException($"DSI34判读不一致(OC阶段)：actual={stateText}, resp={respText}");
+            bool uploadOk = await SendAndExpectAsync(
+                ToSimChannel(TestTxChannelDisplay),
+                ToSimChannel(TestRxChannelDisplay),
+                _uploadOcCmd,
+                b => b != null && b.SequenceEqual(_uploadOcResp),
+                2000,
+                token,
+                "上传离散回采");
+            if (!uploadOk)
+                throw new TimeoutException("上传离散回采超时");
         }
 
         private async Task SendEnterAtpAsync()
@@ -426,99 +483,65 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             EnterAtpRxDataText = resp == null ? "--" : "0x" + FormatBytes(resp);
         }
 
-        private async Task SendGndTestAsync()
+        private async Task SendOut28vAsync()
         {
             var resp = await SendStepAndCaptureAsync(
                 ToSimChannel(TestTxChannelDisplay),
                 ToSimChannel(TestRxChannelDisplay),
-                A_GNDDSO2_GNDTEST,
-                b => b != null && b.SequenceEqual(A_GNDDSO2_GNDTEST_ACK),
+                _out28vCmd,
+                b => b != null && b.SequenceEqual(_out28vAck),
                 1500,
-                "A_GNDDSO2_GNDTEST");
+                "输出28V信号");
 
-            GndTestAckRxDataText = resp == null ? "--" : "0x" + FormatBytes(resp);
+            Out28vAckRxDataText = resp == null ? "--" : "0x" + FormatBytes(resp);
         }
 
-        private async Task SendGndTest2Async()
+        private async Task SendUpload28vAsync()
         {
             var resp = await SendStepAndCaptureAsync(
                 ToSimChannel(TestTxChannelDisplay),
                 ToSimChannel(TestRxChannelDisplay),
-                A_GNDDSO2_GNDTEST2,
-                b => b != null && b.SequenceEqual(A_GNDDSO2_GND_LOOPBACK_UPLOAD),
+                _upload28vCmd,
+                b => IsPrefixWithLength(b, _upload28vPrefix, 8),
                 2000,
-                "A_GNDDSO2_GNDTEST2");
+                "上传离散和AD回采");
 
-            GndLoopbackRxDataText = resp == null ? "--" : "0x" + FormatBytes(resp);
+            Upload28vRxDataText = resp == null ? "--" : "0x" + FormatBytes(resp);
+
+            if (resp != null)
+            {
+                _ = await TryWaitOptionalAsync(
+                    ToSimChannel(TestRxChannelDisplay),
+                    b => IsPrefixWithLength(b, _upload28vCurrentPrefix, 8),
+                    800,
+                    CancellationToken.None);
+            }
         }
 
-        private async Task SendOcTestAsync()
+        private async Task SendOutOcAsync()
         {
             var resp = await SendStepAndCaptureAsync(
                 ToSimChannel(TestTxChannelDisplay),
                 ToSimChannel(TestRxChannelDisplay),
-                A_GNDDSO2_OCTEST,
-                b => b != null && b.SequenceEqual(A_GNDDSO2_OCTEST_ACK),
+                _outOcCmd,
+                b => b != null && b.SequenceEqual(_outOcAck),
                 1500,
-                "A_GNDDSO2_OCTEST");
+                "输出OC信号");
 
-            OcTestAckRxDataText = resp == null ? "--" : "0x" + FormatBytes(resp);
+            OutOcAckRxDataText = resp == null ? "--" : "0x" + FormatBytes(resp);
         }
 
-        private async Task SendOcTest2Async()
+        private async Task SendUploadOcAsync()
         {
             var resp = await SendStepAndCaptureAsync(
                 ToSimChannel(TestTxChannelDisplay),
                 ToSimChannel(TestRxChannelDisplay),
-                A_GNDDSO2_OCTEST2,
-                b => b != null && b.SequenceEqual(A_GNDDSO2_OC_LOOPBACK_UPLOAD),
+                _uploadOcCmd,
+                b => b != null && b.SequenceEqual(_uploadOcResp),
                 2000,
-                "A_GNDDSO2_OCTEST2");
+                "上传离散回采");
 
-            OcLoopbackRxDataText = resp == null ? "--" : "0x" + FormatBytes(resp);
-        }
-
-        private async Task SendDsi34Async(bool expectGnd)
-        {
-            await _opLock.WaitAsync();
-            try
-            {
-                if (!IsManualTestRunning)
-                {
-                    await StartAsync();
-                }
-
-                if (!IsManualTestRunning)
-                    throw new InvalidOperationException("ARINC429未启动");
-
-                var (ok, stateText, respText) = await RunDsi34Async(expectGnd, CancellationToken.None);
-                if (!ok)
-                {
-                    if (expectGnd)
-                        GndDsi34RxDataText = "--";
-                    else
-                        OcDsi34RxDataText = "--";
-                    return;
-                }
-
-                if (expectGnd)
-                    GndDsi34RxDataText = respText;
-                else
-                    OcDsi34RxDataText = respText;
-
-                if (expectGnd && !string.Equals(stateText, "GND", StringComparison.OrdinalIgnoreCase))
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] DSI34期望GND，但判读={stateText}");
-                if (!expectGnd && !string.Equals(stateText, "OC", StringComparison.OrdinalIgnoreCase))
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] DSI34期望OC，但判读={stateText}");
-            }
-            catch (Exception ex)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] DSI34单步异常：{ex.Message}");
-            }
-            finally
-            {
-                _opLock.Release();
-            }
+            UploadOcRxDataText = resp == null ? "--" : "0x" + FormatBytes(resp);
         }
 
         private async Task SendExitAtpAsync()
@@ -588,42 +611,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private async Task<(bool Ok, string StateText, string RespText)> RunDsi34Async(bool expectGnd, CancellationToken token)
-        {
-            try { await _simulation.ClearRxFifoAsync(ToSimChannel(TestRxChannelDisplay)); } catch { }
-            await Task.Delay(30, token);
-
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：AB_DSI34_TEST CMD=0x{FormatBytes(AB_DSI34_TEST)}");
-
-            var resp = await _simulation.SendBenchCommandAndWaitAsync(
-                ToSimChannel(TestTxChannelDisplay),
-                ToSimChannel(TestRxChannelDisplay),
-                DefaultLabel,
-                AB_DSI34_TEST,
-                b => b != null && b.Length == 8 && b[0] == 0x08 && b[1] == 0x01 && b[2] == 0x1E && b[3] == 0x02,
-                2000,
-                msg => AddLog(msg),
-                token);
-
-            if (resp == null)
-                return (false, "--", "--");
-
-            var state = ParseDsiState(resp);
-            var respText = "0x" + FormatBytes(resp);
-            AddLog($"[{DateTime.Now:HH:mm:ss}] DSI34回包：state={state}, resp={respText}");
-
-            return (true, state, respText);
-        }
-
-        private static string ParseDsiState(byte[] resp)
-        {
-            if (resp == null || resp.Length != 8)
-                return "--";
-
-            uint v = ((uint)resp[4] << 24) | ((uint)resp[5] << 16) | ((uint)resp[6] << 8) | resp[7];
-            return v == 0 ? "OC" : "GND";
-        }
-
         private async Task<bool> SendAndExpectAsync(
             string txChannel,
             string rxChannel,
@@ -658,6 +645,40 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return true;
         }
 
+        private async Task<byte[]> SendAndWaitResponseAsync(
+            string txChannel,
+            string rxChannel,
+            byte[] cmd8,
+            Func<byte[], bool> isExpected,
+            int timeoutMs,
+            CancellationToken token,
+            string stepName)
+        {
+            try { await _simulation.ClearRxFifoAsync(rxChannel); } catch { }
+            await Task.Delay(30, token);
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：{stepName} TX={txChannel}, RX={rxChannel}, CMD=0x{FormatBytes(cmd8)}");
+
+            var resp = await _simulation.SendBenchCommandAndWaitAsync(
+                txChannel,
+                rxChannel,
+                DefaultLabel,
+                cmd8,
+                isExpected,
+                timeoutMs,
+                msg => AddLog(msg),
+                token);
+
+            if (resp == null)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 超时：{stepName}");
+                return null;
+            }
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 收到：{stepName} RESP=0x{FormatBytes(resp)}");
+            return resp;
+        }
+
         private async Task<byte[]> TryWaitOptionalAsync(string rxChannel, Func<byte[], bool> isExpected, int timeoutMs, CancellationToken token)
         {
             try
@@ -679,6 +700,130 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 return null;
             }
+        }
+
+        private async Task<byte[]> WaitRequiredAsync(
+            string rxChannel,
+            Func<byte[], bool> isExpected,
+            int timeoutMs,
+            CancellationToken token,
+            string stepName)
+        {
+            var resp = await _simulation.WaitBenchResponseAsync(
+                rxChannel,
+                DefaultLabel,
+                isExpected,
+                timeoutMs,
+                msg => AddLog(msg),
+                token);
+
+            if (resp == null)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 超时：{stepName}");
+                throw new TimeoutException($"{stepName}超时");
+            }
+
+            return resp;
+        }
+
+        private static bool IsPrefixWithLength(byte[] data, byte[] prefix, int expectedLength)
+        {
+            if (data == null || prefix == null) return false;
+            if (data.Length != expectedLength) return false;
+            if (data.Length < prefix.Length) return false;
+            for (int i = 0; i < prefix.Length; i++)
+            {
+                if (data[i] != prefix[i]) return false;
+            }
+            return true;
+        }
+
+        private static bool TryParseVoltageFromAdUpload(byte[] resp8, out double voltage, out string scheme)
+        {
+            voltage = 0;
+            scheme = null;
+
+            if (resp8 == null || resp8.Length != 8)
+                return false;
+
+            uint b4 = resp8[4];
+            uint b5 = resp8[5];
+            uint b6 = resp8[6];
+            uint b7 = resp8[7];
+
+            if ((b4 | b5 | b6 | b7) == 0)
+                return false;
+
+            bool found = false;
+            double best = 0;
+            string bestScheme = null;
+            double bestScore = double.MaxValue;
+
+            void Consider(double v, string s)
+            {
+                if (double.IsNaN(v) || double.IsInfinity(v))
+                    return;
+
+                if (v < 0 || v > 40)
+                    return;
+
+                double score = (v >= 20 && v <= 35) ? Math.Abs(v - 27.0) : (100 + Math.Abs(v - 20.0));
+                if (!found || score < bestScore)
+                {
+                    found = true;
+                    best = v;
+                    bestScheme = s;
+                    bestScore = score;
+                }
+            }
+
+            uint u16be_45 = (b4 << 8) | b5;
+            uint u16le_45 = (b5 << 8) | b4;
+            uint u16be_67 = (b6 << 8) | b7;
+            uint u16le_67 = (b7 << 8) | b6;
+            uint u32be = (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
+            uint u32le = (b7 << 24) | (b6 << 16) | (b5 << 8) | b4;
+
+            Consider(u16be_45 / 1000.0, "u16be@4-5 mV");
+            Consider(u16le_45 / 1000.0, "u16le@4-5 mV");
+            Consider(u16be_67 / 1000.0, "u16be@6-7 mV");
+            Consider(u16le_67 / 1000.0, "u16le@6-7 mV");
+            Consider(u32be / 1000.0, "u32be@4-7 mV");
+            Consider(u32le / 1000.0, "u32le@4-7 mV");
+
+            Consider(u16be_45 / 100.0, "u16be@4-5 0.01V");
+            Consider(u16le_45 / 100.0, "u16le@4-5 0.01V");
+            Consider(u16be_67 / 100.0, "u16be@6-7 0.01V");
+            Consider(u16le_67 / 100.0, "u16le@6-7 0.01V");
+            Consider(u32be / 100.0, "u32be@4-7 0.01V");
+            Consider(u32le / 100.0, "u32le@4-7 0.01V");
+
+            if (!found)
+                return false;
+
+            voltage = best;
+            scheme = bestScheme;
+            return true;
+        }
+
+        private static byte[] BuildCmd(byte channel, byte func)
+        {
+            return new[] { (byte)0x09, (byte)0x04, channel, func, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00 };
+        }
+
+        private static byte[] BuildAck(byte channel, byte func)
+        {
+            return new[] { (byte)0x09, (byte)0x04, channel, func, (byte)0xAA, (byte)0xAA, (byte)0xAA, (byte)0xAA };
+        }
+
+        private static byte[] BuildPrefix(byte channel, byte func)
+        {
+            return new[] { (byte)0x09, (byte)0x04, channel, func };
+        }
+
+        private static byte[] BuildResp(byte channel, byte func, byte d4, byte d5, byte d6, byte d7)
+        {
+            return new[] { (byte)0x09, (byte)0x04, channel, func, d4, d5, d6, d7 };
         }
 
         private static string FormatBytes(byte[] bytes)
