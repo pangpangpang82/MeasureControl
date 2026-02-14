@@ -13,22 +13,25 @@ using System.Windows;
 using MeasureControl.Helpers;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
-using MeasureControl.Simulations.A_C_6_15_1_1;
+using MeasureControl.Simulations.A_C_6_16_1_1_1;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
-    public sealed class A_C_6_15_1_1ViewModel : BindableBase, IDisposable
+    public sealed class A_C_6_16_1_1_1ViewModel : BindableBase, IDisposable
     {
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
 
-        private static readonly byte[] Pwm100Command8 = { 0x21, 0x03, 0x04, 0x03, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] Pwm50Command8 = { 0x21, 0x03, 0x04, 0x02, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] Pwm0Command8 = { 0x21, 0x03, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] Speed1Command8 = { 0x22, 0x01, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
-        private readonly A_C_6_15_1_1Simulation _simulation = new A_C_6_15_1_1Simulation();
+        private const double QualifyFreqTargetHz = 1000.0;
+        private const double QualifyFreqTolHz = 50.0;
+        private const double QualifyDutyTargetPct = 50.0;
+        private const double QualifyDutyTolPct = 5.0;
+
+        private readonly A_C_6_16_1_1_1Simulation _simulation = new A_C_6_16_1_1_1Simulation();
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
@@ -38,7 +41,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private TcpClient _scopeTcpClient;
         private NetworkStream _scopeTcpStream;
-        private IFrequencyCounterApi _frequencyCounter;
 
         private bool _matrixRouted;
 
@@ -48,7 +50,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _testRxChannel = "CH1";
 
         private string _oscilloscopeIpAddress = "192.168.1.18";
-        private string _frequencyCounterIpAddress = "192.168.1.14";
 
         private bool _isBusy;
         private bool _isManualTestRunning;
@@ -59,21 +60,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _enterAtpRxDataText = "--";
         private string _exitAtpRxDataText = "--";
 
-        private string _scopeVmaxText = "--";
-        private string _scopeVminText = "--";
-        private string _scopeVavgText = "--";
-        private string _scopeVrmsText = "--";
-        private string _scopeVppText = "--";
         private string _freqHzText = "--";
         private string _dutyPctText = "--";
-
-        private string _pwm100VrmsText = "--";
-        private string _pwm100VmaxText = "--";
-        private string _pwm50VrmsText = "--";
-        private string _pwm50VmaxText = "--";
-        private string _pwm50DutyPctText = "--";
-        private string _pwm0VrmsText = "--";
-        private string _pwm0VmaxText = "--";
+        private string _scopeVppText = "--";
 
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
@@ -81,7 +70,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _previousTestTime = "--";
         private string _previousTestResult = "--";
 
-        public A_C_6_15_1_1ViewModel()
+        public A_C_6_16_1_1_1ViewModel()
         {
             ManualTestCommand = new DelegateCommand(OnManualTest);
             AutoTestCommand = new DelegateCommand(OnAutoTest);
@@ -90,13 +79,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             SendEnterAtpCommand = new DelegateCommand(async () => await SendAndWaitOkAsync(EnterAtpCommand8, EnterAtpOk8, "进入ATP"));
             SendExitAtpCommand = new DelegateCommand(async () => await SendAndWaitOkAsync(ExitAtpCommand8, ExitAtpOk8, "退出ATP"));
 
-            SendPwm100Command = new DelegateCommand(async () => await SendAndWaitEchoAsync(Pwm100Command8, "PWM=100%"));
-            SendPwm50Command = new DelegateCommand(async () => await SendAndWaitEchoAsync(Pwm50Command8, "PWM=50%"));
-            SendPwm0Command = new DelegateCommand(async () => await SendAndWaitEchoAsync(Pwm0Command8, "PWM=0%"));
-
-            MeasurePwm100Command = new DelegateCommand(async () => await MeasureAndUpdateUiAsync(100));
-            MeasurePwm50Command = new DelegateCommand(async () => await MeasureAndUpdateUiAsync(50));
-            MeasurePwm0Command = new DelegateCommand(async () => await MeasureAndUpdateUiAsync(0));
+            SendSpeed1Command = new DelegateCommand(async () => await SendAndWaitEchoAsync(Speed1Command8, "AB_MOTORTCV_SPEED1"));
+            MeasureSpeed1Command = new DelegateCommand(async () => await MeasureAndUpdateUiAsync());
         }
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
@@ -107,13 +91,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public DelegateCommand SendEnterAtpCommand { get; }
         public DelegateCommand SendExitAtpCommand { get; }
-        public DelegateCommand SendPwm100Command { get; }
-        public DelegateCommand SendPwm50Command { get; }
-        public DelegateCommand SendPwm0Command { get; }
-
-        public DelegateCommand MeasurePwm100Command { get; }
-        public DelegateCommand MeasurePwm50Command { get; }
-        public DelegateCommand MeasurePwm0Command { get; }
+        public DelegateCommand SendSpeed1Command { get; }
+        public DelegateCommand MeasureSpeed1Command { get; }
 
         public double ArincRate
         {
@@ -137,12 +116,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _oscilloscopeIpAddress;
             set => SetProperty(ref _oscilloscopeIpAddress, value);
-        }
-
-        public string FrequencyCounterIpAddress
-        {
-            get => _frequencyCounterIpAddress;
-            set => SetProperty(ref _frequencyCounterIpAddress, value);
         }
 
         public bool IsBusy
@@ -175,36 +148,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _exitAtpRxDataText, value);
         }
 
-        public string ScopeVmaxText
-        {
-            get => _scopeVmaxText;
-            private set => SetProperty(ref _scopeVmaxText, value);
-        }
-
-        public string ScopeVminText
-        {
-            get => _scopeVminText;
-            private set => SetProperty(ref _scopeVminText, value);
-        }
-
-        public string ScopeVavgText
-        {
-            get => _scopeVavgText;
-            private set => SetProperty(ref _scopeVavgText, value);
-        }
-
-        public string ScopeVrmsText
-        {
-            get => _scopeVrmsText;
-            private set => SetProperty(ref _scopeVrmsText, value);
-        }
-
-        public string ScopeVppText
-        {
-            get => _scopeVppText;
-            private set => SetProperty(ref _scopeVppText, value);
-        }
-
         public string FreqHzText
         {
             get => _freqHzText;
@@ -217,46 +160,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _dutyPctText, value);
         }
 
-        public string Pwm100VrmsText
+        public string ScopeVppText
         {
-            get => _pwm100VrmsText;
-            private set => SetProperty(ref _pwm100VrmsText, value);
-        }
-
-        public string Pwm100VmaxText
-        {
-            get => _pwm100VmaxText;
-            private set => SetProperty(ref _pwm100VmaxText, value);
-        }
-
-        public string Pwm50VrmsText
-        {
-            get => _pwm50VrmsText;
-            private set => SetProperty(ref _pwm50VrmsText, value);
-        }
-
-        public string Pwm50VmaxText
-        {
-            get => _pwm50VmaxText;
-            private set => SetProperty(ref _pwm50VmaxText, value);
-        }
-
-        public string Pwm50DutyPctText
-        {
-            get => _pwm50DutyPctText;
-            private set => SetProperty(ref _pwm50DutyPctText, value);
-        }
-
-        public string Pwm0VrmsText
-        {
-            get => _pwm0VrmsText;
-            private set => SetProperty(ref _pwm0VrmsText, value);
-        }
-
-        public string Pwm0VmaxText
-        {
-            get => _pwm0VmaxText;
-            private set => SetProperty(ref _pwm0VmaxText, value);
+            get => _scopeVppText;
+            private set => SetProperty(ref _scopeVppText, value);
         }
 
         public string LastTestTime
@@ -395,6 +302,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 try
                 {
+                    EnterAtpRxDataText = "--";
+                    ExitAtpRxDataText = "--";
+                    ClearMeasurementTexts();
+
                     _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
                     _simulation.ArincRate = ArincRate;
                     _simulation.SimProductArincRate = ArincRate;
@@ -409,20 +320,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     if (!await AutoStepAsync(EnterAtpCommand8, EnterAtpOk8, "进入ATP", token))
                         failures.Add("进入ATP失败");
 
-                    if (!await AutoStepAsync(Pwm100Command8, Pwm100Command8, "PWM=100%", token))
-                        failures.Add("PWM=100%回读失败");
-                    else if (!await MeasureAndQualifyPwmAsync(100, token))
-                        failures.Add("PWM=100%波形判据不合格");
-
-                    if (!await AutoStepAsync(Pwm50Command8, Pwm50Command8, "PWM=50%", token))
-                        failures.Add("PWM=50%回读失败");
-                    else if (!await MeasureAndQualifyPwmAsync(50, token))
-                        failures.Add("PWM=50%波形判据不合格");
-
-                    if (!await AutoStepAsync(Pwm0Command8, Pwm0Command8, "PWM=0%", token))
-                        failures.Add("PWM=0%回读失败");
-                    else if (!await MeasureAndQualifyPwmAsync(0, token))
-                        failures.Add("PWM=0%波形判据不合格");
+                    if (!await AutoStepAsync(Speed1Command8, Speed1Command8, "AB_MOTORTCV_SPEED1", token))
+                        failures.Add("AB_MOTORTCV_SPEED1回读失败");
+                    else if (!await MeasureAndQualifyAsync(token))
+                        failures.Add("占空比/频率判据不合格");
 
                     if (!await AutoStepAsync(ExitAtpCommand8, ExitAtpOk8, "退出ATP", token))
                         failures.Add("退出ATP失败");
@@ -558,131 +459,59 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private async Task<bool> MeasureAndQualifyPwmAsync(int pwmPercent, CancellationToken token)
+        private async Task SendAndWaitEchoAsync(byte[] cmd8, string title)
         {
-            if (!AppConstants.Arinc429IsRealProduct)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] [SIM] PWM={pwmPercent}%：跳过示波器/频率计判据（仿真模式）");
-                return true;
-            }
+            if (!IsManualTestRunning || IsBusy)
+                return;
 
-            await _instrumentLock.WaitAsync(token);
+            await _arincOpLock.WaitAsync();
             try
             {
-                var m = await MeasurePwmRawCoreAsync(pwmPercent, token);
-                if (m == null)
-                    return false;
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%测量：VMAX={FormatNum(m.Vmax)} V, VMIN={FormatNum(m.Vmin)} V, VAVG={FormatNum(m.Vavg)} V, VRMS={FormatNum(m.Vrms)} V, VPP={FormatNum(m.Vpp)} V, F={FormatNum(m.FreqHz)} Hz, DUTY={FormatNum(m.DutyPct)} %");
-
-                await Application.Current.Dispatcher.InvokeAsync(() =>
+                IsBusy = true;
+                try
                 {
-                    ScopeVmaxText = FormatNum(m.Vmax);
-                    ScopeVminText = FormatNum(m.Vmin);
-                    ScopeVavgText = FormatNum(m.Vavg);
-                    ScopeVrmsText = FormatNum(m.Vrms);
-                    ScopeVppText = FormatNum(m.Vpp);
-                    FreqHzText = FormatNum(m.FreqHz);
-                    DutyPctText = FormatNum(m.DutyPct);
-                });
+                    var token = CancellationToken.None;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送... TX={TestTxChannel}, RX={TestRxChannel}");
+                    await _simulation.ClearRxFifoAsync(TestRxChannel);
+                    await Task.Delay(20, token);
 
-                return pwmPercent switch
+                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
+
+                    var resp = await _simulation.WaitBenchResponse8Async(
+                        TestRxChannel,
+                        b => b != null && b.SequenceEqual(cmd8),
+                        timeoutMs: 1500,
+                        log: msg => AddLog(msg),
+                        token: token);
+
+                    if (resp == null)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：等待超时");
+                        SetLastTestResult("FAIL");
+                        return;
+                    }
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：回读OK ({FormatData(resp)})");
+
+                    SetLastTestResult("PASS");
+                }
+                finally
                 {
-                    100 => QualifyPwm100(m.Vmax, m.Vmin, m.Vavg, m.Vpp, m.DutyPct, out var reason100) ? true : FailWithReason(pwmPercent, reason100),
-                    50 => QualifyPwm50(m.Vmax, m.Vmin, m.Vavg, m.Vpp, m.DutyPct, out var reason50) ? true : FailWithReason(pwmPercent, reason50),
-                    0 => QualifyPwm0(m.Vmax, m.Vmin, m.Vavg, m.Vpp, m.DutyPct, out var reason0) ? true : FailWithReason(pwmPercent, reason0),
-                    _ => true
-                };
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
+                    IsBusy = false;
+                }
             }
             catch (Exception ex)
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%测量异常：{ex.Message}");
-                return false;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}异常：{ex.Message}");
+                SetLastTestResult("FAIL");
             }
             finally
             {
-                _instrumentLock.Release();
-            }
-
-            bool FailWithReason(int pwm, string reason)
-            {
-                if (!string.IsNullOrWhiteSpace(reason))
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwm}%判据FAIL：{reason}");
-                return false;
+                _arincOpLock.Release();
             }
         }
 
-        private void ClearMeasurementTexts()
-        {
-            ScopeVmaxText = "--";
-            ScopeVminText = "--";
-            ScopeVavgText = "--";
-            ScopeVrmsText = "--";
-            ScopeVppText = "--";
-            FreqHzText = "--";
-            DutyPctText = "--";
-
-            Pwm100VrmsText = "--";
-            Pwm100VmaxText = "--";
-            Pwm50VrmsText = "--";
-            Pwm50VmaxText = "--";
-            Pwm50DutyPctText = "--";
-            Pwm0VrmsText = "--";
-            Pwm0VmaxText = "--";
-        }
-
-        private sealed class PwmMeasurement
-        {
-            public int PwmPercent { get; set; }
-            public double? Vmax { get; set; }
-            public double? Vmin { get; set; }
-            public double? Vavg { get; set; }
-            public double? Vrms { get; set; }
-            public double? Vpp { get; set; }
-            public double? FreqHz { get; set; }
-            public double? DutyPct { get; set; }
-        }
-
-        private async Task<PwmMeasurement> MeasurePwmRawCoreAsync(int pwmPercent, CancellationToken token)
-        {
-            var routed = await EnsureMatrixRoutedAsync(token);
-            if (!routed)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：矩阵开关路由失败");
-                return null;
-            }
-
-            await EnsureInstrumentsConnectedAsync(token);
-            await Task.Delay(200, token);
-
-            var vmax = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VMAX", token);
-            var vmin = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VMIN", token);
-            var vavg = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VAVG", token);
-            var vrms = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VRMS", token);
-            var vpp = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VPP", token);
-
-            var freq = await ReadFrequencyCounterValueAsync(FrequencyCounterMeasureMode.Frequency, FrequencyCounterChannel.CH1, token);
-            var duty = await ReadFrequencyCounterValueAsync(FrequencyCounterMeasureMode.DutyCycle, FrequencyCounterChannel.CH1, token);
-            var dutyPct = duty.HasValue ? NormalizeDutyToPercent(duty.Value) : (double?)null;
-
-            return new PwmMeasurement
-            {
-                PwmPercent = pwmPercent,
-                Vmax = vmax,
-                Vmin = vmin,
-                Vavg = vavg,
-                Vrms = vrms,
-                Vpp = vpp,
-                FreqHz = freq,
-                DutyPct = dutyPct
-            };
-        }
-
-        private async Task MeasureAndUpdateUiAsync(int pwmPercent)
+        private async Task MeasureAndUpdateUiAsync()
         {
             if (!IsManualTestRunning || IsBusy)
                 return;
@@ -692,36 +521,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 IsBusy = true;
                 var token = CancellationToken.None;
-                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：开始测量...");
-                var m = await MeasurePwmRawCoreAsync(pwmPercent, token);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测量：开始... ");
+
+                var m = await MeasureRawCoreAsync(token);
                 if (m == null)
                     return;
 
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    if (pwmPercent == 100)
-                    {
-                        Pwm100VrmsText = FormatNum(m.Vrms);
-                        Pwm100VmaxText = FormatNum(m.Vmax);
-                    }
-                    else if (pwmPercent == 50)
-                    {
-                        Pwm50VrmsText = FormatNum(m.Vrms);
-                        Pwm50VmaxText = FormatNum(m.Vmax);
-                        Pwm50DutyPctText = FormatNum(m.DutyPct);
-                    }
-                    else if (pwmPercent == 0)
-                    {
-                        Pwm0VrmsText = FormatNum(m.Vrms);
-                        Pwm0VmaxText = FormatNum(m.Vmax);
-                    }
+                    FreqHzText = FormatNum(m.FreqHz);
+                    DutyPctText = FormatNum(m.DutyPct);
+                    ScopeVppText = FormatNum(m.Vpp);
                 });
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：测量完成 VRMS={FormatNum(m.Vrms)} V, VMAX={FormatNum(m.Vmax)} V{(pwmPercent == 50 ? $", DUTY={FormatNum(m.DutyPct)} %" : string.Empty)}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测量完成：F={FormatNum(m.FreqHz)} Hz, DUTY={FormatNum(m.DutyPct)} %, VPP={FormatNum(m.Vpp)} V");
             }
             catch (Exception ex)
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%测量异常：{ex.Message}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测量异常：{ex.Message}");
             }
             finally
             {
@@ -730,113 +547,109 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private static string FormatNum(double? v)
+        private async Task<bool> MeasureAndQualifyAsync(CancellationToken token)
         {
-            if (!v.HasValue || double.IsNaN(v.Value) || double.IsInfinity(v.Value))
-                return "--";
-            return v.Value.ToString("F6", CultureInfo.InvariantCulture);
+            if (!AppConstants.Arinc429IsRealProduct)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [SIM] 跳过示波器/频率计判据（仿真模式）");
+                return true;
+            }
+
+            await _instrumentLock.WaitAsync(token);
+            try
+            {
+                var m = await MeasureRawCoreAsync(token);
+                if (m == null)
+                    return false;
+
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    FreqHzText = FormatNum(m.FreqHz);
+                    DutyPctText = FormatNum(m.DutyPct);
+                    ScopeVppText = FormatNum(m.Vpp);
+                });
+
+                if (!m.FreqHz.HasValue)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 判据FAIL：频率无有效值");
+                    return false;
+                }
+
+                if (Math.Abs(m.FreqHz.Value - QualifyFreqTargetHz) > QualifyFreqTolHz)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 判据FAIL：频率不合格 {m.FreqHz.Value:F3}Hz，期望 {QualifyFreqTargetHz}±{QualifyFreqTolHz}Hz");
+                    return false;
+                }
+
+                if (!m.DutyPct.HasValue)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 判据FAIL：占空比无有效值");
+                    return false;
+                }
+
+                if (Math.Abs(m.DutyPct.Value - QualifyDutyTargetPct) > QualifyDutyTolPct)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 判据FAIL：占空比不合格 {m.DutyPct.Value:F3}% ，期望 {QualifyDutyTargetPct}±{QualifyDutyTolPct}%");
+                    return false;
+                }
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 判据PASS：频率/占空比合格");
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 判据测量异常：{ex.Message}");
+                return false;
+            }
+            finally
+            {
+                _instrumentLock.Release();
+            }
         }
 
-        private static double NormalizeDutyToPercent(double dutyValue)
+        private sealed class Measurement
         {
-            if (double.IsNaN(dutyValue) || double.IsInfinity(dutyValue))
-                return dutyValue;
-            if (dutyValue <= 1.0)
-                return dutyValue * 100.0;
-            return dutyValue;
+            public double? FreqHz { get; set; }
+            public double? DutyPct { get; set; }
+            public double? Vpp { get; set; }
         }
 
-        private bool QualifyPwm100(double? vmax, double? vmin, double? vavg, double? vpp, double? dutyPct, out string reason)
+        private async Task<Measurement> MeasureRawCoreAsync(CancellationToken token)
         {
-            const double vHigh = 3.3;
-            const double vHighTol = 0.5;
-            const double vppMax = 0.5;
-            const double dutyMin = 99.0;
-
-            if (!vmax.HasValue)
+            var routed = await EnsureMatrixRoutedAsync(token);
+            if (!routed)
             {
-                reason = "示波器VMAX无有效值";
-                return false;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关路由失败");
+                return null;
             }
 
-            if (Math.Abs(vmax.Value - vHigh) > vHighTol)
-            {
-                reason = $"VMAX不在范围: {vmax.Value:F4}V, 期望 {vHigh}±{vHighTol}V";
-                return false;
-            }
+            await EnsureInstrumentsConnectedAsync(token);
+            await Task.Delay(200, token);
 
-            if (vpp.HasValue && vpp.Value > vppMax)
-            {
-                reason = $"VPP过大: {vpp.Value:F4}V > {vppMax}V";
-                return false;
-            }
+            var vpp = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VPP", token);
 
-            if (dutyPct.HasValue && dutyPct.Value < dutyMin)
-            {
-                reason = $"占空比过低: {dutyPct.Value:F3}% < {dutyMin}%";
-                return false;
-            }
+            var freq = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? FREQuency", token);
+            var pw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? PWIDth", token);
+            var nw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? NWIDth", token);
+            var dutyPct = TryCalcDutyPctFromPulseWidths(pw, nw);
 
-            _ = vmin + vavg;
-            reason = null;
-            return true;
+            return new Measurement
+            {
+                FreqHz = freq,
+                DutyPct = dutyPct,
+                Vpp = vpp
+            };
         }
 
-        private bool QualifyPwm50(double? vmax, double? vmin, double? vavg, double? vpp, double? dutyPct, out string reason)
+        private void ClearMeasurementTexts()
         {
-            const double dutyTarget = 50.0;
-            const double dutyTol = 1.0;
-
-            if (!dutyPct.HasValue)
-            {
-                reason = "频率计占空比无有效值";
-                return false;
-            }
-
-            if (Math.Abs(dutyPct.Value - dutyTarget) > dutyTol)
-            {
-                reason = $"占空比不合格: {dutyPct.Value:F3}% , 期望 {dutyTarget}±{dutyTol}%";
-                return false;
-            }
-
-            _ = vmax + vmin + vavg + vpp;
-            reason = null;
-            return true;
-        }
-
-        private bool QualifyPwm0(double? vmax, double? vmin, double? vavg, double? vpp, double? dutyPct, out string reason)
-        {
-            const double vAbsMax = 1.0;
-            const double dutyMax = 1.0;
-            const double vppMax = 0.5;
-
-            if (!vmax.HasValue || !vmin.HasValue)
-            {
-                reason = "示波器VMAX/VMIN无有效值";
-                return false;
-            }
-
-            if (vmax.Value > vAbsMax || vmin.Value < -vAbsMax)
-            {
-                reason = $"电压超范围: VMAX={vmax.Value:F4}V, VMIN={vmin.Value:F4}V, 期望均在[-{vAbsMax},{vAbsMax}]";
-                return false;
-            }
-
-            if (vpp.HasValue && vpp.Value > vppMax)
-            {
-                reason = $"VPP过大: {vpp.Value:F4}V > {vppMax}V";
-                return false;
-            }
-
-            if (dutyPct.HasValue && dutyPct.Value > dutyMax)
-            {
-                reason = $"占空比过高: {dutyPct.Value:F3}% > {dutyMax}%";
-                return false;
-            }
-
-            _ = vavg;
-            reason = null;
-            return true;
+            FreqHzText = "--";
+            DutyPctText = "--";
+            ScopeVppText = "--";
         }
 
         private async Task EnsureInstrumentsConnectedAsync(CancellationToken token)
@@ -858,15 +671,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                 }
             }
-
-            if (_frequencyCounter == null)
-            {
-                if (string.IsNullOrWhiteSpace(FrequencyCounterIpAddress))
-                    throw new InvalidOperationException("FrequencyCounterIpAddress 为空");
-
-                _frequencyCounter = new FrequencyCounterSocketApi();
-                await _frequencyCounter.ConnectAsync(FrequencyCounterIpAddress.Trim(), token);
-            }
         }
 
         private async Task<bool> EnsureMatrixRoutedAsync(CancellationToken token)
@@ -876,13 +680,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             var svc = MatrixControlService.Instance;
 
-            // 示波器路由（只测一路）
             var okScope = await svc.ConnectNodesAsync("I2", "O3", 6, "192.168.1.3");
 
-            // 频率计路由
-            var okFreq = await svc.ConnectNodesAsync("I2", "O1", 4, "192.168.1.3");
-
-            _matrixRouted = okScope && okFreq;
+            _matrixRouted = okScope;
             _ = token;
             return _matrixRouted;
         }
@@ -892,19 +692,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _instrumentLock.WaitAsync(token);
             try
             {
-                try
-                {
-                    if (_frequencyCounter != null)
-                    {
-                        await _frequencyCounter.DisconnectAsync(token);
-                        await _frequencyCounter.DisposeAsync();
-                        _frequencyCounter = null;
-                    }
-                }
-                catch
-                {
-                }
-
                 try
                 {
                     SafeCloseNetworkStream(ref _scopeTcpStream);
@@ -920,7 +707,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     {
                         var svc = MatrixControlService.Instance;
                         _ = await svc.DisconnectNodesAsync("I2", "O3", 6, "192.168.1.3");
-                        _ = await svc.DisconnectNodesAsync("I2", "O1", 4, "192.168.1.3");
                     }
                 }
                 catch
@@ -1030,72 +816,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private async Task<double?> ReadFrequencyCounterValueAsync(FrequencyCounterMeasureMode mode, FrequencyCounterChannel channel, CancellationToken token)
+        private static double? TryCalcDutyPctFromPulseWidths(double? pwSeconds, double? nwSeconds)
         {
-            if (_frequencyCounter == null)
+            if (!pwSeconds.HasValue || !nwSeconds.HasValue)
                 return null;
 
-            try
-            {
-                var reading = await _frequencyCounter.ReadOnceAsync(mode, channel, new FrequencyCounterReadOptions { TimeoutMilliseconds = 8000 }, token);
-                return reading?.Value;
-            }
-            catch
-            {
+            var pw = pwSeconds.Value;
+            var nw = nwSeconds.Value;
+            if (double.IsNaN(pw) || double.IsInfinity(pw) || double.IsNaN(nw) || double.IsInfinity(nw))
                 return null;
-            }
+
+            var period = pw + nw;
+            if (period <= 0)
+                return null;
+
+            return pw / period * 100.0;
         }
 
-        private async Task SendAndWaitEchoAsync(byte[] cmd8, string title)
+        private static string FormatNum(double? v)
         {
-            if (!IsManualTestRunning || IsBusy)
-                return;
-
-            await _arincOpLock.WaitAsync();
-            try
-            {
-                IsBusy = true;
-                try
-                {
-                    var token = CancellationToken.None;
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送... TX={TestTxChannel}, RX={TestRxChannel}");
-                    await _simulation.ClearRxFifoAsync(TestRxChannel);
-                    await Task.Delay(20, token);
-
-                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
-
-                    var resp = await _simulation.WaitBenchResponse8Async(
-                        TestRxChannel,
-                        b => b != null && b.SequenceEqual(cmd8),
-                        timeoutMs: 1500,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (resp == null)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：等待超时");
-                        SetLastTestResult("FAIL");
-                        return;
-                    }
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：回读OK ({FormatData(resp)})");
-
-                    SetLastTestResult("PASS");
-                }
-                finally
-                {
-                    IsBusy = false;
-                }
-            }
-            catch (Exception ex)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}异常：{ex.Message}");
-                SetLastTestResult("FAIL");
-            }
-            finally
-            {
-                _arincOpLock.Release();
-            }
+            if (!v.HasValue || double.IsNaN(v.Value) || double.IsInfinity(v.Value))
+                return "--";
+            return v.Value.ToString("F6", CultureInfo.InvariantCulture);
         }
 
         private void AddLog(string message)

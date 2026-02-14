@@ -320,6 +320,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     ExitAtpRxDataText = "--";
                     ClearMeasurementTexts();
 
+                    IsManualTestRunning = true;
+                    await Task.Yield();
+
                     _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
                     _simulation.ArincRate = ArincRate;
                     _simulation.SimProductArincRate = ArincRate;
@@ -328,8 +331,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
-
-                    IsManualTestRunning = true;
                 }
                 finally
                 {
@@ -339,6 +340,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             catch (Exception ex)
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动异常：{ex.Message}");
+                IsManualTestRunning = false;
             }
             finally
             {
@@ -383,6 +385,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 IsBusy = true;
                 IsAutoTestRunning = true;
+
+                await Task.Yield();
 
                 _autoTestCts?.Cancel();
                 _autoTestCts?.Dispose();
