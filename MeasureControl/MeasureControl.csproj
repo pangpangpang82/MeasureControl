@@ -377,6 +377,7 @@
     <Compile Include="Services\HardwareApis\Pxi7012Api.cs" />
     <Compile Include="Services\HardwareApis\Mtx532Api.cs" />
     <Compile Include="Services\HardwareApis\Art9774Api.cs" />
+    <Compile Include="Services\HardwareApis\ComponentPowerStateApi.cs" />
     <Compile Include="Services\ChannelBindingService.cs" />
     <Compile Include="Services\ChannelManager.cs" />
     <Compile Include="Services\CalibrationDataService.cs" />
@@ -402,6 +403,7 @@
     <Compile Include="Simulations\AC_6_4\AC_6_4Simulation.cs" />
     <Compile Include="Simulations\FuelController\PowerImpedanceSimulation.cs" />
     <Compile Include="Simulations\FuelController\SecondaryPowerSimulation.cs" />
+    <Compile Include="Simulations\FuelController\LowVoltageAlarmSimulation.cs" />
     <Compile Include="Simulations\PT500\PT500TemperatureSensor429Simulation.cs" />
     <Compile Include="Services\RemoteMatrixCommandDispatcher.cs" />
     <Compile Include="Services\WindowManagerService.cs" />
@@ -457,6 +459,7 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\RS422CommunicationCheckViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\PowerImpedanceTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\SecondaryPowerTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\FuelController\LowVoltageAlarmTestViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\ReMessageBoxViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\RenameDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\TestProgressDialogViewModel.cs" />
@@ -538,6 +541,9 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\FuelController\SecondaryPowerTestView.xaml.cs">
       <DependentUpon>SecondaryPowerTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\FuelController\LowVoltageAlarmTestView.xaml.cs">
+      <DependentUpon>LowVoltageAlarmTestView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\BoardTest.xaml.cs">
       <DependentUpon>BoardTest.xaml</DependentUpon>
@@ -826,6 +832,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\SingleBoardTest\FuelController\SecondaryPowerTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\FuelController\LowVoltageAlarmTestView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
