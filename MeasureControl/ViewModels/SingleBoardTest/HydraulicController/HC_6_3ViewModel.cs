@@ -42,6 +42,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double TempResolution = 1.0;
         private const int TempMsbPosition = 28;
 
+        private const byte TempChannelASdi = 0;
+        private const byte TempChannelBSdi = 1;
+
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
 
         private readonly IPxiChassisService _pxiChassisService;
@@ -69,9 +72,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _temp2Text = "--";
         private string _temp3Text = "--";
 
+        private string _temp1BText = "--";
+        private string _temp2BText = "--";
+        private string _temp3BText = "--";
+
         private double? _temp1;
         private double? _temp2;
         private double? _temp3;
+
+        private double? _temp1B;
+        private double? _temp2B;
+        private double? _temp3B;
 
         public HC_6_3ViewModel(IPxiChassisService pxiChassisService)
         {
@@ -171,6 +182,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _temp3Text, value);
         }
 
+        public string Temp1BText
+        {
+            get => _temp1BText;
+            private set => SetProperty(ref _temp1BText, value);
+        }
+
+        public string Temp2BText
+        {
+            get => _temp2BText;
+            private set => SetProperty(ref _temp2BText, value);
+        }
+
+        public string Temp3BText
+        {
+            get => _temp3BText;
+            private set => SetProperty(ref _temp3BText, value);
+        }
+
         public string LastTestTime
         {
             get => _lastTestTime;
@@ -219,9 +248,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _temp1 = null;
             _temp2 = null;
             _temp3 = null;
+            _temp1B = null;
+            _temp2B = null;
+            _temp3B = null;
             Temp1Text = "--";
             Temp2Text = "--";
             Temp3Text = "--";
+            Temp1BText = "--";
+            Temp2BText = "--";
+            Temp3BText = "--";
 
             _manualCts?.Cancel();
             _manualCts?.Dispose();
@@ -269,18 +304,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _temp1 = null;
             _temp2 = null;
             _temp3 = null;
+            _temp1B = null;
+            _temp2B = null;
+            _temp3B = null;
             Temp1Text = "--";
             Temp2Text = "--";
             Temp3Text = "--";
+            Temp1BText = "--";
+            Temp2BText = "--";
+            Temp3BText = "--";
 
             _autoCts?.Cancel();
             _autoCts?.Dispose();
             _autoCts = new CancellationTokenSource();
 
             Log("开始自动测试");
-            Log($"点1: R={R1_Ohm:0.###}Ω SDI=1 温度[{T1_Min:0.###},{T1_Max:0.###}]℃");
-            Log($"点2: R={R2_Ohm:0.###}Ω SDI=2 温度[{T2_Min:0.###},{T2_Max:0.###}]℃");
-            Log($"点3: R={R3_Ohm:0.###}Ω SDI=3 温度[{T3_Min:0.###},{T3_Max:0.###}]℃");
+            Log($"点1: R={R1_Ohm:0.###}Ω SDI0/SDI1 温度[{T1_Min:0.###},{T1_Max:0.###}]℃");
+            Log($"点2: R={R2_Ohm:0.###}Ω SDI0/SDI1 温度[{T2_Min:0.###},{T2_Max:0.###}]℃");
+            Log($"点3: R={R3_Ohm:0.###}Ω SDI0/SDI1 温度[{T3_Min:0.###},{T3_Max:0.###}]℃");
 
             try
             {
@@ -288,15 +329,39 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureArincRxAsync(_autoCts.Token).ConfigureAwait(false);
                 await EnsureResistanceAsync(_autoCts.Token).ConfigureAwait(false);
 
-                await MeasurePointAsync("点1", R1_Ohm, sdi: 1, t => Temp1Text = t, v => _temp1 = v, _autoCts.Token).ConfigureAwait(false);
+                await MeasurePointAsync(
+                        "点1",
+                        R1_Ohm,
+                        setTextA: t => Temp1Text = t,
+                        setValueA: v => _temp1 = v,
+                        setTextB: t => Temp1BText = t,
+                        setValueB: v => _temp1B = v,
+                        _autoCts.Token)
+                    .ConfigureAwait(false);
                 await Task.Delay(80, _autoCts.Token).ConfigureAwait(false);
-                await MeasurePointAsync("点2", R2_Ohm, sdi: 2, t => Temp2Text = t, v => _temp2 = v, _autoCts.Token).ConfigureAwait(false);
+                await MeasurePointAsync(
+                        "点2",
+                        R2_Ohm,
+                        setTextA: t => Temp2Text = t,
+                        setValueA: v => _temp2 = v,
+                        setTextB: t => Temp2BText = t,
+                        setValueB: v => _temp2B = v,
+                        _autoCts.Token)
+                    .ConfigureAwait(false);
                 await Task.Delay(80, _autoCts.Token).ConfigureAwait(false);
-                await MeasurePointAsync("点3", R3_Ohm, sdi: 3, t => Temp3Text = t, v => _temp3 = v, _autoCts.Token).ConfigureAwait(false);
+                await MeasurePointAsync(
+                        "点3",
+                        R3_Ohm,
+                        setTextA: t => Temp3Text = t,
+                        setValueA: v => _temp3 = v,
+                        setTextB: t => Temp3BText = t,
+                        setValueB: v => _temp3B = v,
+                        _autoCts.Token)
+                    .ConfigureAwait(false);
 
-                _measured1 = _temp1 != null;
-                _measured2 = _temp2 != null;
-                _measured3 = _temp3 != null;
+                _measured1 = _temp1 != null && _temp1B != null;
+                _measured2 = _temp2 != null && _temp2B != null;
+                _measured3 = _temp3 != null && _temp3B != null;
 
                 await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
                 await StopAutoTestAsync().ConfigureAwait(false);
@@ -315,7 +380,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasurePoint1Async()
         {
-            var ok = await MeasurePointAsync("点1", R1_Ohm, sdi: 1, t => Temp1Text = t, v => _temp1 = v, _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+            var ok = await MeasurePointAsync(
+                    "点1",
+                    R1_Ohm,
+                    setTextA: t => Temp1Text = t,
+                    setValueA: v => _temp1 = v,
+                    setTextB: t => Temp1BText = t,
+                    setValueB: v => _temp1B = v,
+                    _manualCts?.Token ?? CancellationToken.None)
+                .ConfigureAwait(false);
             if (!IsManualTestRunning || _manualAborted) return;
             if (ok)
             {
@@ -328,7 +401,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasurePoint2Async()
         {
-            var ok = await MeasurePointAsync("点2", R2_Ohm, sdi: 2, t => Temp2Text = t, v => _temp2 = v, _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+            var ok = await MeasurePointAsync(
+                    "点2",
+                    R2_Ohm,
+                    setTextA: t => Temp2Text = t,
+                    setValueA: v => _temp2 = v,
+                    setTextB: t => Temp2BText = t,
+                    setValueB: v => _temp2B = v,
+                    _manualCts?.Token ?? CancellationToken.None)
+                .ConfigureAwait(false);
             if (!IsManualTestRunning || _manualAborted) return;
             if (ok)
             {
@@ -341,7 +422,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasurePoint3Async()
         {
-            var ok = await MeasurePointAsync("点3", R3_Ohm, sdi: 3, t => Temp3Text = t, v => _temp3 = v, _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+            var ok = await MeasurePointAsync(
+                    "点3",
+                    R3_Ohm,
+                    setTextA: t => Temp3Text = t,
+                    setValueA: v => _temp3 = v,
+                    setTextB: t => Temp3BText = t,
+                    setValueB: v => _temp3B = v,
+                    _manualCts?.Token ?? CancellationToken.None)
+                .ConfigureAwait(false);
             if (!IsManualTestRunning || _manualAborted) return;
             if (ok)
             {
@@ -352,7 +441,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
-        private async Task<bool> MeasurePointAsync(string title, double resistanceOhm, byte sdi, Action<string> setText, Action<double?> setValue, CancellationToken cancellationToken)
+        private async Task<bool> MeasurePointAsync(
+            string title,
+            double resistanceOhm,
+            Action<string> setTextA,
+            Action<double?> setValueA,
+            Action<string> setTextB,
+            Action<double?> setValueB,
+            CancellationToken cancellationToken)
         {
             if (!(IsAutoTestRunning || (IsManualTestRunning && CanMeasure)))
             {
@@ -367,9 +463,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await SetResistanceAsync(resistanceOhm, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(ResistanceSettleMs, cancellationToken).ConfigureAwait(false);
 
-                Log($"{title}: 开始接收温度数据，Label=175(oct) SDI={sdi}");
+                Log($"{title}: 开始接收温度数据，Label=175(oct) SDI0/SDI1");
 
-                var samples = new List<double>(SamplesPerMeasure);
+                var samplesA = new List<double>(SamplesPerMeasure);
+                var samplesB = new List<double>(SamplesPerMeasure);
                 var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
 
                 while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
@@ -384,30 +481,44 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                             if (!_arinc.VerifyOddParity(w.Data429))
                                 continue;
 
-                            _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out var ssm);
+                            _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out _);
 
                             if (!IsExpectedLabel(label))
                                 continue;
 
-                            if (wordSdi != sdi)
-                                continue;
-
-                            if (!(ssm == 0 || ssm == 3))
+                            // 只接收 SDI=0/1 两路温度
+                            if (wordSdi != TempChannelASdi && wordSdi != TempChannelBSdi)
                                 continue;
 
                             var v = DecodeTemp(data19);
                             if (v == null)
                                 continue;
 
-                            samples.Add(v.Value);
-                            var avg = samples.Average();
-                            setText($"{v.Value:0.###} ℃ ({samples.Count}/{SamplesPerMeasure})  平均:{avg:0.###} ℃");
-
-                            if (samples.Count >= SamplesPerMeasure)
+                            if (wordSdi == TempChannelASdi && samplesA.Count < SamplesPerMeasure)
                             {
-                                setValue(avg);
-                                setText($"{avg:0.###} ℃");
-                                Log($"{title}: 完成，平均温度={avg:0.###}℃");
+                                samplesA.Add(v.Value);
+                                var avgA = samplesA.Average();
+                                setTextA($"{v.Value:0.###} ℃ ({samplesA.Count}/{SamplesPerMeasure})  平均:{avgA:0.###} ℃");
+                            }
+                            else if (wordSdi == TempChannelBSdi && samplesB.Count < SamplesPerMeasure)
+                            {
+                                samplesB.Add(v.Value);
+                                var avgB = samplesB.Average();
+                                setTextB($"{v.Value:0.###} ℃ ({samplesB.Count}/{SamplesPerMeasure})  平均:{avgB:0.###} ℃");
+                            }
+
+                            if (samplesA.Count >= SamplesPerMeasure && samplesB.Count >= SamplesPerMeasure)
+                            {
+                                var avgA = samplesA.Average();
+                                var avgB = samplesB.Average();
+
+                                setValueA(avgA);
+                                setValueB(avgB);
+
+                                setTextA($"{avgA:0.###} ℃");
+                                setTextB($"{avgB:0.###} ℃");
+
+                                Log($"{title}: 完成，SDI0平均={avgA:0.###}℃  SDI1平均={avgB:0.###}℃");
                                 return true;
                             }
                         }
@@ -416,8 +527,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     await Task.Delay(10, cancellationToken).ConfigureAwait(false);
                 }
 
-                setText("--");
-                setValue(null);
+                setTextA("--");
+                setValueA(null);
+
+                setTextB("--");
+                setValueB(null);
 
                 if (IsManualTestRunning)
                 {
@@ -436,8 +550,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             catch (Exception ex)
             {
-                setText("--");
-                setValue(null);
+                setTextA("--");
+                setValueA(null);
+                setTextB("--");
+                setValueB(null);
                 if (IsManualTestRunning)
                 {
                     await AbortManualTestAsync($"{title}: 采集异常，手动测试中止: {ex.Message}").ConfigureAwait(false);
@@ -469,9 +585,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!(_measured1 && _measured2 && _measured3))
                 return;
 
-            var p1 = _temp1 != null && _temp1 >= T1_Min && _temp1 <= T1_Max;
-            var p2 = _temp2 != null && _temp2 >= T2_Min && _temp2 <= T2_Max;
-            var p3 = _temp3 != null && _temp3 >= T3_Min && _temp3 <= T3_Max;
+            var p1a = _temp1 != null && _temp1 >= T1_Min && _temp1 <= T1_Max;
+            var p1b = _temp1B != null && _temp1B >= T1_Min && _temp1B <= T1_Max;
+            var p2a = _temp2 != null && _temp2 >= T2_Min && _temp2 <= T2_Max;
+            var p2b = _temp2B != null && _temp2B >= T2_Min && _temp2B <= T2_Max;
+            var p3a = _temp3 != null && _temp3 >= T3_Min && _temp3 <= T3_Max;
+            var p3b = _temp3B != null && _temp3B >= T3_Min && _temp3B <= T3_Max;
+
+            var p1 = p1a && p1b;
+            var p2 = p2a && p2b;
+            var p3 = p3a && p3b;
             var pass = p1 && p2 && p3;
 
             PreviousTestTime = LastTestTime;
