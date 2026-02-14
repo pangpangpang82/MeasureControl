@@ -421,9 +421,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                             if (!_arinc.VerifyOddParity(w.Data429))
                                 continue;
 
-                            _arinc.ParseRawWord(w.Data429, out _, out _, out var data19, out var ssm);
-                            if (ssm != 3)
+                            _arinc.ParseRawWord(w.Data429, out _, out var sdi, out var data19, out _);
+                            if (sdi != 0)
                                 continue;
+
+                            // 用户定义：bit10-19 固定为0，对应 data19 的低10位必须为0
+                            if ((data19 & 0x3FFu) != 0)
+                                continue;
+
+                            // 用户定义：5V/15V 的 bit28 固定为0（-15V 的 bit28 为符号位，不限制）
+                            if (!string.Equals(title, "-15V", StringComparison.OrdinalIgnoreCase))
+                            {
+                                // bit28 对应 data19 的 bit18
+                                if ((data19 & (1u << 18)) != 0)
+                                    continue;
+                            }
 
                             var v = decode(data19);
                             if (v == null)

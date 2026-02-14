@@ -491,6 +491,8 @@
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_3ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_4ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_5ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_8ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\R_6_8_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\R_6_8_3ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\R_6_8_4ViewModel.cs" />
