@@ -83,13 +83,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "电源阻抗测试", () => new PowerImpedanceTestView() },
                         { "二次电源测试", () => new SecondaryPowerTestView() },
                     }
-                },
-                {
-                    CommonBoardTypeKey,
-                    new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
-                    {
-                    }
-                },
+                }
             };
 
         private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> CriteriaTextsByBoardType =
@@ -108,15 +102,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "离散量采集测试", "\t 采集结果均为1。" },
                         { "离散量输出测试", "\t a) 置为开路时，针脚9~15对地阻抗均大于100kΩ;\r\n \t b) 置为通路时，针脚9~15对地阻抗均小于10Ω。" },
                     }
-                },
-                {
-                    "加放油单板",
-                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        { "电源阻抗测试", "\t a) 阻抗值大于500Ω；\r\n \t b) 阻抗值大于500Ω。" },
-                        { "二次电源测试", "\t a) 5V隔离二次电源输出电压范围在[4.925，5.075]V；\r\n \t b) 15V隔离二次电源输出电压范围在[14.775，15.225]V；\r\n \t c) -15V隔离二次电源输出电压范围在[-14.775，-15.225]V。" },
-                    }
-                },
+                }
             };
 
         private string _testTaskName;
