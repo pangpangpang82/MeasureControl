@@ -13,7 +13,7 @@
     Height="1000"
     MinWidth="1200"
     MinHeight="700"
-    Icon="/Resources/Logo/logo.jpg"
+    Icon="pack://application:,,,/Resources/Logo.ico"
     ResizeMode="CanResize"
     WindowStartupLocation="CenterScreen"
     WindowStyle="None"
