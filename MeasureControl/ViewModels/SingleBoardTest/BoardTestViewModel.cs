@@ -28,6 +28,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     "空气单板",
                     new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
                     {
+                        { "电源对地阻抗检查", () => new PowerToGroundImpedanceTestView() },
                         { "控制通道光耦供电测试", () => new AC_6_4CommTabView() },
                         { "控制通道GND/OC离散输入通道输入测试", () => new GndOcDiscreteInputTestView() },
                         { "GND/OC型100mA离散输出通道3输出测试", () => new GndOcDiscreteOutputCh3TestView() },
@@ -126,6 +127,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     "空气单板",
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
+                        { "电源对地阻抗检查", "\t 电源的对地阻抗应不小于200Ω。" },
                         { "A控制通道28V/OC型100mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
                         { "A控制通道28V/OC型100mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
                         { "A控制通道28V/OC型400mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },

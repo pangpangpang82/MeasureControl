@@ -491,6 +491,7 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc100mADiscreteOutputCh2TestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc400mADiscreteOutputTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\Pot5VSupplyTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\PowerToGroundImpedanceTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensorCanViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensor429ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_1ViewModel.cs" />
@@ -560,6 +561,9 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\AC_6_4CommTabView.xaml.cs">
       <DependentUpon>AC_6_4CommTabView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\PowerToGroundImpedanceTestView.xaml.cs">
+      <DependentUpon>PowerToGroundImpedanceTestView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_5_1_1View.xaml.cs">
       <DependentUpon>A_C_6_5_1_1View.xaml</DependentUpon>
@@ -939,6 +943,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\SingleBoardTest\AirController\AC_6_4CommTabView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\PowerToGroundImpedanceTestView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -9,6 +9,7 @@ using MeasureControl.ViewModels.IcdConfig;
 using MeasureControl.ViewModels.TdmSystem;
 using MeasureControl.ViewModels.TestTask.ConfigTabel;
 using MeasureControl.ViewModels.SingleBoardTest;
+using MeasureControl.ViewModels.SingleBoardTest.AirController;
 using MeasureControl.ViewModels.SingleBoardTest.HydraulicController;
 using MeasureControl.ViewModels.SingleBoardTest.FuelController;
 using MeasureControl.Services.HardwareApis;
@@ -127,6 +128,7 @@ namespace MeasureControl
             containerRegistry.Register<HC_6_3ViewModel>();
             containerRegistry.Register<HC_6_4ViewModel>();
             containerRegistry.Register<PowerImpedanceTestViewModel>();
+            containerRegistry.Register<PowerToGroundImpedanceTestViewModel>();
 
             // 注册导航页面
             // 单例页面（IsNavigationTarget返回true，重用实例）
