@@ -543,6 +543,9 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\PowerToGroundImpedanceTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensorCanViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensor429ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc100mADiscreteOutputCh1TestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc100mADiscreteOutputCh2TestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc400mADiscreteOutputTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_3ViewModel.cs" />
