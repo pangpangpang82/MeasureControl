@@ -126,8 +126,6 @@ namespace MeasureControl
             containerRegistry.Register<HC_6_2ViewModel>();
             containerRegistry.Register<HC_6_3ViewModel>();
             containerRegistry.Register<HC_6_4ViewModel>();
-            containerRegistry.Register<HC_6_5ViewModel>();
-            containerRegistry.Register<HC_6_8ViewModel>();
             containerRegistry.Register<PowerImpedanceTestViewModel>();
 
             // 注册导航页面

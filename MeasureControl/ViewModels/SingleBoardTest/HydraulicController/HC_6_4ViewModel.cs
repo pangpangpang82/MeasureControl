@@ -33,7 +33,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double Point3VoltageV = 3.0;
 
         private const int PressureBitLength = 12;
-        private const int PressureData19Shift = 6;
+        private const int PressureData19Shift = 5;
         private const uint PressureMask = (1u << PressureBitLength) - 1u;
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
@@ -270,7 +270,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log("开始手动测试");
             Log($"电源: CH1/CH2 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
             Log($"MTX532: AO前三通道输出同电压");
-            Log($"ARINC429: RX通道{RxChannelIndex + 1}, 码率 {ArincRate:0}bps, 压力Label=174(oct) SDI=0/1/2->SYS1/2/3");
+            Log($"ARINC429: RX通道{RxChannelIndex + 1}, 码率 {ArincRate:0}bps, 压力Label=174(oct) SDI=1/2/3->SYS1/2/3");
 
             try
             {
@@ -461,9 +461,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await SetAo012Async(aoVoltage, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(AoSettleMs, cancellationToken).ConfigureAwait(false);
 
-                var ok1 = await MeasureSingleSystemAsync($"{title}-SYS1", sdi: 0, setSys1, setV1, cancellationToken).ConfigureAwait(false);
-                var ok2 = await MeasureSingleSystemAsync($"{title}-SYS2", sdi: 1, setSys2, setV2, cancellationToken).ConfigureAwait(false);
-                var ok3 = await MeasureSingleSystemAsync($"{title}-SYS3", sdi: 2, setSys3, setV3, cancellationToken).ConfigureAwait(false);
+                var ok1 = await MeasureSingleSystemAsync($"{title}-SYS1", sdi: 1, setSys1, setV1, cancellationToken).ConfigureAwait(false);
+                var ok2 = await MeasureSingleSystemAsync($"{title}-SYS2", sdi: 2, setSys2, setV2, cancellationToken).ConfigureAwait(false);
+                var ok3 = await MeasureSingleSystemAsync($"{title}-SYS3", sdi: 3, setSys3, setV3, cancellationToken).ConfigureAwait(false);
 
                 return ok1 && ok2 && ok3;
             }
@@ -503,6 +503,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                             continue;
 
                         if (wordSdi != sdi)
+                            continue;
+
+                        if (!(ssm == 0 || ssm == 3))
                             continue;
 
                         var v = DecodePressure(data19);

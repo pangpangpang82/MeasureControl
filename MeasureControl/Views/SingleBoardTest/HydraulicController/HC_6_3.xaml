@@ -275,7 +275,7 @@
                                         Margin="5,0,1,0"
                                         VerticalAlignment="Center"
                                         FontSize="15"
-                                        Text="{Binding Temp1BText, TargetNullValue=---, FallbackValue=---}" />
+                                        Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                 </Border>
                                 <Button
                                     Width="50"
@@ -364,7 +364,7 @@
                                         Margin="5,0,1,0"
                                         VerticalAlignment="Center"
                                         FontSize="15"
-                                        Text="{Binding Temp2BText, TargetNullValue=---, FallbackValue=---}" />
+                                        Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                 </Border>
                                 <Button
                                     Width="50"
@@ -453,7 +453,7 @@
                                         Margin="5,0,1,0"
                                         VerticalAlignment="Center"
                                         FontSize="15"
-                                        Text="{Binding Temp3BText, TargetNullValue=---, FallbackValue=---}" />
+                                        Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                 </Border>
                                 <Button
                                     Width="50"
