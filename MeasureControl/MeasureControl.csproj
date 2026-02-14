@@ -491,6 +491,8 @@
     <Compile Include="Simulations\A_C_6_18_4_1\A_C_6_18_4_1Simulation.cs" />
     <Compile Include="Services\RemoteMatrixCommandDispatcher.cs" />
     <Compile Include="Services\WindowManagerService.cs" />
+    <Compile Include="Demos\FpgaTcpClientNetworkAssistantDemo.cs" />
+    <Compile Include="Demos\**\*.cs" />
     <Compile Include="ViewModels\Dialogs\AddChannelDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\BCMessageEditDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\AddSignalDialogViewModel.cs" />
@@ -1896,7 +1898,11 @@
     <Resource Include="Resources\Logo\search_w.png" />
     <Resource Include="Resources\Logo\search_b.png" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh1TestView.cs" />
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh2TestView.cs" />
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh3TestView.cs" />
+  </ItemGroup>
   <Target Name="CopyLibsToOutput" AfterTargets="CopyFilesToOutputDirectory">
     <ItemGroup>
       <LibFiles Include="Libs\*.dll" />
