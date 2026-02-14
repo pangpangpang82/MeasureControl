@@ -275,9 +275,7 @@
                                             </Style>
                                         </Border.Style>
                                         <ScrollViewer
-                                            Margin="0,0,-8,0"
                                             HorizontalScrollBarVisibility="Disabled"
-                                            Style="{StaticResource SimpleScrollViewerStyle}"
                                             VerticalScrollBarVisibility="Auto">
                                             <ListBox
                                                 Background="Transparent"
