@@ -186,7 +186,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding EnterAtpTxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding EnterAtpTxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
@@ -196,7 +197,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding EnterAtpRxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding EnterAtpRxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
                             </Grid>
 
@@ -250,7 +252,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
@@ -260,7 +263,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
                             </Grid>
 
@@ -314,7 +318,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
@@ -324,7 +329,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
                             </Grid>
 
@@ -378,7 +384,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
@@ -388,7 +395,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
                             </Grid>
 
@@ -442,7 +450,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
@@ -452,7 +461,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
                             </Grid>
 
@@ -506,7 +516,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
@@ -516,7 +527,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
                             </Grid>
 
@@ -570,7 +582,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
@@ -580,7 +593,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
                             </Grid>
 
@@ -634,7 +648,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding ExitAtpTxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding ExitAtpTxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
@@ -644,7 +659,8 @@
                                         Height="28"
                                         Margin="5,0,0,0"
                                         ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding ExitAtpRxChannelDisplay, Mode=TwoWay}" />
+                                        SelectedItem="{Binding ExitAtpRxChannelDisplay, Mode=OneWay}"
+                                        IsEnabled="False" />
                                 </StackPanel>
                             </Grid>
 
