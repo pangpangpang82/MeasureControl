@@ -32,6 +32,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "RS422通信测试", () => new RS422CommTabView() },
                 { "电源阻抗测试", () => new PowerImpedanceTestView() },
                 { "二次电源测试", () => new SecondaryPowerTestView() },
+                { "低电压告警功能测试", () => new LowVoltageAlarmTestView() },
             };
 
         private string _testTaskName;
@@ -167,6 +168,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 TestSequenceItems.Add(new TestSequenceItem("电源阻抗测试"));
                 TestSequenceItems.Add(new TestSequenceItem("二次电源测试"));
+                TestSequenceItems.Add(new TestSequenceItem("低电压告警功能测试"));
                 return;
             }
         }

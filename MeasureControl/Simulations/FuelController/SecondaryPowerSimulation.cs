@@ -68,21 +68,31 @@ namespace MeasureControl.Simulations.FuelController
         /// <summary>
         /// 模拟开启28V供电（通过J3和J4）
         /// </summary>
-        public async Task SimulatePowerOnAsync(Action<string> log, CancellationToken token = default)
+        public async Task ApplyComponent28VStateAsync(Action<string> log, CancellationToken token = default)
         {
             await Task.Delay(100, token);
             _powerOn = true;
-            log?.Invoke("[SIM] 28V供电已开启（J3-J4）");
+            log?.Invoke("[SIM] 组件28V供电状态已设置（J3-J4）");
         }
 
         /// <summary>
         /// 模拟关闭28V供电
         /// </summary>
-        public async Task SimulatePowerOffAsync(Action<string> log, CancellationToken token = default)
+        public async Task ApplyComponentDownStateAsync(Action<string> log, CancellationToken token = default)
         {
             await Task.Delay(50, token);
             _powerOn = false;
-            log?.Invoke("[SIM] 28V供电已关闭");
+            log?.Invoke("[SIM] 组件下电状态已设置");
+        }
+
+        public Task SimulatePowerOnAsync(Action<string> log, CancellationToken token = default)
+        {
+            return ApplyComponent28VStateAsync(log, token);
+        }
+
+        public Task SimulatePowerOffAsync(Action<string> log, CancellationToken token = default)
+        {
+            return ApplyComponentDownStateAsync(log, token);
         }
 
         #endregion
@@ -94,19 +104,32 @@ namespace MeasureControl.Simulations.FuelController
         /// </summary>
         public async Task<bool> ConnectMatrixAsync(Action<string> log, CancellationToken token = default)
         {
+            if (_matrixConnected)
+            {
+                log?.Invoke("[SIM] 矩阵开关已连接，跳过");
+                return true;
+            }
+
             await _matrixSwitchLock.WaitAsync(token);
             try
             {
-                log?.Invoke($"[SIM] 正在配置矩阵开关通路...");
-                await Task.Delay(100, token);
+                if (_matrixConnected)
+                    return true;
 
-                // 模拟配置万用表通路
-                log?.Invoke($"[SIM] 矩阵开关通路(DMM): slot={MatrixSlotDmm}, ip={MatrixIpAddress}");
-                await Task.Delay(50, token);
+                log?.Invoke("[SIM] 正在配置矩阵开关通路...");
 
-                _matrixConnected = true;
-                log?.Invoke("[SIM] 矩阵开关通路配置完成");
-                return true;
+                bool ok = await MatrixControlService.Instance.ConnectNodesAsync("I3", "O30", MatrixSlotDmm, MatrixIpAddress);
+                log?.Invoke($"[SIM] 矩阵开关通路(DMM): I3->O30 slot={MatrixSlotDmm} ip={MatrixIpAddress}, ok={ok}");
+
+                _matrixConnected = ok;
+                if (ok)
+                {
+                    log?.Invoke("[SIM] 矩阵开关通路配置完成");
+                    return true;
+                }
+
+                log?.Invoke("[SIM] 矩阵开关通路配置失败");
+                return false;
             }
             catch (Exception ex)
             {
@@ -128,7 +151,10 @@ namespace MeasureControl.Simulations.FuelController
             try
             {
                 log?.Invoke("[SIM] 正在断开矩阵开关通路...");
-                await Task.Delay(50, token);
+
+                bool ok = await MatrixControlService.Instance.DisconnectNodesAsync("I3", "O30", MatrixSlotDmm, MatrixIpAddress);
+                log?.Invoke($"[SIM] 矩阵开关断开(DMM): I3->O30 slot={MatrixSlotDmm}, ok={ok}");
+
                 _matrixConnected = false;
                 log?.Invoke("[SIM] 矩阵开关通路已断开");
             }

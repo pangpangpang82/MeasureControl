@@ -101,6 +101,7 @@ namespace MeasureControl
 
             // 注册硬件API（可选，用于单板测试）
             containerRegistry.Register<IDmmApi, DmmSocketApi>();
+            containerRegistry.RegisterSingleton<IComponentPowerStateApi, ComponentPowerStateApi>();
             
             // 注册导航服务（新重构的服务）
             containerRegistry.RegisterSingleton<NavigationRegistry>();
@@ -122,6 +123,8 @@ namespace MeasureControl
             containerRegistry.Register<FloatingWindowViewModel>();
             containerRegistry.Register<DataCalibrationViewModel>();
             containerRegistry.Register<PowerImpedanceTestViewModel>();
+            containerRegistry.Register<SecondaryPowerTestViewModel>();
+            containerRegistry.Register<LowVoltageAlarmTestViewModel>();
 
             // 注册导航页面
             // 单例页面（IsNavigationTarget返回true，重用实例）

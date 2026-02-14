@@ -1,4 +1,6 @@
 using System.Windows.Controls;
+using MeasureControl.ViewModels.SingleBoardTest.FuelController;
+using Prism.Ioc;
 
 namespace MeasureControl.Views.SingleBoardTest.FuelController
 {
@@ -11,6 +13,7 @@ namespace MeasureControl.Views.SingleBoardTest.FuelController
         public SecondaryPowerTestView()
         {
             InitializeComponent();
+            DataContext = ContainerLocator.Container.Resolve<SecondaryPowerTestViewModel>();
         }
     }
 }
