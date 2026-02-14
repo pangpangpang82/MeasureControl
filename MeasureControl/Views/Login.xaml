@@ -11,7 +11,7 @@
     Height="800"
     AllowsTransparency="True"
     Background="Transparent"
-    Icon="/Resources/Logo/logo.jpg"
+    Icon="pack://application:,,,/Resources/Logo.ico"
     ResizeMode="NoResize"
     WindowStartupLocation="CenterScreen"
     WindowStyle="None">

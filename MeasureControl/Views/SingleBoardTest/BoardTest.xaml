@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:behaviors="clr-namespace:MeasureControl.Behaviors"
     xmlns:helpers="clr-namespace:MeasureControl.Helpers"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     d:DesignHeight="800"
@@ -275,8 +276,11 @@
                                             </Style>
                                         </Border.Style>
                                         <ScrollViewer
+                                            x:Name="TestSequenceScrollViewer"
                                             HorizontalScrollBarVisibility="Disabled"
-                                            VerticalScrollBarVisibility="Auto">
+                                            VerticalScrollBarVisibility="Auto"
+                                            behaviors:ScrollViewerExtensions.EnableHorizontalWheelScroll="False"
+                                            PreviewMouseWheel="TestSequenceScrollViewer_PreviewMouseWheel">
                                             <ListBox
                                                 Background="Transparent"
                                                 BorderThickness="0"
