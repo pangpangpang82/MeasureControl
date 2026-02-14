@@ -269,7 +269,7 @@
                                                 Margin="5,0,1,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="15"
-                                                Text="{Binding OpenPin9Text, TargetNullValue=---, FallbackValue=---}" />
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                         </Border>
                                         <TextBlock
                                             Margin="20,0,0,0"
@@ -287,7 +287,7 @@
                                                 Margin="5,0,1,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="15"
-                                                Text="{Binding OpenPin10Text, TargetNullValue=---, FallbackValue=---}" />
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                         </Border>
                                         <TextBlock
                                             Margin="20,0,0,0"
@@ -305,7 +305,7 @@
                                                 Margin="5,0,1,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="15"
-                                                Text="{Binding OpenPin11Text, TargetNullValue=---, FallbackValue=---}" />
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                         </Border>
                                     </StackPanel>
                                     <StackPanel
@@ -328,7 +328,7 @@
                                                 Margin="5,0,1,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="15"
-                                                Text="{Binding OpenPin12Text, TargetNullValue=---, FallbackValue=---}" />
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                         </Border>
                                         <TextBlock
                                             Margin="20,0,0,0"
@@ -346,7 +346,7 @@
                                                 Margin="5,0,1,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="15"
-                                                Text="{Binding OpenPin13Text, TargetNullValue=---, FallbackValue=---}" />
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                         </Border>
                                     </StackPanel>
                                     <StackPanel
@@ -369,7 +369,7 @@
                                                 Margin="5,0,1,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="15"
-                                                Text="{Binding OpenPin14Text, TargetNullValue=---, FallbackValue=---}" />
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                         </Border>
                                         <TextBlock
                                             Margin="20,0,0,0"
@@ -387,7 +387,7 @@
                                                 Margin="5,0,1,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="15"
-                                                Text="{Binding OpenPin15Text, TargetNullValue=---, FallbackValue=---}" />
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                         </Border>
                                     </StackPanel>
                                 </Grid>
@@ -402,8 +402,8 @@
                                         Margin="30,20,0,0"
                                         VerticalAlignment="Center"
                                         BorderThickness="0"
-                                        Command="{Binding MeasureOpenCommand}"
-                                        IsEnabled="{Binding CanMeasureOpen, FallbackValue=False}">
+                                        Command="{Binding Measure14Command}"
+                                        IsEnabled="{Binding CanMeasure14, FallbackValue=False}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border
@@ -479,7 +479,7 @@
                                                 Margin="5,0,1,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="15"
-                                                Text="{Binding ClosePin9Text, TargetNullValue=---, FallbackValue=---}" />
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                         </Border>
                                         <TextBlock
                                             Margin="20,0,0,0"
@@ -497,7 +497,7 @@
                                                 Margin="5,0,1,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="15"
-                                                Text="{Binding ClosePin10Text, TargetNullValue=---, FallbackValue=---}" />
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                         </Border>
                                         <TextBlock
                                             Margin="20,0,0,0"
@@ -515,7 +515,7 @@
                                                 Margin="5,0,1,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="15"
-                                                Text="{Binding ClosePin11Text, TargetNullValue=---, FallbackValue=---}" />
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                         </Border>
                                     </StackPanel>
                                     <StackPanel
@@ -538,7 +538,7 @@
                                                 Margin="5,0,1,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="15"
-                                                Text="{Binding ClosePin12Text, TargetNullValue=---, FallbackValue=---}" />
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                         </Border>
                                         <TextBlock
                                             Margin="20,0,0,0"
@@ -556,7 +556,7 @@
                                                 Margin="5,0,1,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="15"
-                                                Text="{Binding ClosePin13Text, TargetNullValue=---, FallbackValue=---}" />
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                         </Border>
                                     </StackPanel>
                                     <StackPanel
@@ -579,7 +579,7 @@
                                                 Margin="5,0,1,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="15"
-                                                Text="{Binding ClosePin14Text, TargetNullValue=---, FallbackValue=---}" />
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                         </Border>
                                         <TextBlock
                                             Margin="20,0,0,0"
@@ -597,7 +597,7 @@
                                                 Margin="5,0,1,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="15"
-                                                Text="{Binding ClosePin15Text, TargetNullValue=---, FallbackValue=---}" />
+                                                Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
                                         </Border>
                                     </StackPanel>
                                 </Grid>
@@ -612,8 +612,8 @@
                                         Margin="30,20,0,0"
                                         VerticalAlignment="Center"
                                         BorderThickness="0"
-                                        Command="{Binding MeasureCloseCommand}"
-                                        IsEnabled="{Binding CanMeasureClose, FallbackValue=False}">
+                                        Command="{Binding Measure14Command}"
+                                        IsEnabled="{Binding CanMeasure14, FallbackValue=False}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border
