@@ -128,7 +128,7 @@
 
                     FontWeight="Bold"
 
-                    ><Run Language="zh-cn" Text="6.12.1控制通道选气楔传感器测试"/></TextBlock>
+                    ><Run Language="zh-CN" Text="6.12.1控制通道选气楔传感器测试"/></TextBlock>
 
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
 
@@ -772,7 +772,7 @@
 
                         FontSize="16"
 
-                        ><Run Text="2.接入电"/><Run Language="zh-cn" Text="压"/><Run Text="："/></TextBlock>
+                        ><Run Text="2.接入电"/><Run Language="zh-CN" Text="压"/><Run Text="："/></TextBlock>
 
                     <ComboBox
 
