@@ -8,7 +8,6 @@ namespace MeasureControl.Helpers.SelfInspection
     {
         private static readonly List<ISelfInspectionTask> _tasks = new List<ISelfInspectionTask>
         {
-            new PXIe7131DidoSelfInspectionTask(),
             new ART1553BSelfInspectionTask(),
             new Mil1394BSelfInspectionTask(),
             new MTX970LvdsSelfInspectionTask(),
