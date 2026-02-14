@@ -51,6 +51,13 @@ namespace MeasureControl.Simulations.AC_6_4
         private static readonly byte[] CanCommReceiveCommand = { 0x05, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] CanCommReceiveResponse = { 0x04, 0x01, 0x02, 0x03, 0x01, 0x01, 0x01, 0x01 };
 
+        private static readonly int[] DsiChannels =
+        {
+            0, 1, 2, 3, 5, 6, 7, 8, 9, 12,
+            13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+            23, 24, 25, 26, 27, 28, 29, 35, 36
+        };
+
         private static readonly byte[] Ab5VPotSupplyCommand = { 0x01, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] PotSupVbitCommand = { 0x01, 0x02, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00 };
 
@@ -65,6 +72,8 @@ namespace MeasureControl.Simulations.AC_6_4
 
         public int SimProductRxChannelIndex { get; set; } = 4;
         public int SimProductTxChannelIndex { get; set; } = 5;
+
+        public GndOcState DsiSimInputMode { get; set; } = GndOcState.Oc;
 
         public string PowerSupplyIpAddress { get; set; } = "192.168.1.15";
         public int PowerSupplyPort { get; set; } = 30000;
@@ -774,6 +783,11 @@ namespace MeasureControl.Simulations.AC_6_4
                                         log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到POT_SUP_VBIT查询 -> 回包 payload8={FormatBytes(resp)} (mv=0x{mv:X8}, v={v:F5}V)");
                                         await SendMultiFrameResponseAsync(label, resp, log, token);
                                     }
+                                    else if (TryBuildDsiResponse(cmd8, DsiSimInputMode, out var dsiResp8))
+                                    {
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到离散输入测试指令 -> 回包 payload8={FormatBytes(dsiResp8)}");
+                                        await SendMultiFrameResponseAsync(label, dsiResp8, log, token);
+                                    }
                                 }
                             }
                         }
@@ -1441,5 +1455,53 @@ namespace MeasureControl.Simulations.AC_6_4
                 _firstSeenUtc = default;
             }
         }
+
+        private static bool TryBuildDsiResponse(byte[] cmd8, GndOcState inputMode, out byte[] resp8)
+        {
+            resp8 = null;
+            if (cmd8 == null || cmd8.Length != 8)
+                return false;
+
+            if (cmd8[0] != 0x08 || cmd8[1] != 0x01)
+                return false;
+
+            // 测试指令：0x08 0x01 <seq> 0x01 00 00 00 00
+            if (cmd8[3] != 0x01)
+                return false;
+
+            byte seq = cmd8[2];
+            if (seq <= 0 || seq > DsiChannels.Length)
+                return false;
+
+            int channelNumber = DsiChannels[seq - 1];
+            bool isGnd;
+            if (inputMode == GndOcState.Gnd)
+            {
+                isGnd = channelNumber != 28;
+            }
+            else
+            {
+                isGnd = channelNumber == 29;
+            }
+
+            resp8 = new byte[8];
+            resp8[0] = cmd8[0];
+            resp8[1] = cmd8[1];
+            resp8[2] = cmd8[2];
+            // 回包：采集离散值并上传
+            resp8[3] = 0x02;
+            // value32: 0=GND, 1=OC
+            resp8[4] = 0x00;
+            resp8[5] = 0x00;
+            resp8[6] = 0x00;
+            resp8[7] = isGnd ? (byte)0x00 : (byte)0x01;
+            return true;
+        }
+    }
+
+    public enum GndOcState
+    {
+        Gnd = 0,
+        Oc = 1
     }
 }
