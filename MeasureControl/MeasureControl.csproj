@@ -233,7 +233,6 @@
     <Compile Include="Helpers\SelfInspection\SelfInspectionContext.cs" />
     <Compile Include="Helpers\SelfInspection\SelfInspectionTaskRegistry.cs" />
     <Compile Include="Helpers\SelfInspection\SelfInspectionRunner.cs" />
-    <Compile Include="Helpers\SelfInspection\Tasks\PXIe7131DidoSelfInspectionTask.cs" />
     <Compile Include="Helpers\SelfInspection\Tasks\MTX970LvdsSelfInspectionTask.cs" />
     <Compile Include="Helpers\SelfInspection\Tasks\PXI4087ASelfInspectionTask.cs" />
     <Compile Include="Helpers\SelfInspection\Tasks\PXI4087CSelfInspectionTask.cs" />
