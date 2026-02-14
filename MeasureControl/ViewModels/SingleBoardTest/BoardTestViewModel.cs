@@ -33,6 +33,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "控制通道GND/OC离散输入通道输入测试", () => new GndOcDiscreteInputTestView() },
                         { "GND/OC型100mA离散输出通道3输出测试", () => new GndOcDiscreteOutputCh3TestView() },
                         { "GND/OC型100mA离散输出通道2输出测试", () => new GndOcDiscreteOutputCh2TestView() },
+                        { "A控制通道28V/OC型100mA离散输出通道1输出测试", () => new A28vOc100mADiscreteOutputCh1TestView() },
+                        { "A控制通道28V/OC型100mA离散输出通道2输出测试", () => new A28vOc100mADiscreteOutputCh2TestView() },
+                        { "A控制通道28V/OC型400mA离散输出通道1输出测试", () => new A28vOc400mADiscreteOutputCh1TestView() },
+                        { "A控制通道28V/OC型400mA离散输出通道2输出测试", () => new A28vOc400mADiscreteOutputCh2TestView() },
+                        { "A控制通道28V/OC型400mA离散输出通道3输出测试", () => new A28vOc400mADiscreteOutputCh3TestView() },
                         { "PT500型温度传感器测试", () => new PT500TemperatureSensorCommTabView() },
                         { "6.8.2控制通道MIXTS传感器测试", () => new R_6_8_2View() },
                         { "6.8.3控制通道CAR_TS传感器测试", () => new R_6_8_3View() },
@@ -362,6 +367,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("控制通道GND/OC离散输入通道输入测试"));
                 TestSequenceItems.Add(new TestSequenceItem("GND/OC型100mA离散输出通道3输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("GND/OC型100mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型100mA离散输出通道1输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型100mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型400mA离散输出通道1输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型400mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型400mA离散输出通道3输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("ARINC429通讯测试"));
                 TestSequenceItems.Add(new TestSequenceItem("CAN发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("CAN接收测试"));
