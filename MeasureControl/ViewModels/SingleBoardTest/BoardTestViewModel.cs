@@ -71,6 +71,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "6.9.2控制通道CAB_VENTS传感器测试", () => new A_C_6_9_2_1View() },
                         { "6.10.1控制通道BMPS压力传感器测试", () => new A_C_6_10_1_1View() },
                         { "6.10.2A控制通道BPS传感器测试", () => new A_C_6_10_2_1View() },
+                        { "6.13.1控制通道压力传感器采集测试", () => new A_C_6_13_1_1View() },
+                        { "6.13.2 S安全通道压力传感器测试", () => new S_C_6_13_2_1View() },
                         { "6.10.7控制通道RAIA_POS传感器测试", () => new A_C_6_10_7_1View() },
                         { "6.11.1控制通道角度反馈传感器测试", () => new A_C_6_11_1_1View() },
                         { "6.12.1控制通道选气楔传感器测试", () => new A_C_6_12_1_1View() },
@@ -151,6 +153,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "A控制通道28V/OC型400mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
                         { "A控制通道28V/OC型400mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
                         { "A控制通道28V/OC型400mA离散输出通道3输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.13.1控制通道压力传感器采集测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1095.21,1104.79]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1496.21,1504.79]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1995.21,2004.79]mbar。" },
+                        { "6.13.2 S安全通道压力传感器测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1082,1118]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1482,1518]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1982,2018]mbar。" },
                     }
                 }
             };
@@ -342,6 +346,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.9.2控制通道CAB_VENTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.1控制通道BMPS压力传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.2A控制通道BPS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.13.1控制通道压力传感器采集测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.13.2 S安全通道压力传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.7控制通道RAIA_POS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.11.1控制通道角度反馈传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.12.1控制通道选气楔传感器测试"));
