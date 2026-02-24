@@ -125,6 +125,11 @@ namespace MeasureControl
             containerRegistry.Register<PowerImpedanceTestViewModel>();
             containerRegistry.Register<SecondaryPowerTestViewModel>();
             containerRegistry.Register<LowVoltageAlarmTestViewModel>();
+            containerRegistry.Register<TemperatureAcquisitionTestViewModel>();
+            containerRegistry.Register<DiscreteInputTestViewModel>();
+            containerRegistry.Register<DiscreteOutputTestViewModel>();
+            containerRegistry.Register<RS422CommunicationFunctionTestViewModel>();
+            containerRegistry.Register<RS422SelfCheckTestViewModel>();
 
             // 注册导航页面
             // 单例页面（IsNavigationTarget返回true，重用实例）
