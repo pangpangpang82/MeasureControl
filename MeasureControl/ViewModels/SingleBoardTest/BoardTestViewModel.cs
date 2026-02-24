@@ -33,6 +33,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "电源阻抗测试", () => new PowerImpedanceTestView() },
                 { "二次电源测试", () => new SecondaryPowerTestView() },
                 { "低电压告警功能测试", () => new LowVoltageAlarmTestView() },
+                { "温度采集功能", () => new TemperatureAcquisitionTestView() },
+                { "离散量采集功能测试", () => new DiscreteInputTestView() },
+                { "离散量输出功能测试", () => new DiscreteOutputTestView() },
+                { "RS422通信功能测试", () => new RS422CommunicationFunctionTestView() },
+                { "RS422通信自检测功能测试", () => new RS422SelfCheckTestView() },
             };
 
         private string _testTaskName;
@@ -169,6 +174,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("电源阻抗测试"));
                 TestSequenceItems.Add(new TestSequenceItem("二次电源测试"));
                 TestSequenceItems.Add(new TestSequenceItem("低电压告警功能测试"));
+                TestSequenceItems.Add(new TestSequenceItem("温度采集功能"));
+                TestSequenceItems.Add(new TestSequenceItem("离散量采集功能测试"));
+                TestSequenceItems.Add(new TestSequenceItem("离散量输出功能测试"));
+                TestSequenceItems.Add(new TestSequenceItem("RS422通信功能测试"));
+                TestSequenceItems.Add(new TestSequenceItem("RS422通信自检测功能测试"));
                 return;
             }
         }

@@ -404,6 +404,11 @@
     <Compile Include="Simulations\FuelController\PowerImpedanceSimulation.cs" />
     <Compile Include="Simulations\FuelController\SecondaryPowerSimulation.cs" />
     <Compile Include="Simulations\FuelController\LowVoltageAlarmSimulation.cs" />
+    <Compile Include="Simulations\FuelController\TemperatureAcquisitionSimulation.cs" />
+    <Compile Include="Simulations\FuelController\DiscreteInputSimulation.cs" />
+    <Compile Include="Simulations\FuelController\DiscreteOutputSimulation.cs" />
+    <Compile Include="Simulations\FuelController\RS422CommunicationFunctionSimulation.cs" />
+    <Compile Include="Simulations\FuelController\RS422SelfCheckSimulation.cs" />
     <Compile Include="Simulations\PT500\PT500TemperatureSensor429Simulation.cs" />
     <Compile Include="Services\RemoteMatrixCommandDispatcher.cs" />
     <Compile Include="Services\WindowManagerService.cs" />
@@ -460,6 +465,11 @@
     <Compile Include="ViewModels\SingleBoardTest\FuelController\PowerImpedanceTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\SecondaryPowerTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\LowVoltageAlarmTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\FuelController\TemperatureAcquisitionTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\FuelController\DiscreteInputTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\FuelController\DiscreteOutputTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\FuelController\RS422CommunicationFunctionTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\FuelController\RS422SelfCheckTestViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\ReMessageBoxViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\RenameDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\TestProgressDialogViewModel.cs" />
@@ -544,6 +554,21 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\FuelController\LowVoltageAlarmTestView.xaml.cs">
       <DependentUpon>LowVoltageAlarmTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\FuelController\TemperatureAcquisitionTestView.xaml.cs">
+      <DependentUpon>TemperatureAcquisitionTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\FuelController\DiscreteInputTestView.xaml.cs">
+      <DependentUpon>DiscreteInputTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\FuelController\DiscreteOutputTestView.xaml.cs">
+      <DependentUpon>DiscreteOutputTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\FuelController\RS422CommunicationFunctionTestView.xaml.cs">
+      <DependentUpon>RS422CommunicationFunctionTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\FuelController\RS422SelfCheckTestView.xaml.cs">
+      <DependentUpon>RS422SelfCheckTestView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\BoardTest.xaml.cs">
       <DependentUpon>BoardTest.xaml</DependentUpon>
@@ -839,9 +864,29 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Views\SingleBoardTest\BoardTest.xaml">
-      <Generator>MSBuild:Compile</Generator>
+    <Page Include="Views\SingleBoardTest\FuelController\TemperatureAcquisitionTestView.xaml">
       <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\FuelController\DiscreteInputTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\FuelController\DiscreteOutputTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\FuelController\RS422CommunicationFunctionTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\FuelController\RS422SelfCheckTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\BoardTest.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\TestControl\ButtonControl.xaml">
       <SubType>Designer</SubType>
