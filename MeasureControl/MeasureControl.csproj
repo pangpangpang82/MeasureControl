@@ -325,7 +325,10 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_3ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\AirSimpleSequenceViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PowerBoardSupplyTestViewModel.cs" />
-    <Compile Include="Views\**\*.cs" />
+    <Compile Include="Views\**\*.cs" Exclude="Views\**\*.xaml.cs" />
+<Compile Include="Views\**\*.xaml.cs">
+  <DependentUpon>%(Filename)</DependentUpon>
+</Compile>
     <Page Include="Styles\ScrollBarStyles.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -1251,27 +1254,23 @@
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>
-  <ItemGroup>
+    <ItemGroup>
     <Compile Remove="ViewModels\**\*.cs" />
     <Compile Remove="Demos\**\*.cs" />
-    <Page Remove="Views\**\*.xaml" />
     <Page Remove="Styles\**\*.xaml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ViewModels\**\*.cs" />
     <Compile Include="Demos\**\*.cs" />
-    <Page Include="Views\**\*.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Page Include="Styles\**\*.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
   </ItemGroup>
+
   <Target Name="CopyLibsToOutput" AfterTargets="CopyFilesToOutputDirectory">
     <ItemGroup>
-      <LibFiles Include="Libs\*.dll" />
+      <LibFiles Include="Libs\*.dll" /> 
     </ItemGroup>
     <Copy SourceFiles="@(LibFiles)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
   </Target>
