@@ -136,14 +136,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     }
                 },
                 {
-                    "加放油单板",
-                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        { "电源阻抗测试", "\t a) 阻抗值大于500Ω；\r\n \t b) 阻抗值大于500Ω。" },
-                        { "二次电源测试", "\t a) 5V隔离二次电源输出电压范围在[4.925，5.075]V；\r\n \t b) 15V隔离二次电源输出电压范围在[14.775，15.225]V；\r\n \t c) -15V隔离二次电源输出电压范围在[-14.775，-15.225]V。" },
-                    }
-                },
-                {
                     "空气单板",
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
