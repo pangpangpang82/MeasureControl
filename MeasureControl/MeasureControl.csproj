@@ -374,6 +374,7 @@
     <Compile Include="Services\HardwareApis\Pxi7012Api.cs" />
     <Compile Include="Services\HardwareApis\Mtx532Api.cs" />
     <Compile Include="Services\HardwareApis\Art9774Api.cs" />
+    <Compile Include="Services\HardwareApis\ComponentPowerStateApi.cs" />
     <Compile Include="Services\ChannelBindingService.cs" />
     <Compile Include="Services\ChannelManager.cs" />
     <Compile Include="Services\CalibrationDataService.cs" />
@@ -414,32 +415,58 @@
     <Compile Include="ViewModels\Dialogs\SignalCalibrationDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\TestStartDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\SelfInspectionDialogViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\AC_6_4ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\AC_6_4CanViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ConfigTabel\ChannelConfigTabelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ConfigTabel\ChannelTreeNode.cs" />
+    <Compile Include="ViewModels\TestTask\ConfigTabel\DataCalibrationViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ConfigTabel\IcdMappingTabelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ConfigTabel\SignalConfigTabelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\TestContent\ReportConfigTableViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\TestContent\TestInterfaceViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\PXI2601_SWITCHViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\ART1553BConfigPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\MT532_AOViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\MTX970_LVDSViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\PXI7012_ROViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\PXI9774_AIViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\PXIe7131_DIDOViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\MIL1394B\Mil1394TestPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\MIL1394B\Mil1394CardPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\MIL1394B\Mil1394NodeSendRcvPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\MIL1394B\Mil1394NodeDataCountPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\MIL1394B\Mil1394NodeConfigPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\LvdtSimulatorConfigPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ResolverSimulatorConfigPanelViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\AddChassisDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\AddChannelDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\AddSignalDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\BCMessageEditDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\ReMessageBoxViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\SelfInspectionDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\SignalCalibrationDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\TestStartDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\TestProgressDialogViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ConfigTabel\IcdConfigTabelViewModel.cs" />
+    <Compile Include="ViewModels\TdmSystem\TDMSystemViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_2_3ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_2_6ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_3ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_6_13_2_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_9_1_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_9_2_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_1_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_13_1_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_2_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_7_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\AirSimpleSequenceViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\CanCommTestViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\CanReceiveTestViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensorCanViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\PT500TemperatureSensor429ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\RS422CommunicationCheckViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PowerBoardSupplyTestViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\PowerToGroundImpedanceTestViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_15_1_1ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_15_1_2ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_15_2_1ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_15_2_2ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_16_1_1_1ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_16_1_1_2ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_16_3_1ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_17_1_2ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_17_2_2ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_17_3_2ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_17_4_1ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_17_4_2ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_18_1_1ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_18_2_1ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_18_3_1ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_18_4_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_3ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_4ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_5ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_8ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\PowerImpedanceTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\SecondaryPowerTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\LowVoltageAlarmTestViewModel.cs" />
@@ -448,228 +475,9 @@
     <Compile Include="ViewModels\SingleBoardTest\FuelController\DiscreteOutputTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\RS422CommunicationFunctionTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\RS422SelfCheckTestViewModel.cs" />
-    <Compile Include="ViewModels\Dialogs\ReMessageBoxViewModel.cs" />
-    <Compile Include="ViewModels\Dialogs\SelfInspectionDialogViewModel.cs" />
-    <Compile Include="ViewModels\Dialogs\SignalCalibrationDialogViewModel.cs" />
-    <Compile Include="ViewModels\Dialogs\TestStartDialogViewModel.cs" />
-    <Compile Include="ViewModels\Dialogs\TestProgressDialogViewModel.cs" />
-    <Compile Include="ViewModels\TestTask\ConfigTabel\IcdConfigTabelViewModel.cs" />
-    <Compile Include="ViewModels\TdmSystem\TDMSystemViewModel.cs" />
-    <Compile Include="ViewModels\TestTask\TestContent\TestSequenceViewModel.cs" />
-    <Compile Include="ViewModels\TestTask\TestContent\TestInterfaceViewModel.cs" />
-    <Compile Include="Views\SingleBoardTest\AirController\RS422CommunicationCheckView.xaml.cs">
-      <DependentUpon>RS422CommunicationCheckView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\PowerImpedanceTestView.xaml.cs">
-      <DependentUpon>PowerImpedanceTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\SecondaryPowerTestView.xaml.cs">
-      <DependentUpon>SecondaryPowerTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\LowVoltageAlarmTestView.xaml.cs">
-      <DependentUpon>LowVoltageAlarmTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\TemperatureAcquisitionTestView.xaml.cs">
-      <DependentUpon>TemperatureAcquisitionTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\DiscreteInputTestView.xaml.cs">
-      <DependentUpon>DiscreteInputTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\DiscreteOutputTestView.xaml.cs">
-      <DependentUpon>DiscreteOutputTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\RS422CommunicationFunctionTestView.xaml.cs">
-      <DependentUpon>RS422CommunicationFunctionTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\RS422SelfCheckTestView.xaml.cs">
-      <DependentUpon>RS422SelfCheckTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\BoardTest.xaml.cs">
-      <DependentUpon>BoardTest.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestControl\ButtonControl.xaml.cs">
-      <DependentUpon>ButtonControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestControl\LabelControl.xaml.cs">
-      <DependentUpon>LabelControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestControl\SwitchControl.xaml.cs">
-      <DependentUpon>SwitchControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestControl\TextLabelControl.xaml.cs">
-      <DependentUpon>TextLabelControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestControl\DisplayBoxControl.xaml.cs">
-      <DependentUpon>DisplayBoxControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestControl\InputBoxControl.xaml.cs">
-      <DependentUpon>InputBoxControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestControl\CircularGaugeControl.xaml.cs">
-      <DependentUpon>CircularGaugeControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestControl\VerticalGaugeControl.xaml.cs">
-      <DependentUpon>VerticalGaugeControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Dialogs\ColorPickerDialog.xaml.cs">
-      <DependentUpon>ColorPickerDialog.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\ART4229ConfigPanel.xaml.cs">
-      <DependentUpon>ART4229ConfigPanel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\PXI4004CANConfigPanel.xaml.cs">
-      <DependentUpon>PXI4004CANConfigPanel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\SignalGeneratorTestPanelView.xaml.cs">
-      <DependentUpon>SignalGeneratorTestPanelView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\PowerSupplyTestPanelView.xaml.cs">
-      <DependentUpon>PowerSupplyTestPanelView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\ElectronicLoadTestPanelView.xaml.cs">
-      <DependentUpon>ElectronicLoadTestPanelView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\OscilloscopeTestPanelView.xaml.cs">
-      <DependentUpon>OscilloscopeTestPanelView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\FrequencyCounterTestPanelView.xaml.cs">
-      <DependentUpon>FrequencyCounterTestPanelView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\DmmTestPanelView.xaml.cs">
-      <DependentUpon>DmmTestPanelView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\MatrixSwitchConfigTable.xaml.cs">
-      <DependentUpon>MatrixSwitchConfigTable.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\SwitchPXI3022ConfigPanel.xaml.cs">
-      <DependentUpon>SwitchPXI3022ConfigPanel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\RsSerialDebugPanel.xaml.cs">
-      <DependentUpon>RsSerialDebugPanel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\ConfigTabel\ChannelConfigTabel.xaml.cs">
-      <DependentUpon>ChannelConfigTabel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\ConfigTabel\DataCalibration.xaml.cs">
-      <DependentUpon>DataCalibration.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\ConfigTabel\IcdMappingTabel.xaml.cs">
-      <DependentUpon>IcdMappingTabel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\ConfigTabel\SignalConfigTabel.xaml.cs">
-      <DependentUpon>SignalConfigTabel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\TestContent\ReportConfigTabel.xaml.cs">
-      <DependentUpon>ReportConfigTabel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\TestContent\TestInterface.xaml.cs">
-      <DependentUpon>TestInterface.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\TestContent\TestSequence.xaml.cs">
-      <DependentUpon>TestSequence.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Hardware\ChassisConnectionCanvas.cs" />
-    <Compile Include="Views\Dialogs\ChassisConnectionDialog.xaml.cs">
-      <DependentUpon>ChassisConnectionDialog.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Dialogs\AddChassisDialog.xaml.cs">
-      <DependentUpon>AddChassisDialog.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Database\DatabaseConfig.xaml.cs">
-      <DependentUpon>DatabaseConfig.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Database\TestDataBase.xaml.cs">
-      <DependentUpon>TestDataBase.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Database\TaskConfigDatabase.xaml.cs">
-      <DependentUpon>TaskConfigDatabase.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Hardware\DeviceInfoPanel.xaml.cs">
-      <DependentUpon>DeviceInfoPanel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\CardCATPanel\PXI9774_AI.xaml.cs">
-      <DependentUpon>PXI9774_AI.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\CardCATPanel\PXI2601_SWITCH.xaml.cs">
-      <DependentUpon>PXI2601_SWITCH.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\CardCATPanel\ART1553BConfigPanel.xaml.cs">
-      <DependentUpon>ART1553BConfigPanel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\CardCATPanel\MIL1394B\Mil1394TestPanel.xaml.cs">
-      <DependentUpon>Mil1394TestPanel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\CardCATPanel\MIL1394B\Mil1394CardPanel.xaml.cs">
-      <DependentUpon>Mil1394CardPanel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\CardCATPanel\MIL1394B\Mil1394NodeSendRcvPanel.xaml.cs">
-      <DependentUpon>Mil1394NodeSendRcvPanel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\CardCATPanel\MIL1394B\Mil1394EditPayloadWindow.xaml.cs">
-      <DependentUpon>Mil1394EditPayloadWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Common\FloatingWindow.xaml.cs">
-      <DependentUpon>FloatingWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Hardware\HardwareConfig.xaml.cs">
-      <DependentUpon>HardwareConfig.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Common\HomePage.xaml.cs">
-      <DependentUpon>HomePage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\CardCATPanel\PXIe7131\PXIe7131_DIDO.xaml.cs">
-      <DependentUpon>PXIe7131_DIDO.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\CardCATPanel\PXIe7131\DM8600_485.xaml.cs">
-      <DependentUpon>DM8600_485.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\CardCATPanel\MT532_AO.xaml.cs">
-      <DependentUpon>MT532_AO.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\CardCATPanel\PXI7012_RO.xaml.cs">
-      <DependentUpon>PXI7012_RO.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\LvdtSimulatorConfigPanel.xaml.cs">
-      <DependentUpon>LvdtSimulatorConfigPanel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\ResolverSimulatorConfigPanel.xaml.cs">
-      <DependentUpon>ResolverSimulatorConfigPanel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\CardCATPanel\MIL1394B\Mil1394NodeConfigPanel.xaml.cs">
-      <DependentUpon>Mil1394NodeConfigPanel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestTask\ConfigTabel\IcdConfigTabel.xaml.cs">
-      <DependentUpon>IcdConfigTabel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Dialogs\AddIcdMappingDialog.xaml.cs">
-      <DependentUpon>AddIcdMappingDialog.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Dialogs\CreateIcdConfigTableDialog.xaml.cs">
-      <DependentUpon>CreateIcdConfigTableDialog.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Login.xaml.cs">
-      <DependentUpon>Login.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Common\MainWindow.xaml.cs">
-      <DependentUpon>MainWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Hardware\PxiChassis.xaml.cs">
-      <DependentUpon>PxiChassis.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Dialogs\ReMessageBox.xaml.cs">
-      <DependentUpon>ReMessageBox.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Dialogs\RenameDialog.xaml.cs">
-      <DependentUpon>RenameDialog.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Dialogs\CreateSingleBoardTestTaskDialog.xaml.cs">
-      <DependentUpon>CreateSingleBoardTestTaskDialog.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TdmSystem\TDMSystem.xaml.cs">
-      <DependentUpon>TDMSystem.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="App.xaml.cs">
-      <DependentUpon>App.xaml</DependentUpon>
+    <Compile Include="Views\**\*.cs" Exclude="Views\**\*.xaml.cs" />
+    <Compile Include="Views\**\*.xaml.cs">
+      <DependentUpon>%(Filename)</DependentUpon>
     </Compile>
     <Page Include="Styles\ComboBoxStyles.xaml">
       <SubType>Designer</SubType>
@@ -948,6 +756,38 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\SingleBoardTest\BoardTest.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_1.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_2.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_3.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_4.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_5.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_6.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_7.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_8.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -1587,6 +1427,19 @@
     <Resource Include="Resources\Logo\search_b.png" />
   </ItemGroup>
   <ItemGroup>
+  </ItemGroup>
+    <ItemGroup>
+    <Compile Remove="ViewModels\**\*.cs" />
+    <Compile Remove="Demos\**\*.cs" />
+    <Page Remove="Styles\**\*.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ViewModels\**\*.cs" />
+    <Compile Include="Demos\**\*.cs" />
+    <Page Include="Styles\**\*.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
   </ItemGroup>
 
   <Target Name="CopyLibsToOutput" AfterTargets="CopyFilesToOutputDirectory">
