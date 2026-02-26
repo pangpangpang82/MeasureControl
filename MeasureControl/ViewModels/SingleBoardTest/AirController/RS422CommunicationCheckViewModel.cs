@@ -15,6 +15,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public class RS422CommunicationCheckViewModel : BindableBase, IDisposable
     {
+        public enum Rs422CommTestMode
+        {
+            All = 0,
+            TransmitOnly = 1,
+            ReceiveOnly = 2
+        }
+
         private const byte DefaultLabel = 0x6A;
 
         private static readonly byte[] AtpR = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
@@ -43,6 +50,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private byte[] _waitHexPattern;
         private TaskCompletionSource<bool> _waitAsciiTcs;
         private string _waitAsciiPattern;
+
+        private readonly Rs422CommTestMode _mode;
 
         private string _enterAtpTxChannel;
         private string _enterAtpRxChannel;
@@ -79,8 +88,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
 
-        public RS422CommunicationCheckViewModel()
+        public RS422CommunicationCheckViewModel(Rs422CommTestMode mode = Rs422CommTestMode.All)
         {
+            _mode = mode;
             _enterAtpTxChannel = "429_CH0";
             _enterAtpRxChannel = "429_CH1";
             _exitAtpTxChannel = "429_CH0";
@@ -103,11 +113,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             BaudRates = new ObservableCollection<int>(new[] { 9600, 19200, 38400, 57600, 115200 });
             SelectedBaudRate = 115200;
-            Parities = new ObservableCollection<Parity>((Parity[])Enum.GetValues(typeof(Parity)));
+            Parities = new ObservableCollection<Parity>(new[] { Parity.None, Parity.Odd, Parity.Even });
             SelectedParity = Parity.None;
             DataBitsList = new ObservableCollection<int>(new[] { 7, 8 });
             SelectedDataBits = 8;
-            StopBitsList = new ObservableCollection<StopBits>(new[] { StopBits.One, StopBits.OnePointFive, StopBits.Two });
+            StopBitsList = new ObservableCollection<StopBits>(new[] { StopBits.One, StopBits.Two });
             SelectedStopBits = StopBits.One;
 
             RefreshPortsCommand = new DelegateCommand(RefreshPorts);
@@ -127,6 +137,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             RefreshPorts();
         }
+
+        public string PageTitle
+        {
+            get
+            {
+                return _mode switch
+                {
+                    Rs422CommTestMode.TransmitOnly => "控制通道422发送测试",
+                    Rs422CommTestMode.ReceiveOnly => "控制通道422接收测试",
+                    _ => "RS422通信测试"
+                };
+            }
+        }
+
+        public Visibility TransmitSectionVisibility => _mode == Rs422CommTestMode.ReceiveOnly ? Visibility.Collapsed : Visibility.Visible;
+
+        public Visibility ReceiveSectionVisibility => _mode == Rs422CommTestMode.TransmitOnly ? Visibility.Collapsed : Visibility.Visible;
+
+        public string TransmitStepTitleText => _mode == Rs422CommTestMode.All ? "2.RS422发送测试：" : "2.422发送测试：";
+
+        public string ReceiveStepTitleText => _mode == Rs422CommTestMode.All ? "3.RS422接收测试：" : "2.422接收测试：";
+
+        public string ExitAtpStepTitleText => _mode == Rs422CommTestMode.All ? "4.退出ATP模式：" : "3.退出ATP模式：";
 
         public ObservableCollection<string> Logs { get; }
 
@@ -424,7 +457,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     PortStatusText = "请先打开串口";
                     LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                    LastTestResult = "RS422自动测试不通过";
+                    LastTestResult = _mode == Rs422CommTestMode.All ? "RS422自动测试不通过" : $"{PageTitle}自动测试不通过";
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 串口未打开，自动测试结束");
                     return;
                 }
@@ -434,18 +467,36 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 try
                 {
-                    await OnRs422TransmitTestAsync();
-                    if (token.IsCancellationRequested) return;
+                    bool pass;
+                    switch (_mode)
+                    {
+                        case Rs422CommTestMode.TransmitOnly:
+                            await OnRs422TransmitTestAsync();
+                            if (token.IsCancellationRequested) return;
+                            pass = enteredAtp && string.Equals(Rs422TransmitResultText, "PASS", StringComparison.OrdinalIgnoreCase);
+                            break;
+                        case Rs422CommTestMode.ReceiveOnly:
+                            await OnRs422ReceiveTestAsync();
+                            if (token.IsCancellationRequested) return;
+                            pass = enteredAtp && string.Equals(Rs422ReceiveResultText, "PASS", StringComparison.OrdinalIgnoreCase);
+                            break;
+                        default:
+                            await OnRs422TransmitTestAsync();
+                            if (token.IsCancellationRequested) return;
 
-                    await OnRs422ReceiveTestAsync();
-                    if (token.IsCancellationRequested) return;
+                            await OnRs422ReceiveTestAsync();
+                            if (token.IsCancellationRequested) return;
 
-                    bool pass = enteredAtp
-                                && string.Equals(Rs422TransmitResultText, "PASS", StringComparison.OrdinalIgnoreCase)
-                                && string.Equals(Rs422ReceiveResultText, "PASS", StringComparison.OrdinalIgnoreCase);
+                            pass = enteredAtp
+                                   && string.Equals(Rs422TransmitResultText, "PASS", StringComparison.OrdinalIgnoreCase)
+                                   && string.Equals(Rs422ReceiveResultText, "PASS", StringComparison.OrdinalIgnoreCase);
+                            break;
+                    }
 
                     LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                    LastTestResult = pass ? "RS422自动测试PASS" : "RS422自动测试不通过";
+                    LastTestResult = pass
+                        ? (_mode == Rs422CommTestMode.All ? "RS422自动测试PASS" : $"{PageTitle}自动测试PASS")
+                        : (_mode == Rs422CommTestMode.All ? "RS422自动测试不通过" : $"{PageTitle}自动测试不通过");
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试结束：{(pass ? "PASS" : "FAIL")}");
                 }
                 finally
@@ -463,7 +514,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             catch (Exception ex)
             {
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = "RS422自动测试不通过";
+                LastTestResult = _mode == Rs422CommTestMode.All ? "RS422自动测试不通过" : $"{PageTitle}自动测试不通过";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试异常：{ex.Message}");
             }
             finally
@@ -865,7 +916,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
 
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = ok ? "RS422发送测试PASS" : "RS422发送测试不通过";
+                if (_mode == Rs422CommTestMode.All)
+                    LastTestResult = ok ? "RS422发送测试PASS" : "RS422发送测试不通过";
+                else
+                    LastTestResult = ok ? $"{PageTitle}PASS" : $"{PageTitle}不通过";
+
                 AddLog($"[{DateTime.Now:HH:mm:ss}] RS422发送测试{(ok ? "PASS" : "FAIL")}");
             }
             catch (Exception ex)
@@ -873,7 +928,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 Rs422TransmitRxDataText = "--";
                 Rs422TransmitResultText = "FAIL";
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = "RS422发送测试不通过";
+                LastTestResult = _mode == Rs422CommTestMode.All ? "RS422发送测试不通过" : $"{PageTitle}不通过";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] RS422发送测试异常：{ex.Message}");
             }
             finally
@@ -959,13 +1014,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     lock (_serialLock)
                     {
                         var s = _rxAsciiBuffer.ToString();
-                        found = s.Contains("AAAAAAAA") ? "AAAAAAAA" : null;
+                        found = s.Contains("AAAAAAAA") ? "AAAAAAAA" : s;
                     }
-                    Rs422ReceiveRxDataText = found ?? "AAAAAAAA";
+                    Rs422ReceiveRxDataText = string.IsNullOrWhiteSpace(found) ? "AAAAAAAA" : found;
                 }
 
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = ok ? "RS422接收测试PASS" : "RS422接收测试不通过";
+                if (_mode == Rs422CommTestMode.All)
+                    LastTestResult = ok ? "RS422接收测试PASS" : "RS422接收测试不通过";
+                else
+                    LastTestResult = ok ? $"{PageTitle}PASS" : $"{PageTitle}不通过";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] RS422接收测试{(ok ? "PASS" : "FAIL")}");
             }
             catch (Exception ex)
@@ -973,7 +1031,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 Rs422ReceiveRxDataText = "--";
                 Rs422ReceiveResultText = "FAIL";
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = "RS422接收测试不通过";
+                LastTestResult = _mode == Rs422CommTestMode.All ? "RS422接收测试不通过" : $"{PageTitle}不通过";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] RS422接收测试异常：{ex.Message}");
             }
             finally

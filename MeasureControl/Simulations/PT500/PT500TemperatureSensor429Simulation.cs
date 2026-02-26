@@ -43,6 +43,8 @@ namespace MeasureControl.Simulations.PT500
 
         public bool EnableFrameLogging { get; set; } = true;
 
+        public bool IsRealProduct { get; set; }
+
         public bool UseMultiLabelFragmentation { get; set; } = true;
 
         public double ArincRate { get; set; } = 100000.0;
@@ -80,10 +82,13 @@ namespace MeasureControl.Simulations.PT500
 
             if (benchTxIndex == benchRxIndex)
                 throw new InvalidOperationException($"[SIM] bench TX/RX 通道冲突：TX={benchTxIndex}, RX={benchRxIndex}");
-            if (benchTxIndex == SimProductRxChannelIndex || benchTxIndex == SimProductTxChannelIndex)
-                throw new InvalidOperationException($"[SIM] benchTX 与产品侧通道冲突：benchTX={benchTxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
-            if (benchRxIndex == SimProductRxChannelIndex || benchRxIndex == SimProductTxChannelIndex)
-                throw new InvalidOperationException($"[SIM] benchRX 与产品侧通道冲突：benchRX={benchRxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
+            if (!IsRealProduct)
+            {
+                if (benchTxIndex == SimProductRxChannelIndex || benchTxIndex == SimProductTxChannelIndex)
+                    throw new InvalidOperationException($"[SIM] benchTX 与产品侧通道冲突：benchTX={benchTxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
+                if (benchRxIndex == SimProductRxChannelIndex || benchRxIndex == SimProductTxChannelIndex)
+                    throw new InvalidOperationException($"[SIM] benchRX 与产品侧通道冲突：benchRX={benchRxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
+            }
 
             _benchTxChannelIndex = benchTxIndex;
             _benchRxChannelIndex = benchRxIndex;
@@ -92,7 +97,10 @@ namespace MeasureControl.Simulations.PT500
 
             await StartBenchRxAsync(log);
 
-            await StartSimProductRxAsync(log, _simCts.Token);
+            if (!IsRealProduct)
+            {
+                await StartSimProductRxAsync(log, _simCts.Token);
+            }
 
             _started = true;
             log($"[{DateTime.Now:HH:mm:ss}] [SIM] PT500 仿真初始化完成");
@@ -135,15 +143,18 @@ namespace MeasureControl.Simulations.PT500
                     log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench TX/RX 通道冲突：TX={tx}, RX={rx}");
                     return false;
                 }
-                if (tx == SimProductRxChannelIndex || tx == SimProductTxChannelIndex)
+                if (!IsRealProduct)
                 {
-                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchTX 与产品侧通道冲突：benchTX={tx}");
-                    return false;
-                }
-                if (rx == SimProductRxChannelIndex || rx == SimProductTxChannelIndex)
-                {
-                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX 与产品侧通道冲突：benchRX={rx}");
-                    return false;
+                    if (tx == SimProductRxChannelIndex || tx == SimProductTxChannelIndex)
+                    {
+                        log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchTX 与产品侧通道冲突：benchTX={tx}");
+                        return false;
+                    }
+                    if (rx == SimProductRxChannelIndex || rx == SimProductTxChannelIndex)
+                    {
+                        log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX 与产品侧通道冲突：benchRX={rx}");
+                        return false;
+                    }
                 }
 
                 bool openTxOk = await _arincDriver.OpenTxChannelAsync(tx);
@@ -189,10 +200,13 @@ namespace MeasureControl.Simulations.PT500
 
             try
             {
-                if (rx == SimProductRxChannelIndex || rx == SimProductTxChannelIndex)
+                if (!IsRealProduct)
                 {
-                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX 与产品侧通道冲突：benchRX={rx}");
-                    return false;
+                    if (rx == SimProductRxChannelIndex || rx == SimProductTxChannelIndex)
+                    {
+                        log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX 与产品侧通道冲突：benchRX={rx}");
+                        return false;
+                    }
                 }
 
                 bool openRxOk = await _arincDriver.OpenRxChannelAsync(rx);
@@ -830,8 +844,13 @@ namespace MeasureControl.Simulations.PT500
 
             bool openBenchTx = await _arincDriver.OpenTxChannelAsync(benchTxIndex);
             bool openBenchRx = await _arincDriver.OpenRxChannelAsync(benchRxIndex);
-            bool openSimRx = await _arincDriver.OpenRxChannelAsync(SimProductRxChannelIndex);
-            bool openSimTx = await _arincDriver.OpenTxChannelAsync(SimProductTxChannelIndex);
+            bool openSimRx = true;
+            bool openSimTx = true;
+            if (!IsRealProduct)
+            {
+                openSimRx = await _arincDriver.OpenRxChannelAsync(SimProductRxChannelIndex);
+                openSimTx = await _arincDriver.OpenTxChannelAsync(SimProductTxChannelIndex);
+            }
 
             if (!openBenchTx || !openBenchRx || !openSimRx || !openSimTx)
                 throw new InvalidOperationException($"[SIM] Open通道失败: benchTX={benchTxIndex}({openBenchTx}), benchRX={benchRxIndex}({openBenchRx}), simRX={SimProductRxChannelIndex}({openSimRx}), simTX={SimProductTxChannelIndex}({openSimTx})");
@@ -840,9 +859,12 @@ namespace MeasureControl.Simulations.PT500
             await _arincDriver.ConfigureRxChannelAsync(benchRxIndex, benchRxRate, parity: parity, wordFormat: wordFormat,
                 enableInterrupt: false, interruptDepth: 0, enableTimeTag: false);
 
-            await _arincDriver.ConfigureRxChannelAsync(SimProductRxChannelIndex, simRxRate, parity: parity, wordFormat: wordFormat,
-                enableInterrupt: false, interruptDepth: 0, enableTimeTag: false);
-            await _arincDriver.ConfigureTxChannelAsync(SimProductTxChannelIndex, simTxRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
+            if (!IsRealProduct)
+            {
+                await _arincDriver.ConfigureRxChannelAsync(SimProductRxChannelIndex, simRxRate, parity: parity, wordFormat: wordFormat,
+                    enableInterrupt: false, interruptDepth: 0, enableTimeTag: false);
+                await _arincDriver.ConfigureTxChannelAsync(SimProductTxChannelIndex, simTxRate, sendMode: 0, parity: parity, wordFormat: wordFormat);
+            }
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] ARINC429 通道已配置: benchTX={benchTxIndex}, benchRX={benchRxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
         }
@@ -856,7 +878,10 @@ namespace MeasureControl.Simulations.PT500
                     _telemetryEnabled = false;
                     try
                     {
-                        await _arincDriver.StopReceiveAsync(SimProductRxChannelIndex);
+                        if (!IsRealProduct)
+                        {
+                            await _arincDriver.StopReceiveAsync(SimProductRxChannelIndex);
+                        }
                     }
                     catch
                     {
