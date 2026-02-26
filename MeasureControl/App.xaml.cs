@@ -324,7 +324,6 @@ namespace MeasureControl
 
             containerRegistry.Register<PowerImpedanceTestViewModel>();
 
-<<<<<<< HEAD
 
             containerRegistry.Register<SecondaryPowerTestViewModel>();
 
@@ -340,11 +339,9 @@ namespace MeasureControl
 
             containerRegistry.Register<RS422SelfCheckTestViewModel>();
 
-=======
 
             containerRegistry.Register<PowerToGroundImpedanceTestViewModel>();
 
->>>>>>> c9cd3f9b9cd769558b701caf926fe04c9ef4880b
 
 
 

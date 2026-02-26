@@ -1,4 +1,5 @@
 using System.Windows.Controls;
+using MeasureControl.ViewModels.SingleBoardTest.FuelController;
 using Prism.Ioc;
 
 namespace MeasureControl.Views.SingleBoardTest.FuelController
@@ -11,13 +12,7 @@ namespace MeasureControl.Views.SingleBoardTest.FuelController
         public DiscreteInputTestView()
         {
             InitializeComponent();
-
-            // 从Prism容器解析ViewModel
-            var container = (System.Windows.Application.Current as App)?.Container;
-            if (container != null)
-            {
-                DataContext = container.Resolve<ViewModels.SingleBoardTest.FuelController.DiscreteInputTestViewModel>();
-            }
+            DataContext = ContainerLocator.Container.Resolve<DiscreteInputTestViewModel>();
         }
     }
 }
