@@ -1,0 +1,795 @@
+﻿<UserControl
+    x:Class="MeasureControl.Views.SingleBoardTest.HydraulicController.HC_6_8"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:MeasureControl.Views.SingleBoardTest.HydraulicController"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    d:DesignHeight="550"
+    d:DesignWidth="970"
+    mc:Ignorable="d">
+    <Grid
+        x:Name="RootGrid"
+        Background="White"
+        Focusable="True"
+        PreviewMouseDown="RootGrid_PreviewMouseDown">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="0.8*" />
+                <RowDefinition Height="6*" />
+                <RowDefinition Height="1.2*" />
+            </Grid.RowDefinitions>
+            <Border
+                x:Name="Test_name"
+                Grid.Row="0"
+                Margin="8,8,8,4"
+                Background="White"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1.5"
+                CornerRadius="8">
+                <Grid>
+                    <TextBlock
+                        Width="300"
+                        Margin="10,0,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        FontSize="24"
+                        FontWeight="Bold"
+                        Text="离散量输出测试" />
+                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                        <Button
+                            Width="100"
+                            Height="32"
+                            Margin="0,0,20,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding ManualTestCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="6">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image
+                                                x:Name="DeviceImage"
+                                                Width="15"
+                                                Height="15"
+                                                Margin="5,0,5,0"
+                                                Source="/Resources/Logo/hand_w.png" />
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="16"
+                                                Foreground="White"
+                                                Text="手动测试" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsManualTestRunning}" Value="True">
+                                            <Setter Property="Tag" Value="True" />
+                                            <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding IsManualTestRunning}" Value="False">
+                                            <Setter Property="Tag" Value="False" />
+                                        </DataTrigger>
+
+                                        <!--  2. 未连接 + 悬停  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                        </MultiTrigger>
+
+                                        <!--  3. 未连接 + 按下  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsPressed" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                        </MultiTrigger>
+
+                                        <!--  4. 已连接 + 悬停（优先级更高，放在后面）  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                        </MultiTrigger>
+
+                                        <!--  5. 已连接 + 按下  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsPressed" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                        </MultiTrigger>
+
+                                        <!--  6. 禁用状态（最高优先级）  -->
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            <Setter Property="Cursor" Value="Arrow" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Button
+                            Width="100"
+                            Height="32"
+                            Margin="0,0,30,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding AutoTestCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#22c55e"
+                                        CornerRadius="6">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image
+                                                x:Name="DeviceImage"
+                                                Width="15"
+                                                Height="15"
+                                                Margin="5,0,5,0"
+                                                Source="/Resources/Logo/auto.png" />
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="16"
+                                                Foreground="White"
+                                                Text="自动测试" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="True">
+                                            <Setter Property="Tag" Value="True" />
+                                            <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="False">
+                                            <Setter Property="Tag" Value="False" />
+                                        </DataTrigger>
+
+                                        <!--  2. 未连接 + 悬停  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                        </MultiTrigger>
+
+                                        <!--  3. 未连接 + 按下  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsPressed" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                        </MultiTrigger>
+
+                                        <!--  4. 已连接 + 悬停（优先级更高，放在后面）  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                        </MultiTrigger>
+
+                                        <!--  5. 已连接 + 按下  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsPressed" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                        </MultiTrigger>
+
+                                        <!--  6. 禁用状态（最高优先级）  -->
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            <Setter Property="Cursor" Value="Arrow" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+
+                </Grid>
+            </Border>
+            <Border
+                Grid.Row="1"
+                Margin="8,4,8,4"
+                Background="White"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1.5"
+                CornerRadius="8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.8*" />
+                        <ColumnDefinition Width="1*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid Grid.Column="0" VerticalAlignment="Center">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <StackPanel
+                            Grid.Row="0"
+                            Height="180"
+                            Margin="10"
+                            VerticalAlignment="Center"
+                            Orientation="Vertical">
+                            <TextBlock
+                                FontSize="20"
+                                FontWeight="Bold"
+                                Text="开路对地阻抗" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2.5*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid Grid.ColumnSpan="2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <StackPanel
+                                        Grid.Row="0"
+                                        Margin="0,13,0,13"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚9阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding OpenPin9Text, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚10阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding OpenPin10Text, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚11阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding OpenPin11Text, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel
+                                        Grid.Row="1"
+                                        Margin="0,13,0,13"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚12阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding OpenPin12Text, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚13阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding OpenPin13Text, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel
+                                        Grid.Row="2"
+                                        Margin="0,13,0,13"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚14阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding OpenPin14Text, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚15阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding OpenPin15Text, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+                                <Border
+                                    Grid.Column="2"
+                                    Margin="20,0,0,0"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center">
+                                    <Button
+                                        Width="50"
+                                        Height="28"
+                                        Margin="30,20,0,0"
+                                        VerticalAlignment="Center"
+                                        BorderThickness="0"
+                                        Command="{Binding MeasureOpenCommand}"
+                                        IsEnabled="{Binding CanMeasureOpen, FallbackValue=False}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Background="#3b82f6"
+                                                    CornerRadius="4">
+                                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                        <TextBlock
+                                                            x:Name="DeviceAction"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            FontSize="14"
+                                                            Foreground="White"
+                                                            Text="测量" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                        <Setter Property="Cursor" Value="Arrow" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel
+                            Grid.Row="1"
+                            Height="180"
+                            Margin="10"
+                            VerticalAlignment="Center"
+                            Orientation="Vertical">
+                            <TextBlock
+                                FontSize="20"
+                                FontWeight="Bold"
+                                Text="通路对地阻抗" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2.5*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid Grid.ColumnSpan="2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <StackPanel
+                                        Grid.Row="0"
+                                        Margin="0,13,0,13"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚9阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding ClosePin9Text, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚10阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding ClosePin10Text, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚11阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding ClosePin11Text, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel
+                                        Grid.Row="1"
+                                        Margin="0,13,0,13"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚12阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding ClosePin12Text, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚13阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding ClosePin13Text, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel
+                                        Grid.Row="2"
+                                        Margin="0,13,0,13"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚14阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding ClosePin14Text, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                        <TextBlock
+                                            Margin="20,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Text="针脚15阻抗：" />
+                                        <Border
+                                            Width="80"
+                                            Height="28"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="#D9D9D9"
+                                            BorderThickness="1"
+                                            CornerRadius="3">
+                                            <TextBlock
+                                                Margin="5,0,1,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                Text="{Binding ClosePin15Text, TargetNullValue=---, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+                                <Border
+                                    Grid.Column="2"
+                                    Margin="20,0,0,0"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center">
+                                    <Button
+                                        Width="50"
+                                        Height="28"
+                                        Margin="30,20,0,0"
+                                        VerticalAlignment="Center"
+                                        BorderThickness="0"
+                                        Command="{Binding MeasureCloseCommand}"
+                                        IsEnabled="{Binding CanMeasureClose, FallbackValue=False}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Background="#3b82f6"
+                                                    CornerRadius="4">
+                                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                        <TextBlock
+                                                            x:Name="DeviceAction"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            FontSize="14"
+                                                            Foreground="White"
+                                                            Text="测量" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                        <Setter Property="Cursor" Value="Arrow" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+
+                    </Grid>
+                    <Grid Grid.Column="1" VerticalAlignment="Center">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="auto" />
+                            <RowDefinition Height="auto" />
+                        </Grid.RowDefinitions>
+
+
+                        <StackPanel
+                            Grid.Column="1"
+                            Margin="10,10,0,10"
+                            Orientation="Horizontal">
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                FontSize="20"
+                                FontWeight="Bold"
+                                Text="测试信息" />
+                            <Button
+                                Width="80"
+                                Height="32"
+                                Margin="150,5,0,0"
+                                VerticalAlignment="Center"
+                                BorderThickness="0"
+                                Command="{Binding ClearLogCommand}">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border
+                                            x:Name="border"
+                                            Background="#3b82f6"
+                                            CornerRadius="4">
+                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                <TextBlock
+                                                    x:Name="DeviceAction"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    FontSize="15"
+                                                    Foreground="White"
+                                                    Text="清除内容" />
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                <Setter Property="Cursor" Value="Arrow" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </StackPanel>
+                        <Border
+                            Grid.Row="1"
+                            Grid.RowSpan="5"
+                            Grid.Column="1"
+                            Width="320"
+                            Height="360"
+                            Margin="0,0,5,0"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1.5"
+                            CornerRadius="4">
+                            <ListBox
+                                Margin="5"
+                                BorderThickness="0"
+                                ItemsSource="{Binding Logs}"
+                                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                <ListBox.Resources>
+                                    <Style BasedOn="{StaticResource SimpleScrollViewerStyle}" TargetType="ScrollViewer" />
+                                </ListBox.Resources>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock
+                                            FontSize="12"
+                                            Text="{Binding}"
+                                            TextWrapping="Wrap" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+
+                    </Grid>
+
+                </Grid>
+            </Border>
+            <Border
+                Grid.Row="2"
+                Margin="8,4,8,8"
+                Background="White"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1.5"
+                CornerRadius="8">
+                <Grid Grid.Row="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="1.5*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock
+                        Grid.Row="0"
+                        Margin="10,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="18"
+                        FontWeight="Bold">
+                        <Run Text="测试结果：" />
+                        <Run Text=" " />
+                        <Run Text="{Binding LastTestResult, TargetNullValue=--, FallbackValue=--}" />
+                        <Run Text="{Binding LastTestTime, TargetNullValue=--, FallbackValue=--}" />
+                    </TextBlock>
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            Grid.Column="0"
+                            Margin="20,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            FontWeight="Bold">
+                            <Run Text="上次测试时间：" />
+                            <Run Text="{Binding PreviousTestTime, TargetNullValue=--, FallbackValue=--}" />
+                        </TextBlock>
+                        <TextBlock
+                            Grid.Column="1"
+                            Margin="30,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            FontWeight="Bold">
+                            <Run Text="上次测试结果：" />
+                            <Run Text="{Binding PreviousTestResult, TargetNullValue=--, FallbackValue=--}" />
+                        </TextBlock>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Controls;
 using MeasureControl.Events;
 using MeasureControl.Views.SingleBoardTest.AirController;
+using MeasureControl.Views.SingleBoardTest.HydraulicController;
 using MeasureControl.Views.SingleBoardTest.FuelController;
 using MeasureControl.Views.Dialogs;
 using Prism.Commands;
@@ -18,26 +19,142 @@ namespace MeasureControl.ViewModels.SingleBoardTest
     {
         private readonly IEventAggregator _eventAggregator;
         private readonly MeasureControl.Services.ISingleBoardTestContextService _singleBoardTestContext;
+        private const string CommonBoardTypeKey = "Common";
 
-        private static readonly IReadOnlyDictionary<string, Func<UserControl>> TestItemViewFactories =
-            new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
+        private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, Func<UserControl>>> TestItemViewFactoriesByBoardType =
+            new Dictionary<string, IReadOnlyDictionary<string, Func<UserControl>>>(StringComparer.OrdinalIgnoreCase)
             {
-                { "控制通道光耦供电测试", () => new AC_6_4CommTabView() },
-                { "PT500型温度传感器测试", () => new PT500TemperatureSensorCommTabView() },
-                { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
-                { "5V传感器供电电压测试", () => new AirSimpleSequenceView("5V传感器供电电压测试") },
-                { "CAN发送测试", () => new CanCommTestView() },
-                { "CAN接收测试", () => new CanReceiveTestView() },
-                { "安全板CAN测试", () => new AirSimpleSequenceView("安全板CAN测试") },
-                { "RS422通信测试", () => new RS422CommTabView() },
-                { "电源阻抗测试", () => new PowerImpedanceTestView() },
-                { "二次电源测试", () => new SecondaryPowerTestView() },
-                { "低电压告警功能测试", () => new LowVoltageAlarmTestView() },
-                { "温度采集功能", () => new TemperatureAcquisitionTestView() },
-                { "离散量采集功能测试", () => new DiscreteInputTestView() },
-                { "离散量输出功能测试", () => new DiscreteOutputTestView() },
-                { "RS422通信功能测试", () => new RS422CommunicationFunctionTestView() },
-                { "RS422通信自检测功能测试", () => new RS422SelfCheckTestView() },
+                {
+                    "空气单板",
+                    new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "电源对地阻抗检查", () => new PowerToGroundImpedanceTestView() },
+                        { "控制通道光耦供电测试", () => new AC_6_4CommTabView() },
+                        { "控制通道GND/OC离散输入通道输入测试", () => new GndOcDiscreteInputTestView() },
+                        { "GND/OC型100mA离散输出通道3输出测试", () => new GndOcDiscreteOutputCh3TestView() },
+                        { "GND/OC型100mA离散输出通道2输出测试", () => new GndOcDiscreteOutputCh2TestView() },
+                        { "A控制通道28V/OC型100mA离散输出通道1输出测试", () => new A28vOc100mADiscreteOutputCh1TestView() },
+                        { "A控制通道28V/OC型100mA离散输出通道2输出测试", () => new A28vOc100mADiscreteOutputCh2TestView() },
+                        { "A控制通道28V/OC型400mA离散输出通道1输出测试", () => new A28vOc400mADiscreteOutputCh1TestView() },
+                        { "A控制通道28V/OC型400mA离散输出通道2输出测试", () => new A28vOc400mADiscreteOutputCh2TestView() },
+                        { "A控制通道28V/OC型400mA离散输出通道3输出测试", () => new A28vOc400mADiscreteOutputCh3TestView() },
+                        { "PT500型温度传感器测试", () => new PT500TemperatureSensorCommTabView() },
+                        { "6.8.2控制通道MIXTS传感器测试", () => new R_6_8_2View() },
+                        { "6.8.3控制通道CAR_TS传感器测试", () => new R_6_8_3View() },
+                        { "6.8.4控制通道CKPT_DTS传感器测试", () => new R_6_8_4View() },
+                        { "6.8.5控制通道CAB_DTS传感器测试", () => new R_6_8_5View() },
+                        { "6.8.6控制通道CAR_DTS传感器测试", () => new R_6_8_6View() },
+                        { "6.8.7控制通道BTS传感器测试", () => new R_6_8_7View() },
+                        { "6.8.8控制通道PTS传感器测试", () => new R_6_8_8View() },
+                        { "6.8.9控制通道CDTS传感器测试", () => new R_6_8_9View() },
+                        { "6.5.1.1控制通道ARINC429发送通道1测试", () => new A_C_6_5_1_1View() },
+                        { "6.5.1.2A控制通道ARINC429发送通道2/B控制通道ARINC429接收通道5测试", () => new A_C_6_5_1_2View() },
+                        { "6.5.2.1A控制通道ARINC接收通道1测试", () => new A_C_6_5_2_1View() },
+                        { "6.5.2.2A控制通道ARINC接收通道2测试", () => new A_C_6_5_2_2View() },
+                        { "6.5.2.3A控制通道ARINC接收通道3测试", () => new A_C_6_5_2_3View() },
+                        { "6.5.2.6A控制通道ARINC接收通道6测试", () => new A_C_6_5_2_6View() },
+                        { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
+                        { "8.3.2 S安全通道ARINC429接收通道1测试", () => new S_C_8_3_2View() },
+                        { "8.3.3 S安全通道ARINC429接收通道2测试", () => new S_C_8_3_3View() },
+                        { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
+                        { "5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
+                        { "A控制通道功率板供电测试", () => new PowerBoardSupplyTestView("A", "A控制通道功率板供电测试") },
+                        { "B控制通道功率板供电测试", () => new PowerBoardSupplyTestView("B", "B控制通道功率板供电测试") },
+                        { "CAN发送测试", () => new CanCommTestView() },
+                        { "CAN接收测试", () => new CanReceiveTestView() },
+                        { "安全板CAN测试", () => new AirSimpleSequenceView("安全板CAN测试") },
+                        { "RS422通信测试", () => new RS422CommTabView() },
+                        { "控制通道422发送测试", () => new RS422Control422TransmitTestView() },
+                        { "控制通道422接收测试", () => new RS422Control422ReceiveTestView() },
+
+                        { "6.9.1A控制通道CKPT_VENTS传感器测试", () => new A_C_6_9_1_1View() },
+                        { "6.9.2控制通道CAB_VENTS传感器测试", () => new A_C_6_9_2_1View() },
+                        { "6.10.1控制通道BMPS压力传感器测试", () => new A_C_6_10_1_1View() },
+                        { "6.10.2A控制通道BPS传感器测试", () => new A_C_6_10_2_1View() },
+                        { "6.13.1控制通道压力传感器采集测试", () => new A_C_6_13_1_1View() },
+                        { "6.13.2 S安全通道压力传感器测试", () => new S_C_6_13_2_1View() },
+                        { "6.10.7控制通道RAIA_POS传感器测试", () => new A_C_6_10_7_1View() },
+                        { "6.11.1控制通道角度反馈传感器测试", () => new A_C_6_11_1_1View() },
+                        { "6.12.1控制通道选气楔传感器测试", () => new A_C_6_12_1_1View() },
+                        { "6.15.1.1 A控制通道功率板RAIA直流电机驱动模块速度控制测试", () => new A_C_6_15_1_1View() },
+                        { "6.15.1.2 A控制通道功率板RAIA直流电机驱动模块方向控制测试", () => new A_C_6_15_1_2View() },
+                        { "6.16.1.1.1 A控制通道功率板TCV步进电机驱动模块输出测试", () => new A_C_6_16_1_1_1View() },
+                        { "6.16.2.1 A控制通道功率板驾驶舱TAV步进电机驱动模块测试", () => new A_C_6_16_1_1_2View() },
+                        { "6.16.3.1 A控制通道功率板前后客舱TAV步进电机驱动模块测试", () => new A_C_6_16_3_1View() },
+                        { "6.17.4.1 A控制通道功率板前后客舱TAV步进电机驱动模块测试", () => new A_C_6_17_4_1View() },
+                        { "6.17.1.2 A控制通道功率板TCV方向控制测试", () => new A_C_6_17_1_2View() },
+                        { "6.17.2.2 A控制通道功率板TAV步进电机驱动模块方向测试", () => new A_C_6_17_2_2View() },
+                        { "6.17.3.2 A控制通道功率板前后客舱TAV步进电机驱动模块方向测试", () => new A_C_6_17_3_2View() },
+                        { "6.17.4.2 A控制通道功率板前货舱TAV步进电机驱动模块方向测试", () => new A_C_6_17_4_2View() },
+                        { "6.18.1.1 A控制通道功率板FAV力矩电机驱动测试", () => new A_C_6_18_1_1View() },
+                        { "6.18.2.1 A控制通道功率板PRSOV力矩电机驱动测试", () => new A_C_6_18_2_1View() },
+                        { "6.18.3.1 A控制通道功率板FCV力矩电机驱动测试", () => new A_C_6_18_3_1View() },
+                        { "6.18.4.1 A控制通道功率板VAV力矩电机驱动测试", () => new A_C_6_18_4_1View() },
+                        { "6.15.2.1 A控制通道功率板AWV直流电机驱动模块速度控制测试", () => new A_C_6_15_2_1View() },
+                        { "6.15.2.2 A控制通道功率板AVV直流电机驱动模块方向控制测试", () => new A_C_6_15_2_2View() },
+                    }
+                },
+                {
+                    "液压单板",
+                    new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "电源阻抗测试", () => new HC_6_1() },
+                        { "二次电源测试", () => new HC_6_2() },
+                        { "温度采集测试", () => new HC_6_3() },
+                        { "压力传感器信号采集测试", () => new HC_6_4() },
+                        { "压差传感器信号采集测试", () => new HC_6_5() },
+                        { "油量传感器信号采集测试", () => new HC_6_6() },
+                        { "离散量采集测试", () => new HC_6_7() },
+                        { "离散量输出测试", () => new HC_6_8() },
+                    }
+                },
+                {
+                    "加放油单板",
+                    new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "电源阻抗测试", () => new PowerImpedanceTestView() },
+                        { "二次电源测试", () => new SecondaryPowerTestView() },
+                        { "低电压告警功能测试", () => new LowVoltageAlarmTestView() },
+                        { "温度采集功能", () => new TemperatureAcquisitionTestView() },
+                        { "离散量采集功能测试", () => new DiscreteInputTestView() },
+                        { "离散量输出功能测试", () => new DiscreteOutputTestView() },
+                        { "RS422通信功能测试", () => new RS422CommunicationFunctionTestView() },
+                        { "RS422通信自检测功能测试", () => new RS422SelfCheckTestView() },
+                    }
+                }
+            };
+
+        private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> CriteriaTextsByBoardType =
+            new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                {
+                    "液压单板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "电源阻抗测试", "\t a) 阻抗值大于500Ω；\r\n \t b) 阻抗值大于500Ω。" },
+                        { "二次电源测试", "\t a) 5V隔离二次电源输出电压范围在[4.925，5.075]V；\r\n \t b) 15V隔离二次电源输出电压范围在[14.775，15.225]V；\r\n \t c) -15V隔离二次电源输出电压范围在[-14.775，-15.225]V。" },
+                        { "温度采集测试", "\t a) 阻值为763.3±2.0Ω，温度值在[-66.6,-53.4]°C;\r\n \t b) 阻值为763.3±2.0Ω，温度值在[193.4,206.6]°C;\r\n \t c) 阻值为763.3±2.0Ω，温度值在[32.4,46.6]°C。" },
+                        { "压力传感器信号采集测试", "\t a) 电压供电0.5±0.0717，压力值在[0,3.4]Psia;\r\n \t b) 电压供电7.17±0.0717V，压力值在[3915,4000]Psia;\r\n \t c) 电压供电3.0±0.0717V，压差力在[1414,1585]Psia。" },
+                        { "压差传感器信号采集测试", "\t a) 电流供电4±0.2mA，压力值在[0,85]Psid;\r\n \t b) 电流供电20±0.2mA，压力值在[121.5,128.4]Psid;\r\n \t c) 电流供电10±0.2mA，压力值在[43.44,50.31]Psid。" },
+                        { "油量传感器信号采集测试", "\t a);\r\n \t b);\r\n \t c)。" },
+                        { "离散量采集测试", "\t 采集结果均为1。" },
+                        { "离散量输出测试", "\t a) 置为开路时，针脚9~15对地阻抗均大于100kΩ;\r\n \t b) 置为通路时，针脚9~15对地阻抗均小于10Ω。" },
+                    }
+                },
+                {
+                    "空气单板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "电源对地阻抗检查", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "A控制通道28V/OC型100mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "A控制通道28V/OC型100mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "A控制通道28V/OC型400mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "A控制通道28V/OC型400mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "A控制通道28V/OC型400mA离散输出通道3输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.13.1控制通道压力传感器采集测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1095.21,1104.79]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1496.21,1504.79]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1995.21,2004.79]mbar。" },
+                        { "6.13.2 S安全通道压力传感器测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1082,1118]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1482,1518]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1982,2018]mbar。" },
+                    }
+                }
             };
 
         private string _testTaskName;
@@ -46,6 +163,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         private string _pageKey;
         private object _rightPanelContent;
         private TestSequenceItem _selectedTestItem;
+        private string _selectedTestCriteriaText;
 
         public string TestTaskName
         {
@@ -82,6 +200,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
         public ObservableCollection<TestSequenceItem> TestSequenceItems { get; } = new ObservableCollection<TestSequenceItem>();
 
+        public string TestCriteriaTitle => "测试判据";
+
+        public double TestCriteriaFontSize => 15;
+
+        public double TestCriteriaLineHeight => 30;
+
+        public string SelectedTestCriteriaText
+        {
+            get => _selectedTestCriteriaText;
+            private set => SetProperty(ref _selectedTestCriteriaText, value);
+        }
+
         public TestSequenceItem SelectedTestItem
         {
             get => _selectedTestItem;
@@ -92,10 +222,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     if (value == null)
                     {
                         RightPanelContent = null;
+                        SelectedTestCriteriaText = string.Empty;
                         return;
                     }
 
-                    if (TestItemViewFactories.TryGetValue(value.Name, out var viewFactory))
+                    SelectedTestCriteriaText = ResolveCriteriaText(BoardType, value.Name);
+
+                    if (TryGetViewFactory(BoardType, value.Name, out var viewFactory))
                     {
                         RightPanelContent = viewFactory();
                         return;
@@ -140,6 +273,46 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         {
         }
 
+        private static bool TryGetViewFactory(string boardType, string testItemName, out Func<UserControl> viewFactory)
+        {
+            viewFactory = null;
+
+            if (!string.IsNullOrWhiteSpace(boardType)
+                && TestItemViewFactoriesByBoardType.TryGetValue(boardType, out var perBoard)
+                && perBoard != null
+                && perBoard.TryGetValue(testItemName, out viewFactory))
+            {
+                return true;
+            }
+
+            if (TestItemViewFactoriesByBoardType.TryGetValue(CommonBoardTypeKey, out var common)
+                && common != null
+                && common.TryGetValue(testItemName, out viewFactory))
+            {
+                return true;
+            }
+
+            viewFactory = null;
+            return false;
+        }
+
+        private static string ResolveCriteriaText(string boardType, string testItemName)
+        {
+            if (string.IsNullOrWhiteSpace(boardType) || string.IsNullOrWhiteSpace(testItemName))
+            {
+                return string.Empty;
+            }
+
+            if (CriteriaTextsByBoardType.TryGetValue(boardType, out var perBoard)
+                && perBoard != null
+                && perBoard.TryGetValue(testItemName, out var text))
+            {
+                return text ?? string.Empty;
+            }
+
+            return string.Empty;
+        }
+
         private void LoadFixedTestItems(string boardType)
         {
             TestSequenceItems.Clear();
@@ -148,20 +321,81 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 TestSequenceItems.Add(new TestSequenceItem("电源对地阻抗检查"));
                 TestSequenceItems.Add(new TestSequenceItem("电源模块测试"));
+                TestSequenceItems.Add(new TestSequenceItem("A控制通道功率板供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("B控制通道功率板供电测试"));
                 TestSequenceItems.Add(new TestSequenceItem("PT500型温度传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.2控制通道MIXTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.3控制通道CAR_TS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.4控制通道CKPT_DTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.5控制通道CAB_DTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.6控制通道CAR_DTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.7控制通道BTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.8控制通道PTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.9控制通道CDTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("5V传感器供电电压测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道光耦供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.1.1控制通道ARINC429发送通道1测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.1.2A控制通道ARINC429发送通道2/B控制通道ARINC429接收通道5测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.1A控制通道ARINC接收通道1测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.2A控制通道ARINC接收通道2测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.3A控制通道ARINC接收通道3测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.6A控制通道ARINC接收通道6测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.9.1A控制通道CKPT_VENTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.9.2控制通道CAB_VENTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.10.1控制通道BMPS压力传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.10.2A控制通道BPS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.13.1控制通道压力传感器采集测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.13.2 S安全通道压力传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.10.7控制通道RAIA_POS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.11.1控制通道角度反馈传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.12.1控制通道选气楔传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.1.1 A控制通道功率板RAIA直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.1.2 A控制通道功率板RAIA直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.16.1.1.1 A控制通道功率板TCV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.16.2.1 A控制通道功率板驾驶舱TAV步进电机驱动模块测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.16.3.1 A控制通道功率板前后客舱TAV步进电机驱动模块测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.17.4.1 A控制通道功率板前后客舱TAV步进电机驱动模块测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.17.1.2 A控制通道功率板TCV方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.17.2.2 A控制通道功率板TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.17.3.2 A控制通道功率板前后客舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.17.4.2 A控制通道功率板前货舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.18.1.1 A控制通道功率板FAV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.18.2.1 A控制通道功率板PRSOV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.18.3.1 A控制通道功率板FCV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.18.4.1 A控制通道功率板VAV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.2.1 A控制通道功率板AWV直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.2.2 A控制通道功率板AVV直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.3.1 S安全通道ARINC429发送通道1测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.3.2 S安全通道ARINC429接收通道1测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.3.3 S安全通道ARINC429接收通道2测试"));
+                TestSequenceItems.Add(new TestSequenceItem("控制通道GND/OC离散输入通道输入测试"));
+                TestSequenceItems.Add(new TestSequenceItem("GND/OC型100mA离散输出通道3输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("GND/OC型100mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型100mA离散输出通道1输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型100mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型400mA离散输出通道1输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型400mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型400mA离散输出通道3输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("ARINC429通讯测试"));
                 TestSequenceItems.Add(new TestSequenceItem("CAN发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("CAN接收测试"));
                 TestSequenceItems.Add(new TestSequenceItem("安全板CAN测试"));
                 TestSequenceItems.Add(new TestSequenceItem("RS422通信测试"));
+                TestSequenceItems.Add(new TestSequenceItem("控制通道422发送测试"));
+                TestSequenceItems.Add(new TestSequenceItem("控制通道422接收测试"));
                 return;
             }
 
             if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
             {
-                return;
+                TestSequenceItems.Add(new TestSequenceItem("电源阻抗测试"));
+                TestSequenceItems.Add(new TestSequenceItem("二次电源测试"));
+                TestSequenceItems.Add(new TestSequenceItem("温度采集测试"));
+                TestSequenceItems.Add(new TestSequenceItem("压力传感器信号采集测试"));
+                TestSequenceItems.Add(new TestSequenceItem("压差传感器信号采集测试"));
+                TestSequenceItems.Add(new TestSequenceItem("油量传感器信号采集测试"));
+                TestSequenceItems.Add(new TestSequenceItem("离散量采集测试"));
+                TestSequenceItems.Add(new TestSequenceItem("离散量输出测试"));
             }
 
             if (string.Equals(boardType, "惰化单板", StringComparison.OrdinalIgnoreCase))

@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using MeasureControl.Helpers;
 using MeasureControl.Drivers;
 using MeasureControl.Models.Devices;
 using MeasureControl.Services;
@@ -328,6 +329,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 LastTestResult = "--";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：开始打开设备");
 
+                _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
                 _simulation.GetCurrentResistorGear = () => ResistorGear;
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
@@ -411,6 +413,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 token.ThrowIfCancellationRequested();
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：开始打开设备");
+                _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
                 _simulation.GetCurrentResistorGear = () => ResistorGear;
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 

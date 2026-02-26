@@ -62,6 +62,19 @@ namespace MeasureControl.Views.SingleBoardTest
             Unloaded += BoardTest_Unloaded;
         }
 
+        private void TestSequenceScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (!(sender is ScrollViewer scrollViewer))
+            {
+                return;
+            }
+
+            // 左侧“测试序列”区域强制使用纵向滚动，并阻止事件继续冒泡到其他可能启用横向滚轮映射的ScrollViewer
+            double scrollAmount = e.Delta > 0 ? -50 : 50;
+            scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset + scrollAmount);
+            e.Handled = true;
+        }
+
         private void PxiChassis_Loaded(object sender, RoutedEventArgs e)
         {
             _floatButtonImage = FindName("FloatImage") as Image;

@@ -275,9 +275,11 @@
                     <RowDefinition Height="2*" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="300*" />
-                    <ColumnDefinition Width="180*" />
-                    <ColumnDefinition Width="300*" />
+                    <ColumnDefinition Width="55*" />
+                    <ColumnDefinition Width="61*"/>
+                    <ColumnDefinition Width="250*"/>
+                    <ColumnDefinition Width="219*" />
+                    <ColumnDefinition Width="366*" />
                 </Grid.ColumnDefinitions>
 
                 <TextBlock
@@ -287,9 +289,9 @@
                     FontWeight="Bold"
                     Text="测试步骤"
                     Height="26"
-                    Grid.ColumnSpan="2" />
+                    Grid.ColumnSpan="4" />
 
-                <Grid Grid.Row="1" Margin="0,0,0,69" Grid.RowSpan="2" Grid.ColumnSpan="2">
+                <Grid Grid.Row="1" Margin="0,0,0,69" Grid.RowSpan="2" Grid.ColumnSpan="4">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
@@ -409,7 +411,7 @@
                     </StackPanel>
                 </Grid>
 
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Grid.ColumnSpan="2">
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Grid.ColumnSpan="4">
                     <TextBlock
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
@@ -479,7 +481,7 @@
                     </Button>
                 </StackPanel>
 
-                <Grid Grid.Row="2" Margin="0,69,0,0" Grid.RowSpan="2" Grid.ColumnSpan="2">
+                <Grid Grid.Row="2" Margin="0,69,0,0" Grid.RowSpan="2" Grid.ColumnSpan="4">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
@@ -599,7 +601,7 @@
                     </StackPanel>
                 </Grid>
 
-                <StackPanel Grid.Row="3" Margin="0,69,0,0" Orientation="Horizontal" Grid.RowSpan="2" Grid.ColumnSpan="2">
+                <StackPanel Grid.Row="3" Margin="0,69,0,0" Orientation="Horizontal" Grid.RowSpan="2" Grid.ColumnSpan="4">
                     <TextBlock
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
@@ -679,7 +681,7 @@
                     </Button>
                 </StackPanel>
 
-                <Grid Grid.Row="5" Margin="2,2,2,12" Grid.ColumnSpan="2">
+                <Grid Grid.Row="5" Margin="2,2,2,14" Grid.ColumnSpan="4">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
@@ -801,7 +803,7 @@
 
                 <StackPanel
                     Grid.Row="0"
-                    Grid.Column="2"
+                    Grid.Column="4"
                     Margin="0,0,0,69"
                     Orientation="Horizontal"
                     Grid.RowSpan="2">
@@ -851,9 +853,8 @@
                 </StackPanel>
 
                 <Border
-                    Grid.Row="1"
-                    Grid.Column="2"
-                    Grid.RowSpan="5"
+                    Grid.Row="3"
+                    Grid.Column="4"
                     Width="350"
                     Height="350"
                     HorizontalAlignment="Center"
