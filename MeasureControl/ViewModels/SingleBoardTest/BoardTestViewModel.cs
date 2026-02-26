@@ -142,6 +142,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     }
                 },
                 {
+                    "加放油单板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "电源阻抗测试", "\t a) J3-J4 外部28V对地阻抗大于500Ω；\r\n\t b) J14-J24 内部28V对地阻抗大于500Ω；\r\n\t c) J3-J5 外部28V对壳体阻抗大于500Ω；\r\n\t d) J14-J5 内部28V对壳体阻抗大于500Ω。" },
+                        { "二次电源测试", "\t CRM_PIN1对CRM_PIN18之间的直流电压在[4.5V, 5.5V]范围内为PASS。" },
+                        { "低电压告警功能测试", "\t 供电电压从17V下降过程中，CRM_PIN3电平在供电电压低于15V之前发生翻转为PASS。" },
+                        { "温度采集功能", "\t 通过DS18B20温度传感器解析CRM_PIN7信号，温度值在[15℃, 45℃]区间内为PASS。" },
+                        { "离散量采集功能测试", "\t a) 接地测试：所有DO通道接地时，DI采集结果均为1；\r\n\t b) 开路测试：所有DO通道开路时，DI采集结果均为0。" },
+                        { "离散量输出功能测试", "\t a) DO接地时，对地阻抗小于10Ω；\r\n\t b) DO开路时，对地阻抗大于100kΩ；\r\n\t c) 28V上电后，J14电压不低于16V。" },
+                        { "RS422通信功能测试", "\t a/b/c/d四个步骤：发送0xAA 55，接收数据与发送数据一致为PASS。" },
+                        { "RS422通信自检测功能测试", "\t a) CRM_PIN9发送，CRM_PIN19接收，回环数据一致为PASS；\r\n\t b) CRM_PIN10发送，CRM_PIN20接收，回环数据一致为PASS。" },
+                    }
+                },
+                {
                     "空气单板",
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
