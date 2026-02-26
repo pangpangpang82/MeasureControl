@@ -5,15 +5,14 @@ using Prism.Ioc;
 namespace MeasureControl.Views.SingleBoardTest.FuelController
 {
     /// <summary>
-    /// SecondaryPowerTestView.xaml 的交互逻辑
-    /// 二次电源测试视图
+    /// TemperatureAcquisitionTestView.xaml 的交互逻辑
     /// </summary>
-    public partial class SecondaryPowerTestView : UserControl
+    public partial class TemperatureAcquisitionTestView : UserControl
     {
-        public SecondaryPowerTestView()
+        public TemperatureAcquisitionTestView()
         {
             InitializeComponent();
-            DataContext = ContainerLocator.Container.Resolve<SecondaryPowerTestViewModel>();
+            DataContext = ContainerLocator.Container.Resolve<TemperatureAcquisitionTestViewModel>();
         }
     }
 }

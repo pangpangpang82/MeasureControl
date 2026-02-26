@@ -46,6 +46,7 @@ namespace MeasureControl.Simulations.FuelController
         private bool _jy7131Connected;    // 7131板卡连接状态（仿真）
         private bool _jy7131Running;      // 7131板卡运行状态（仿真）
         private bool _relay485Channel4;   // 485继电器第4路状态（仿真）
+        private bool _component28vOn;     // 组件供电状态（仿真）
 
         // 矩阵开关配置常量
         private const string MatrixIpAddress = "192.168.1.3";  // 矩阵开关IP地址
@@ -144,6 +145,20 @@ namespace MeasureControl.Simulations.FuelController
         }
 
         #endregion
+
+        public async Task ApplyComponentDownStateAsync(Action<string> log, CancellationToken token = default)
+        {
+            await Task.Delay(50, token);
+            _component28vOn = false;
+            log?.Invoke("[SIM] 组件下电状态已设置");
+        }
+
+        public async Task ApplyComponent28VStateAsync(Action<string> log, CancellationToken token = default)
+        {
+            await Task.Delay(100, token);
+            _component28vOn = true;
+            log?.Invoke("[SIM] 组件28V供电状态已设置");
+        }
 
         #region 继电器控制仿真方法
 
@@ -372,6 +387,7 @@ namespace MeasureControl.Simulations.FuelController
             _jy7131Connected = false;
             _jy7131Running = false;
             _relay485Channel4 = false;
+            _component28vOn = false;
             _matrixSwitchLock?.Dispose();
         }
     }
