@@ -13,27 +13,43 @@ using MeasureControl.Services.HardwareApis;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
+    /// <summary>
+    /// HC_6_4 测试项：压力信号测试（压力传感器校验）
+    /// 测试目的：通过 MTX532 模拟量输出板卡输出特定电压，模拟压力传感器信号，
+    ///          再从 ARINC429 总线接收压力数据，验证三路压力系统（SDI0/1/2）是否正确。
+    /// 测试方法：
+    /// 1) 给被测板供电 28V。
+    /// 2) MTX532 的 AO1/AO2/AO3 同时输出指定电压（点1: 0.5V, 点2: 7.17V, 点3: 3.0V）。
+    /// 3) 从 ARINC429 接收压力 Label=174(oct)（十进制 124）数据，分别统计 SDI0/1/2（对应 SYS1/2/3）。
+    /// 4) 每路采集 5 帧有效数据取平均值，并与阈值范围比对，给出"PASS/FAIL"。
+    /// </summary>
     public class HC_6_4ViewModel : BindableBase
     {
+        // 电源配置（给被测板供电）
         private const string PowerSupplyIpAddress = "192.168.1.15";
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 0.1;
 
+        // ARINC429 接收配置
         private const int RxChannelIndex = 2;
         private const double ArincRate = 12500.0;
 
+        // 压力数据定义（Label=174(oct) 即十进制 124）
         private const byte PressLabelDec = 124; // 174(oct)
 
-        private const int SamplesPerMeasure = 5;
-        private const int SampleTimeoutMs = 5000;
-        private const int AoSettleMs = 100;
+        // 采样参数
+        private const int SamplesPerMeasure = 5;      // 每路采集 5 帧取平均
+        private const int SampleTimeoutMs = 5000;     // 采样超时 5 秒
+        private const int AoSettleMs = 100;            // 模拟量输出稳定等待时间
 
-        private const double Point1VoltageV = 0.5;
-        private const double Point2VoltageV = 7.17;
-        private const double Point3VoltageV = 3.0;
+        // 三个测试点对应的模拟电压（由 MTX532 输出到压力传感器模拟通道）
+        private const double Point1VoltageV = 0.5;    // 点1: 0.5V
+        private const double Point2VoltageV = 7.17;   // 点2: 7.17V
+        private const double Point3VoltageV = 3.0;    // 点3: 3.0V
 
+        // 压力的 ARINC429 编码参数（12-bit 数据，位于 bit16-27）
         private const int PressureBitLength = 12;
-        private const int PressureData19Shift = 6;
+        private const int PressureData19Shift = 6;    // 在 19-bit 数据域中的偏移
         private const uint PressureMask = (1u << PressureBitLength) - 1u;
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);

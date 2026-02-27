@@ -13,31 +13,51 @@ using MeasureControl.Services.HardwareApis;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
+    /// <summary>
+    /// HC_6_5 测试项：差压信号测试（差压传感器校验）
+    /// 测试目的：验证液压控制器在不同电流档位（4mA/10mA/20mA）下，
+    ///          从 ARINC429 接收的差压数据是否正确。
+    /// 测试方法：
+    /// 1) 给被测板供电 28V。
+    /// 2) 被测板会输出三种电流档位（4mA/10mA/20mA）的差压信号。
+    /// 3) 从 ARINC429 接收差压数据，包括：
+    ///    - DPT_SYS (Label=72oct, SDI=1/2/3) - 三路系统差压
+    ///    - DPT_EDP2A (Label=71oct, SDI=2) - EDP2A 差压
+    ///    - DPT_EMP (Label=73oct, SDI=2/3) - EMP2B/EMP3B 差压
+    /// 4) 每个通道每个档位采集 5 帧数据取平均值，共 18 组数据（6通道×3电流）。
+    /// </summary>
     public class HC_6_5ViewModel : BindableBase
     {
+        // 电源配置（给被测板供电）
         private const string PowerSupplyIpAddress = "192.168.1.15";
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 0.1;
 
+        // ARINC429 接收配置
         private const int RxChannelIndex = 2;
         private const double ArincRate = 12500.0;
 
+        // 差压单位
         private const string PressureUnit = "Psid";
 
-        private const int SamplesPerMeasure = 5;
-        private const int SampleTimeoutMs = 5000;
+        // 采样参数
+        private const int SamplesPerMeasure = 5;      // 每路采集 5 帧取平均
+        private const int SampleTimeoutMs = 5000;     // 采样超时 5 秒
 
-        private const byte LabelDptSysDec = 58; // 72(oct)
-        private const byte LabelDptEdp2ADec = 57; // 71(oct)
-        private const byte LabelDptEmpDec = 59; // 73(oct)
+        // 差压数据的 ARINC429 Label 定义
+        private const byte LabelDptSysDec = 58; // 72(oct) - 系统差压
+        private const byte LabelDptEdp2ADec = 57; // 71(oct) - EDP2A 差压
+        private const byte LabelDptEmpDec = 59; // 73(oct) - EMP 差压
 
-        private const byte SdiSys1 = 1;
-        private const byte SdiSys2 = 2;
-        private const byte SdiSys3 = 3;
-        private const byte SdiEdp2A = 2;
-        private const byte SdiEmp2B = 2;
-        private const byte SdiEmp3B = 3;
+        // 差压数据的 SDI 定义（用于区分不同通道）
+        private const byte SdiSys1 = 1;    // 系统1
+        private const byte SdiSys2 = 2;    // 系统2
+        private const byte SdiSys3 = 3;    // 系统3
+        private const byte SdiEdp2A = 2;   // EDP2A
+        private const byte SdiEmp2B = 2;   // EMP2B
+        private const byte SdiEmp3B = 3;   // EMP3B
 
+        // 差压的 ARINC429 编码参数（BNR：有符号二进制数）
         private const int DataBitLength = 9;
         private const double DataResolution = 1.0;
         private const int DataMsbPosition = 27;
@@ -194,6 +214,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public string DptSys210mAText { get => _dptSys210mAText; private set => SetProperty(ref _dptSys210mAText, value); }
         public string DptSys310mAText { get => _dptSys310mAText; private set => SetProperty(ref _dptSys310mAText, value); }
 
+        /// <summary>
+        /// 手动测试流程
+        /// 进入手动模式后，先初始化电源/ARINC429，
+        /// 然后由用户点击"测量 1-4mA"按钮执行测量（会依次测量 4mA/20mA/10mA 三个档位）。
+        /// </summary>
         private async Task OnManualTestAsync()
         {
             if (IsManualTestRunning)
@@ -235,6 +260,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 自动测试流程
+        /// 自动依次测量 4mA/20mA/10mA 三个档位的所有通道差压数据，共 18 组数据。
+        /// </summary>
         private async Task OnAutoTestAsync()
         {
             if (IsAutoTestRunning)
@@ -288,6 +317,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 测量 1-4mA 档位（手动模式）
+        /// 根据当前选中的 Tab 页，测量对应档位的所有通道差压数据。
+        /// </summary>
         private async Task OnMeasure14Async()
         {
             var token = _manualCts?.Token ?? CancellationToken.None;
@@ -361,6 +394,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 测量一组电流档位的所有通道差压数据（核心测量方法）
+        /// 流程：
+        /// 1) 从 ARINC429 接收差压数据，根据 Label 和 SDI 过滤出 6 个通道。
+        /// 2) 每个通道采集 5 帧有效数据取平均值。
+        /// 3) 所有通道都采集完成后返回成功。
+        /// </summary>
+        /// <param name="title">档位名称（4mA/10mA/20mA，用于日志）</param>
+        /// <param name="setTextByName">设置界面显示文本的回调函数</param>
+        /// <returns>true=所有通道都成功采集，false=超时/异常</returns>
         private async Task<bool> MeasureGroupAsync(string title, Action<string, string> setTextByName, CancellationToken cancellationToken)
         {
             if (!(IsAutoTestRunning || (IsManualTestRunning && CanMeasure)))
@@ -451,6 +494,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 根据 ARINC429 的 Label 和 SDI 解析出通道名称
+        /// </summary>
+        /// <returns>通道名称（SYS1/SYS2/SYS3/EDP2A/EMP2B/EMP3B），如果不匹配则返回 null</returns>
         private string ResolveChannel(byte label, byte sdi)
         {
             if (IsExpectedLabel(label, LabelDptSysDec))
@@ -473,11 +520,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return null;
         }
 
+        /// <summary>
+        /// 判断当前 ARINC429 Label 是否匹配期望值（兼容字节序反转）
+        /// </summary>
         private bool IsExpectedLabel(byte label, byte expected)
         {
             return label == expected || label == _arinc.ReverseLabel(expected);
         }
 
+        /// <summary>
+        /// 解码差压值（UBNR：无符号二进制数，9-bit，范围 0-511）
+        /// </summary>
         private double? DecodeValue(uint data19)
         {
             var v = _arinc.DecodeUbnr(data19, bitLength: DataBitLength, resolution: DataResolution, msbPosition: DataMsbPosition);
@@ -486,6 +539,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return v;
         }
 
+        /// <summary>
+        /// 当所有档位都已测量完成时，更新"上次/本次"测试结论并结束测试
+        /// </summary>
         private async Task TryFinalizeAsync()
         {
             if (!_measured14)
@@ -502,6 +558,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 中止手动测试（通常用于初始化失败、采集超时、采集异常等）
+        /// </summary>
         private async Task AbortManualTestAsync(string reason)
         {
             _manualAborted = true;
@@ -513,6 +572,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await StopManualTestAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 停止手动测试并释放硬件资源（停止 ARINC429 接收、关闭电源输出）
+        /// </summary>
         private async Task StopManualTestAsync()
         {
             try
@@ -539,6 +601,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log("手动测试已结束");
         }
 
+        /// <summary>
+        /// 停止自动测试并释放硬件资源
+        /// </summary>
         private async Task StopAutoTestAsync()
         {
             try
@@ -564,6 +629,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log("自动测试已结束");
         }
 
+        /// <summary>
+        /// 确保程控电源已连接并输出 28V（CH1/CH2）
+        /// </summary>
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
         {
             _power ??= new PowerSupplySocketApi();
