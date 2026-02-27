@@ -12,17 +12,26 @@ using MeasureControl.Services.HardwareApis;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
+    /// <summary>
+    /// HC_6_1 测试项：RS-485 通信线路绝缘电阻测试
+    /// 测试目的：验证 RS-485 通信线路的绝缘性能
+    /// 测试方法：使用万用表测量 485 线路对地的绝缘电阻，要求 ≥500Ω
+    /// </summary>
     public class HC_6_1ViewModel : BindableBase
     {
-        private const string DmmIpAddress = "192.168.1.13";
-        private const string MatrixIpAddress = "192.168.1.3";
+        // 硬件设备 IP 地址
+        private const string DmmIpAddress = "192.168.1.13";        // 万用表 IP
+        private const string MatrixIpAddress = "192.168.1.3";      // 矩阵开关 IP
 
-        private const int MatrixSlotResistanceCh1 = 6;
-        private const int MatrixSlotResistanceCh2 = 6;
-        private const int MatrixSlotCommon = 4;
+        // 矩阵开关槽位配置（用于信号路由）
+        private const int MatrixSlotResistanceCh1 = 6;   // 485 线路 1-4 通道
+        private const int MatrixSlotResistanceCh2 = 6;   // 485 线路 18-2 通道
+        private const int MatrixSlotCommon = 4;          // 公共端（地）
 
+        // 485 继电器控制引脚（PXIe-7131 的 DO29）
         private const int Relay485DoIndex = 29;
 
+        // 测试通过阈值：绝缘电阻 ≥ 500Ω 为合格
         private const double PassThresholdOhm = 500.0;
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
@@ -66,6 +75,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
         }
 
+        /// <summary>
+        /// 确保 485 继电器处于指定状态
+        /// 需要两步操作：1) 开启 PXIe-7131 的 DO29  2) 开启外部 485 继电器板的 K8（第8路）
+        /// </summary>
+        /// <param name="on">true=开启，false=关闭</param>
         private async Task EnsureRelay485Async(bool on, CancellationToken cancellationToken)
         {
             await _relayLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -73,28 +87,33 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 if (on)
                 {
+                    // 如果已经开启，直接返回
                     if (_isRelay485On)
                     {
                         return;
                     }
 
+                    // 查找 PXIe-7131 板卡
                     var device = FindFirstJy7131Device();
                     if (device == null)
                     {
                         throw new InvalidOperationException("未找到PXIe-7131(JY7131)板卡，无法开启485继电器");
                     }
 
+                    // 创建 7131 API 实例（如果尚未创建）
                     if (_jy7131 == null)
                     {
                         var slot = device is DigitalIODevice dio ? dio.SlotIndex : 0;
                         _jy7131 = new Jy7131Api(device, slot);
                     }
 
+                    // 确保板卡已连接
                     if (!_jy7131.IsConnected)
                     {
                         await _jy7131.ConnectAsync(cancellationToken).ConfigureAwait(false);
                     }
 
+                    // 确保板卡已启动
                     if (!_jy7131.IsRunning)
                     {
                         await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -149,6 +168,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 从 PXI 机箱中查找第一个 PXIe-7131 板卡
+        /// </summary>
         private DeviceBase FindFirstJy7131Device()
         {
             var chassisList = _pxiChassisService?.GetAllChassis();
@@ -224,6 +246,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public bool CanMeasure14 => IsManualTestRunning && CanMeasure && !_measured14;
         public bool CanMeasure182 => IsManualTestRunning && CanMeasure && !_measured182;
 
+        /// <summary>
+        /// 自动测试流程
+        /// 自动依次测量两个通道的电阻并判断结果
+        /// </summary>
         private async Task OnAutoTestAsync()
         {
             if (IsAutoTestRunning)
@@ -330,6 +356,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             set => SetProperty(ref _previousTestResult, value);
         }
 
+        /// <summary>
+        /// 手动测试流程
+        /// 用户可以手动点击按钮分别测量两个通道的电阻
+        /// </summary>
         private async Task OnManualTestAsync()
         {
             if (IsManualTestRunning)
@@ -484,6 +514,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log("自动测试已结束");
         }
 
+        /// <summary>
+        /// 测量 1-4 通道的绝缘电阻（手动模式）
+        /// </summary>
         private async Task OnMeasure14Async()
         {
             var ok = await MeasureResistanceAsync(
@@ -508,6 +541,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await TryFinalizeIfBothMeasuredAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 测量 18-2 通道的绝缘电阻（手动模式）
+        /// </summary>
         private async Task OnMeasure182Async()
         {
             var ok = await MeasureResistanceAsync(
@@ -532,6 +568,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await TryFinalizeIfBothMeasuredAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 测量指定通道的绝缘电阻（核心测量方法）
+        /// 流程：1) 配置矩阵开关连接信号路径  2) 使用万用表测量电阻  3) 判断结果
+        /// </summary>
+        /// <param name="name">通道名称（用于日志）</param>
+        /// <param name="connect1">矩阵连接1（信号端）</param>
+        /// <param name="connect2">矩阵连接2（地端）</param>
+        /// <param name="afterSetText">测量完成后的回调（更新界面显示）</param>
+        /// <returns>true=测量成功，false=测量失败</returns>
         private async Task<bool> MeasureResistanceAsync(
             string name,
             (string In, string Out, int Slot) connect1,
@@ -550,6 +595,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 Log($"{name}: 开始测量");
 
+                // 配置矩阵开关，连接测量信号路径
                 var matrix = MatrixControlService.Instance;
 
                 var ok1 = await matrix.ConnectNodesAsync(connect1.In, connect1.Out, connect1.Slot, MatrixIpAddress).ConfigureAwait(false);
@@ -566,6 +612,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     return false;
                 }
 
+                // 使用万用表测量电阻（超时时间 8 秒）
                 DmmReading reading = null;
                 try
                 {
@@ -594,6 +641,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     return false;
                 }
 
+                // 检查是否超量程（OL = Over Load）
                 if (reading.IsOverrange)
                 {
                     afterSetText(null, "OL");
@@ -617,6 +665,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     return false;
                 }
 
+                // 提取并格式化测量结果
                 var value = reading.Value;
                 var text = FormatOhmText(reading);
                 afterSetText(value, text);
@@ -710,6 +759,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 记录日志到界面
+        /// </summary>
         private void Log(string message)
         {
             if (string.IsNullOrWhiteSpace(message))
