@@ -41,7 +41,7 @@ namespace MeasureControl.Services.HardwareApis
     /// PXIe-7131 数字 I/O 板卡控制接口
     /// 功能：
     /// 1. 数字输入/输出（32路 DI + 32路 DO）
-    /// 2. 外部 485 继电器控制（16路，通过 COM18）
+    /// 2. 外部 485 继电器控制（16路，通过 COM24）
     /// 3. DI 阈值电压设置（通过 COM14）
     /// 4. 电源输出控制（4组可调电压）
     /// </summary>
@@ -87,7 +87,7 @@ namespace MeasureControl.Services.HardwareApis
         private const string ThresholdComPort = "COM14";  // DI 阈值设置串口
         private const int ThresholdBaudRate = 115200;
 
-        private const string RelayComPort = "COM18";      // 外部 485 继电器控制串口
+        private const string RelayComPort = "COM24";      // 外部 485 继电器控制串口
         private const int RelayBaudRate = 9600;
         private const byte RelaySlaveAddress = 1;
         private const ushort RelayStartCoilAddress = 0;
@@ -411,7 +411,7 @@ namespace MeasureControl.Services.HardwareApis
         }
 
         /// <summary>
-        /// 控制外部 485 继电器板的单个继电器（通过 COM18 串口 Modbus 协议）
+        /// 控制外部 485 继电器板的单个继电器（通过 COM24 串口 Modbus 协议）
         /// </summary>
         /// <param name="index">继电器索引 0-15（对应继电器 1-16）</param>
         /// <param name="on">true=吸合，false=断开</param>
