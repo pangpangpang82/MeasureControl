@@ -39,6 +39,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isAutoTestRunning;
         private bool _isBusy;
         private bool _useSimulatedDmm;
+        private bool _isPowerOn;
+        private string _powerStatus = "未上电";
 
         private double? _impedanceGrounded;
         private double? _impedanceOpen;
@@ -74,6 +76,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             LoadPersistedState();
             _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
+        }
+
+        public bool IsPowerOn
+        {
+            get => _isPowerOn;
+            set => SetProperty(ref _isPowerOn, value);
+        }
+
+        public string PowerStatus
+        {
+            get => _powerStatus;
+            set => SetProperty(ref _powerStatus, value);
         }
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
@@ -519,6 +533,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 await _simulation.ApplyComponentDownStateAsync(AddLog, token);
             }
+            Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
         }
 
         private async Task ApplyPower28VAsync(CancellationToken token)
@@ -532,6 +547,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 await _simulation.ApplyComponent28VStateAsync(AddLog, token);
             }
+            Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
         }
 
         private async Task<double> ReadImpedanceAsync(CancellationToken token)

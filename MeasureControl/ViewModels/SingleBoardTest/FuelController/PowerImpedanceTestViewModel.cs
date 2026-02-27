@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using MeasureControl.Events;
@@ -14,8 +14,6 @@ using Prism.Commands;
 using Prism.Events;
 using Prism.Mvvm;
 using System.Windows;
-using Ivi.Visa;
-using NationalInstruments.Visa;
 using MeasureControl.Views.Dialogs;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
@@ -105,12 +103,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         #endregion
 
-        #region 万用表VISA通信（备用）
+        #region 万用表Socket连接
 
-        private ResourceManager _dmmResourceManager;                               // VISA资源管理器
-        private MessageBasedSession _dmmSession;                                   // VISA会话
-        private readonly SemaphoreSlim _dmmIoLock = new SemaphoreSlim(1, 1);      // IO操作锁
-        
+        private IDmmApi _dmmSocket;                                                 // DmmSocketApi实例（与HC_6_1一致）
+        private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);    // 测量操作锁
+
         #endregion
 
         #region 状态字段
@@ -123,8 +120,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isAutoTestRunning;                                           // 自动测试是否正在运行
         private bool _isBusy;                                                      // 是否正在执行操作
         private bool _isRelayActivated;                                            // 继电器是否已激活
+        private bool _isPowerOn;                                                   // 组件供电状态（阻抗测试要求下电，此字段标记是否已完成下电初始化）
+        private string _powerStatus = "未就绪";                                      // 供电状态显示文本
 
-        private bool _useSimulatedDmm;                                             // DMM不可用时强制走仿真测量（避免VISA阻塞导致无响应）
+        private bool _useSimulatedDmm;                                             // DMM不可用时走仿真测量
 
         private IPowerSupplyApi _powerSupplyApi;
         private bool _relaySupplyOn;
@@ -231,6 +230,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             get => _relayStatus;
             set => SetProperty(ref _relayStatus, value);
+        }
+
+        public bool IsPowerOn
+        {
+            get => _isPowerOn;
+            set => SetProperty(ref _isPowerOn, value);
+        }
+
+        public string PowerStatus
+        {
+            get => _powerStatus;
+            set => SetProperty(ref _powerStatus, value);
         }
 
         public bool IsManualTestRunning
@@ -667,25 +678,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     return;
                 }
 
-                // ========== 步骤1：配置矩阵开关通路 ==========
-                // 矩阵开关用于将仪器连接到被测设备
-                AddLog("正在配置矩阵开关通路...");
-                bool matrixOk = false;
+                // ========== 步骤1：连接万用表 ==========
+                AddLog($"正在连接万用表 {GetDmmIpAddress()} ...");
                 try
                 {
-                    matrixOk = await _simulation.ConnectMatrixAsync(msg => AddLog(msg), timeoutCts.Token);
+                    await ConnectDmmAsync(GetDmmIpAddress(), timeoutCts.Token);
+                    AddLog("万用表连接成功");
+                    _useSimulatedDmm = false;
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"矩阵开关配置异常: {ex.Message}");
-                }
-                if (!matrixOk)
-                {
-                    AddLog("矩阵开关配置失败，继续使用仿真模式");
+                    AddLog($"万用表连接异常: {ex.Message}，使用仿真模式");
+                    _useSimulatedDmm = true;
                 }
 
                 // ========== 步骤2：初始化7131板卡 ==========
-                // 流程：Connect → SetOutputMode(PushPull) → Start
                 if (_jy7131Api != null)
                 {
                     try
@@ -693,19 +700,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         AddLog("正在连接7131板卡...");
                         if (!_jy7131Api.IsConnected)
                         {
-                            // 2.1 连接板卡
                             await _jy7131Api.ConnectAsync(timeoutCts.Token);
                             AddLog("7131板卡连接成功");
-                            
-                            // 2.2 设置DO输出模式为推挽模式
-                            AddLog("正在设置DO输出模式(PushPull)...");
                             await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.PushPull, timeoutCts.Token);
-                            AddLog("DO输出模式设置完成");
-                            
-                            // 2.3 启动采集（DI/DO task start）
-                            AddLog("正在启动7131板卡...");
                             await _jy7131Api.StartAsync(timeoutCts.Token);
-                            AddLog("7131板卡启动成功");
+                            AddLog("7131板卡已启动");
                         }
                         else
                         {
@@ -722,43 +721,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     AddLog("7131板卡未配置，使用仿真模式");
                 }
 
-                // ========== 步骤3：连接万用表 ==========
-                // 流程：Connect（测量时调用ReadOnce，结束时Disconnect）
-                if (_dmmApi != null)
-                {
-                    try
-                    {
-                        AddLog("正在连接万用表...");
-                        if (!_dmmApi.IsConnected)
-                        {
-                            var dmmIp = GetDmmIpAddress();
-                            await _dmmApi.ConnectAsync(dmmIp, timeoutCts.Token);
-                        }
-                        AddLog($"万用表连接成功: {_dmmApi.IpAddress}");
-                        _useSimulatedDmm = false;
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"万用表连接异常: {ex.Message}，使用仿真模式");
-                        _useSimulatedDmm = true;
-                    }
-                }
-                else
-                {
-                    // 使用备用的VISA方式连接万用表
-                    try
-                    {
-                        await InitializeDmmAsync();
-                        _useSimulatedDmm = false;
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"万用表VISA初始化异常: {ex.Message}，使用仿真模式");
-                        _useSimulatedDmm = true;
-                    }
-                }
-
-                // ========== 步骤3.5：设置组件供电状态（下电） ==========
+                // ========== 步骤3：设置组件供电状态（下电） ==========
                 // 电源阻抗测试要求：除“继电器供电/24V输出”等试验台侧供电外，组件本体处于下电状态
                 AddLog("正在设置组件供电状态: 下电...");
                 try
@@ -777,10 +740,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 _hardwareInitialized = true;
                 AddLog("硬件初始化完成");
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "已下电"; });
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
             {
-                // 超时取消（非用户取消），转换为TimeoutException
                 throw new TimeoutException($"硬件初始化超时（{DefaultTimeoutMs}ms）");
             }
         }
@@ -854,14 +817,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
 
                 // 步骤3：断开矩阵开关通路
-                await _simulation.DisconnectMatrixAsync(msg => AddLog(msg), token);
+                await DisconnectAllMatrixRoutesAsync();
 
                 // 步骤4：断开万用表
-                if (_dmmApi != null)
+                if (_dmmSocket != null)
                 {
                     try
                     {
-                        await _dmmApi.DisconnectAsync(token);
+                        if (_dmmSocket.IsConnected)
+                            await _dmmSocket.DisconnectAsync(token);
                         AddLog("万用表已断开");
                     }
                     catch { }
@@ -876,9 +840,76 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
-        private string GetDmmIpAddress()
+        private const string DmmIpAddress = "192.168.1.13";
+        private const string MatrixIpAddress = "192.168.1.3";
+
+        // 矩阵开关槽位：PXI-2601(1) slotindex=4
+        // 各测试点通路来自接口分配表（1槽 pin91~98，万用表电阻采集）：
+        //   RESACQUIRE1+/1- = pin91/92  → A点: J3-J4   (外部28VDC_POWER_IN 对 POWER_RTN)
+        //   RESACQUIRE2+/2- = pin93/94  → B点: J14-J24 (POWER_ON 对 RS422_ISO_GND_3)
+        //   RESACQUIRE3+/3- = pin95/96  → C点: J3-J5   (外部28VDC_POWER_IN 对 CHASSIS_GND)
+        //   RESACQUIRE4+/4- = pin97/98  → D点: J14-J5  (POWER_ON 对 CHASSIS_GND)
+        // I1 = 万用表H端(+)，I4 = 万用表L端(-)，O{n} = 对应pin号
+        private const int MatrixSlotResAcquire = 4;   // 2601(1) slotindex=4
+
+        // A: J3-J4 外部28VDC_POWER_IN 对 POWER_RTN — RESACQUIRE1+/1-
+        private static readonly (string In, string Out, int Slot) MatrixPointA1 = ("I1", "O91", MatrixSlotResAcquire);
+        private static readonly (string In, string Out, int Slot) MatrixPointA2 = ("I4", "O92", MatrixSlotResAcquire);
+        // B: J14-J24 POWER_ON 对 RS422_ISO_GND_3 — RESACQUIRE2+/2-
+        private static readonly (string In, string Out, int Slot) MatrixPointB1 = ("I1", "O93", MatrixSlotResAcquire);
+        private static readonly (string In, string Out, int Slot) MatrixPointB2 = ("I4", "O94", MatrixSlotResAcquire);
+        // C: J3-J5 外部28VDC_POWER_IN 对 CHASSIS_GND — RESACQUIRE3+/3-
+        private static readonly (string In, string Out, int Slot) MatrixPointC1 = ("I1", "O95", MatrixSlotResAcquire);
+        private static readonly (string In, string Out, int Slot) MatrixPointC2 = ("I4", "O96", MatrixSlotResAcquire);
+        // D: J14-J5 POWER_ON 对 CHASSIS_GND — RESACQUIRE4+/4-
+        private static readonly (string In, string Out, int Slot) MatrixPointD1 = ("I1", "O97", MatrixSlotResAcquire);
+        private static readonly (string In, string Out, int Slot) MatrixPointD2 = ("I4", "O98", MatrixSlotResAcquire);
+
+        private string GetDmmIpAddress() => DmmIpAddress;
+
+        /// <summary>
+        /// 万用表连接方法隔离层。
+        /// [NoInlining] 确保 NI-VISA 程序集在此方法 JIT 时才加载，
+        /// 而不是在调用方 InitializeHardwareWithTimeoutAsync JIT 时加载。
+        /// 这样调用方的 try-catch 可以正常捕获 FileLoadException/TypeLoadException。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private async Task ConnectDmmAsync(string ipAddress, CancellationToken token)
         {
-            return "192.168.1.100";
+            _dmmSocket ??= new DmmSocketApi();
+            if (!_dmmSocket.IsConnected)
+                await _dmmSocket.ConnectAsync(ipAddress, token);
+        }
+
+        /// <summary>
+        /// 万用表测量电阵方法隔离层。
+        /// [NoInlining] 同上，防止 NI-VISA 类型在 ReadResistanceFromDmmAsync JIT 时崩溃。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private async Task<DmmReading> DmmReadResistanceAsync(CancellationToken token)
+        {
+            if (_dmmSocket == null || !_dmmSocket.IsConnected)
+            {
+                _dmmSocket ??= new DmmSocketApi();
+                await _dmmSocket.ConnectAsync(GetDmmIpAddress(), token);
+            }
+            return await _dmmSocket.ReadOnceAsync(
+                DmmMeasureMode.RES,
+                new DmmReadOptions { TimeoutMilliseconds = DmmTimeoutMs },
+                token);
+        }
+
+        private async Task DisconnectAllMatrixRoutesAsync()
+        {
+            var matrix = MatrixControlService.Instance;
+            try { await matrix.DisconnectNodesAsync(MatrixPointA1.In, MatrixPointA1.Out, MatrixPointA1.Slot, MatrixIpAddress); } catch { }
+            try { await matrix.DisconnectNodesAsync(MatrixPointA2.In, MatrixPointA2.Out, MatrixPointA2.Slot, MatrixIpAddress); } catch { }
+            try { await matrix.DisconnectNodesAsync(MatrixPointB1.In, MatrixPointB1.Out, MatrixPointB1.Slot, MatrixIpAddress); } catch { }
+            try { await matrix.DisconnectNodesAsync(MatrixPointB2.In, MatrixPointB2.Out, MatrixPointB2.Slot, MatrixIpAddress); } catch { }
+            try { await matrix.DisconnectNodesAsync(MatrixPointC1.In, MatrixPointC1.Out, MatrixPointC1.Slot, MatrixIpAddress); } catch { }
+            try { await matrix.DisconnectNodesAsync(MatrixPointC2.In, MatrixPointC2.Out, MatrixPointC2.Slot, MatrixIpAddress); } catch { }
+            try { await matrix.DisconnectNodesAsync(MatrixPointD1.In, MatrixPointD1.Out, MatrixPointD1.Slot, MatrixIpAddress); } catch { }
+            try { await matrix.DisconnectNodesAsync(MatrixPointD2.In, MatrixPointD2.Out, MatrixPointD2.Slot, MatrixIpAddress); } catch { }
         }
 
         private async Task PowerOnRelaySupplyWithTimeoutAsync(CancellationToken token)
@@ -894,13 +925,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     return;
                 }
 
-                _powerSupplyApi ??= new PowerSupplySocketApi();
-
-                if (!_powerSupplyApi.IsConnected)
-                {
-                    AddLog($"正在连接程控电源: {PowerSupplyIpAddress}...");
-                    await _powerSupplyApi.ConnectAsync(PowerSupplyIpAddress, timeoutCts.Token);
-                }
+                AddLog($"正在连接程控电源: {PowerSupplyIpAddress}...");
+                await ConnectPowerSupplyAsync(PowerSupplyIpAddress, timeoutCts.Token);
 
                 await _powerSupplyApi.ApplyAsync(RelaySupplyChannel, RelaySupplyVoltage, RelaySupplyCurrent, timeoutCts.Token);
                 await _powerSupplyApi.SetOutputEnabledAsync(RelaySupplyChannel, true, timeoutCts.Token);
@@ -912,6 +938,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 throw new TimeoutException($"继电器供电上电超时（{PowerSupplyTimeoutMs}ms）");
             }
+        }
+
+        /// <summary>
+        /// 程控电源连接方法隔离层。
+        /// [NoInlining] 确保 NI-VISA 程序集在此方法 JIT 时才加载，
+        /// 防止 FileLoadException 在调用方 JIT 编译时逃逸 try-catch。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private async Task ConnectPowerSupplyAsync(string ipAddress, CancellationToken token)
+        {
+            _powerSupplyApi ??= new PowerSupplySocketApi();
+            if (!_powerSupplyApi.IsConnected)
+                await _powerSupplyApi.ConnectAsync(ipAddress, token);
         }
 
         private async Task PowerOffRelaySupplyAsync(CancellationToken token)
@@ -968,18 +1007,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 if (_jy7131Api != null && _jy7131Api.IsConnected)
                 {
-                    // 1. 单点写DO15输出高电平，控制外部继电器
-                    AddLog("正在写DO15输出...");
+                    // DO15高电平 → SWITCH1 → 驱动继电器U3/E1/E2线圈得电 → NC跳NO → 产品与试验台隔离
+                    AddLog("正在写DO15（高电平）...");
                     await _jy7131Api.WriteDoAsync(RelayControlChannel, true, timeoutCts.Token);
-                    AddLog("DO15输出完成");
-                    
-                    // 2. 打开485继电器第4路（参数是3，索引从0开始）
-                    AddLog("正在打开485继电器第4路...");
-                    await _jy7131Api.SetRelayAsync(3, true, timeoutCts.Token);
-                    AddLog("485继电器第4路已打开");
+                    AddLog("DO15输出完成，继电器线圈得电");
                 }
                 else
                 {
+                    AddLog("7131板卡不可用，使用仿真继电器动作");
                     await _simulation.SimulateRelayActivateAsync(timeoutCts.Token);
                 }
 
@@ -1021,18 +1056,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 if (_jy7131Api != null && _jy7131Api.IsConnected)
                 {
-                    // 1. 单点写DO15输出低电平
-                    AddLog("正在写DO15输出(低电平)...");
+                    // DO15低电平 → 继电器线圈失电 → 触点恢复NC → 产品与试验台恢复连接
+                    AddLog("正在写DO15（低电平）...");
                     await _jy7131Api.WriteDoAsync(RelayControlChannel, false, timeoutCts.Token);
-                    AddLog("DO15输出完成");
-                    
-                    // 2. 关闭485继电器第4路
-                    AddLog("正在关闭485继电器第4路...");
-                    await _jy7131Api.SetRelayAsync(3, false, timeoutCts.Token);
-                    AddLog("485继电器第4路已关闭");
+                    AddLog("DO15输出完成，继电器线圈失电");
                 }
                 else
                 {
+                    AddLog("7131板卡不可用，使用仿真继电器动作");
                     await _simulation.SimulateRelayDeactivateAsync(timeoutCts.Token);
                 }
 
@@ -1217,50 +1248,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             });
         }
 
-        private async Task InitializeDmmAsync()
-        {
-            await _dmmIoLock.WaitAsync();
-            try
-            {
-                if (_dmmSession != null)
-                    return;
-
-                _dmmResourceManager = new ResourceManager();
-                var resources = _dmmResourceManager.Find("GPIB?*INSTR");
-
-                string dmmAddress = null;
-                foreach (var res in resources)
-                {
-                    if (res.Contains("GPIB"))
-                    {
-                        dmmAddress = res;
-                        break;
-                    }
-                }
-
-                if (string.IsNullOrEmpty(dmmAddress))
-                {
-                    dmmAddress = "GPIB0::22::INSTR";
-                }
-
-                _dmmSession = (MessageBasedSession)_dmmResourceManager.Open(dmmAddress);
-                _dmmSession.TimeoutMilliseconds = 5000;
-
-                _dmmSession.RawIO.Write("*RST\n");
-                await Task.Delay(500);
-                _dmmSession.RawIO.Write("*IDN?\n");
-                string idn = _dmmSession.RawIO.ReadString();
-                AddLog($"万用表: {idn.Trim()}");
-
-                _dmmSession.RawIO.Write("CONF:RES\n");
-                await Task.Delay(200);
-            }
-            finally
-            {
-                _dmmIoLock.Release();
-            }
-        }
-
         private async Task<double> ReadResistanceFromDmmAsync(string point, CancellationToken token = default)
         {
             if (_useSimulatedDmm)
@@ -1268,94 +1255,56 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 return await _simulation.SimulateMeasureResistanceAsync(point, token);
             }
 
-            if (_dmmApi != null)
+            await _measureLock.WaitAsync(token);
+            try
             {
-                // 按规范：Connect → ReadOnce(RES) → Disconnect
+                var matrix = MatrixControlService.Instance;
+
+                // 根据测试点配置对应矩阵通路
+                (string In, string Out, int Slot) c1, c2;
+                switch (point)
+                {
+                    case "A": c1 = MatrixPointA1; c2 = MatrixPointA2; break;
+                    case "B": c1 = MatrixPointB1; c2 = MatrixPointB2; break;
+                    case "C": c1 = MatrixPointC1; c2 = MatrixPointC2; break;
+                    case "D": c1 = MatrixPointD1; c2 = MatrixPointD2; break;
+                    default:  c1 = MatrixPointA1; c2 = MatrixPointA2; break;
+                }
+
+                var ok1 = await matrix.ConnectNodesAsync(c1.In, c1.Out, c1.Slot, MatrixIpAddress);
+                var ok2 = await matrix.ConnectNodesAsync(c2.In, c2.Out, c2.Slot, MatrixIpAddress);
+                AddLog($"矩阵连接 {(ok1 && ok2 ? "OK" : "FAIL")} - {c1.In}-{c1.Out}(slot{c1.Slot}), {c2.In}-{c2.Out}(slot{c2.Slot})");
+
+                if (!ok1 || !ok2)
+                {
+                    AddLog("矩阵通路连接失败，使用仿真测量");
+                    _useSimulatedDmm = true;
+                    return await _simulation.SimulateMeasureResistanceAsync(point, token);
+                }
+
                 try
                 {
-                    if (!_dmmApi.IsConnected)
-                    {
-                        var dmmIp = GetDmmIpAddress();
-                        await _dmmApi.ConnectAsync(dmmIp, token);
-                    }
-
-                    var reading = await _dmmApi.ReadOnceAsync(
-                        DmmMeasureMode.RES,
-                        new DmmReadOptions { TimeoutMilliseconds = DmmTimeoutMs },
-                        token);
-
-                    if (reading?.Value != null)
-                    {
-                        return reading.Value.Value;
-                    }
+                    var reading = await DmmReadResistanceAsync(token);
 
                     if (reading?.IsOverrange == true)
-                    {
                         return double.MaxValue;
-                    }
+
+                    if (reading?.Value != null)
+                        return reading.Value.Value;
 
                     throw new InvalidOperationException($"万用表读数无效: {reading?.Raw}");
                 }
-                finally
+                catch (Exception ex)
                 {
-                    try
-                    {
-                        if (_dmmApi.IsConnected)
-                            await _dmmApi.DisconnectAsync(CancellationToken.None);
-                    }
-                    catch
-                    {
-                    }
-                }
-            }
-
-            // 备用VISA路径：如果当前环境缺少NI-VISA实现，RawIO.ReadString 可能阻塞导致“无响应”。
-            // 因此这里任何初始化失败都直接切到仿真。
-
-            await _dmmIoLock.WaitAsync(token);
-            try
-            {
-                if (_dmmSession == null)
-                {
-                    try
-                    {
-                        await InitializeDmmAsync();
-                    }
-                    catch
-                    {
-                        _useSimulatedDmm = true;
-                        return await _simulation.SimulateMeasureResistanceAsync(point, token);
-                    }
-                }
-
-                // RawIO.ReadString 可能阻塞且不可被 token 取消，这里增加一层超时保护：
-                // 超时则切到仿真并提示。
-                var visaTask = Task.Run(() =>
-                {
-                    _dmmSession.RawIO.Write("MEAS:RES?\n");
-                    Thread.Sleep(500);
-                    return _dmmSession.RawIO.ReadString();
-                }, CancellationToken.None);
-
-                var completed = await Task.WhenAny(visaTask, Task.Delay(DmmTimeoutMs, token));
-                if (completed != visaTask)
-                {
+                    AddLog($"万用表测量异常: {ex.Message}，使用仿真模式");
                     _useSimulatedDmm = true;
-                    throw new TimeoutException($"万用表VISA读取超时（{DmmTimeoutMs}ms）");
+                    return await _simulation.SimulateMeasureResistanceAsync(point, token);
                 }
-
-                string response = await visaTask;
-
-                if (double.TryParse(response.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double resistance))
-                {
-                    return resistance;
-                }
-
-                throw new InvalidOperationException($"无法解析万用表返回值: {response}");
             }
             finally
             {
-                _dmmIoLock.Release();
+                try { await DisconnectAllMatrixRoutesAsync(); } catch { }
+                _measureLock.Release();
             }
         }
 
@@ -1461,8 +1410,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             try
             {
-                // 确保继电器复位
-                if (IsRelayActivated)
+                if (IsRelayActivated && _jy7131Api != null)
                 {
                     _jy7131Api.WriteDoAsync(RelayControlChannel, false).GetAwaiter().GetResult();
                 }
@@ -1471,27 +1419,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             try
             {
-                _simulation?.DisconnectMatrixAsync(null, CancellationToken.None).GetAwaiter().GetResult();
+                DisconnectAllMatrixRoutesAsync().GetAwaiter().GetResult();
             }
             catch { }
 
             try
             {
-                if (_dmmApi != null)
+                if (_dmmSocket != null && _dmmSocket.IsConnected)
                 {
-                    _dmmApi.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                    _dmmSocket.DisconnectAsync(CancellationToken.None).GetAwaiter().GetResult();
                 }
             }
             catch { }
 
-            try
-            {
-                _dmmSession?.Dispose();
-                _dmmResourceManager?.Dispose();
-            }
-            catch { }
-
-            _dmmIoLock?.Dispose();
+            _measureLock?.Dispose();
             _simulation?.Dispose();
 
             if (_projectSavingToken != null)

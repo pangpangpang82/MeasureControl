@@ -194,9 +194,34 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="提示：" FontWeight="Bold" VerticalAlignment="Center" Foreground="#92400e"/>
-                                    <TextBlock Grid.Column="1" Text="手动测试需先点击‘手动测试’进入运行状态，再执行步骤a/b/c。" VerticalAlignment="Center" Foreground="#92400e" Margin="5,0" TextWrapping="Wrap"/>
+                                    <TextBlock Grid.Column="0" Text="前置条件：" FontWeight="Bold" VerticalAlignment="Center" Foreground="#92400e"/>
+                                    <TextBlock Grid.Column="1" Text="手动测试需先点击'手动测试'进入运行状态，再执行步骤a/b/c。" VerticalAlignment="Center" Foreground="#92400e" Margin="5,0" TextWrapping="Wrap"/>
+                                    <Border Grid.Column="2" CornerRadius="4" Padding="8,3" Margin="5,0">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#fecaca"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsPowerOn}" Value="True">
+                                                        <Setter Property="Background" Value="#bbf7d0"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="{Binding PowerStatus}" FontWeight="Bold" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#dc2626"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsPowerOn}" Value="True">
+                                                            <Setter Property="Foreground" Value="#16a34a"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
                                 </Grid>
                             </Border>
 
