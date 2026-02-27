@@ -13,24 +13,39 @@ using MeasureControl.Services.HardwareApis;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
+    /// <summary>
+    /// HC_6_3 测试项：温度信号测试（PT500/温度通道校验）
+    /// 测试目的：通过“程控电阻箱”模拟 PT500 传感器的电阻值，
+    ///          再从 ARINC429 总线接收温度数据，验证两路温度（SDI0/SDI1）是否在允许范围内。
+    /// 测试方法：
+    /// 1) 给被测板供电 28V。
+    /// 2) 将程控电阻 RO0/RO1 同时设置为指定电阻（点1/点2/点3）。
+    /// 3) 从 ARINC429 接收温度 Label=175(oct)（十进制 125）数据，分别统计 SDI0 与 SDI1。
+    /// 4) 每路采集 5 帧有效数据取平均值，并与阈值范围比对，给出“合格/不合格”。
+    /// </summary>
     public class HC_6_3ViewModel : BindableBase
     {
+        // 电源配置（给被测板供电）
         private const string PowerSupplyIpAddress = "192.168.1.15";
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 0.1;
 
+        // ARINC429 接收配置
         private const int RxChannelIndex = 2;
         private const double ArincRate = 12500.0;
 
+        // 温度数据定义与采样参数
         private const byte TempLabelDec = 125; // 175(oct)
         private const int SamplesPerMeasure = 5;
         private const int SampleTimeoutMs = 5000;
         private const int ResistanceSettleMs = 100;
 
+        // 三个测试点对应的“模拟电阻值”（由程控电阻箱输出到 PT500 模拟通道）
         private const double R1_Ohm = 763.3;
         private const double R2_Ohm = 1758.6;
         private const double R3_Ohm = 1155.4;
 
+        // 三个测试点的温度判据范围（单位：℃）
         private const double T1_Min = -66.6;
         private const double T1_Max = -53.4;
         private const double T2_Min = 193.4;
@@ -38,10 +53,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double T3_Min = 32.4;
         private const double T3_Max = 46.6;
 
+        // 温度的 ARINC429 编码参数（BNR：有符号二进制数）
         private const int TempBnrBitLength = 9;
         private const double TempResolution = 1.0;
         private const int TempMsbPosition = 28;
 
+        // 同一温度 Label 下，用 SDI 区分两路温度系统
         private const byte TempChannelASdi = 0;
         private const byte TempChannelBSdi = 1;
 
@@ -224,6 +241,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             set => SetProperty(ref _previousTestResult, value);
         }
 
+        /// <summary>
+        /// 手动测试流程
+        /// 进入手动模式后，先初始化电源/ARINC429/程控电阻箱，
+        /// 然后由用户分别点击“点1/点2/点3”执行测量。
+        /// </summary>
         private async Task OnManualTestAsync()
         {
             if (IsManualTestRunning)
@@ -280,6 +302,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 自动测试流程
+        /// 自动按点1->点2->点3顺序设置电阻并接收温度，三点都满足判据则“合格”。
+        /// </summary>
         private async Task OnAutoTestAsync()
         {
             if (IsAutoTestRunning)
@@ -378,6 +404,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 测量点1（手动模式）
+        /// </summary>
         private async Task OnMeasurePoint1Async()
         {
             var ok = await MeasurePointAsync(
@@ -399,6 +428,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 测量点2（手动模式）
+        /// </summary>
         private async Task OnMeasurePoint2Async()
         {
             var ok = await MeasurePointAsync(
@@ -420,6 +452,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 测量点3（手动模式）
+        /// </summary>
         private async Task OnMeasurePoint3Async()
         {
             var ok = await MeasurePointAsync(
@@ -441,6 +476,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 测量一个测试点（核心测量方法）
+        /// 流程：
+        /// 1) 设置程控电阻 RO0/RO1 为指定电阻，并等待稳定。
+        /// 2) 从 ARINC429 接收温度数据，过滤 Label=175(oct) 并分别统计 SDI0 与 SDI1。
+        /// 3) 每路采集 5 帧有效数据取平均值，写回界面显示并返回成功。
+        /// </summary>
+        /// <param name="title">点位名称（点1/点2/点3，用于日志）</param>
+        /// <param name="resistanceOhm">需要设置到电阻箱的阻值（Ω）</param>
+        /// <returns>true=成功采集到两路温度，false=超时/异常/被取消</returns>
         private async Task<bool> MeasurePointAsync(
             string title,
             double resistanceOhm,
@@ -469,6 +514,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 var samplesB = new List<double>(SamplesPerMeasure);
                 var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
 
+                // 循环接收 ARINC429 数据直到采集足够样本或超时
                 while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
                 {
                     var words = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 512, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken)
@@ -478,11 +524,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     {
                         foreach (var w in words)
                         {
+                            // 奇偶校验不通过的数据直接丢弃
                             if (!_arinc.VerifyOddParity(w.Data429))
                                 continue;
 
                             _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out _);
 
+                            // 只处理温度 Label（175(oct)）
                             if (!IsExpectedLabel(label))
                                 continue;
 
@@ -570,16 +618,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 判断当前 ARINC429 Label 是否为温度 Label（兼容字节序反转）
+        /// </summary>
         private bool IsExpectedLabel(byte label)
         {
             return label == TempLabelDec || label == _arinc.ReverseLabel(TempLabelDec);
         }
 
+        /// <summary>
+        /// 解码温度值（BNR：有符号二进制数）
+        /// </summary>
         private double? DecodeTemp(uint data19)
         {
             return _arinc.DecodeBnr(data19, bitLength: TempBnrBitLength, resolution: TempResolution, msbPosition: TempMsbPosition);
         }
 
+        /// <summary>
+        /// 当三点都已测量完成时，按阈值范围判定结果，并更新“上次/本次”测试结论。
+        /// </summary>
         private async Task TryFinalizeIfAllMeasuredAsync()
         {
             if (!(_measured1 && _measured2 && _measured3))
@@ -613,6 +670,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 中止手动测试（通常用于初始化失败、采集超时、采集异常等）
+        /// </summary>
         private async Task AbortManualTestAsync(string reason)
         {
             _manualAborted = true;
@@ -624,6 +684,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await StopManualTestAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 停止手动测试并释放硬件资源（关闭电源输出、停止 ARINC429 接收、断开电阻箱）
+        /// </summary>
         private async Task StopManualTestAsync()
         {
             try
@@ -641,6 +704,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log("手动测试已结束");
         }
 
+        /// <summary>
+        /// 停止自动测试并释放硬件资源
+        /// </summary>
         private async Task StopAutoTestAsync()
         {
             try
@@ -657,6 +723,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log("自动测试已结束");
         }
 
+        /// <summary>
+        /// 清理硬件资源（ARINC429、电源、程控电阻箱）
+        /// 这里使用大量 try-catch，目的是：即使某个设备清理失败，也尽量继续清理其它设备。
+        /// </summary>
         private async Task CleanupIoAsync()
         {
             try
@@ -711,6 +781,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 确保程控电源已连接并输出 28V（CH1/CH2）
+        /// </summary>
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
         {
             _power ??= new PowerSupplySocketApi();
@@ -722,6 +795,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 确保 ARINC429 接收通道已打开并开始接收（Odd parity, 标准 429 格式）
+        /// </summary>
         private async Task EnsureArincRxAsync(CancellationToken cancellationToken)
         {
             if (_arinc == null)
@@ -751,6 +827,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 确保程控电阻箱已连接，并初始化为 0Ω
+        /// </summary>
         private async Task EnsureResistanceAsync(CancellationToken cancellationToken)
         {
             if (_res != null && _res.IsConnected)
@@ -768,6 +847,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await SetResistanceAsync(0.0, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 设置程控电阻箱阻值（同时设置 RO0 与 RO1）
+        /// </summary>
         private async Task SetResistanceAsync(double resistanceOhm, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -781,6 +863,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 throw new InvalidOperationException("设置ACTS6010阻值失败");
         }
 
+        /// <summary>
+        /// 在 PXI 机箱中查找 ARINC429 板卡（4227/4229）
+        /// </summary>
         private DeviceBase FindFirstArincDevice()
         {
             var chassisList = _pxiChassisService?.GetAllChassis();
@@ -805,6 +890,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return null;
         }
 
+        /// <summary>
+        /// 在 PXI 机箱中查找 ACTS6010 程控电阻箱设备
+        /// </summary>
         private DeviceBase FindFirstActs6010Device()
         {
             var chassisList = _pxiChassisService?.GetAllChassis();
@@ -826,6 +914,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return null;
         }
 
+        /// <summary>
+        /// 记录日志到界面
+        /// </summary>
         private void Log(string message)
         {
             var line = $"[{DateTime.Now:HH:mm:ss}] {message}";
