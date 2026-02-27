@@ -85,6 +85,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// <summary>继电器操作超时时间（毫秒）</summary>
         private const int RelayTimeoutMs = 5000;
 
+        private const int PowerSupplyTimeoutMs = 8000;
+        private const string PowerSupplyIpAddress = "192.168.1.15";
+        private const PowerSupplyChannel RelaySupplyChannel = PowerSupplyChannel.CH1;
+        private const double RelaySupplyVoltage = 24.0;
+        private const double RelaySupplyCurrent = 1.0;
+
         #endregion
 
         #region 依赖服务
@@ -92,6 +98,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private readonly ISingleBoardTestContextService _singleBoardTestContext;  // 单板测试上下文服务
         private readonly ProjectService _projectService;                           // 项目服务，用于数据持久化
         private readonly IEventAggregator _eventAggregator;                        // 事件聚合器，用于跨模块通信
+        private readonly IComponentPowerStateApi _componentPowerStateApi;          // 组件供电状态API（复用）
         private readonly IJy7131Api _jy7131Api;                                    // 7131板卡API，控制DO输出
         private readonly IDmmApi _dmmApi;                                          // 万用表API，测量电阻
         private readonly PowerImpedanceSimulation _simulation;                     // 仿真类，硬件不可用时使用
@@ -118,6 +125,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isRelayActivated;                                            // 继电器是否已激活
 
         private bool _useSimulatedDmm;                                             // DMM不可用时强制走仿真测量（避免VISA阻塞导致无响应）
+
+        private IPowerSupplyApi _powerSupplyApi;
+        private bool _relaySupplyOn;
 
         #endregion
 
@@ -155,6 +165,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             ISingleBoardTestContextService singleBoardTestContext,
             ProjectService projectService,
             IEventAggregator eventAggregator,
+            IComponentPowerStateApi componentPowerStateApi,
             IJy7131Api jy7131Api = null,
             IDmmApi dmmApi = null)
         {
@@ -162,6 +173,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             _singleBoardTestContext = singleBoardTestContext;
             _projectService = projectService;
             _eventAggregator = eventAggregator;
+            _componentPowerStateApi = componentPowerStateApi;
             _jy7131Api = jy7131Api;
             _dmmApi = dmmApi;
             _simulation = new PowerImpedanceSimulation();
@@ -392,6 +404,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     await InitializeHardwareWithTimeoutAsync(token);
                     if (token.IsCancellationRequested) return;
 
+                    // 步骤1.5：继电器供电上电（24V）
+                    AddLog("步骤1.5: 继电器供电上电（24V）...");
+                    await PowerOnRelaySupplyWithTimeoutAsync(token);
+                    if (token.IsCancellationRequested) return;
+
                     // 步骤2：激活继电器，将产品与试验台隔离
                     AddLog("步骤2: 激活继电器，隔离产品与试验台...");
                     await ActivateRelayWithTimeoutAsync(token);
@@ -469,6 +486,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     // ========== 步骤1: 初始化硬件 ==========
                     AddLog("步骤1: 初始化硬件设备（7131板卡、万用表）...");
                     await InitializeHardwareWithTimeoutAsync(token);
+                    if (token.IsCancellationRequested) return;
+
+                    // ========== 步骤1.5: 继电器供电上电 ==========
+                    AddLog("步骤1.5: 继电器供电上电（24V）...");
+                    await PowerOnRelaySupplyWithTimeoutAsync(token);
                     if (token.IsCancellationRequested) return;
 
                     // ========== 步骤2: 激活继电器 ==========
@@ -736,6 +758,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     }
                 }
 
+                // ========== 步骤3.5：设置组件供电状态（下电） ==========
+                // 电源阻抗测试要求：除“继电器供电/24V输出”等试验台侧供电外，组件本体处于下电状态
+                AddLog("正在设置组件供电状态: 下电...");
+                try
+                {
+                    if (_componentPowerStateApi != null)
+                    {
+                        await _componentPowerStateApi.ApplyComponentDownStateAsync(timeoutCts.Token);
+                    }
+                    await _simulation.ApplyComponentDownStateAsync(msg => AddLog(msg), timeoutCts.Token);
+                    AddLog("组件供电状态已设置为下电");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"组件下电状态设置异常: {ex.Message}");
+                }
+
                 _hardwareInitialized = true;
                 AddLog("硬件初始化完成");
             }
@@ -766,11 +805,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 AddLog("正在复位硬件设备...");
 
+                // 步骤0：确保组件处于下电状态
+                try
+                {
+                    if (_componentPowerStateApi != null)
+                    {
+                        await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
+                    }
+                    await _simulation.ApplyComponentDownStateAsync(msg => AddLog(msg), token);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"复位时组件下电状态设置异常: {ex.Message}");
+                }
+
                 // 步骤1：复位继电器，恢复产品与试验台连接
                 if (IsRelayActivated)
                 {
                     await DeactivateRelayWithTimeoutAsync(token);
                 }
+
+                // 步骤1.5：继电器供电断电
+                await PowerOffRelaySupplyAsync(token);
 
                 // 步骤2：停止并断开7131板卡
                 // 流程：Stop → Disconnect（Dispose由using或ViewModel.Dispose处理）
@@ -823,6 +879,72 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private string GetDmmIpAddress()
         {
             return "192.168.1.100";
+        }
+
+        private async Task PowerOnRelaySupplyWithTimeoutAsync(CancellationToken token)
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            timeoutCts.CancelAfter(PowerSupplyTimeoutMs);
+
+            try
+            {
+                if (_relaySupplyOn)
+                {
+                    AddLog("继电器供电已上电，跳过");
+                    return;
+                }
+
+                _powerSupplyApi ??= new PowerSupplySocketApi();
+
+                if (!_powerSupplyApi.IsConnected)
+                {
+                    AddLog($"正在连接程控电源: {PowerSupplyIpAddress}...");
+                    await _powerSupplyApi.ConnectAsync(PowerSupplyIpAddress, timeoutCts.Token);
+                }
+
+                await _powerSupplyApi.ApplyAsync(RelaySupplyChannel, RelaySupplyVoltage, RelaySupplyCurrent, timeoutCts.Token);
+                await _powerSupplyApi.SetOutputEnabledAsync(RelaySupplyChannel, true, timeoutCts.Token);
+
+                _relaySupplyOn = true;
+                AddLog($"继电器供电已上电: {PowerSupplyIpAddress} CH{(int)RelaySupplyChannel} {RelaySupplyVoltage:F1}V");
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
+            {
+                throw new TimeoutException($"继电器供电上电超时（{PowerSupplyTimeoutMs}ms）");
+            }
+        }
+
+        private async Task PowerOffRelaySupplyAsync(CancellationToken token)
+        {
+            if (_powerSupplyApi == null)
+            {
+                _relaySupplyOn = false;
+                return;
+            }
+
+            try
+            {
+                if (_powerSupplyApi.IsConnected)
+                {
+                    try
+                    {
+                        await _powerSupplyApi.SetOutputEnabledAsync(RelaySupplyChannel, false, token);
+                    }
+                    catch { }
+
+                    try
+                    {
+                        await _powerSupplyApi.DisconnectAsync(token);
+                    }
+                    catch { }
+                }
+            }
+            finally
+            {
+                try { await _powerSupplyApi.DisposeAsync(); } catch { }
+                _powerSupplyApi = null;
+                _relaySupplyOn = false;
+            }
         }
 
         /// <summary>
@@ -1333,7 +1455,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             try
             {
-                if (_jy7131Api != null && IsRelayActivated)
+                PowerOffRelaySupplyAsync(CancellationToken.None).GetAwaiter().GetResult();
+            }
+            catch { }
+
+            try
+            {
+                // 确保继电器复位
+                if (IsRelayActivated)
                 {
                     _jy7131Api.WriteDoAsync(RelayControlChannel, false).GetAwaiter().GetResult();
                 }
