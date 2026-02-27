@@ -7422,25 +7422,23 @@ namespace MeasureControl.ViewModels
 
                             "凌华 PXIe-3987",
 
-                            "简仪 PXIe-7131",
-
-                            "阿尔泰 PXI-7012",
-
-                            "阿尔泰 PXI-7012",
-
-                            "欧开 PXI-4087C",
-
-                            "欧开 PXI-4087C",
-
                             "欧开 PXI-4087A",
 
-                            "阿尔泰 PXIe-9774",
+                            "欧开 PXI-4087C",
+                           
+                            "盲板",
+
+                            "阿尔泰 PXI-7012",
+
+                            "阿尔泰 PXI-7012",
 
                             "芒果树 MT-X532",
 
-                            "盲板",
-
                             "阿尔泰 PXIe-4227",
+
+                            "阿尔泰 PXIe-9774",
+
+                            "盲板",
 
                             "阿尔泰 PXI-4004",
 
@@ -7449,9 +7447,7 @@ namespace MeasureControl.ViewModels
                             "阿尔泰 PXI-4332",
 
                             "怀智 HZ-MIL1394B-PX1e-4N",
-
-                            "盲板",
-
+                            
                             "盲板",
 
                             "盲板"
