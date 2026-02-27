@@ -100,9 +100,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
                     }
 
+                    // 先开启 7131 的 DO29
                     await _jy7131.WriteDoAsync($"DO{Relay485DoIndex}", true, cancellationToken).ConfigureAwait(false);
+                    Log($"7131 DO{Relay485DoIndex} 已置位");
+
+                    // 再开启继电器板 K8（第8路，index=7）
+                    await _jy7131.SetRelayAsync(7, true, cancellationToken).ConfigureAwait(false);
+                    Log($"485继电器板 K8（第8路）已开启");
+
+                    // 等待继电器吸合稳定
+                    await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+
                     _isRelay485On = true;
-                    Log($"485继电器K8开启: DO{Relay485DoIndex}=1");
+                    Log($"485继电器K8开启完成: DO{Relay485DoIndex}=1, 继电器K8=ON");
                 }
                 else
                 {
@@ -113,11 +123,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                     if (_jy7131 != null)
                     {
+                        // 先关闭继电器板 K8
+                        try
+                        {
+                            await _jy7131.SetRelayAsync(7, false, cancellationToken).ConfigureAwait(false);
+                            Log($"485继电器板 K8（第8路）已关闭");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"关闭继电器 K8 失败: {ex.Message}");
+                        }
+
+                        // 再关闭 DO29
                         await _jy7131.WriteDoAsync($"DO{Relay485DoIndex}", false, cancellationToken).ConfigureAwait(false);
+                        Log($"7131 DO{Relay485DoIndex} 已复位");
                     }
 
                     _isRelay485On = false;
-                    Log($"485继电器K8关闭: DO{Relay485DoIndex}=0");
+                    Log($"485继电器K8关闭完成: DO{Relay485DoIndex}=0, 继电器K8=OFF");
                 }
             }
             finally
