@@ -2316,40 +2316,16 @@ namespace MeasureControl.ViewModels.Common
                         return;
                     }
 
-                    // 检查项目是否有未保存的更改
-                    if (HasUnsavedChanges && CurrentProject != null && CurrentProject.Count > 0)
+                    // 自动保存项目（proj.json层面），无需提示
+                    if (CurrentProject != null && CurrentProject.Count > 0)
                     {
-                        var projectToSave = CurrentProject[0];
-                        var result = ReMessageBox.Show(
-                            $"是否保存项目的更改？",
-                            "关闭项目",
-                            MessageBoxButton.YesNoCancel,
-                            MessageBoxImage.Question);
-
-                        if (result == MessageBoxResult.Cancel)
+                        try
                         {
-                            // 用户取消关闭
-                            return;
+                            SaveProjectInternal();
                         }
-
-                        if (result == MessageBoxResult.Yes)
+                        catch (Exception ex)
                         {
-                            try
-                            {
-                                SaveProjectInternal();
-                                // 静默保存，不显示成功消息框
-                            }
-                            catch (Exception ex)
-                            {
-                                var continueClose = ReMessageBox.Show(
-                                    $"保存项目失败：{ex.Message}\n\n是否仍然关闭项目？",
-                                    "错误",
-                                    MessageBoxButton.YesNo,
-                                    MessageBoxImage.Error);
-
-                                if (continueClose == MessageBoxResult.No)
-                                    return;
-                            }
+                            System.Diagnostics.Debug.WriteLine($"[MainWindow] 自动保存项目失败: {ex.Message}");
                         }
                     }
 

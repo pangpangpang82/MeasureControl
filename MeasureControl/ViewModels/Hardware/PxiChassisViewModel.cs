@@ -3188,10 +3188,15 @@ namespace MeasureControl.ViewModels
             {
                 return;
             }
-            if (!string.Equals(ChassisName, "PXI机箱1", StringComparison.Ordinal))
+            if (!string.Equals(ChassisName, "PXI机箱1", StringComparison.Ordinal) &&
+                !string.Equals(ChassisName, "PXI机箱2", StringComparison.Ordinal))
             {
                 return;
             }
+            
+            // 处理机箱1
+            if (string.Equals(ChassisName, "PXI机箱1", StringComparison.Ordinal))
+            {
             try
             {
                 var chassisDevice = _pxiChassisService.EnsureChassisDevice("PXI机箱1", "PXIe-2722G2");
@@ -3205,54 +3210,17 @@ namespace MeasureControl.ViewModels
                 {
                     return;
                 }
-                var expectedNames = new List<string>
-                {
-                    "凌华 PXIe-3987",
-                    "欧开 PXI-4087A",
-                    "欧开 PXI-4087C",
-                    "盲板",
-                    "阿尔泰 PXI-7012",
-                    "阿尔泰 PXI-7012",
-                    "芒果树 MT-X532",
-                    "阿尔泰 PXIe-4227",
-                    "阿尔泰 PXIe-9774",
-                    "盲板",
-                    "阿尔泰 PXI-4004",
-                    "简仪 PXIe-7131",
-                    "芒果树 MT-X970",
-                    "阿尔泰 PXI-4332",
-                    "怀智 HZ-MIL1394B-PX1e-4N",
-                    "盲板",
-                    "盲板"
-                };
-                bool cardMatches = false;
-                if (uiChassisDevice.Children.Count == expectedNames.Count)
-                {
-                    cardMatches = true;
-                    for (int i = 0; i < expectedNames.Count; i++)
-                    {
-                        var child = uiChassisDevice.Children[i];
-                        var expected = expectedNames[i];
-                        var actual = child?.Name;
-                        if (!string.Equals(actual, expected, StringComparison.Ordinal))
-                        {
-                            cardMatches = false;
-                            break;
-                        }
-                    }
-                }
-                bool instrumentMatches = HasRequiredFixedDemoInstruments();
-                if (cardMatches && instrumentMatches)
+                
+                // 只在设备列表为空时才自动生成，避免重复清空再生成导致系统控制器冲突
+                if (uiChassisDevice.Children.Count > 0)
                 {
                     return;
                 }
+                
                 _isApplyingFixedDemoLayout = true;
                 try
                 {
-                    if (!cardMatches)
-                    {
-                        uiChassisDevice.Children.Clear();
-                        var sequence = new List<string>
+                    var sequence = new List<string>
                         {
                             "凌华 PXIe-3987",
                             "欧开 PXI-4087A",
@@ -3270,17 +3238,17 @@ namespace MeasureControl.ViewModels
                             "阿尔泰 PXI-4332",
                             "怀智 HZ-MIL1394B-PX1e-4N",
                             "盲板",
+                            "盲板",
                             "盲板"
                         };
-                        foreach (var name in sequence)
+                    foreach (var name in sequence)
+                    {
+                        var toolItem = FindToolItemByName(name);
+                        if (toolItem == null)
                         {
-                            var toolItem = FindToolItemByName(name);
-                            if (toolItem == null)
-                            {
-                                toolItem = new ProjectItem { Name = name };
-                            }
-                            OnAddDevice(toolItem);
+                            toolItem = new ProjectItem { Name = name };
                         }
+                        OnAddDevice(toolItem);
                     }
                     EnsureRequiredFixedDemoInstruments();
                     LoadChassisDevices();
@@ -3293,7 +3261,68 @@ namespace MeasureControl.ViewModels
             catch
             {
             }
+            }
+            
+            // 处理机箱2
+            if (string.Equals(ChassisName, "PXI机箱2", StringComparison.Ordinal))
+            {
+            try
+            {
+                var chassisDevice = _pxiChassisService.EnsureChassisDevice("PXI机箱2", "PXIe-2519G2");
+                if (chassisDevice == null)
+                {
+                    return;
+                }
+                LoadChassisDevices();
+                var uiChassisDevice = FindChassisDevice() as ChassisDevice;
+                if (uiChassisDevice?.Children == null)
+                {
+                    return;
+                }
+                
+                // 只在设备列表为空时才自动生成，避免重复清空再生成导致系统控制器冲突
+                if (uiChassisDevice.Children.Count > 0)
+                {
+                    return;
+                }
+                
+                _isApplyingFixedDemoLayout = true;
+                try
+                {
+                    var sequence = new List<string>
+                        {
+                            "凌华 PXIe-3987",
+                            "阿尔泰 PXI-2601",
+                            "阿尔泰 PXI-2601",
+                            "欧开 PXI-3022",
+                            "盲板",
+                            "阿尔泰 PXI-2601",
+                            "阿尔泰 PXI-2601",
+                            "阿尔泰 PXI-2601",
+                            "欧开 PXI-3022"
+                        };
+                    foreach (var name in sequence)
+                    {
+                        var toolItem = FindToolItemByName(name);
+                        if (toolItem == null)
+                        {
+                            toolItem = new ProjectItem { Name = name };
+                        }
+                        OnAddDevice(toolItem);
+                    }
+                    LoadChassisDevices();
+                }
+                finally
+                {
+                    _isApplyingFixedDemoLayout = false;
+                }
+            }
+            catch
+            {
+            }
+            }
         }
+
         private bool HasRequiredFixedDemoInstruments()
         {
             if (!string.Equals(ChassisName, "PXI机箱1", StringComparison.Ordinal))
