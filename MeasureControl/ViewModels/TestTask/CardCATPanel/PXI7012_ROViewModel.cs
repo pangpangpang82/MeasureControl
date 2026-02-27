@@ -646,14 +646,8 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
             try
             {
                 AvailableTestTasks.Clear();
-                var projectTasks = GetTestTaskNamesFromProject();
-                foreach (var name in projectTasks)
-                {
-                    if (!string.IsNullOrWhiteSpace(name) && !AvailableTestTasks.Contains(name))
-                    {
-                        AvailableTestTasks.Add(name);
-                    }
-                }
+                
+                AvailableTestTasks.Add(DefaultTestTaskName);
 
                 var ensuredConfig = EnsureResistanceOutputCardConfig();
                 if (ensuredConfig != null)
@@ -661,35 +655,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
                     EnsureTaskConfigsExist(ensuredConfig, AvailableTestTasks);
                 }
 
-                var cardConfig = Device?.CardConfigData as ResistanceOutputCardConfig;
-                if (cardConfig?.TestTaskConfigs != null)
-                {
-                    foreach (var config in cardConfig.TestTaskConfigs)
-                    {
-                        if (string.IsNullOrWhiteSpace(config?.TestTaskName))
-                            continue;
-                        if (!AvailableTestTasks.Contains(config.TestTaskName))
-                        {
-                            AvailableTestTasks.Add(config.TestTaskName);
-                        }
-                    }
-                }
-
-                if (AvailableTestTasks.Count == 0)
-                {
-                    AvailableTestTasks.Add(DefaultTestTaskName);
-                }
-
-                string initialTask = null;
-                if (!string.IsNullOrWhiteSpace(cardConfig?.LastSelectedTestTask) &&
-                    AvailableTestTasks.Contains(cardConfig.LastSelectedTestTask))
-                {
-                    initialTask = cardConfig.LastSelectedTestTask;
-                }
-                else
-                {
-                    initialTask = AvailableTestTasks.FirstOrDefault();
-                }
+                string initialTask = DefaultTestTaskName;
 
                 _selectedTestTask = initialTask;
                 RaisePropertyChanged(nameof(SelectedTestTask));

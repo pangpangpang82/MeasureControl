@@ -1487,29 +1487,15 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
             try
             {
                 AvailableTestTasks.Clear();
-                var taskNames = GetTestTaskNamesFromProject();
-                foreach (var task in taskNames)
-                {
-                    AvailableTestTasks.Add(task);
-                }
+                AvailableTestTasks.Add("默认测试任务");
 
                 var cardConfig = EnsureDigitalCardConfig();
                 if (cardConfig != null)
                 {
-                    EnsureTaskConfigsExist(cardConfig, taskNames);
+                    EnsureTaskConfigsExist(cardConfig, AvailableTestTasks);
                 }
 
-                string initialTask = null;
-                if (Device?.CardConfigData is Models.DigitalIOCardConfig existingConfig &&
-                    !string.IsNullOrEmpty(existingConfig.LastSelectedTestTask) &&
-                    taskNames.Contains(existingConfig.LastSelectedTestTask))
-                {
-                    initialTask = existingConfig.LastSelectedTestTask;
-                }
-                else
-                {
-                    initialTask = taskNames.FirstOrDefault();
-                }
+                string initialTask = "默认测试任务";
 
                 _selectedTestTask = initialTask;
                 RaisePropertyChanged(nameof(SelectedTestTask));
