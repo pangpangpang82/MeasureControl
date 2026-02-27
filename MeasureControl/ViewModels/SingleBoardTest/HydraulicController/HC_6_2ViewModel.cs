@@ -12,28 +12,38 @@ using MeasureControl.Services.HardwareApis;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
+    /// <summary>
+    /// HC_6_2 测试项：电源电压测试（通过 ARINC429 读取）
+    /// 测试目的：验证液压控制器的 5V、15V、-15V 电源输出是否正常
+    /// 测试方法：供电 28V 后，通过 ARINC429 接收电压数据，并判断是否在允许范围内
+    /// </summary>
     public class HC_6_2ViewModel : BindableBase
     {
-        private const string PowerSupplyIpAddress = "192.168.1.15";
-        private const double InputVoltageV = 28.0;
-        private const double InputCurrentA = 0.1;
+        // 电源配置
+        private const string PowerSupplyIpAddress = "192.168.1.15";  // 程控电源 IP 地址
+        private const double InputVoltageV = 28.0;                    // 输入电压 28V
+        private const double InputCurrentA = 0.1;                     // 输入限流 0.1A
 
-        private const int RxChannelIndex = 2;
-        private const double ArincRate = 12500.0;
+        // ARINC429 配置
+        private const int RxChannelIndex = 2;           // 接收通道索引
+        private const double ArincRate = 12500.0;       // 通信速率 12.5kbps
 
-        private const byte Label5V = 050;
-        private const byte Label15V = 048;
-        private const byte LabelM15V = 049;
+        // ARINC429 标签（Label）定义
+        private const byte Label5V = 050;      // 5V 电压数据标签
+        private const byte Label15V = 048;     // 15V 电压数据标签
+        private const byte LabelM15V = 049;    // -15V 电压数据标签
 
-        private const int SamplesPerMeasure = 5;
-        private const int SampleTimeoutMs = 5000;
+        // 采样配置
+        private const int SamplesPerMeasure = 5;      // 每次测量采集 5 个样本取平均值
+        private const int SampleTimeoutMs = 5000;     // 采样超时时间 5 秒
 
-        private const double Min5V = 4.925;
-        private const double Max5V = 5.075;
-        private const double Min15V = 14.775;
-        private const double Max15V = 15.225;
-        private const double MinM15V = -15.225;
-        private const double MaxM15V = -14.775;
+        // 电压合格范围（允许偏差 ±1.5%）
+        private const double Min5V = 4.925;      // 5V 下限（4.925V）
+        private const double Max5V = 5.075;      // 5V 上限（5.075V）
+        private const double Min15V = 14.775;    // 15V 下限（14.775V）
+        private const double Max15V = 15.225;    // 15V 上限（15.225V）
+        private const double MinM15V = -15.225;  // -15V 下限（-15.225V）
+        private const double MaxM15V = -14.775;  // -15V 上限（-14.775V）
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private CancellationTokenSource _manualCts;
@@ -175,6 +185,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             set => SetProperty(ref _previousTestResult, value);
         }
 
+        /// <summary>
+        /// 手动测试流程
+        /// 用户可以手动点击按钮分别测量 5V、15V、-15V 三个电压
+        /// </summary>
         private async Task OnManualTestAsync()
         {
             if (IsManualTestRunning)
@@ -209,7 +223,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
+                // 确保电源已开启并输出 28V
                 await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
+                // 确保 ARINC429 接收通道已启动
                 await EnsureArincRxAsync(_manualCts.Token).ConfigureAwait(false);
                 CanMeasure = true;
                 Log("手动测试初始化完成，可开始分别测量 5V/15V/-15V");
@@ -220,6 +236,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 自动测试流程
+        /// 自动依次测量 5V、15V、-15V 三个电压并判断结果
+        /// </summary>
         private async Task OnAutoTestAsync()
         {
             if (IsAutoTestRunning)
@@ -258,9 +278,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
+                // 确保电源和 ARINC429 已就绪
                 await EnsurePowerAsync(_autoCts.Token).ConfigureAwait(false);
                 await EnsureArincRxAsync(_autoCts.Token).ConfigureAwait(false);
 
+                // 测量 5V 电压
                 await MeasureVoltageFrom429Async(
                         title: "5V",
                         expectedLabel: Label5V,
@@ -338,6 +360,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 测量 15V 电压（手动模式）
+        /// </summary>
         private async Task OnMeasure15VAsync()
         {
             var ok = await MeasureVoltageFrom429Async(
@@ -361,6 +386,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 测量 -15V 电压（手动模式）
+        /// </summary>
         private async Task OnMeasureM15VAsync()
         {
             var ok = await MeasureVoltageFrom429Async(
@@ -384,6 +412,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 从 ARINC429 数据中测量电压（核心测量方法）
+        /// 流程：1) 接收 ARINC429 数据  2) 过滤指定 Label 的数据  3) 验证奇偶校验  4) 解码电压值  5) 采集 5 个样本取平均
+        /// </summary>
+        /// <param name="title">电压名称（如 "5V", "15V", "-15V"）</param>
+        /// <param name="expectedLabel">期望的 ARINC429 标签</param>
+        /// <param name="decode">解码函数（将 19-bit 数据转换为电压值）</param>
+        /// <param name="setText">设置界面显示文本的回调</param>
+        /// <param name="setValue">设置测量值的回调</param>
+        /// <returns>true=测量成功，false=测量失败</returns>
         private async Task<bool> MeasureVoltageFrom429Async(
             string title,
             byte expectedLabel,
@@ -403,11 +441,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 Log($"{title}: 开始接收429数据，label={expectedLabel}");
 
+                // 准备采样容器和超时时间
                 var samples = new List<double>(SamplesPerMeasure);
                 var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
 
+                // 循环接收 ARINC429 数据直到采集足够样本或超时
                 while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
                 {
+                    // 读取 ARINC429 接收缓冲区的数据
                     var words = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 512, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken)
                         .ConfigureAwait(false);
 
@@ -415,21 +456,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     {
                         foreach (var w in words)
                         {
+                            // 过滤：只处理指定 Label 的数据
                             if (!IsExpectedLabel(w.Data429, expectedLabel))
                                 continue;
 
+                            // 验证奇偶校验位
                             if (!_arinc.VerifyOddParity(w.Data429))
                                 continue;
 
+                            // 解析 ARINC429 数据字：提取 SDI 和 19-bit 数据域
                             _arinc.ParseRawWord(w.Data429, out _, out var sdi, out var data19, out _);
                             if (sdi != 0)
                                 continue;
 
-                            // 用户定义：bit10-19 固定为0，对应 data19 的低10位必须为0
+                            // 数据格式验证：bit10-19 固定为0（协议规定）
                             if ((data19 & 0x3FFu) != 0)
                                 continue;
 
-                            // 用户定义：5V/15V 的 bit28 固定为0（-15V 的 bit28 为符号位，不限制）
+                            // 数据格式验证：5V/15V 的 bit28 固定为0（-15V 的 bit28 为符号位，不限制）
                             if (!string.Equals(title, "-15V", StringComparison.OrdinalIgnoreCase))
                             {
                                 // bit28 对应 data19 的 bit18
@@ -437,15 +481,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                                     continue;
                             }
 
+                            // 解码电压值
                             var v = decode(data19);
                             if (v == null)
                                 continue;
 
+                            // 添加到采样列表
                             samples.Add(v.Value);
 
+                            // 计算平均值并更新界面显示
                             var avg = samples.Average();
                             setText($"{v.Value:0.###} V ({samples.Count}/{SamplesPerMeasure})  平均:{avg:0.###} V");
 
+                            // 如果已采集足够样本，完成测量
                             if (samples.Count >= SamplesPerMeasure)
                             {
                                 setValue(avg);
@@ -496,27 +544,51 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 解码 5V 电压值（UBNR 格式：无符号二进制数）
+        /// </summary>
+        /// <param name="data19">ARINC429 数据域（19-bit）</param>
+        /// <returns>解码后的电压值</returns>
         private double? Decode5V(uint data19)
         {
             return _arinc.DecodeUbnr(data19, bitLength: 8, resolution: 0.1, msbPosition: 27);
         }
 
+        /// <summary>
+        /// 解码 15V 电压值（UBNR 格式：无符号二进制数）
+        /// </summary>
+        /// <param name="data19">ARINC429 数据域（19-bit）</param>
+        /// <returns>解码后的电压值</returns>
         private double? Decode15V(uint data19)
         {
             return _arinc.DecodeUbnr(data19, bitLength: 8, resolution: 0.1, msbPosition: 27);
         }
 
+        /// <summary>
+        /// 解码 -15V 电压值（BNR 格式：有符号二进制数，支持负值）
+        /// </summary>
+        /// <param name="data19">ARINC429 数据域（19-bit）</param>
+        /// <returns>解码后的电压值</returns>
         private double? DecodeM15V(uint data19)
         {
             return _arinc.DecodeBnr(data19, bitLength: 9, resolution: 0.1, msbPosition: 28);
         }
 
+        /// <summary>
+        /// 判断 ARINC429 数据字的 Label 是否匹配期望值
+        /// </summary>
+        /// <param name="rawWord">原始 ARINC429 数据字</param>
+        /// <param name="expected">期望的 Label 值</param>
+        /// <returns>true=匹配，false=不匹配</returns>
         private bool IsExpectedLabel(uint rawWord, byte expected)
         {
             _arinc.ParseRawWord(rawWord, out var label, out _, out _, out _);
             return label == expected || label == _arinc.ReverseLabel(expected);
         }
 
+        /// <summary>
+        /// 检查是否所有电压都已测量完成，如果是则判断结果并结束测试
+        /// </summary>
         private async Task TryFinalizeIfAllMeasuredAsync()
         {
             if (!IsManualTestRunning || _manualAborted)
@@ -525,6 +597,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!(_measured5v && _measured15v && _measuredM15v))
                 return;
 
+            // 判断每个电压是否在合格范围内
             var pass5 = _voltage5V != null && _voltage5V >= Min5V && _voltage5V <= Max5V;
             var pass15 = _voltage15V != null && _voltage15V >= Min15V && _voltage15V <= Max15V;
             var passM15 = _voltageM15V != null && _voltageM15V >= MinM15V && _voltageM15V <= MaxM15V;
@@ -544,6 +617,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await StopManualTestAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 中止手动测试（发生错误时调用）
+        /// </summary>
         private async Task AbortManualTestAsync(string reason)
         {
             _manualAborted = true;
@@ -555,6 +631,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await StopManualTestAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 停止手动测试并清理资源
+        /// </summary>
         private async Task StopManualTestAsync()
         {
             try
