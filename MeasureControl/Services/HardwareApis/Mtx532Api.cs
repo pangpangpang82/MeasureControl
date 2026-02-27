@@ -9,13 +9,19 @@ using MeasureControl.Models.Devices;
 
 namespace MeasureControl.Services.HardwareApis
 {
+    /// <summary>
+    /// MTX532 输出波形类型
+    /// </summary>
     public enum Mtx532Waveform
     {
-        Dc,
-        Sine,
-        Square
+        Dc,      // 直流电压（恒定值）
+        Sine,    // 正弦波
+        Square   // 方波
     }
 
+    /// <summary>
+    /// MTX532 通道配置
+    /// </summary>
     public sealed class Mtx532ChannelConfig
     {
         public string Channel { get; set; }
@@ -27,6 +33,9 @@ namespace MeasureControl.Services.HardwareApis
         public double DutyCyclePercent { get; set; } = 50.0;
     }
 
+    /// <summary>
+    /// MTX532 板卡选项
+    /// </summary>
     public sealed class Mtx532Options
     {
         public double SampleRateHz { get; set; } = 1000.0;
@@ -35,30 +44,38 @@ namespace MeasureControl.Services.HardwareApis
         public int ResetDelayMs { get; set; } = 500;
     }
 
+    /// <summary>
+    /// MTX532 模拟量输出板卡控制接口
+    /// 功能：输出模拟电压信号（最多32路），支持直流、正弦波、方波
+    /// </summary>
     public interface IMtx532Api : IAsyncDisposable
     {
-        bool IsConnected { get; }
-        bool IsOutputRunning { get; }
+        bool IsConnected { get; }      // 是否已连接到板卡
+        bool IsOutputRunning { get; }  // 是否正在输出
 
-        Task ConnectAsync(CancellationToken cancellationToken = default);
-        Task DisconnectAsync(CancellationToken cancellationToken = default);
+        Task ConnectAsync(CancellationToken cancellationToken = default);  // 连接到板卡
+        Task DisconnectAsync(CancellationToken cancellationToken = default);  // 断开板卡连接
 
         Task SetSampleRateAsync(double sampleRateHz, CancellationToken cancellationToken = default);
 
         Task ConfigureChannelAsync(Mtx532ChannelConfig config, CancellationToken cancellationToken = default);
         Task ConfigureChannelsAsync(IEnumerable<Mtx532ChannelConfig> configs, CancellationToken cancellationToken = default);
 
-        Task SetDcAsync(string aoChannel, double voltageV, bool enable = true, CancellationToken cancellationToken = default);
+        Task SetDcAsync(string aoChannel, double voltageV, bool enable = true, CancellationToken cancellationToken = default);  // 设置指定通道输出直流电压
         Task WriteOnceDcAsync(IDictionary<string, double> aoToVoltageV, CancellationToken cancellationToken = default);
 
-        Task StartOutputAsync(CancellationToken cancellationToken = default);
-        Task StopOutputAsync(CancellationToken cancellationToken = default);
+        Task StartOutputAsync(CancellationToken cancellationToken = default);  // 开始输出
+        Task StopOutputAsync(CancellationToken cancellationToken = default);   // 停止输出
 
         Task ResetAllToZeroAsync(bool disableAfterReset = false, CancellationToken cancellationToken = default);
 
         Task<double> GetLastOutputVoltageAsync(string aoChannel, CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    /// MTX532 模拟量输出板卡实现类
+    /// 通道命名：AO1-AO32（外部）对应 AO0-AO31（内部驱动）
+    /// </summary>
     public sealed class Mtx532Api : IMtx532Api
     {
         private readonly DeviceBase _device;
@@ -83,6 +100,9 @@ namespace MeasureControl.Services.HardwareApis
 
         public bool IsOutputRunning => _isOutputRunning;
 
+        /// <summary>
+        /// 连接到 MTX532 模拟量输出板卡
+        /// </summary>
         public async Task ConnectAsync(CancellationToken cancellationToken = default)
         {
             await _lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -117,14 +137,19 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 断开与 MTX532 板卡的连接
+        /// </summary>
         public async Task DisconnectAsync(CancellationToken cancellationToken = default)
         {
             await _lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                // 如果未连接，直接返回（安全的重复调用）
                 if (_driver == null)
                     return;
 
+                // 如果正在输出，先停止
                 if (_isOutputRunning)
                 {
                     try { await StopOutputAsync(cancellationToken).ConfigureAwait(false); } catch { }
@@ -146,6 +171,10 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 设置采样率（应用到所有 32 个通道）
+        /// </summary>
+        /// <param name="sampleRateHz">采样率（Hz）</param>
         public async Task SetSampleRateAsync(double sampleRateHz, CancellationToken cancellationToken = default)
         {
             if (double.IsNaN(sampleRateHz) || double.IsInfinity(sampleRateHz) || sampleRateHz <= 0)
@@ -165,6 +194,10 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 配置单个模拟量输出通道
+        /// </summary>
+        /// <param name="config">通道配置（波形类型、偏置、幅度、频率等）</param>
         public async Task ConfigureChannelAsync(Mtx532ChannelConfig config, CancellationToken cancellationToken = default)
         {
             if (config == null)
@@ -187,6 +220,10 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 批量配置多个模拟量输出通道
+        /// </summary>
+        /// <param name="configs">多个通道的配置列表</param>
         public async Task ConfigureChannelsAsync(IEnumerable<Mtx532ChannelConfig> configs, CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -216,6 +253,12 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 快捷设置单个通道输出直流电压
+        /// </summary>
+        /// <param name="aoChannel">通道名称，如 "AO1", "AO16" 等（1-32）</param>
+        /// <param name="voltageV">输出电压值（V）</param>
+        /// <param name="enable">是否启用该通道</param>
         public async Task SetDcAsync(string aoChannel, double voltageV, bool enable = true, CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -246,6 +289,10 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 批量写入多个通道的直流电压（一次性操作）
+        /// </summary>
+        /// <param name="aoToVoltageV">通道名到电压值的字典</param>
         public async Task WriteOnceDcAsync(IDictionary<string, double> aoToVoltageV, CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -273,6 +320,9 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 开始输出信号（根据配置的波形连续输出）
+        /// </summary>
         public async Task StartOutputAsync(CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -294,6 +344,9 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 停止输出信号（可选自动复位到 0V）
+        /// </summary>
         public async Task StopOutputAsync(CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -301,6 +354,7 @@ namespace MeasureControl.Services.HardwareApis
             await _ioLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                // 如果配置了停止时复位，先将所有通道设置为 0V
                 if (_options.ResetToZeroOnStop)
                 {
                     await ResetAllToZeroInternalAsync(disableAfterReset: false).ConfigureAwait(false);
@@ -322,6 +376,10 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 将所有通道复位为 0V
+        /// </summary>
+        /// <param name="disableAfterReset">复位后是否禁用通道</param>
         public async Task ResetAllToZeroAsync(bool disableAfterReset = false, CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -338,6 +396,11 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 读取单个通道的当前输出电压
+        /// </summary>
+        /// <param name="aoChannel">通道名称</param>
+        /// <returns>当前输出的电压值</returns>
         public async Task<double> GetLastOutputVoltageAsync(string aoChannel, CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -354,12 +417,18 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 确保已连接到板卡，否则抛出异常
+        /// </summary>
         private void EnsureConnected()
         {
             if (_driver == null || !_driver.IsConnected)
                 throw new InvalidOperationException("MTX532 is not connected");
         }
 
+        /// <summary>
+        /// 构建通道配置字典（将配置对象转换为驱动所需的格式）
+        /// </summary>
         private Dictionary<string, object> BuildConfigureDict(Mtx532ChannelConfig config)
         {
             var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -383,6 +452,9 @@ namespace MeasureControl.Services.HardwareApis
             return dict;
         }
 
+        /// <summary>
+        /// 内部方法：为所有 32 个通道设置采样率
+        /// </summary>
         private async Task ConfigureSampleRateInternalAsync(double sampleRateHz)
         {
             if (sampleRateHz <= 0)
@@ -399,6 +471,9 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 内部方法：将所有 32 个通道复位为 0V
+        /// </summary>
         private async Task ResetAllToZeroInternalAsync(bool disableAfterReset)
         {
             for (int i = 1; i <= 32; i++)
@@ -419,6 +494,9 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 将外部通道名（AO1-AO32）转换为内部驱动通道名（AO0-AO31）
+        /// </summary>
         private static string NormalizeAoChannel(string channel)
         {
             if (string.IsNullOrWhiteSpace(channel))
