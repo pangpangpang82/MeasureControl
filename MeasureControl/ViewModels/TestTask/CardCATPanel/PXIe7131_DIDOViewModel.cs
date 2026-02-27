@@ -81,7 +81,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         //private const string ThresholdComPort = "COM10"; //第二套
         //private const string ThresholdComPort = "COM9"; //第三套
 
-        private const string RelayComPort = "COM18"; //第一套
+        private const string RelayComPort = "COM24"; //第一套
         //private const string RelayComPort = "COM11"; //第二套
         //private const string RelayComPort = "COM9"; //第三套
         private const int RelayBaudRate = 9600;
