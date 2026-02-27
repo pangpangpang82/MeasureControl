@@ -1197,29 +1197,15 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
             try
             {
                 AvailableTestTasks.Clear();
-                var taskNames = GetTestTaskNamesFromProject();
-                foreach (var task in taskNames)
-                {
-                    AvailableTestTasks.Add(task);
-                }
+                AvailableTestTasks.Add("默认测试任务");
 
                 var cardConfig = EnsureAnalogOutputCardConfig();
                 if (cardConfig != null)
                 {
-                    EnsureTaskConfigsExist(cardConfig, taskNames);
+                    EnsureTaskConfigsExist(cardConfig, AvailableTestTasks);
                 }
 
-                string initialTask = null;
-                if (Device?.CardConfigData is AnalogOutputCardConfig existingConfig &&
-                    !string.IsNullOrEmpty(existingConfig.LastSelectedTestTask) &&
-                    AvailableTestTasks.Contains(existingConfig.LastSelectedTestTask))
-                {
-                    initialTask = existingConfig.LastSelectedTestTask;
-                }
-                else
-                {
-                    initialTask = AvailableTestTasks.FirstOrDefault();
-                }
+                string initialTask = "默认测试任务";
 
                 _selectedTestTask = initialTask;
                 RaisePropertyChanged(nameof(SelectedTestTask));
@@ -1232,7 +1218,6 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
                 }
                 else
                 {
-                    // 没有测试任务时仍允许通道勾选并更新右侧
                     RebuildOutputChannelConfigs();
                     HasPendingChanges = false;
                 }
