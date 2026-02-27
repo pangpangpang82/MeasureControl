@@ -7,31 +7,32 @@ namespace MeasureControl.Simulations.FuelController
 {
     /// <summary>
     /// ============================================================================
-    /// 二次电源测试仿真类 (SecondaryPowerSimulation)
+    /// 温度采集功能测试仿真类 (TemperatureAcquisitionSimulation)
     /// ============================================================================
     /// 
     /// 【功能概述】
-    /// 本类用于模拟"二次电源测试"中的硬件操作，包括：
-    /// 1. 28V供电控制 - 模拟通过J3和J4提供28V供电
-    /// 2. 矩阵开关控制 - 配置测试通路（万用表通路）
-    /// 3. 电压测量 - 模拟万用表读取直流电压值
+    /// 本类用于模拟"温度采集功能"测试中的硬件操作，包括：
+    /// 1. 28V供电控制 - 模拟组件28V供电状态
+    /// 2. 矩阵开关控制 - 配置测试通路
+    /// 3. 温度采集 - 模拟DS18B20U+T&amp;R温度传感器信号解析
     /// 
     /// 【测试背景】
-    /// 二次电源测试用于验证加放油控制器的+5V电源输出是否正常。
-    /// 测试时需要给组件提供28V供电（通过J3和J4），继电器保持NC状态。
-    /// 然后测量CRM_PIN1（+5V）对CRM_PIN18（GND）之间的电压。
-    /// 电压值在[4.5V, 5.5V]区间内表示合格（PASS）。
+    /// 温度采集功能测试用于验证加放油控制器的温度采集功能是否正常。
+    /// 组件28V供电状态下，按照DS18B20U+T&amp;R规格书解析CRM_PIN7的信号，
+    /// 提示并记录温度值。
     /// 
     /// 【测量点说明】
-    /// - CRM_PIN1: +5V电源输出（电源板组件向导光板组件提供电源）
-    /// - CRM_PIN18: GND（地）
+    /// - CRM_PIN7: POWER_TEMP（温度传感器信号）
+    /// - 信号通过IO57连接到INT_IO57（D35）
+    /// 
+    /// 【判定标准】
+    /// 温度值处于[15℃, 45℃]区间内表示合格（PASS）
     /// 
     /// 【硬件连接】
     /// - 矩阵开关IP: 192.168.1.3
-    /// - 万用表通路: 用于直流电压测量
-    /// - 供电: J3和J4提供28V，继电器不动作（NC状态）
+    /// - IO57 -> INT_IO57 (D35, 2槽179通道)
     /// </summary>
-    public sealed class SecondaryPowerSimulation : IDisposable
+    public sealed class TemperatureAcquisitionSimulation : IDisposable
     {
         private readonly Random _rand = new Random();
         private readonly SemaphoreSlim _matrixSwitchLock = new SemaphoreSlim(1, 1);
@@ -41,17 +42,17 @@ namespace MeasureControl.Simulations.FuelController
         private bool _matrixConnected;   // 矩阵开关连接状态
 
         private const string MatrixIpAddress = "192.168.1.3";
-        private const int MatrixSlotDmm = 7;
+        private const int MatrixSlotTemp = 7;
 
         /// <summary>
-        /// 电压判定下限（V）
+        /// 温度判定下限（℃）
         /// </summary>
-        public double VoltageLowerLimit { get; set; } = 4.5;
+        public double TemperatureLowerLimit { get; set; } = 15.0;
 
         /// <summary>
-        /// 电压判定上限（V）
+        /// 温度判定上限（℃）
         /// </summary>
-        public double VoltageUpperLimit { get; set; } = 5.5;
+        public double TemperatureUpperLimit { get; set; } = 45.0;
 
         /// <summary>
         /// 28V供电是否已开启
@@ -66,13 +67,13 @@ namespace MeasureControl.Simulations.FuelController
         #region 供电控制仿真
 
         /// <summary>
-        /// 模拟开启28V供电（通过J3和J4）
+        /// 模拟开启28V供电（组件28V供电状态）
         /// </summary>
         public async Task ApplyComponent28VStateAsync(Action<string> log, CancellationToken token = default)
         {
             await Task.Delay(100, token);
             _powerOn = true;
-            log?.Invoke("[SIM] 组件28V供电状态已设置（J3-J4）");
+            log?.Invoke("[SIM] 组件28V供电状态已设置");
         }
 
         /// <summary>
@@ -100,7 +101,8 @@ namespace MeasureControl.Simulations.FuelController
         #region 矩阵开关仿真
 
         /// <summary>
-        /// 模拟连接矩阵开关并配置万用表通路
+        /// 模拟连接矩阵开关并配置温度采集通路
+        /// IO57 -> INT_IO57
         /// </summary>
         public async Task<bool> ConnectMatrixAsync(Action<string> log, CancellationToken token = default)
         {
@@ -116,10 +118,12 @@ namespace MeasureControl.Simulations.FuelController
                 if (_matrixConnected)
                     return true;
 
-                log?.Invoke("[SIM] 正在配置矩阵开关通路...");
+                log?.Invoke("[SIM] 正在配置矩阵开关通路（温度采集）...");
 
-                bool ok = await MatrixControlService.Instance.ConnectNodesAsync("I3", "O30", MatrixSlotDmm, MatrixIpAddress);
-                log?.Invoke($"[SIM] 矩阵开关通路(DMM): I3->O30 slot={MatrixSlotDmm} ip={MatrixIpAddress}, ok={ok}");
+                // TODO: 根据实际硬件配置调整矩阵开关通路
+                // IO57 -> INT_IO57 (D35)
+                bool ok = await MatrixControlService.Instance.ConnectNodesAsync("I7", "O35", MatrixSlotTemp, MatrixIpAddress);
+                log?.Invoke($"[SIM] 矩阵开关通路(TEMP): I7->O35 slot={MatrixSlotTemp} ip={MatrixIpAddress}, ok={ok}");
 
                 _matrixConnected = ok;
                 if (ok)
@@ -152,8 +156,8 @@ namespace MeasureControl.Simulations.FuelController
             {
                 log?.Invoke("[SIM] 正在断开矩阵开关通路...");
 
-                bool ok = await MatrixControlService.Instance.DisconnectNodesAsync("I3", "O30", MatrixSlotDmm, MatrixIpAddress);
-                log?.Invoke($"[SIM] 矩阵开关断开(DMM): I3->O30 slot={MatrixSlotDmm}, ok={ok}");
+                bool ok = await MatrixControlService.Instance.DisconnectNodesAsync("I7", "O35", MatrixSlotTemp, MatrixIpAddress);
+                log?.Invoke($"[SIM] 矩阵开关断开(TEMP): I7->O35 slot={MatrixSlotTemp}, ok={ok}");
 
                 _matrixConnected = false;
                 log?.Invoke("[SIM] 矩阵开关通路已断开");
@@ -166,26 +170,37 @@ namespace MeasureControl.Simulations.FuelController
 
         #endregion
 
-        #region 电压测量仿真
+        #region 温度采集仿真
 
         /// <summary>
-        /// 模拟万用表测量直流电压
-        /// 返回一个在正常范围内的模拟电压值（约5V左右）
+        /// 模拟DS18B20U+T&amp;R温度传感器读取
+        /// 返回一个在正常范围内的模拟温度值（约25℃左右）
         /// </summary>
-        public async Task<double> SimulateMeasureVoltageAsync(CancellationToken token = default)
+        public async Task<double> SimulateReadTemperatureAsync(CancellationToken token = default)
         {
-            await Task.Delay(300, token);
+            await Task.Delay(500, token);
 
-            // 模拟正常的+5V电源输出
-            // 基准值5.0V，加上±0.3V的随机波动
-            double baseVoltage = 5.0;
-            double noise = (_rand.NextDouble() - 0.5) * 0.6; // -0.3V ~ +0.3V
-            double voltage = baseVoltage + noise;
+            // 模拟正常的室温
+            // 基准值25℃，加上±5℃的随机波动
+            double baseTemperature = 25.0;
+            double noise = (_rand.NextDouble() - 0.5) * 10.0; // -5℃ ~ +5℃
+            double temperature = baseTemperature + noise;
 
             // 确保在合理范围内
-            voltage = Math.Max(4.0, Math.Min(6.0, voltage));
+            temperature = Math.Max(10.0, Math.Min(50.0, temperature));
 
-            return Math.Round(voltage, 3);
+            return Math.Round(temperature, 1);
+        }
+
+        /// <summary>
+        /// 模拟解析DS18B20温度传感器原始数据
+        /// </summary>
+        public async Task<double> SimulateParseDS18B20DataAsync(byte[] rawData, CancellationToken token = default)
+        {
+            await Task.Delay(100, token);
+            
+            // 模拟解析，实际实现需要按照DS18B20规格书解析
+            return await SimulateReadTemperatureAsync(token);
         }
 
         #endregion
