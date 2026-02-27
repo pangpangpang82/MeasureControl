@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -42,6 +43,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private bool _isBusy;
+        private FpgaIoClient _fpga;
+        private bool _fpgaConnected;
+        private bool _isPowerOn;
+        private string _powerStatus = "未上电";
 
         private string _stepAResult = "--";
         private string _stepBResult = "--";
@@ -51,6 +56,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private string _overallResult = "--";
         private string _lastTestTime = "--";
+
+        public bool IsPowerOn
+        {
+            get => _isPowerOn;
+            set => SetProperty(ref _isPowerOn, value);
+        }
+
+        public string PowerStatus
+        {
+            get => _powerStatus;
+            set => SetProperty(ref _powerStatus, value);
+        }
 
         public RS422SelfCheckTestViewModel(
             ISingleBoardTestContextService singleBoardTestContext,
@@ -347,18 +364,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 await ApplyPower28VAsync(token);
 
+                // 连接FPGA
+                AddLog("正在连接FPGA...");
                 try
                 {
-                    await _simulation.SetPinsToLowAsync(LowPins, AddLog, token);
-                }
-                catch
-                {
-                    AddLog("CRM_PIN2/CRM_PIN12置0失败(占位)，继续执行");
-                }
+                    _fpga ??= new FpgaIoClient();
+                    if (!_fpga.IsConnected)
+                        await _fpga.ConnectAsync(token);
+                    _fpgaConnected = true;
+                    AddLog("FPGA连接成功");
 
-                bool ok = await _simulation.ConnectMatrixAsync(AddLog, token);
-                if (!ok)
-                    AddLog("矩阵开关配置失败，将继续使用仿真收发");
+                    // IO11=MUX1(bit0), IO12=MUX2(bit1) → MUX1低低（RS422自检路径）
+                    // MUX1=0: 内部回环（TX接RX）
+                    await _fpga.WriteGpioAsync(0x00000000u, token);
+                    AddLog("[FPGA] MUX1/MUX2已置低（RS422内部自检回环模式）");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"FPGA连接失败: {ex.Message}，将使用仿真模式");
+                    _fpgaConnected = false;
+                }
 
                 _hardwareInitialized = true;
             }
@@ -373,16 +398,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
-                try
+                if (_fpga != null)
                 {
-                    await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
-                }
-                catch
-                {
+                    try { _fpga.Disconnect(); } catch { }
+                    _fpga = null;
+                    _fpgaConnected = false;
                 }
 
-                await _simulation.DisconnectMatrixAsync(AddLog, token);
+                try { await _componentPowerStateApi.ApplyComponentDownStateAsync(token); } catch { }
                 _hardwareInitialized = false;
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
             }
             finally
             {
@@ -414,18 +439,53 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog("组件供电: 28V上电(仿真占位)");
                 await Task.Delay(120, token);
             }
+            Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
         }
 
         private async Task RunStepAAsync(CancellationToken token)
         {
-            var rx = await _simulation.SendAndReceiveAsync("步骤a", TxPin1, RxPin1, DefaultTxData, AddLog, token);
-            SetStepResultAndRx("a", rx);
+            // 步骤a: SCI1 (UART0) 自检 - CRM_PIN9(TX) 内部回环 CRM_PIN19(RX)
+            // 使用 UartTxRxAsync: TX发出后FPGA将回环收到的数据作为同命令帧返回
+            if (_fpgaConnected && _fpga != null)
+            {
+                try
+                {
+                    AddLog($"[FPGA] UART0(SCI1) 自检 TX: 0x{string.Join(" ", DefaultTxData.Select(b => b.ToString("X2")))}");
+                    var rx = await _fpga.UartTxRxAsync(0, DefaultTxData, token);
+                    AddLog($"[FPGA] UART0(SCI1) 自检 RX: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
+                    SetStepResultAndRx("a", rx);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[FPGA] UART0自检失败: {ex.Message}，降级仿真");
+                }
+            }
+            var simRx = await _simulation.SendAndReceiveAsync("步骤a", TxPin1, RxPin1, DefaultTxData, AddLog, token);
+            SetStepResultAndRx("a", simRx);
         }
 
         private async Task RunStepBAsync(CancellationToken token)
         {
-            var rx = await _simulation.SendAndReceiveAsync("步骤b", TxPin2, RxPin2, DefaultTxData, AddLog, token);
-            SetStepResultAndRx("b", rx);
+            // 步骤b: SCI2 (UART1) 自检 - CRM_PIN10(TX) 内部回环 CRM_PIN20(RX)
+            // 使用 UartTxRxAsync: TX发出后FPGA将回环收到的数据作为同命令帧返回
+            if (_fpgaConnected && _fpga != null)
+            {
+                try
+                {
+                    AddLog($"[FPGA] UART1(SCI2) 自检 TX: 0x{string.Join(" ", DefaultTxData.Select(b => b.ToString("X2")))}");
+                    var rx = await _fpga.UartTxRxAsync(1, DefaultTxData, token);
+                    AddLog($"[FPGA] UART1(SCI2) 自检 RX: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
+                    SetStepResultAndRx("b", rx);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[FPGA] UART1自检失败: {ex.Message}，降级仿真");
+                }
+            }
+            var simRx = await _simulation.SendAndReceiveAsync("步骤b", TxPin2, RxPin2, DefaultTxData, AddLog, token);
+            SetStepResultAndRx("b", simRx);
         }
 
         private void SetStepResultAndRx(string step, byte[] rx)
@@ -474,6 +534,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             _opCts?.Dispose();
 
             _simulation?.Dispose();
+
+            try { _fpga?.Disconnect(); } catch { }
+            _fpga = null;
 
             if (_projectSavingToken != null)
             {

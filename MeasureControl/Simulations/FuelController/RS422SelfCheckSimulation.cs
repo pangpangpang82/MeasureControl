@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using MeasureControl.Services;
 
 namespace MeasureControl.Simulations.FuelController
 {
@@ -12,8 +11,6 @@ namespace MeasureControl.Simulations.FuelController
         private bool _disposed;
         private bool _matrixConnected;
 
-        private const string MatrixIpAddress = "192.168.1.3";
-        private const int MatrixSlotRs422 = 7;
 
         public async Task SetPinsToLowAsync(string[] pinNames, Action<string> log, CancellationToken token = default)
         {
@@ -26,63 +23,17 @@ namespace MeasureControl.Simulations.FuelController
 
         public async Task<bool> ConnectMatrixAsync(Action<string> log, CancellationToken token = default)
         {
-            if (_matrixConnected)
-            {
-                log?.Invoke("[SIM] 矩阵开关已连接，跳过");
-                return true;
-            }
-
-            await _matrixSwitchLock.WaitAsync(token);
-            try
-            {
-                if (_matrixConnected)
-                    return true;
-
-                log?.Invoke("[SIM] 正在配置矩阵开关通路(RS422自检占位)...");
-                bool ok = await MatrixControlService.Instance.ConnectNodesAsync("I3", "O30", MatrixSlotRs422, MatrixIpAddress);
-                log?.Invoke($"[SIM] 矩阵开关通路(RS422自检): I3->O30 slot={MatrixSlotRs422} ip={MatrixIpAddress}, ok={ok}");
-
-                _matrixConnected = ok;
-                if (ok)
-                {
-                    log?.Invoke("[SIM] 矩阵开关通路配置完成");
-                    return true;
-                }
-
-                log?.Invoke("[SIM] 矩阵开关通路配置失败");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                log?.Invoke($"[SIM] 矩阵开关配置失败: {ex.Message}");
-                return false;
-            }
-            finally
-            {
-                _matrixSwitchLock.Release();
-            }
+            await Task.Delay(30, token);
+            _matrixConnected = true;
+            log?.Invoke("[SIM] 矩阵开关通路已配置（仿真）");
+            return true;
         }
 
         public async Task DisconnectMatrixAsync(Action<string> log, CancellationToken token = default)
         {
-            await _matrixSwitchLock.WaitAsync(token);
-            try
-            {
-                if (!_matrixConnected)
-                    return;
-
-                log?.Invoke("[SIM] 正在断开矩阵开关通路...");
-
-                bool ok = await MatrixControlService.Instance.DisconnectNodesAsync("I3", "O30", MatrixSlotRs422, MatrixIpAddress);
-                log?.Invoke($"[SIM] 矩阵开关断开(RS422自检): I3->O30 slot={MatrixSlotRs422}, ok={ok}");
-
-                _matrixConnected = false;
-                log?.Invoke("[SIM] 矩阵开关通路已断开");
-            }
-            finally
-            {
-                _matrixSwitchLock.Release();
-            }
+            await Task.Delay(20, token);
+            _matrixConnected = false;
+            log?.Invoke("[SIM] 矩阵开关通路已断开（仿真）");
         }
 
         public async Task<byte[]> SendAndReceiveAsync(string stepName, string txPinName, string rxPinName, byte[] txData, Action<string> log, CancellationToken token = default)
