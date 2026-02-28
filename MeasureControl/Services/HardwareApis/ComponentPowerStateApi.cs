@@ -18,10 +18,20 @@ namespace MeasureControl.Services.HardwareApis
         Task ApplyComponent28VStateAsync(CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    /// 组件28V供电控制实现。
+    /// 硬件映射：程控电源 192.168.1.15 CH1 = 组件28V供电（3A限流）
+    /// </summary>
     public sealed class ComponentPowerStateApi : IComponentPowerStateApi
     {
+        private const string PowerSupplyIpAddress = "192.168.1.15";
+        private const PowerSupplyChannel ComponentChannel = PowerSupplyChannel.CH1;
+        private const double ComponentVoltage = 28.0;
+        private const double ComponentCurrentLimit = 3.0;
+
         private bool _disposed;
         private ComponentPowerState _currentState = ComponentPowerState.ComponentDown;
+        private IPowerSupplyApi _power;
 
         public ComponentPowerState CurrentState => _currentState;
 
@@ -29,10 +39,8 @@ namespace MeasureControl.Services.HardwareApis
         {
             EnsureNotDisposed();
 
-            if (_currentState == ComponentPowerState.ComponentDown)
-                return;
-
-            await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+            await EnsurePowerConnectedAsync(cancellationToken).ConfigureAwait(false);
+            await _power.SetOutputEnabledAsync(ComponentChannel, false, cancellationToken).ConfigureAwait(false);
             _currentState = ComponentPowerState.ComponentDown;
         }
 
@@ -40,17 +48,31 @@ namespace MeasureControl.Services.HardwareApis
         {
             EnsureNotDisposed();
 
-            if (_currentState == ComponentPowerState.Component28VOn)
-                return;
-
-            await Task.Delay(120, cancellationToken).ConfigureAwait(false);
+            await EnsurePowerConnectedAsync(cancellationToken).ConfigureAwait(false);
+            await _power.ApplyAsync(ComponentChannel, ComponentVoltage, ComponentCurrentLimit, cancellationToken).ConfigureAwait(false);
+            await _power.SetOutputEnabledAsync(ComponentChannel, true, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
             _currentState = ComponentPowerState.Component28VOn;
         }
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
+            if (_disposed) return;
             _disposed = true;
-            return default;
+            if (_power != null)
+            {
+                try { await _power.SetOutputEnabledAsync(ComponentChannel, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
+                _power = null;
+            }
+        }
+
+        private async Task EnsurePowerConnectedAsync(CancellationToken cancellationToken)
+        {
+            _power ??= new PowerSupplySocketApi();
+            if (!_power.IsConnected)
+                await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
         }
 
         private void EnsureNotDisposed()

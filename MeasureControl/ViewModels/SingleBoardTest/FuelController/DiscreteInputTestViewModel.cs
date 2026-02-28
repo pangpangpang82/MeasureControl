@@ -32,7 +32,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// <summary>
         /// 硬件操作超时时间（毫秒）
         /// </summary>
-        private const int HardwareTimeoutMs = 10000;
+        private const int HardwareTimeoutMs = 3000;
 
         #endregion
 

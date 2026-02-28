@@ -77,10 +77,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const double VoltageUpperLimit = 5.5;
         
         /// <summary>硬件初始化默认超时时间（毫秒）</summary>
-        private const int DefaultTimeoutMs = 10000;
+        private const int DefaultTimeoutMs = 3000;
         
         /// <summary>万用表测量超时时间（毫秒）</summary>
-        private const int DmmTimeoutMs = 8000;
+        private const int DmmTimeoutMs = 2000;
 
         private const string AiVoltageChannel = "AI1";
 
@@ -882,18 +882,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 new DmmReadOptions { TimeoutMilliseconds = DmmTimeoutMs },
                 token);
         }
-        private const int MatrixTcpPort = 50300;   // PXI-3022 使用50300端口
-        private const int MatrixSlot = 2;          // 3022(1) slotindex=2
+        private const int MatrixSlotSig = 9;     // 2601(5) slotindex=9，信号侧（AD采集）
+        private const int MatrixSlotDmm = 4;     // 2601(1) slotindex=4，万用表侧
 
-        // CRM_PIN1(+5V) 对 CRM_PIN18(GND)：AD采集1+/1- = 2槽 pin37/38
-        private static readonly (string In, string Out) MatrixSig = ("I1", "O37");   // AD1+ → 万用表H
-        private static readonly (string In, string Out) MatrixRet = ("I4", "O38");   // AD1- → 万用表L
+        // CRM_PIN1(+5V) AD采集1：2601(5) 0/0 → 信号侧 I1,O0,slot9
+        // 万用表H侧：2601(1) 4/7 → I3,O7,slot4
+        private static readonly (string In, string Out, int Slot) MatrixSig = ("I1", "O0",  MatrixSlotSig);
+        private static readonly (string In, string Out, int Slot) MatrixDmmH = ("I3", "O7",  MatrixSlotDmm);
 
         private async Task DisconnectAllMatrixRoutesAsync()
         {
             var matrix = MatrixControlService.Instance;
-            try { await matrix.DisconnectNodesAsync(MatrixSig.In, MatrixSig.Out, MatrixSlot, MatrixIpAddress, MatrixTcpPort); } catch { }
-            try { await matrix.DisconnectNodesAsync(MatrixRet.In, MatrixRet.Out, MatrixSlot, MatrixIpAddress, MatrixTcpPort); } catch { }
+            try { await matrix.DisconnectNodesAsync(MatrixSig.In,  MatrixSig.Out,  MatrixSig.Slot,  MatrixIpAddress); } catch { }
+            try { await matrix.DisconnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress); } catch { }
         }
 
         /// <summary>
@@ -908,9 +909,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             try
             {
                 var matrix = MatrixControlService.Instance;
-                var ok1 = await matrix.ConnectNodesAsync(MatrixSig.In, MatrixSig.Out, MatrixSlot, MatrixIpAddress, MatrixTcpPort);
-                var ok2 = await matrix.ConnectNodesAsync(MatrixRet.In, MatrixRet.Out, MatrixSlot, MatrixIpAddress, MatrixTcpPort);
-                AddLog($"矩阵连接 {(ok1 && ok2 ? "OK" : "FAIL")} - {MatrixSig.In}-{MatrixSig.Out}, {MatrixRet.In}-{MatrixRet.Out} (slot{MatrixSlot})");
+                var ok1 = await matrix.ConnectNodesAsync(MatrixSig.In,  MatrixSig.Out,  MatrixSig.Slot,  MatrixIpAddress);
+                var ok2 = await matrix.ConnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress);
+                AddLog($"矩阵连接 {(ok1 && ok2 ? "OK" : "FAIL")} - SIG:{MatrixSig.In}-{MatrixSig.Out}(slot{MatrixSig.Slot}), DMM:{MatrixDmmH.In}-{MatrixDmmH.Out}(slot{MatrixDmmH.Slot})");
 
                 if (!ok1 || !ok2)
                 {

@@ -24,12 +24,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const double ImpedanceOpenLowerLimitOhm = 100000.0;
         private const double J14VoltageLowerLimitV = 16.0;
 
+        private const string RelayControlChannel = "DO15";
+        private const int RelayTimeoutMs = 3000;
+
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
         private readonly ProjectService _projectService;
         private readonly IEventAggregator _eventAggregator;
         private readonly IComponentPowerStateApi _componentPowerStateApi;
+        private readonly IPxiChassisService _pxiChassisService;
         private readonly IDmmApi _dmmApi;
         private readonly DiscreteOutputSimulation _simulation;
+
+        private IJy7131Api _jy7131Api;
+        private bool _isRelayActivated;
 
         private CancellationTokenSource _opCts;
         private SubscriptionToken _projectSavingToken;
@@ -58,12 +65,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             ProjectService projectService,
             IEventAggregator eventAggregator,
             IComponentPowerStateApi componentPowerStateApi,
+            IPxiChassisService pxiChassisService = null,
             IDmmApi dmmApi = null)
         {
             _singleBoardTestContext = singleBoardTestContext;
             _projectService = projectService;
             _eventAggregator = eventAggregator;
             _componentPowerStateApi = componentPowerStateApi;
+            _pxiChassisService = pxiChassisService;
             _dmmApi = dmmApi;
             _simulation = new DiscreteOutputSimulation();
 
@@ -393,6 +402,48 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
+                // 步骤1：初始化7131板卡（用于DO15控制继电器）
+                if (_jy7131Api == null)
+                {
+                    var chassisName = _singleBoardTestContext?.ChassisName;
+                    var device7131 = Find7131DeviceInChassis(chassisName);
+                    if (device7131 != null)
+                    {
+                        string devSlot = Infer7131SlotNumber(device7131);
+                        AddLog($"找到7131板卡: {device7131.Model ?? device7131.Name}，槽位={devSlot}");
+                        if (int.TryParse(devSlot, out int slotNum))
+                            _jy7131Api = new Jy7131Api(device7131, slotNum);
+                        else
+                            _jy7131Api = new Jy7131Api(device7131);
+                    }
+                    else
+                    {
+                        AddLog("未找到7131板卡，将使用仿真模式控制继电器");
+                    }
+                }
+
+                if (_jy7131Api != null)
+                {
+                    try
+                    {
+                        AddLog("正在连接7131板卡...");
+                        if (!_jy7131Api.IsConnected)
+                        {
+                            await _jy7131Api.ConnectAsync(token);
+                            AddLog("7131板卡连接成功");
+                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.PushPull, token);
+                            await _jy7131Api.StartAsync(token);
+                            AddLog("7131板卡已启动");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"7131板卡初始化异常: {ex.Message}，使用仿真模式");
+                        _jy7131Api = null;
+                    }
+                }
+
+                // 步骤2：配置矩阵开关
                 bool ok = await _simulation.ConnectMatrixAsync(AddLog, token);
                 if (!ok)
                 {
@@ -412,16 +463,42 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
-                try
+                // 步骤1：复位继电器（DO15低电平），恢复产品连接
+                if (_isRelayActivated && _jy7131Api != null && _jy7131Api.IsConnected)
                 {
-                    await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
-                }
-                catch
-                {
-                    await _simulation.ApplyComponentDownStateAsync(AddLog, token);
+                    try
+                    {
+                        AddLog("正在复位继电器（DO15低电平）...");
+                        await _jy7131Api.WriteDoAsync(RelayControlChannel, false, token);
+                        _isRelayActivated = false;
+                        AddLog("继电器已复位");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"继电器复位异常: {ex.Message}");
+                    }
                 }
 
+                // 步骤2：断开矩阵开关
                 await _simulation.DisconnectMatrixAsync(AddLog, token);
+                await _simulation.DisconnectMatrixJ14Async(AddLog, token);
+
+                // 步骤3：断开7131板卡
+                if (_jy7131Api != null && _jy7131Api.IsConnected)
+                {
+                    try
+                    {
+                        if (_jy7131Api.IsRunning)
+                            await _jy7131Api.StopAsync(token);
+                        await _jy7131Api.DisconnectAsync(token);
+                        AddLog("7131板卡已断开");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"7131板卡断开异常: {ex.Message}");
+                    }
+                }
+
                 _hardwareInitialized = false;
             }
             finally
@@ -505,6 +582,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
+                // 步骤c需要切换矩阵通路：先断开a/b的阻抗通路，再接通J14电压测量通路
+                await _simulation.DisconnectMatrixAsync(AddLog, token);
+                await _simulation.ConnectMatrixJ14Async(AddLog, token);
+
                 await ApplyPower28VAsync(token);
 
                 double v = await ReadJ14VoltageAsync(token);
@@ -524,13 +605,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task ApplyPowerDownAsync(CancellationToken token)
         {
-            try
+            // 使用DO15控制继电器，将产品与试验台隔离（下电）
+            // DO15高电平 → 继电器得电 → NC跳NO → 产品隔离
+            if (_jy7131Api != null && _jy7131Api.IsConnected)
             {
-                await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
-                AddLog("组件供电: 下电(真实API)");
+                try
+                {
+                    AddLog("正在激活继电器（DO15高电平），隔离产品...");
+                    await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token);
+                    _isRelayActivated = true;
+                    await Task.Delay(200, token);
+                    AddLog("继电器已激活，产品已隔离（下电）");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"DO15控制异常: {ex.Message}，使用仿真下电");
+                    await _simulation.ApplyComponentDownStateAsync(AddLog, token);
+                }
             }
-            catch
+            else
             {
+                // 7131板卡不可用，使用仿真
                 await _simulation.ApplyComponentDownStateAsync(AddLog, token);
             }
             Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
@@ -538,13 +633,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task ApplyPower28VAsync(CancellationToken token)
         {
-            try
+            // 使用DO15控制继电器，恢复产品与试验台连接（上电）
+            // DO15低电平 → 继电器失电 → 触点恢复NC → 产品连接
+            if (_jy7131Api != null && _jy7131Api.IsConnected)
             {
-                await _componentPowerStateApi.ApplyComponent28VStateAsync(token);
-                AddLog("组件供电: 28V上电(真实API)");
+                try
+                {
+                    AddLog("正在复位继电器（DO15低电平），恢复产品连接...");
+                    await _jy7131Api.WriteDoAsync(RelayControlChannel, false, token);
+                    _isRelayActivated = false;
+                    await Task.Delay(200, token);
+                    AddLog("继电器已复位，产品已连接");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"DO15控制异常: {ex.Message}，使用仿真上电");
+                    await _simulation.ApplyComponent28VStateAsync(AddLog, token);
+                }
             }
-            catch
+            else
             {
+                // 7131板卡不可用，使用仿真
                 await _simulation.ApplyComponent28VStateAsync(AddLog, token);
             }
             Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
@@ -652,6 +761,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             _opCts?.Cancel();
             _opCts?.Dispose();
 
+            try
+            {
+                if (_isRelayActivated && _jy7131Api != null)
+                {
+                    _jy7131Api.WriteDoAsync(RelayControlChannel, false).GetAwaiter().GetResult();
+                }
+            }
+            catch { }
+
+            try
+            {
+                _jy7131Api?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            }
+            catch { }
+            finally
+            {
+                _jy7131Api = null;
+            }
+
             _simulation?.Dispose();
 
             if (_projectSavingToken != null)
@@ -659,5 +787,57 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Unsubscribe(_projectSavingToken);
             }
         }
+
+        #region 7131板卡查找辅助方法
+
+        private MeasureControl.Models.Devices.DeviceBase Find7131DeviceInChassis(string chassisName)
+        {
+            if (string.IsNullOrWhiteSpace(chassisName))
+                return null;
+
+            var devices = _pxiChassisService?.GetChassisDevices(chassisName);
+            if (devices == null || devices.Count == 0)
+                return null;
+
+            MeasureControl.Models.Devices.DeviceBase Walk(MeasureControl.Models.Devices.DeviceBase d)
+            {
+                if (d == null) return null;
+                var model = (d.Model ?? string.Empty).ToUpperInvariant();
+                var name  = (d.Name  ?? string.Empty).ToUpperInvariant();
+                if (model.Contains("7131") || name.Contains("7131"))
+                    return d;
+                if (d.Children == null) return null;
+                foreach (var c in d.Children)
+                {
+                    var found = Walk(c);
+                    if (found != null) return found;
+                }
+                return null;
+            }
+
+            foreach (var d in devices)
+            {
+                var found = Walk(d);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        private static string Infer7131SlotNumber(MeasureControl.Models.Devices.DeviceBase device)
+        {
+            if (device is MeasureControl.Models.Devices.DeviceCategories.PxiDeviceBase pxi && pxi.SlotIndex > 0)
+                return pxi.SlotIndex.ToString();
+
+            var slot = device?.SlotPosition;
+            if (!string.IsNullOrWhiteSpace(slot))
+            {
+                var trimmed = slot.Replace("Slot", "").Replace("slot", "").Trim();
+                if (int.TryParse(trimmed, out var slotNum) && slotNum > 0)
+                    return slotNum.ToString();
+            }
+            return "12";
+        }
+
+        #endregion
     }
 }

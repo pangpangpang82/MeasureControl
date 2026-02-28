@@ -463,21 +463,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task RunStepAAsync(CancellationToken token)
         {
-            // 步骤a: SCI1 (UART0) 向外发送 - CRM_PIN9(SCITXD_1) TX
-            // 外部通信模式：TX发出后FPGA不立即返回帧，对端收到后会发回数据（由步骤c接收）
+            // 步骤a: 测试设备通过J15和J16向电源板组件发送0xAA55，并通过CRM_PIN19回读数据
+            // J15/J16 → RS422_TX1+/TX1- → 电源板组件 → RS422_RX1+/RX1- → CRM_PIN19(SCIRXD_1)
+            // 外部通信模式(MUX1=1)：外部设备发送数据，FPGA通过UART0(SCI1)接收
+            // 实际测试中，外部设备（测试设备）通过J15/J16发送，FPGA通过CRM_PIN19接收
             if (_fpgaConnected && _fpga != null)
             {
                 try
                 {
-                    AddLog($"[FPGA] UART0(SCI1) 发送: 0x{string.Join(" ", DefaultTxData.Select(b => b.ToString("X2")))}");
-                    await _fpga.UartTxOnlyAsync(0, DefaultTxData, token);
-                    AddLog("[FPGA] UART0(SCI1) 发送完成，对端应回复数据由步骤c接收");
-                    SetStepResultAndRx("a", DefaultTxData);
+                    AddLog("步骤a: J15/J16发送0xAA55 → CRM_PIN19回读");
+                    AddLog("[FPGA] 等待UART0(SCI1)接收外部数据（CRM_PIN19）...");
+                    // 外部通信模式下，等待外部设备发送的数据
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    cts.CancelAfter(2000); // 2秒超时
+                    var rx = await _fpga.UartRxWaitAsync(0, cts.Token);
+                    AddLog($"[FPGA] UART0(SCI1) 接收: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
+                    SetStepResultAndRx("a", rx);
                     return;
+                }
+                catch (OperationCanceledException)
+                {
+                    AddLog("[FPGA] UART0接收超时，请确保外部设备已发送数据");
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[FPGA] UART0发送失败: {ex.Message}，降级仿真");
+                    AddLog($"[FPGA] UART0接收失败: {ex.Message}，降级仿真");
                 }
             }
             var simRx = await _simulation.SendAndReceiveAsync("步骤a", DefaultTxData, AddLog, token);
@@ -486,21 +496,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task RunStepBAsync(CancellationToken token)
         {
-            // 步骤b: SCI2 (UART1) 向外发送 - CRM_PIN10(SCITXD_2) TX
-            // 外部通信模式：TX发出后FPGA不立即返回帧，对端收到后会发回数据（由步骤d接收）
+            // 步骤b: 测试设备通过J20和J21向电源板组件发送0xAA55，并通过CRM_PIN20回读数据
+            // J20/J21 → RS422_TX2+/TX2- → 电源板组件 → RS422_RX2+/RX2- → CRM_PIN20(SCIRXD_2)
+            // 外部通信模式(MUX1=1)：外部设备发送数据，FPGA通过UART1(SCI2)接收
             if (_fpgaConnected && _fpga != null)
             {
                 try
                 {
-                    AddLog($"[FPGA] UART1(SCI2) 发送: 0x{string.Join(" ", DefaultTxData.Select(b => b.ToString("X2")))}");
-                    await _fpga.UartTxOnlyAsync(1, DefaultTxData, token);
-                    AddLog("[FPGA] UART1(SCI2) 发送完成，对端应回复数据由步骤d接收");
-                    SetStepResultAndRx("b", DefaultTxData);
+                    AddLog("步骤b: J20/J21发送0xAA55 → CRM_PIN20回读");
+                    AddLog("[FPGA] 等待UART1(SCI2)接收外部数据（CRM_PIN20）...");
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    cts.CancelAfter(2000); // 2秒超时
+                    var rx = await _fpga.UartRxWaitAsync(1, cts.Token);
+                    AddLog($"[FPGA] UART1(SCI2) 接收: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
+                    SetStepResultAndRx("b", rx);
                     return;
+                }
+                catch (OperationCanceledException)
+                {
+                    AddLog("[FPGA] UART1接收超时，请确保外部设备已发送数据");
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[FPGA] UART1发送失败: {ex.Message}，降级仿真");
+                    AddLog($"[FPGA] UART1接收失败: {ex.Message}，降级仿真");
                 }
             }
             var simRx = await _simulation.SendAndReceiveAsync("步骤b", DefaultTxData, AddLog, token);
@@ -509,21 +527,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task RunStepCAsync(CancellationToken token)
         {
-            // 步骤c: SCI1 (UART0) 接收对端回复数据 - CRM_PIN19(SCIRXD_1) RX
-            // 对端受到步骤a的发送后应主动发回数据
+            // 步骤c: 测试设备通过CRM_PIN9向电源板组件发送0xAA55，并通过J17和J18回读数据
+            // CRM_PIN9(SCITXD_1) → RS422_TX1+/TX1- → 电源板组件 → RS422_RX1+/RX1- → J17/J18
+            // 外部通信模式(MUX1=1)：FPGA通过UART0(SCI1)发送，外部设备通过J17/J18接收
             if (_fpgaConnected && _fpga != null)
             {
                 try
                 {
-                    AddLog("[FPGA] UART0(SCI1) 等待对端回复数据...");
-                    var rx = await _fpga.UartRxWaitAsync(0, token);
-                    AddLog($"[FPGA] UART0(SCI1) 接收: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
+                    AddLog("步骤c: CRM_PIN9发送0xAA55 → J17/J18回读");
+                    AddLog($"[FPGA] UART0(SCI1) 发送: 0x{string.Join(" ", DefaultTxData.Select(b => b.ToString("X2")))}");
+                    // 发送数据后等待回环（外部设备收到后应回传）
+                    var rx = await _fpga.UartTxRxAsync(0, DefaultTxData, token);
+                    AddLog($"[FPGA] UART0(SCI1) 接收回传: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
                     SetStepResultAndRx("c", rx);
                     return;
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[FPGA] UART0接收失败: {ex.Message}，降级仿真");
+                    AddLog($"[FPGA] UART0发送/接收失败: {ex.Message}，降级仿真");
                 }
             }
             var simRx = await _simulation.SendAndReceiveAsync("步骤c", DefaultTxData, AddLog, token);
@@ -532,21 +553,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task RunStepDAsync(CancellationToken token)
         {
-            // 步骤d: SCI2 (UART1) 接收对端回复数据 - CRM_PIN20(SCIRXD_2) RX
-            // 对端受到步骤b的发送后应主动发回数据
+            // 步骤d: 测试设备通过CRM_PIN10向电源板组件发送0xAA55，并通过J22和J23回读数据
+            // CRM_PIN10(SCITXD_2) → RS422_TX2+/TX2- → 电源板组件 → RS422_RX2+/RX2- → J22/J23
+            // 外部通信模式(MUX1=1)：FPGA通过UART1(SCI2)发送，外部设备通过J22/J23接收
             if (_fpgaConnected && _fpga != null)
             {
                 try
                 {
-                    AddLog("[FPGA] UART1(SCI2) 等待对端回复数据...");
-                    var rx = await _fpga.UartRxWaitAsync(1, token);
-                    AddLog($"[FPGA] UART1(SCI2) 接收: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
+                    AddLog("步骤d: CRM_PIN10发送0xAA55 → J22/J23回读");
+                    AddLog($"[FPGA] UART1(SCI2) 发送: 0x{string.Join(" ", DefaultTxData.Select(b => b.ToString("X2")))}");
+                    var rx = await _fpga.UartTxRxAsync(1, DefaultTxData, token);
+                    AddLog($"[FPGA] UART1(SCI2) 接收回传: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
                     SetStepResultAndRx("d", rx);
                     return;
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[FPGA] UART1接收失败: {ex.Message}，降级仿真");
+                    AddLog($"[FPGA] UART1发送/接收失败: {ex.Message}，降级仿真");
                 }
             }
             var simRx = await _simulation.SendAndReceiveAsync("步骤d", DefaultTxData, AddLog, token);
