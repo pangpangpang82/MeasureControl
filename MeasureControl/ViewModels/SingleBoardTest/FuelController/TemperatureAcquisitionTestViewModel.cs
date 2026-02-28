@@ -71,10 +71,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const double TemperatureUpperLimit = 45.0;
 
         /// <summary>硬件初始化默认超时时间（毫秒）</summary>
-        private const int DefaultTimeoutMs = 10000;
+        private const int DefaultTimeoutMs = 3000;
 
         /// <summary>温度采集超时时间（毫秒）</summary>
-        private const int TemperatureReadTimeoutMs = 5000;
+        private const int TemperatureReadTimeoutMs = 2000;
 
         /// <summary>组件供电电源IP地址</summary>
         private const string PowerSupplyIpAddress = "192.168.1.15";
@@ -921,7 +921,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             var client = new TcpClient { NoDelay = true };
             try
             {
-                using var timeoutCts = new System.Threading.CancellationTokenSource(5000);
+                using var timeoutCts = new System.Threading.CancellationTokenSource(2000);
                 using var linkedCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
 
                 var connectTask = client.ConnectAsync(_ip, _port);
@@ -932,7 +932,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 {
                     try { client.Close(); } catch { }
                     token.ThrowIfCancellationRequested();
-                    throw new TimeoutException($"FPGA连接超时（5s），IP={_ip}:{_port}");
+                    throw new TimeoutException($"FPGA连接超时（2s），IP={_ip}:{_port}");
                 }
 
                 await connectTask;

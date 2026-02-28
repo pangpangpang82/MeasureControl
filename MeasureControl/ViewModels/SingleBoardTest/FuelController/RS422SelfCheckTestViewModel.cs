@@ -374,10 +374,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     _fpgaConnected = true;
                     AddLog("FPGA连接成功");
 
-                    // IO11=MUX1(bit0), IO12=MUX2(bit1) → MUX1低低（RS422自检路径）
-                    // MUX1=0: 内部回环（TX接RX）
+                    // 6.8 RS422自检测功能测试要求：
+                    // 1. IO11=MUX1(bit0)=0, IO12=MUX2(bit1)=0 → RS422内部自检回环模式
+                    // 2. CRM_PIN2和CRM_PIN12置为0（根据测试规范）
+                    // GPIO Write: IO11-32对应bit0-21，小端模式
+                    // MUX1=0(bit0), MUX2=0(bit1) → 内部回环
+                    // CRM_PIN2对应某个IO位，CRM_PIN12对应某个IO位（需要置0）
+                    // 根据协议，发送0x00000000即可将所有输出置低
                     await _fpga.WriteGpioAsync(0x00000000u, token);
-                    AddLog("[FPGA] MUX1/MUX2已置低（RS422内部自检回环模式）");
+                    AddLog("[FPGA] GPIO输出已置低（MUX1=0, MUX2=0, CRM_PIN2=0, CRM_PIN12=0）");
+                    AddLog("[FPGA] RS422内部自检回环模式已启用");
                 }
                 catch (Exception ex)
                 {
@@ -444,12 +450,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task RunStepAAsync(CancellationToken token)
         {
-            // 步骤a: SCI1 (UART0) 自检 - CRM_PIN9(TX) 内部回环 CRM_PIN19(RX)
+            // 6.8 RS422自检测功能测试 - 步骤a
+            // 测试设备向CRM_PIN9发送0xAA55，通过CRM_PIN19回读数据
+            // CRM_PIN9(SCITXD_1/IO5) → 内部回环 → CRM_PIN19(SCIRXD_1/IO11)
+            // 内部自检模式(MUX1=0)：UART0 TX直接回环到RX
             // 使用 UartTxRxAsync: TX发出后FPGA将回环收到的数据作为同命令帧返回
             if (_fpgaConnected && _fpga != null)
             {
                 try
                 {
+                    AddLog("步骤a: CRM_PIN9发送0xAA55 → CRM_PIN19回读（内部回环）");
                     AddLog($"[FPGA] UART0(SCI1) 自检 TX: 0x{string.Join(" ", DefaultTxData.Select(b => b.ToString("X2")))}");
                     var rx = await _fpga.UartTxRxAsync(0, DefaultTxData, token);
                     AddLog($"[FPGA] UART0(SCI1) 自检 RX: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
@@ -467,12 +477,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task RunStepBAsync(CancellationToken token)
         {
-            // 步骤b: SCI2 (UART1) 自检 - CRM_PIN10(TX) 内部回环 CRM_PIN20(RX)
+            // 6.8 RS422自检测功能测试 - 步骤b
+            // 测试设备向CRM_PIN10发送0xAA55，通过CRM_PIN20回读数据
+            // CRM_PIN10(SCITXD_2/IO6) → 内部回环 → CRM_PIN20(SCIRXD_2/IO12)
+            // 内部自检模式(MUX2=0)：UART1 TX直接回环到RX
             // 使用 UartTxRxAsync: TX发出后FPGA将回环收到的数据作为同命令帧返回
             if (_fpgaConnected && _fpga != null)
             {
                 try
                 {
+                    AddLog("步骤b: CRM_PIN10发送0xAA55 → CRM_PIN20回读（内部回环）");
                     AddLog($"[FPGA] UART1(SCI2) 自检 TX: 0x{string.Join(" ", DefaultTxData.Select(b => b.ToString("X2")))}");
                     var rx = await _fpga.UartTxRxAsync(1, DefaultTxData, token);
                     AddLog($"[FPGA] UART1(SCI2) 自检 RX: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");

@@ -75,17 +75,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const string RelayControlChannel = "DO15";
         
         /// <summary>硬件初始化默认超时时间（毫秒）</summary>
-        private const int DefaultTimeoutMs = 10000;
+        private const int DefaultTimeoutMs = 3000;
         
         /// <summary>万用表测量超时时间（毫秒）</summary>
-        private const int DmmTimeoutMs = 8000;
+        private const int DmmTimeoutMs = 2000;
         
         /// <summary>继电器操作超时时间（毫秒）</summary>
-        private const int RelayTimeoutMs = 5000;
+        private const int RelayTimeoutMs = 2000;
 
-        private const int PowerSupplyTimeoutMs = 8000;
+        private const int PowerSupplyTimeoutMs = 2000;
         private const string PowerSupplyIpAddress = "192.168.1.15";
-        private const PowerSupplyChannel RelaySupplyChannel = PowerSupplyChannel.CH1;
+        private const PowerSupplyChannel RelaySupplyChannel = PowerSupplyChannel.CH2;
         private const double RelaySupplyVoltage = 24.0;
         private const double RelaySupplyCurrent = 1.0;
 
@@ -97,7 +97,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private readonly ProjectService _projectService;                           // 项目服务，用于数据持久化
         private readonly IEventAggregator _eventAggregator;                        // 事件聚合器，用于跨模块通信
         private readonly IComponentPowerStateApi _componentPowerStateApi;          // 组件供电状态API（复用）
-        private readonly IJy7131Api _jy7131Api;                                    // 7131板卡API，控制DO输出
+        private readonly IPxiChassisService _pxiChassisService;                   // 机箱服务，用于查找板卡设备
+        private IJy7131Api _jy7131Api;                                             // 7131板卡API，控制DO输出（运行时动态创建）
         private readonly IDmmApi _dmmApi;                                          // 万用表API，测量电阻
         private readonly PowerImpedanceSimulation _simulation;                     // 仿真类，硬件不可用时使用
 
@@ -165,7 +166,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             ProjectService projectService,
             IEventAggregator eventAggregator,
             IComponentPowerStateApi componentPowerStateApi,
-            IJy7131Api jy7131Api = null,
+            IPxiChassisService pxiChassisService,
             IDmmApi dmmApi = null)
         {
             // 保存依赖服务引用
@@ -173,7 +174,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             _projectService = projectService;
             _eventAggregator = eventAggregator;
             _componentPowerStateApi = componentPowerStateApi;
-            _jy7131Api = jy7131Api;
+            _pxiChassisService = pxiChassisService;
             _dmmApi = dmmApi;
             _simulation = new PowerImpedanceSimulation();
 
@@ -693,6 +694,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
 
                 // ========== 步骤2：初始化7131板卡 ==========
+                if (_jy7131Api == null)
+                {
+                    var chassisName = _singleBoardTestContext?.ChassisName;
+                    var device7131 = Find7131DeviceInChassis(chassisName);
+                    if (device7131 != null)
+                    {
+                        string devSlot = Infer7131SlotNumber(device7131);
+                        AddLog($"找到7131板卡: {device7131.Model ?? device7131.Name}，槽位={devSlot}");
+                        if (int.TryParse(devSlot, out int slotNum))
+                            _jy7131Api = new Jy7131Api(device7131, slotNum);
+                        else
+                            _jy7131Api = new Jy7131Api(device7131);
+                    }
+                    else
+                    {
+                        AddLog("未找到7131板卡，使用仿真模式");
+                    }
+                }
+
                 if (_jy7131Api != null)
                 {
                     try
@@ -714,11 +734,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     catch (Exception ex)
                     {
                         AddLog($"7131板卡初始化异常: {ex.Message}，使用仿真模式");
+                        _jy7131Api = null;
                     }
-                }
-                else
-                {
-                    AddLog("7131板卡未配置，使用仿真模式");
                 }
 
                 // ========== 步骤3：设置组件供电状态（下电） ==========
@@ -726,11 +743,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog("正在设置组件供电状态: 下电...");
                 try
                 {
-                    if (_componentPowerStateApi != null)
+                    try
                     {
-                        await _componentPowerStateApi.ApplyComponentDownStateAsync(timeoutCts.Token);
+                        if (_componentPowerStateApi != null)
+                        {
+                            await _componentPowerStateApi.ApplyComponentDownStateAsync(timeoutCts.Token);
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException("组件供电API未就绪");
+                        }
                     }
-                    await _simulation.ApplyComponentDownStateAsync(msg => AddLog(msg), timeoutCts.Token);
+                    catch
+                    {
+                        await _simulation.ApplyComponentDownStateAsync(msg => AddLog(msg), timeoutCts.Token);
+                    }
                     AddLog("组件供电状态已设置为下电");
                 }
                 catch (Exception ex)
@@ -843,27 +870,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const string DmmIpAddress = "192.168.1.13";
         private const string MatrixIpAddress = "192.168.1.3";
 
-        // 矩阵开关槽位：PXI-2601(1) slotindex=4
-        // 各测试点通路来自接口分配表（1槽 pin91~98，万用表电阻采集）：
-        //   RESACQUIRE1+/1- = pin91/92  → A点: J3-J4   (外部28VDC_POWER_IN 对 POWER_RTN)
-        //   RESACQUIRE2+/2- = pin93/94  → B点: J14-J24 (POWER_ON 对 RS422_ISO_GND_3)
-        //   RESACQUIRE3+/3- = pin95/96  → C点: J3-J5   (外部28VDC_POWER_IN 对 CHASSIS_GND)
-        //   RESACQUIRE4+/4- = pin97/98  → D点: J14-J5  (POWER_ON 对 CHASSIS_GND)
-        // I1 = 万用表H端(+)，I4 = 万用表L端(-)，O{n} = 对应pin号
-        private const int MatrixSlotResAcquire = 4;   // 2601(1) slotindex=4
+        // 矩阵开关槽位：PXI-2601(2) slotindex=6（信号侧），PXI-2601(1) slotindex=4（万用表侧）
+        // 各测试点通路来自矩阵对应表（6.20通道电阻采集）：
+        //   RESACQUIRE1+/1- = 2601(2) 1/8 、1/9  → A点: J3-J4   (外部28VDC_POWER_IN 对 POWER_RTN)
+        //   RESACQUIRE2+/2- = 2601(2) 1/10、1/11 → B点: J14-J24 (POWER_ON 对 RS422_ISO_GND_3)
+        //   RESACQUIRE3+/3- = 2601(2) 1/12、1/13 → C点: J3-J5   (外部28VDC_POWER_IN 对 CHASSIS_GND)
+        //   RESACQUIRE4+/4- = 2601(2) 1/14、1/15 → D点: J14-J5  (POWER_ON 对 CHASSIS_GND)
+        // 万用表侧（所有测试点共用）：2601(1) 4/2 = I3, O2, slot=4
+        private const int MatrixSlotSig = 6;      // 2601(2) slotindex=6，信号侧
+        private const int MatrixSlotDmm = 4;      // 2601(1) slotindex=4，万用表侧
 
-        // A: J3-J4 外部28VDC_POWER_IN 对 POWER_RTN — RESACQUIRE1+/1-
-        private static readonly (string In, string Out, int Slot) MatrixPointA1 = ("I1", "O91", MatrixSlotResAcquire);
-        private static readonly (string In, string Out, int Slot) MatrixPointA2 = ("I4", "O92", MatrixSlotResAcquire);
-        // B: J14-J24 POWER_ON 对 RS422_ISO_GND_3 — RESACQUIRE2+/2-
-        private static readonly (string In, string Out, int Slot) MatrixPointB1 = ("I1", "O93", MatrixSlotResAcquire);
-        private static readonly (string In, string Out, int Slot) MatrixPointB2 = ("I4", "O94", MatrixSlotResAcquire);
-        // C: J3-J5 外部28VDC_POWER_IN 对 CHASSIS_GND — RESACQUIRE3+/3-
-        private static readonly (string In, string Out, int Slot) MatrixPointC1 = ("I1", "O95", MatrixSlotResAcquire);
-        private static readonly (string In, string Out, int Slot) MatrixPointC2 = ("I4", "O96", MatrixSlotResAcquire);
-        // D: J14-J5 POWER_ON 对 CHASSIS_GND — RESACQUIRE4+/4-
-        private static readonly (string In, string Out, int Slot) MatrixPointD1 = ("I1", "O97", MatrixSlotResAcquire);
-        private static readonly (string In, string Out, int Slot) MatrixPointD2 = ("I4", "O98", MatrixSlotResAcquire);
+        // 万用表侧（共用，电阻采集通路固定接万用表）：2601(1) 4/2
+        private static readonly (string In, string Out, int Slot) MatrixDmmH = ("I3", "O2", MatrixSlotDmm);
+
+        // A: J3-J4 外部28VDC_POWER_IN 对 POWER_RTN — RESACQUIRE1+/1- = 2601(2) 1/8、1/9
+        private static readonly (string In, string Out, int Slot) MatrixPointA1 = ("I2", "O8",  MatrixSlotSig);
+        private static readonly (string In, string Out, int Slot) MatrixPointA2 = ("I2", "O9",  MatrixSlotSig);
+        // B: J14-J24 POWER_ON 对 RS422_ISO_GND_3 — RESACQUIRE2+/2- = 2601(2) 1/10、1/11
+        private static readonly (string In, string Out, int Slot) MatrixPointB1 = ("I2", "O10", MatrixSlotSig);
+        private static readonly (string In, string Out, int Slot) MatrixPointB2 = ("I2", "O11", MatrixSlotSig);
+        // C: J3-J5 外部28VDC_POWER_IN 对 CHASSIS_GND — RESACQUIRE3+/3- = 2601(2) 1/12、1/13
+        private static readonly (string In, string Out, int Slot) MatrixPointC1 = ("I2", "O12", MatrixSlotSig);
+        private static readonly (string In, string Out, int Slot) MatrixPointC2 = ("I2", "O13", MatrixSlotSig);
+        // D: J14-J5 POWER_ON 对 CHASSIS_GND — RESACQUIRE4+/4- = 2601(2) 1/14、1/15
+        private static readonly (string In, string Out, int Slot) MatrixPointD1 = ("I2", "O14", MatrixSlotSig);
+        private static readonly (string In, string Out, int Slot) MatrixPointD2 = ("I2", "O15", MatrixSlotSig);
 
         private string GetDmmIpAddress() => DmmIpAddress;
 
@@ -902,6 +933,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private async Task DisconnectAllMatrixRoutesAsync()
         {
             var matrix = MatrixControlService.Instance;
+            try { await matrix.DisconnectNodesAsync(MatrixDmmH.In,    MatrixDmmH.Out,    MatrixDmmH.Slot,    MatrixIpAddress); } catch { }
             try { await matrix.DisconnectNodesAsync(MatrixPointA1.In, MatrixPointA1.Out, MatrixPointA1.Slot, MatrixIpAddress); } catch { }
             try { await matrix.DisconnectNodesAsync(MatrixPointA2.In, MatrixPointA2.Out, MatrixPointA2.Slot, MatrixIpAddress); } catch { }
             try { await matrix.DisconnectNodesAsync(MatrixPointB1.In, MatrixPointB1.Out, MatrixPointB1.Slot, MatrixIpAddress); } catch { }
@@ -1271,9 +1303,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     default:  c1 = MatrixPointA1; c2 = MatrixPointA2; break;
                 }
 
-                var ok1 = await matrix.ConnectNodesAsync(c1.In, c1.Out, c1.Slot, MatrixIpAddress);
-                var ok2 = await matrix.ConnectNodesAsync(c2.In, c2.Out, c2.Slot, MatrixIpAddress);
-                AddLog($"矩阵连接 {(ok1 && ok2 ? "OK" : "FAIL")} - {c1.In}-{c1.Out}(slot{c1.Slot}), {c2.In}-{c2.Out}(slot{c2.Slot})");
+                var okDmm = await matrix.ConnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress);
+                var ok1   = await matrix.ConnectNodesAsync(c1.In, c1.Out, c1.Slot, MatrixIpAddress);
+                var ok2   = await matrix.ConnectNodesAsync(c2.In, c2.Out, c2.Slot, MatrixIpAddress);
+                AddLog($"矩阵连接 {(okDmm && ok1 && ok2 ? "OK" : "FAIL")} - DMM:{MatrixDmmH.In}-{MatrixDmmH.Out}(slot{MatrixDmmH.Slot}), {c1.In}-{c1.Out}(slot{c1.Slot}), {c2.In}-{c2.Out}(slot{c2.Slot})");
 
                 if (!ok1 || !ok2)
                 {
@@ -1397,6 +1430,58 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         #endregion
 
+        #region 7131板卡查找辅助方法
+
+        private MeasureControl.Models.Devices.DeviceBase Find7131DeviceInChassis(string chassisName)
+        {
+            if (string.IsNullOrWhiteSpace(chassisName))
+                return null;
+
+            var devices = _pxiChassisService?.GetChassisDevices(chassisName);
+            if (devices == null || devices.Count == 0)
+                return null;
+
+            MeasureControl.Models.Devices.DeviceBase Walk(MeasureControl.Models.Devices.DeviceBase d)
+            {
+                if (d == null) return null;
+                var model = (d.Model ?? string.Empty).ToUpperInvariant();
+                var name  = (d.Name  ?? string.Empty).ToUpperInvariant();
+                if (model.Contains("7131") || name.Contains("7131"))
+                    return d;
+                if (d.Children == null) return null;
+                foreach (var c in d.Children)
+                {
+                    var found = Walk(c);
+                    if (found != null) return found;
+                }
+                return null;
+            }
+
+            foreach (var d in devices)
+            {
+                var found = Walk(d);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        private static string Infer7131SlotNumber(MeasureControl.Models.Devices.DeviceBase device)
+        {
+            if (device is MeasureControl.Models.Devices.DeviceCategories.PxiDeviceBase pxi && pxi.SlotIndex > 0)
+                return pxi.SlotIndex.ToString();
+
+            var slot = device?.SlotPosition;
+            if (!string.IsNullOrWhiteSpace(slot))
+            {
+                var trimmed = slot.Replace("Slot", "").Replace("slot", "").Trim();
+                if (int.TryParse(trimmed, out var slotNum) && slotNum > 0)
+                    return slotNum.ToString();
+            }
+            return "12";
+        }
+
+        #endregion
+
         public void Dispose()
         {
             _opCts?.Cancel();
@@ -1431,6 +1516,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
             }
             catch { }
+
+            try
+            {
+                _jy7131Api?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            }
+            catch { }
+            finally
+            {
+                _jy7131Api = null;
+            }
 
             _measureLock?.Dispose();
             _simulation?.Dispose();
