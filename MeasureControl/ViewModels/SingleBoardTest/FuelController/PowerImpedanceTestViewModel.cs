@@ -83,11 +83,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// <summary>继电器操作超时时间（毫秒）</summary>
         private const int RelayTimeoutMs = 2000;
 
-        private const int PowerSupplyTimeoutMs = 2000;
-        private const string PowerSupplyIpAddress = "192.168.1.15";
-        private const PowerSupplyChannel RelaySupplyChannel = PowerSupplyChannel.CH2;
-        private const double RelaySupplyVoltage = 24.0;
-        private const double RelaySupplyCurrent = 1.0;
+        private const int RelayPowerTimeoutMs = 2000;
 
         #endregion
 
@@ -125,9 +121,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private string _powerStatus = "未就绪";                                      // 供电状态显示文本
 
         private bool _useSimulatedDmm;                                             // DMM不可用时走仿真测量
-
-        private IPowerSupplyApi _powerSupplyApi;
-        private bool _relaySupplyOn;
+        private bool _relaySupplyOn;                                            // 继电器供电状态
 
         #endregion
 
@@ -947,7 +941,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private async Task PowerOnRelaySupplyWithTimeoutAsync(CancellationToken token)
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-            timeoutCts.CancelAfter(PowerSupplyTimeoutMs);
+            timeoutCts.CancelAfter(RelayPowerTimeoutMs);
 
             try
             {
@@ -957,63 +951,46 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     return;
                 }
 
-                AddLog($"正在连接程控电源: {PowerSupplyIpAddress}...");
-                await ConnectPowerSupplyAsync(PowerSupplyIpAddress, timeoutCts.Token);
-
-                await _powerSupplyApi.ApplyAsync(RelaySupplyChannel, RelaySupplyVoltage, RelaySupplyCurrent, timeoutCts.Token);
-                await _powerSupplyApi.SetOutputEnabledAsync(RelaySupplyChannel, true, timeoutCts.Token);
-
-                _relaySupplyOn = true;
-                AddLog($"继电器供电已上电: {PowerSupplyIpAddress} CH{(int)RelaySupplyChannel} {RelaySupplyVoltage:F1}V");
+                // 使用IComponentPowerStateApi统一管理继电器供电（24V CH2）
+                if (_componentPowerStateApi != null)
+                {
+                    AddLog("正在开启继电器供电（24V）...");
+                    await _componentPowerStateApi.ApplyRelayPowerAsync(timeoutCts.Token);
+                    _relaySupplyOn = true;
+                    AddLog("继电器供电已上电: 192.168.1.15 CH2 24.0V");
+                }
+                else
+                {
+                    AddLog("继电器供电API不可用，使用仿真模式");
+                    await Task.Delay(200, timeoutCts.Token);
+                    _relaySupplyOn = true;
+                }
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
             {
-                throw new TimeoutException($"继电器供电上电超时（{PowerSupplyTimeoutMs}ms）");
+                throw new TimeoutException($"继电器供电上电超时（{RelayPowerTimeoutMs}ms）");
             }
-        }
-
-        /// <summary>
-        /// 程控电源连接方法隔离层。
-        /// [NoInlining] 确保 NI-VISA 程序集在此方法 JIT 时才加载，
-        /// 防止 FileLoadException 在调用方 JIT 编译时逃逸 try-catch。
-        /// </summary>
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private async Task ConnectPowerSupplyAsync(string ipAddress, CancellationToken token)
-        {
-            _powerSupplyApi ??= new PowerSupplySocketApi();
-            if (!_powerSupplyApi.IsConnected)
-                await _powerSupplyApi.ConnectAsync(ipAddress, token);
         }
 
         private async Task PowerOffRelaySupplyAsync(CancellationToken token)
         {
-            if (_powerSupplyApi == null)
-            {
-                _relaySupplyOn = false;
+            if (!_relaySupplyOn)
                 return;
-            }
 
             try
             {
-                if (_powerSupplyApi.IsConnected)
+                if (_componentPowerStateApi != null)
                 {
-                    try
-                    {
-                        await _powerSupplyApi.SetOutputEnabledAsync(RelaySupplyChannel, false, token);
-                    }
-                    catch { }
-
-                    try
-                    {
-                        await _powerSupplyApi.DisconnectAsync(token);
-                    }
-                    catch { }
+                    await _componentPowerStateApi.DisableRelayPowerAsync(token);
+                    AddLog("继电器供电已关闭");
                 }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"继电器供电关闭异常: {ex.Message}");
             }
             finally
             {
-                try { await _powerSupplyApi.DisposeAsync(); } catch { }
-                _powerSupplyApi = null;
                 _relaySupplyOn = false;
             }
         }
