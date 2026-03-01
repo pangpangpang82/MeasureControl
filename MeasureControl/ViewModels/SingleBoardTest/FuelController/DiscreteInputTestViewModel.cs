@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -31,7 +32,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// <summary>
         /// 硬件操作超时时间（毫秒）
         /// </summary>
-        private const int HardwareTimeoutMs = 10000;
+        private const int HardwareTimeoutMs = 3000;
 
         #endregion
 
@@ -51,6 +52,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _disposed;
         private bool _hardwareInitialized;
         private bool _useSimulation = true;
+        private FpgaIoClient _fpga;
+        private bool _fpgaConnected;
 
         #endregion
 
@@ -412,13 +415,47 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private async Task<bool> PerformGroundedTestAsync(CancellationToken token)
         {
             // 1. 设置所有DO通道为接地状态
-            await _simulation.SetAllDoGroundedAsync(AddLog, token);
+            if (_fpgaConnected && _fpga != null)
+            {
+                try
+                {
+                    // IO11-32 对应 bit0-21; DO通道对应FPGA GPIO输出
+                    // 接地状态：将DO对应的GPIO输出置低（接地）→ MUX选通
+                    await _fpga.WriteGpioAsync(0x00000000u, token);
+                    AddLog("[FPGA] DO通道全部设置为接地（GPIO全低）");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[FPGA] GPIO写入失败: {ex.Message}，降级仿真");
+                    await _simulation.SetAllDoGroundedAsync(AddLog, token);
+                }
+            }
+            else
+            {
+                await _simulation.SetAllDoGroundedAsync(AddLog, token);
+            }
 
             // 2. 等待稳定
             await Task.Delay(100, token);
 
             // 3. 读取离散量采集结果
-            int[] results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
+            int[] results;
+            if (_fpgaConnected && _fpga != null)
+            {
+                try
+                {
+                    results = await ReadHi8435ResultsAsync(token);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[FPGA] HI8435读取失败: {ex.Message}，降级仿真");
+                    results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
+                }
+            }
+            else
+            {
+                results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
+            }
 
             // 4. 保存结果
             Array.Copy(results, _groundedTestResults, results.Length);
@@ -456,13 +493,47 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private async Task<bool> PerformOpenTestAsync(CancellationToken token)
         {
             // 1. 设置所有DO通道为开路状态
-            await _simulation.SetAllDoOpenAsync(AddLog, token);
+            if (_fpgaConnected && _fpga != null)
+            {
+                try
+                {
+                    // 开路状态：将DO对应的GPIO输出置高（悬空/开路）
+                    // IO11-32 bit0-21全部置1表示输出高
+                    await _fpga.WriteGpioAsync(0x003FFFFFu, token);
+                    AddLog("[FPGA] DO通道全部设置为开路（GPIO全高）");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[FPGA] GPIO写入失败: {ex.Message}，降级仿真");
+                    await _simulation.SetAllDoOpenAsync(AddLog, token);
+                }
+            }
+            else
+            {
+                await _simulation.SetAllDoOpenAsync(AddLog, token);
+            }
 
             // 2. 等待稳定
             await Task.Delay(100, token);
 
             // 3. 读取离散量采集结果
-            int[] results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
+            int[] results;
+            if (_fpgaConnected && _fpga != null)
+            {
+                try
+                {
+                    results = await ReadHi8435ResultsAsync(token);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[FPGA] HI8435读取失败: {ex.Message}，降级仿真");
+                    results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
+                }
+            }
+            else
+            {
+                results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
+            }
 
             // 4. 保存结果
             Array.Copy(results, _openTestResults, results.Length);
@@ -546,9 +617,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 PowerStatus = "已上电";
             });
 
-            // 2. 配置矩阵开关通路
-            AddLog("正在配置矩阵开关通路...");
-            await _simulation.ConnectMatrixAsync(AddLog, token);
+            // 2. 连接FPGA
+            AddLog("正在连接FPGA...");
+            try
+            {
+                _fpga ??= new FpgaIoClient();
+                if (!_fpga.IsConnected)
+                    await _fpga.ConnectAsync(token);
+                _fpgaConnected = true;
+                AddLog("FPGA连接成功");
+
+                // 3. 初始化HI8435 (cmd 0x04)
+                AddLog("正在初始化HI8435...");
+                await _fpga.InitHi8435Async(token);
+                await Task.Delay(50, token);
+                AddLog("HI8435初始化完成");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"FPGA连接/初始化失败: {ex.Message}，将使用仿真模式");
+                _fpgaConnected = false;
+            }
 
             _hardwareInitialized = true;
             UpdateCommandStates();
@@ -561,8 +650,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             AddLog("正在复位硬件...");
 
-            // 断开矩阵开关
-            await _simulation.DisconnectMatrixAsync(AddLog, token);
+            // 断开FPGA
+            if (_fpga != null)
+            {
+                try { _fpga.Disconnect(); } catch { }
+                _fpga = null;
+                _fpgaConnected = false;
+            }
 
             // 下电
             if (_componentPowerStateApi != null && !_useSimulation)
@@ -708,6 +802,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         #endregion
 
+        /// <summary>
+        /// 通过FPGA读取HI8435 BANK3-0状态，解析为14通道结果数组
+        /// cmd 0x06 → 返回4字节 byte0-3对应bank3-0
+        /// bank0 bit[0:6] → 通道0-6, bank1 bit[0:6] → 通道7-13
+        /// </summary>
+        private async Task<int[]> ReadHi8435ResultsAsync(CancellationToken token)
+        {
+            var banks = await _fpga.ReadHi8435Async(token);
+            AddLog($"[FPGA] HI8435 bank3={banks[0]:X2} bank2={banks[1]:X2} bank1={banks[2]:X2} bank0={banks[3]:X2}");
+
+            var results = new int[DiscreteInputSimulation.TotalChannelCount];
+            // bank3 (banks[0]) bit0-6 → 通道0-6 (bank0 of HI8435)
+            for (int i = 0; i < DiscreteInputSimulation.Bank0ChannelCount; i++)
+                results[i] = (banks[0] >> i) & 1;
+            // bank2 (banks[1]) bit0-6 → 通道7-13 (bank1 of HI8435)
+            for (int i = 0; i < DiscreteInputSimulation.Bank1ChannelCount; i++)
+                results[DiscreteInputSimulation.Bank0ChannelCount + i] = (banks[1] >> i) & 1;
+            return results;
+        }
+
         #region IDisposable
 
         public void Dispose()
@@ -718,6 +832,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             _testCts?.Cancel();
             _testCts?.Dispose();
             _simulation?.Dispose();
+
+            try { _fpga?.Disconnect(); } catch { }
+            _fpga = null;
 
             if (_componentPowerStateApi != null)
             {

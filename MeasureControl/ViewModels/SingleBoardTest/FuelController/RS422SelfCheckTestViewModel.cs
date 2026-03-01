@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -42,6 +43,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private bool _isBusy;
+        private FpgaIoClient _fpga;
+        private bool _fpgaConnected;
+        private bool _isPowerOn;
+        private string _powerStatus = "未上电";
 
         private string _stepAResult = "--";
         private string _stepBResult = "--";
@@ -51,6 +56,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private string _overallResult = "--";
         private string _lastTestTime = "--";
+
+        public bool IsPowerOn
+        {
+            get => _isPowerOn;
+            set => SetProperty(ref _isPowerOn, value);
+        }
+
+        public string PowerStatus
+        {
+            get => _powerStatus;
+            set => SetProperty(ref _powerStatus, value);
+        }
 
         public RS422SelfCheckTestViewModel(
             ISingleBoardTestContextService singleBoardTestContext,
@@ -347,18 +364,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 await ApplyPower28VAsync(token);
 
+                // 连接FPGA
+                AddLog("正在连接FPGA...");
                 try
                 {
-                    await _simulation.SetPinsToLowAsync(LowPins, AddLog, token);
-                }
-                catch
-                {
-                    AddLog("CRM_PIN2/CRM_PIN12置0失败(占位)，继续执行");
-                }
+                    _fpga ??= new FpgaIoClient();
+                    if (!_fpga.IsConnected)
+                        await _fpga.ConnectAsync(token);
+                    _fpgaConnected = true;
+                    AddLog("FPGA连接成功");
 
-                bool ok = await _simulation.ConnectMatrixAsync(AddLog, token);
-                if (!ok)
-                    AddLog("矩阵开关配置失败，将继续使用仿真收发");
+                    // 6.8 RS422自检测功能测试要求：
+                    // 1. IO11=MUX1(bit0)=0, IO12=MUX2(bit1)=0 → RS422内部自检回环模式
+                    // 2. CRM_PIN2和CRM_PIN12置为0（根据测试规范）
+                    // GPIO Write: IO11-32对应bit0-21，小端模式
+                    // MUX1=0(bit0), MUX2=0(bit1) → 内部回环
+                    // CRM_PIN2对应某个IO位，CRM_PIN12对应某个IO位（需要置0）
+                    // 根据协议，发送0x00000000即可将所有输出置低
+                    await _fpga.WriteGpioAsync(0x00000000u, token);
+                    AddLog("[FPGA] GPIO输出已置低（MUX1=0, MUX2=0, CRM_PIN2=0, CRM_PIN12=0）");
+                    AddLog("[FPGA] RS422内部自检回环模式已启用");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"FPGA连接失败: {ex.Message}，将使用仿真模式");
+                    _fpgaConnected = false;
+                }
 
                 _hardwareInitialized = true;
             }
@@ -373,16 +404,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
-                try
+                if (_fpga != null)
                 {
-                    await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
-                }
-                catch
-                {
+                    try { _fpga.Disconnect(); } catch { }
+                    _fpga = null;
+                    _fpgaConnected = false;
                 }
 
-                await _simulation.DisconnectMatrixAsync(AddLog, token);
+                try { await _componentPowerStateApi.ApplyComponentDownStateAsync(token); } catch { }
                 _hardwareInitialized = false;
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
             }
             finally
             {
@@ -414,18 +445,61 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog("组件供电: 28V上电(仿真占位)");
                 await Task.Delay(120, token);
             }
+            Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
         }
 
         private async Task RunStepAAsync(CancellationToken token)
         {
-            var rx = await _simulation.SendAndReceiveAsync("步骤a", TxPin1, RxPin1, DefaultTxData, AddLog, token);
-            SetStepResultAndRx("a", rx);
+            // 6.8 RS422自检测功能测试 - 步骤a
+            // 测试设备向CRM_PIN9发送0xAA55，通过CRM_PIN19回读数据
+            // CRM_PIN9(SCITXD_1/IO5) → 内部回环 → CRM_PIN19(SCIRXD_1/IO11)
+            // 内部自检模式(MUX1=0)：UART0 TX直接回环到RX
+            // 使用 UartTxRxAsync: TX发出后FPGA将回环收到的数据作为同命令帧返回
+            if (_fpgaConnected && _fpga != null)
+            {
+                try
+                {
+                    AddLog("步骤a: CRM_PIN9发送0xAA55 → CRM_PIN19回读（内部回环）");
+                    AddLog($"[FPGA] UART0(SCI1) 自检 TX: 0x{string.Join(" ", DefaultTxData.Select(b => b.ToString("X2")))}");
+                    var rx = await _fpga.UartTxRxAsync(0, DefaultTxData, token);
+                    AddLog($"[FPGA] UART0(SCI1) 自检 RX: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
+                    SetStepResultAndRx("a", rx);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[FPGA] UART0自检失败: {ex.Message}，降级仿真");
+                }
+            }
+            var simRx = await _simulation.SendAndReceiveAsync("步骤a", TxPin1, RxPin1, DefaultTxData, AddLog, token);
+            SetStepResultAndRx("a", simRx);
         }
 
         private async Task RunStepBAsync(CancellationToken token)
         {
-            var rx = await _simulation.SendAndReceiveAsync("步骤b", TxPin2, RxPin2, DefaultTxData, AddLog, token);
-            SetStepResultAndRx("b", rx);
+            // 6.8 RS422自检测功能测试 - 步骤b
+            // 测试设备向CRM_PIN10发送0xAA55，通过CRM_PIN20回读数据
+            // CRM_PIN10(SCITXD_2/IO6) → 内部回环 → CRM_PIN20(SCIRXD_2/IO12)
+            // 内部自检模式(MUX2=0)：UART1 TX直接回环到RX
+            // 使用 UartTxRxAsync: TX发出后FPGA将回环收到的数据作为同命令帧返回
+            if (_fpgaConnected && _fpga != null)
+            {
+                try
+                {
+                    AddLog("步骤b: CRM_PIN10发送0xAA55 → CRM_PIN20回读（内部回环）");
+                    AddLog($"[FPGA] UART1(SCI2) 自检 TX: 0x{string.Join(" ", DefaultTxData.Select(b => b.ToString("X2")))}");
+                    var rx = await _fpga.UartTxRxAsync(1, DefaultTxData, token);
+                    AddLog($"[FPGA] UART1(SCI2) 自检 RX: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
+                    SetStepResultAndRx("b", rx);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[FPGA] UART1自检失败: {ex.Message}，降级仿真");
+                }
+            }
+            var simRx = await _simulation.SendAndReceiveAsync("步骤b", TxPin2, RxPin2, DefaultTxData, AddLog, token);
+            SetStepResultAndRx("b", simRx);
         }
 
         private void SetStepResultAndRx(string step, byte[] rx)
@@ -474,6 +548,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             _opCts?.Dispose();
 
             _simulation?.Dispose();
+
+            try { _fpga?.Disconnect(); } catch { }
+            _fpga = null;
 
             if (_projectSavingToken != null)
             {
