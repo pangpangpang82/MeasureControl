@@ -50,8 +50,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private CancellationTokenSource _autoCts;
 
         private readonly IPxiChassisService _pxiChassisService;
+        private readonly ISingleBoardTestContextService _singleBoardTestContext;
         private IPowerSupplyApi _power;
         private IArt4229Api _arinc;
+
+        private const string TestItemName = "二次电源测试";
 
         private bool _canMeasure;
         private bool _measured5v;
@@ -75,9 +78,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private double? _voltage15V;
         private double? _voltageM15V;
 
-        public HC_6_2ViewModel(IPxiChassisService pxiChassisService)
+        public HC_6_2ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
         {
             _pxiChassisService = pxiChassisService;
+            _singleBoardTestContext = singleBoardTestContext;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
@@ -86,6 +90,36 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Measure15VCommand = new DelegateCommand(async () => await OnMeasure15VAsync(), () => CanMeasure15V);
             MeasureM15VCommand = new DelegateCommand(async () => await OnMeasureM15VAsync(), () => CanMeasureM15V);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
+
+            LoadLastTestResultFromProject();
+        }
+
+        private void LoadLastTestResultFromProject()
+        {
+            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
+            if (testItemNode != null)
+            {
+                if (!string.IsNullOrWhiteSpace(testItemNode.LastTestTime))
+                {
+                    _lastTestTime = testItemNode.LastTestTime;
+                    RaisePropertyChanged(nameof(LastTestTime));
+                }
+                if (!string.IsNullOrWhiteSpace(testItemNode.LastTestResult))
+                {
+                    _lastTestResult = testItemNode.LastTestResult;
+                    RaisePropertyChanged(nameof(LastTestResult));
+                }
+            }
+        }
+
+        private void SaveTestResultToProject()
+        {
+            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
+            if (testItemNode != null)
+            {
+                testItemNode.LastTestTime = LastTestTime;
+                testItemNode.LastTestResult = LastTestResult;
+            }
         }
 
         public DelegateCommand ManualTestCommand { get; }
@@ -113,6 +147,118 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     Measure15VCommand?.RaiseCanExecuteChanged();
                     MeasureM15VCommand?.RaiseCanExecuteChanged();
                 }
+            }
+        }
+
+        /// <summary>
+        /// 整板串行自动测试入口。
+        /// 由外部(整板自动测试)调用，支持 await 等待完成，并通过 CancellationToken 实现“立即停止当前测量”。
+        /// 返回值仅为“合格/不合格”。
+        /// </summary>
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning)
+            {
+                await StopAutoTestAsync().ConfigureAwait(false);
+            }
+
+            if (IsManualTestRunning)
+            {
+                await StopManualTestAsync().ConfigureAwait(false);
+            }
+
+            _autoCts?.Cancel();
+            _autoCts?.Dispose();
+            _autoCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                return await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
+
+        private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
+        {
+            IsAutoTestRunning = true;
+
+            _manualAborted = false;
+            CanMeasure = false;
+
+            _measured5v = false;
+            _measured15v = false;
+            _measuredM15v = false;
+
+            _voltage5V = null;
+            _voltage15V = null;
+            _voltageM15V = null;
+            Voltage5VText = "--";
+            Voltage15VText = "--";
+            VoltageM15VText = "--";
+
+            Log("开始自动测试");
+            Log($"判据: 5V[{Min5V:0.###},{Max5V:0.###}]  15V[{Min15V:0.###},{Max15V:0.###}]  -15V[{MinM15V:0.###},{MaxM15V:0.###}]");
+
+            try
+            {
+                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+                await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+
+                await MeasureVoltageFrom429Async(
+                        title: "5V",
+                        expectedLabel: Label5V,
+                        decode: Decode5V,
+                        setText: t => Voltage5VText = t,
+                        setValue: v => _voltage5V = v,
+                        cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+
+                await Task.Delay(120, cancellationToken).ConfigureAwait(false);
+
+                await MeasureVoltageFrom429Async(
+                        title: "15V",
+                        expectedLabel: Label15V,
+                        decode: Decode15V,
+                        setText: t => Voltage15VText = t,
+                        setValue: v => _voltage15V = v,
+                        cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+
+                await Task.Delay(120, cancellationToken).ConfigureAwait(false);
+
+                await MeasureVoltageFrom429Async(
+                        title: "-15V",
+                        expectedLabel: LabelM15V,
+                        decode: DecodeM15V,
+                        setText: t => VoltageM15VText = t,
+                        setValue: v => _voltageM15V = v,
+                        cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+
+                _measured5v = _voltage5V != null;
+                _measured15v = _voltage15V != null;
+                _measuredM15v = _voltageM15V != null;
+
+                await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
+                await StopAutoTestAsync().ConfigureAwait(false);
+
+                return LastTestResult;
+            }
+            catch (OperationCanceledException)
+            {
+                Log("自动测试已停止");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"自动测试异常: {ex.Message}");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
             }
         }
 
@@ -278,52 +424,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                // 确保电源和 ARINC429 已就绪
-                await EnsurePowerAsync(_autoCts.Token).ConfigureAwait(false);
-                await EnsureArincRxAsync(_autoCts.Token).ConfigureAwait(false);
-
-                // 测量 5V 电压
-                await MeasureVoltageFrom429Async(
-                        title: "5V",
-                        expectedLabel: Label5V,
-                        decode: Decode5V,
-                        setText: t => Voltage5VText = t,
-                        setValue: v => _voltage5V = v,
-                        cancellationToken: _autoCts.Token)
-                    .ConfigureAwait(false);
-
-                await Task.Delay(120, _autoCts.Token).ConfigureAwait(false);
-
-                await MeasureVoltageFrom429Async(
-                        title: "15V",
-                        expectedLabel: Label15V,
-                        decode: Decode15V,
-                        setText: t => Voltage15VText = t,
-                        setValue: v => _voltage15V = v,
-                        cancellationToken: _autoCts.Token)
-                    .ConfigureAwait(false);
-
-                await Task.Delay(120, _autoCts.Token).ConfigureAwait(false);
-
-                await MeasureVoltageFrom429Async(
-                        title: "-15V",
-                        expectedLabel: LabelM15V,
-                        decode: DecodeM15V,
-                        setText: t => VoltageM15VText = t,
-                        setValue: v => _voltageM15V = v,
-                        cancellationToken: _autoCts.Token)
-                    .ConfigureAwait(false);
-
-                _measured5v = _voltage5V != null;
-                _measured15v = _voltage15V != null;
-                _measuredM15v = _voltageM15V != null;
-
-                await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
-
-                if (IsAutoTestRunning)
-                {
-                    await StopAutoTestAsync().ConfigureAwait(false);
-                }
+                _ = await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -614,6 +715,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log($"判据: -15V[{MinM15V:0.###},{MaxM15V:0.###}] => {FormatBool(passM15)}");
             Log($"最终结果: {LastTestResult}");
 
+            SaveTestResultToProject();
+
             await StopManualTestAsync().ConfigureAwait(false);
         }
 
@@ -781,6 +884,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Logs.Add(line);
         }
 
-        private static string FormatBool(bool value) => value ? "PASS" : "FAIL";
+        private static string FormatBool(bool value) => value ? "合格" : "不合格";
     }
 }
