@@ -63,7 +63,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 channelNumber = 1;
 
             _channel = (byte)channelNumber;
-            _pageTitle = pageTitle ?? $"A控制通道28V/OC型400mA离散输出通道{channelNumber}输出测试";
+            _pageTitle = pageTitle ?? $"6.15.3.{channelNumber}A控制通道28V/OC型400mA离散输出通道{channelNumber}输出测试";
 
             _out28vCmd = BuildCmd(_channel, 0x01);
             _out28vAck = BuildAck(_channel, 0x02);
