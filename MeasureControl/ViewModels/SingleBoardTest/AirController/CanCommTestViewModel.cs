@@ -24,7 +24,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private CancellationTokenSource _cts;
         private readonly AC_6_4Simulation _simulation = new AC_6_4Simulation();
 
-        private string _title = "CAN发送测试";
+        private string _title = "6.6.1CAN发送测试";
         private bool _isManualTestRunning;
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";

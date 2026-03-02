@@ -92,7 +92,7 @@
                     VerticalAlignment="Center"
                     FontSize="24"
                     FontWeight="Bold"
-                    Text="PT500温度传感器测试" />
+                    Text="6.8.1控制通道PDTS传感器测试" />
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                     <Button
                         Width="100"
@@ -431,6 +431,19 @@
                         <ComboBoxItem Content="2挡" />
                         <ComboBoxItem Content="3挡" />
                     </ComboBox>
+                    <ComboBox
+                        Width="100"
+                        Height="28"
+                        Margin="15,0,0,0"
+                        HorizontalAlignment="Left"
+                        FontSize="12"
+                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                        SelectedValuePath="Content"
+                        IsEnabled="{Binding CanEditStepControls}"
+                        SelectedValue="{Binding AmbientTemperatureSelection, Mode=TwoWay}">
+                        <ComboBoxItem Content="10~50℃" />
+                        <ComboBoxItem Content="其他" />
+                    </ComboBox>
                     <Border
                         Width="70"
                         Height="28"
@@ -461,7 +474,7 @@
                                             VerticalAlignment="Center"
                                             FontSize="14"
                                             Foreground="White"
-                                            Text="测试" />
+                                            Text="接入" />
                                     </StackPanel>
                                 </Border>
                                 <ControlTemplate.Triggers>
