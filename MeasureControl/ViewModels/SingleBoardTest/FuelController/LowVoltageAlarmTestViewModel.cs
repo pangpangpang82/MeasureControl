@@ -87,10 +87,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const double AlarmThresholdVoltage = 15.0;
         
         /// <summary>硬件初始化默认超时时间（毫秒）</summary>
-        private const int DefaultTimeoutMs = 10000;
+        private const int DefaultTimeoutMs = 3000;
         
         /// <summary>单步测量超时时间（毫秒）</summary>
-        private const int StepTimeoutMs = 3000;
+        private const int StepTimeoutMs = 2000;
 
         /// <summary>AD采集通道（INT_AD2对应的通道）</summary>
         private const string AdChannel = "AI2";
@@ -647,10 +647,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             if (!string.IsNullOrEmpty(name) && name.StartsWith("Dev", StringComparison.OrdinalIgnoreCase))
                 return name;
 
-            // 根据SlotPosition推断
+            // 优先使用 SlotIndex（PxiDeviceBase 子类）
+            if (device is MeasureControl.Models.Devices.DeviceCategories.PxiDeviceBase pxi && pxi.SlotIndex > 0)
+                return $"Dev{pxi.SlotIndex}";
+
+            // 根据SlotPosition推断，格式为 "Slot N" 或纯数字
             var slot = device?.SlotPosition;
-            if (!string.IsNullOrEmpty(slot) && int.TryParse(slot, out var slotNum) && slotNum > 0)
-                return $"Dev{slotNum}";
+            if (!string.IsNullOrWhiteSpace(slot))
+            {
+                var trimmed = slot.Replace("Slot", "").Replace("slot", "").Trim();
+                if (int.TryParse(trimmed, out var slotNum) && slotNum > 0)
+                    return $"Dev{slotNum}";
+            }
 
             return "Dev3"; // 默认值
         }
