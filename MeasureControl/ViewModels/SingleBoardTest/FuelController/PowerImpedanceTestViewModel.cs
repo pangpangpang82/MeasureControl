@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MeasureControl.Events;
 using MeasureControl.Models;
+using MeasureControl.Models.Devices;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
 using MeasureControl.Simulations.FuelController;
@@ -690,8 +691,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 // ========== 步骤2：初始化7131板卡 ==========
                 if (_jy7131Api == null)
                 {
-                    var chassisName = _singleBoardTestContext?.ChassisName;
-                    var device7131 = Find7131DeviceInChassis(chassisName);
+                    var device7131 = FindFirstJy7131Device();
                     if (device7131 != null)
                     {
                         string devSlot = Infer7131SlotNumber(device7131);
@@ -929,6 +929,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private async Task DisconnectAllMatrixRoutesAsync()
         {
             var matrix = MatrixControlService.Instance;
+            await Task.Delay(500);
             try { await matrix.DisconnectNodesAsync(MatrixDmmH.In,    MatrixDmmH.Out,    MatrixDmmH.Slot,    MatrixIpAddress); } catch { }
             try { await matrix.DisconnectNodesAsync(MatrixPointA1.In, MatrixPointA1.Out, MatrixPointA1.Slot, MatrixIpAddress); } catch { }
             try { await matrix.DisconnectNodesAsync(MatrixPointB1.In, MatrixPointB1.Out, MatrixPointB1.Slot, MatrixIpAddress); } catch { }
@@ -1311,6 +1312,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 var okDmm = await matrix.ConnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress);
                 var ok1   = await matrix.ConnectNodesAsync(c1.In, c1.Out, c1.Slot, MatrixIpAddress);
+                await Task.Delay(1000);
                 var ok2   = c2.HasValue ? await matrix.ConnectNodesAsync(c2.Value.In, c2.Value.Out, c2.Value.Slot, MatrixIpAddress) : true;
                 AddLog(
                     c2.HasValue
@@ -1441,65 +1443,57 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         #region 7131板卡查找辅助方法
 
-        private MeasureControl.Models.Devices.DeviceBase Find7131DeviceInChassis(string chassisName)
+        /// <summary>
+        /// 从 PXI 机箱中查找第一个 PXIe-7131 板卡
+        /// </summary>
+        private MeasureControl.Models.Devices.DeviceBase FindFirstJy7131Device()
         {
-            MeasureControl.Models.Devices.DeviceBase Walk(MeasureControl.Models.Devices.DeviceBase d)
-            {
-                if (d == null) return null;
-                var model = (d.Model ?? string.Empty).ToUpperInvariant();
-                var name  = (d.Name  ?? string.Empty).ToUpperInvariant();
-                if (model.Contains("7131") || name.Contains("7131"))
-                    return d;
-                if (d.Children == null) return null;
-                foreach (var c in d.Children)
-                {
-                    var found = Walk(c);
-                    if (found != null) return found;
-                }
-                return null;
-            }
-
-            if (!string.IsNullOrWhiteSpace(chassisName))
-            {
-                var devices = _pxiChassisService?.GetChassisDevices(chassisName);
-                if (devices != null && devices.Count > 0)
-                {
-                    foreach (var d in devices)
-                    {
-                        var found = Walk(d);
-                        if (found != null) return found;
-                    }
-                }
-            }
-
             var chassisList = _pxiChassisService?.GetAllChassis();
-            if (chassisList == null || chassisList.Count == 0)
+            if (chassisList == null)
+            {
+                AddLog("[7131查找] 机箱列表为null");
                 return null;
+            }
 
             foreach (var chassis in chassisList)
             {
-                if (chassis == null)
+                if (chassis?.Devices == null)
                     continue;
 
-                System.Collections.Generic.IList<MeasureControl.Models.Devices.DeviceBase> devices = chassis.Devices;
-                if (devices == null || devices.Count == 0)
+                // 直接在机箱设备列表中查找
+                var device = chassis.Devices.FirstOrDefault(d =>
+                    d is DigitalIODevice ||
+                    (d?.Model?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("离散量", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("数字量", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                if (device != null)
                 {
-                    if (!string.IsNullOrWhiteSpace(chassis.Name))
-                    {
-                        devices = _pxiChassisService?.GetChassisDevices(chassis.Name);
-                    }
+                    AddLog($"[7131查找] 找到板卡: Name={device.Name}, Model={device.Model}");
+                    return device;
                 }
 
-                if (devices == null || devices.Count == 0)
-                    continue;
-
-                foreach (var d in devices)
+                // 遍历子设备
+                foreach (var d in chassis.Devices)
                 {
-                    var found = Walk(d);
-                    if (found != null) return found;
+                    if (d?.Children == null)
+                        continue;
+
+                    var childDevice = d.Children.FirstOrDefault(c =>
+                        c is DigitalIODevice ||
+                        (c?.Model?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        (c?.DeviceTypeName?.IndexOf("离散量", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        (c?.DeviceTypeName?.IndexOf("数字量", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                    if (childDevice != null)
+                    {
+                        AddLog($"[7131查找] 找到板卡: Name={childDevice.Name}, Model={childDevice.Model}");
+                        return childDevice;
+                    }
                 }
             }
 
+            AddLog("[7131查找] 未找到7131板卡");
             return null;
         }
 
