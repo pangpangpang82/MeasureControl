@@ -86,7 +86,7 @@
             CornerRadius="8">
             <Grid>
                 <TextBlock
-                    Width="300"
+                    Width="400"
                     Margin="10,0,0,0"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center"
