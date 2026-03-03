@@ -12,9 +12,7 @@ using System.Windows;
 using MeasureControl.Helpers;
 using MeasureControl.Drivers;
 using MeasureControl.Models.Devices;
-using MeasureControl.Services;
 using MeasureControl.Simulations.R_6_8_8;
-using NationalInstruments.Visa;
 using Prism.Ioc;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
@@ -47,6 +45,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _exitAtpRxDataText = "--";
 
             _resistorGear = "1挡";
+            _ambientTemperatureSelection = "10~50℃";
             ResistorGearValueText = _resistorGear;
             MeasuredResistanceValueText = "--";
             TemperatureTelemetryValueText = "--";
@@ -89,6 +88,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _exitAtpRxDataText;
 
         private string _resistorGear;
+        private string _ambientTemperatureSelection;
         private string _resistorGearValueText;
         private string _measuredResistanceValueText;
         private string _temperatureTelemetryValueText;
@@ -177,6 +177,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        public string AmbientTemperatureSelection
+        {
+            get => _ambientTemperatureSelection;
+            set => SetProperty(ref _ambientTemperatureSelection, value);
+        }
+
         public string ResistorGearValueText
         {
             get => _resistorGearValueText;
@@ -256,6 +262,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 EnterAtpRxDataText = "--";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：进入ATP模式，TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}, Label=0x{DefaultLabel:X2}");
 
+                _simulation.GetCurrentResistorGear = () => ResistorGear;
+                _simulation.GetCurrentAmbientTemperatureSelection = () => AmbientTemperatureSelection;
+                await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
+
                 try { await _simulation.ClearRxFifoAsync(EnterAtpRxChannel); } catch { }
                 await Task.Delay(30);
 
@@ -295,53 +305,35 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             try
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：接入电阻，档位={ResistorGear}");
-
-                if (_resistorDriver == null)
+                bool resistorReady = await EnsureResistorReadyAsync();
+                if (!resistorReady || _resistorDriver == null || !_resistorDriver.IsConnected)
                 {
-                    var device = new GenericDevice("ACTS6010", "ACTS6010")
-                    {
-                        Id = "ACTS6010_0",
-                        Name = "ACTS6010",
-                    };
-                    _resistorDriver = new ACTS6010Driver(device, 0);
-                    bool connected = await _resistorDriver.ConnectAsync();
-                    if (!connected)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板连接失败");
-                        return;
-                    }
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 接入电阻失败：电阻板卡未就绪");
+                    return;
                 }
 
-                string channelId = ResistorGear switch
-                {
-                    "1挡" => "RO0",
-                    "2挡" => "RO1",
-                    "3挡" => "RO2",
-                    _ => "RO0"
-                };
+                var targetOhm = GetTargetResistanceOhm(ResistorGear);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：接入电阻，档位={ResistorGear}，目标={targetOhm.ToString("F2", CultureInfo.InvariantCulture)}Ω");
 
-                double targetOhm = GetTargetResistanceOhm(ResistorGear);
-                bool setOk = await _resistorDriver.WriteChannelAsync(channelId, targetOhm);
-                if (!setOk)
+                var relayOk = await _resistorDriver.SetRelayStateAsync("RO0", true, false);
+                if (!relayOk)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 设置电阻档位失败");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012设置RO0继电器失败(通路闭合/短路断开)");
+                    return;
+                }
+
+                var writeOk = await _resistorDriver.WriteChannelAsync("RO0", targetOhm);
+                if (!writeOk)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012写入RO0失败");
                     return;
                 }
 
                 await Task.Delay(50);
 
-                double? measuredOhm = await _resistorDriver.ReadChannelAsync(channelId);
-                if (measuredOhm.HasValue)
-                {
-                    MeasuredResistanceValueText = $"{measuredOhm.Value:F2}Ω";
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 接入电阻成功，测量值={measuredOhm.Value:F2}Ω");
-                }
-                else
-                {
-                    MeasuredResistanceValueText = "读取失败";
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 读取电阻值失败");
-                }
+                var readBack = await _resistorDriver.ReadChannelAsync("RO0");
+                MeasuredResistanceValueText = $"{readBack.ToString("F5", CultureInfo.InvariantCulture)}Ω";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡读回电阻：{MeasuredResistanceValueText}");
             }
             catch (Exception ex)
             {
@@ -349,6 +341,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             finally
             {
+                try { await DisconnectResistorAsync(); } catch { }
                 IsResistorMeasuring = false;
             }
         }
@@ -497,8 +490,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 LastTestResult = "--";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：开始打开设备");
 
-                _simulation.IsRealProduct = false;
+                _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
                 _simulation.GetCurrentResistorGear = () => ResistorGear;
+                _simulation.GetCurrentAmbientTemperatureSelection = () => AmbientTemperatureSelection;
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：429板卡已就绪");
@@ -527,6 +521,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsManualTestRunning = false;
 
                 await _simulation.StopAsync(msg => AddLog(msg));
+                await DisconnectResistorAsync();
 
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             }
@@ -659,7 +654,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             double tempValue = double.NaN;
             if (double.TryParse(TemperatureTelemetryValueText.Replace("°C", "").Trim(), out tempValue))
             {
-                var (min, max) = GetQualifiedTemperatureRangeForGear(gear);
+                var (min, max) = GetQualifiedTemperatureRangeForGear(gear, AmbientTemperatureSelection);
                 telemetryOk = tempValue >= min && tempValue <= max;
             }
 
@@ -674,23 +669,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             AddLog($"[{DateTime.Now:HH:mm:ss}] 测试结果：{detail}");
         }
 
-        private static (double Min, double Max) GetQualifiedTemperatureRangeForGear(string gear, double ambientTemp)
+        private static (double Min, double Max) GetQualifiedTemperatureRangeForGear(string gear, string ambientSelection)
         {
-            bool isStandardAmbient = ambientTemp >= 10 && ambientTemp <= 50;
-            
+            bool isNormalAmbient = string.Equals(ambientSelection, "10~50℃", StringComparison.OrdinalIgnoreCase);
             return gear switch
             {
-                "1挡" => isStandardAmbient ? (-77.05, -72.95) : (-79.05, -70.95),
-                "2挡" => isStandardAmbient ? (23.63, 27.73) : (21.63, 29.73),
-                "3挡" => isStandardAmbient ? (372.94, 377.06) : (370.94, 379.06),
+                "1挡" => isNormalAmbient ? (-77.05, -72.95) : (-79.05, -70.95),
+                "2挡" => isNormalAmbient ? (23.63, 27.73) : (21.63, 29.73),
+                "3挡" => isNormalAmbient ? (372.94, 377.06) : (370.94, 379.06),
                 _ => (double.NegativeInfinity, double.PositiveInfinity)
             };
-        }
-
-        // Default method using standard ambient temperature (10-50°C)
-        private static (double Min, double Max) GetQualifiedTemperatureRangeForGear(string gear)
-        {
-            return GetQualifiedTemperatureRangeForGear(gear, 25); // Assume 25°C standard ambient
         }
 
         private static string FormatGearForResult(string gear)
@@ -739,23 +727,61 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return string.Join(" ", data.Take(len).Select(b => b.ToString("X2")));
         }
 
-        private static async Task<(MessageBasedSession Session, ResourceManager Rm)> OpenDmmAsync()
+        private async Task<bool> EnsureResistorReadyAsync()
         {
-            var rm = new ResourceManager();
-            var resource = "TCPIP0::192.168.1.13::inst0::INSTR";
+            if (_resistorDriver != null && _resistorDriver.IsConnected)
+                return true;
+
             try
             {
-                var session = (MessageBasedSession)rm.Open(resource);
-                session.FormattedIO.WriteLine("*IDN?");
-                var idn = await Task.Run(() => session.FormattedIO.ReadLine());
-                if (string.IsNullOrWhiteSpace(idn))
-                    throw new InvalidOperationException("未获取到万用表IDN");
-                return (session, rm);
+                var candidates = new uint[] { 1, 0, 2, 3, 4, 5, 6, 7 };
+                foreach (var logicalId in candidates)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡直连：尝试ACTS6010逻辑ID={logicalId}");
+                    var dummy = new ProgrammableResistorDevice
+                    {
+                        Name = "电阻输出",
+                        Model = "PXI-7012",
+                        CardName = $"电阻输出(自动探测-{logicalId})",
+                        SlotIndex = (int)logicalId
+                    };
+
+                    var driver = new ACTS6010Driver(dummy, logicalId);
+                    var ok = await driver.ConnectAsync();
+                    if (ok)
+                    {
+                        _resistorDriver = driver;
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡已连接：ACTS6010 逻辑ID={logicalId}");
+                        return true;
+                    }
+                }
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡打开失败：ACTS6010 逻辑ID 0-7 均连接失败");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡打开异常：{ex.Message}");
+                _resistorDriver = null;
+                return false;
+            }
+        }
+
+        private async Task DisconnectResistorAsync()
+        {
+            try
+            {
+                if (_resistorDriver != null)
+                {
+                    await _resistorDriver.DisconnectAsync();
+                }
             }
             catch
             {
-                rm?.Dispose();
-                throw;
+            }
+            finally
+            {
+                _resistorDriver = null;
             }
         }
 
