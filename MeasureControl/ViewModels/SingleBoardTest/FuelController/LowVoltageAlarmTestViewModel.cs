@@ -561,8 +561,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 return;
             }
 
-            var chassisName = _singleBoardTestContext?.ChassisName;
-            var device = Find9774DeviceInChassis(chassisName);
+            var device = FindFirst9774Device();
             if (device == null)
             {
                 AddLog("未找到9774板卡，将使用仿真模式");
@@ -598,41 +597,57 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
-        private DeviceBase Find9774DeviceInChassis(string chassisName)
+        /// <summary>
+        /// 从 PXI 机箱中查找第一个 PXIe-9774 板卡
+        /// </summary>
+        private DeviceBase FindFirst9774Device()
         {
-            if (string.IsNullOrWhiteSpace(chassisName))
-                return null;
-
-            var devices = _pxiChassisService?.GetChassisDevices(chassisName);
-            if (devices == null || devices.Count == 0)
-                return null;
-
-            DeviceBase Walk(DeviceBase d)
+            var chassisList = _pxiChassisService?.GetAllChassis();
+            if (chassisList == null)
             {
-                var model = (d?.Model ?? string.Empty).ToUpperInvariant();
-                if (model.Contains("9774") || model.Contains("PXIE-9774") || model.Contains("PXI-9774"))
-                    return d;
+                AddLog("[9774查找] 机箱列表为null");
+                return null;
+            }
 
-                if (d?.Children == null)
-                    return null;
+            foreach (var chassis in chassisList)
+            {
+                if (chassis?.Devices == null)
+                    continue;
 
-                foreach (var c in d.Children)
+                // 直接在机箱设备列表中查找
+                var device = chassis.Devices.FirstOrDefault(d =>
+                    d is AnalogAcquisitionDevice ||
+                    (d?.Model?.IndexOf("9774", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("模拟量输入", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("模拟量采集", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                if (device != null)
                 {
-                    var found = Walk(c);
-                    if (found != null)
-                        return found;
+                    AddLog($"[9774查找] 找到板卡: Name={device.Name}, Model={device.Model}");
+                    return device;
                 }
 
-                return null;
+                // 遍历子设备
+                foreach (var d in chassis.Devices)
+                {
+                    if (d?.Children == null)
+                        continue;
+
+                    var childDevice = d.Children.FirstOrDefault(c =>
+                        c is AnalogAcquisitionDevice ||
+                        (c?.Model?.IndexOf("9774", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        (c?.DeviceTypeName?.IndexOf("模拟量输入", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        (c?.DeviceTypeName?.IndexOf("模拟量采集", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                    if (childDevice != null)
+                    {
+                        AddLog($"[9774查找] 找到板卡: Name={childDevice.Name}, Model={childDevice.Model}");
+                        return childDevice;
+                    }
+                }
             }
 
-            foreach (var d in devices)
-            {
-                var found = Walk(d);
-                if (found != null)
-                    return found;
-            }
-
+            AddLog("[9774查找] 未找到9774板卡");
             return null;
         }
 
