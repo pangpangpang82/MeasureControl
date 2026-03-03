@@ -42,7 +42,14 @@ namespace MeasureControl.Simulations.FuelController
         private bool _alarmTriggered;    // 告警是否已触发
 
         private const string MatrixIpAddress = "192.168.1.3";
-        private const int MatrixSlot9774 = 2;  // 9774板卡槽位
+        private const int MatrixSlot2601_1 = 4;   // 2601(1) slotindex=4
+        private const int MatrixSlot3022_1 = 2;   // 3022(1) slotindx=2
+        private const int MatrixTcpBasePort3022 = 50300;
+
+        // 6.3 低电压告警功能测试矩阵映射（截图）
+        // CRM_PIN3（DI10）: 2601(1) 4/0  + 3022(1) 0/41
+        private static readonly (string In, string Out, int Slot) Matrix2601 = ("I4", "O0", MatrixSlot2601_1);
+        private static readonly (string In, string Out, int Slot, int BasePort) Matrix3022 = ("I0", "O41", MatrixSlot3022_1, MatrixTcpBasePort3022);
 
         /// <summary>
         /// 起始电压（V）
@@ -129,10 +136,39 @@ namespace MeasureControl.Simulations.FuelController
         /// </summary>
         public async Task<bool> ConnectMatrixAsync(Action<string> log, CancellationToken token = default)
         {
-            await Task.Delay(30, token);
-            _matrixConnected = true;
-            log?.Invoke("[SIM] 矩阵开关通路已配置（仿真）");
-            return true;
+            if (_matrixConnected)
+            {
+                log?.Invoke("[SIM] 矩阵开关已连接，跳过");
+                return true;
+            }
+
+            await _matrixSwitchLock.WaitAsync(token);
+            try
+            {
+                if (_matrixConnected)
+                    return true;
+
+                log?.Invoke("[SIM] 正在配置低电压告警矩阵通路（CRM_PIN3）...");
+                var svc = MatrixControlService.Instance;
+
+                bool ok2601 = await svc.ConnectNodesAsync(Matrix2601.In, Matrix2601.Out, Matrix2601.Slot, MatrixIpAddress);
+                log?.Invoke($"[SIM] 2601(1): {Matrix2601.In}->{Matrix2601.Out} slot={Matrix2601.Slot}, ok={ok2601}");
+
+                bool ok3022 = await svc.ConnectNodesAsync(Matrix3022.In, Matrix3022.Out, Matrix3022.Slot, MatrixIpAddress, Matrix3022.BasePort);
+                log?.Invoke($"[SIM] 3022(1): {Matrix3022.In}->{Matrix3022.Out} slot={Matrix3022.Slot}, basePort={Matrix3022.BasePort}, ok={ok3022}");
+
+                _matrixConnected = ok2601 && ok3022;
+                return _matrixConnected;
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke($"[SIM] 矩阵开关配置失败: {ex.Message}");
+                return false;
+            }
+            finally
+            {
+                _matrixSwitchLock.Release();
+            }
         }
 
         /// <summary>
@@ -140,9 +176,25 @@ namespace MeasureControl.Simulations.FuelController
         /// </summary>
         public async Task DisconnectMatrixAsync(Action<string> log, CancellationToken token = default)
         {
-            await Task.Delay(20, token);
-            _matrixConnected = false;
-            log?.Invoke("[SIM] 矩阵开关通路已断开（仿真）");
+            await _matrixSwitchLock.WaitAsync(token);
+            try
+            {
+                if (!_matrixConnected)
+                    return;
+
+                log?.Invoke("[SIM] 正在断开低电压告警矩阵通路...");
+                var svc = MatrixControlService.Instance;
+
+                await svc.DisconnectNodesAsync(Matrix2601.In, Matrix2601.Out, Matrix2601.Slot, MatrixIpAddress);
+                await svc.DisconnectNodesAsync(Matrix3022.In, Matrix3022.Out, Matrix3022.Slot, MatrixIpAddress, Matrix3022.BasePort);
+
+                _matrixConnected = false;
+                log?.Invoke("[SIM] 矩阵开关通路已断开");
+            }
+            finally
+            {
+                _matrixSwitchLock.Release();
+            }
         }
 
         #endregion

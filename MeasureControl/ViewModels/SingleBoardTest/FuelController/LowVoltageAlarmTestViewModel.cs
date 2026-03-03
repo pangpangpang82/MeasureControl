@@ -600,13 +600,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private DeviceBase Find9774DeviceInChassis(string chassisName)
         {
-            if (string.IsNullOrWhiteSpace(chassisName))
-                return null;
-
-            var devices = _pxiChassisService?.GetChassisDevices(chassisName);
-            if (devices == null || devices.Count == 0)
-                return null;
-
             DeviceBase Walk(DeviceBase d)
             {
                 var model = (d?.Model ?? string.Empty).ToUpperInvariant();
@@ -626,11 +619,47 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 return null;
             }
 
-            foreach (var d in devices)
+            if (!string.IsNullOrWhiteSpace(chassisName))
             {
-                var found = Walk(d);
-                if (found != null)
-                    return found;
+                var devices = _pxiChassisService?.GetChassisDevices(chassisName);
+                if (devices != null && devices.Count > 0)
+                {
+                    foreach (var d in devices)
+                    {
+                        var found = Walk(d);
+                        if (found != null)
+                            return found;
+                    }
+                }
+            }
+
+            var chassisList = _pxiChassisService?.GetAllChassis();
+            if (chassisList == null || chassisList.Count == 0)
+                return null;
+
+            foreach (var chassis in chassisList)
+            {
+                if (chassis == null)
+                    continue;
+
+                System.Collections.Generic.IList<DeviceBase> devices = chassis.Devices;
+                if (devices == null || devices.Count == 0)
+                {
+                    if (!string.IsNullOrWhiteSpace(chassis.Name))
+                    {
+                        devices = _pxiChassisService?.GetChassisDevices(chassis.Name);
+                    }
+                }
+
+                if (devices == null || devices.Count == 0)
+                    continue;
+
+                foreach (var d in devices)
+                {
+                    var found = Walk(d);
+                    if (found != null)
+                        return found;
+                }
             }
 
             return null;
