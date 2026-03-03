@@ -318,6 +318,8 @@
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_1View.xaml.cs"><DependentUpon>S_C_8_3_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_2View.xaml.cs"><DependentUpon>S_C_8_3_2View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_3View.xaml.cs"><DependentUpon>S_C_8_3_3View.xaml</DependentUpon></Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_5_1View.xaml.cs"><DependentUpon>S_C_8_5_1View.xaml</DependentUpon></Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_5_2View.xaml.cs"><DependentUpon>S_C_8_5_2View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\BoardTest.xaml.cs"><DependentUpon>BoardTest.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\FuelController\DiscreteInputTestView.xaml.cs"><DependentUpon>DiscreteInputTestView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\FuelController\DiscreteOutputTestView.xaml.cs"><DependentUpon>DiscreteOutputTestView.xaml</DependentUpon></Compile>

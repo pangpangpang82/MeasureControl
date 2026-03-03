@@ -87,7 +87,7 @@ namespace MeasureControl.Services.HardwareApis
         private const string ThresholdComPort = "COM14";  // DI 阈值设置串口
         private const int ThresholdBaudRate = 115200;
 
-        private const string RelayComPort = "COM24";      // 外部 485 继电器控制串口
+        private const string RelayComPort = "COM13";      // 外部 485 继电器控制串口
         private const int RelayBaudRate = 9600;
         private const byte RelaySlaveAddress = 1;
         private const ushort RelayStartCoilAddress = 0;
@@ -511,10 +511,12 @@ namespace MeasureControl.Services.HardwareApis
 
             // Public API accepts 1-based channel number (DI1..DI32 / DO1..DO32).
             // Hardware uses 0-based (DI0..DI31 / DO0..DO31).
-            if (idx < 1 || idx > 32)
-                throw new ArgumentOutOfRangeException(nameof(channel), "Channel index must be 1..32");
+            if (idx >= 0 && idx <= 31)
+                return idx;
+            if (idx >= 1 && idx <= 32)
+                return idx - 1;
 
-            return idx - 1;
+            throw new ArgumentOutOfRangeException(nameof(channel), "Channel index must be 0..31 or 1..32");
         }
 
         private static double ClampThreshold(double value)

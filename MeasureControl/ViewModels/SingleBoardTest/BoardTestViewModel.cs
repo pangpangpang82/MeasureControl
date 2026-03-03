@@ -62,7 +62,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "7.2.2B控制通道功率板供电测试", () => new PowerBoardSupplyTestView("B", "7.2.2B控制通道功率板供电测试") },
                         { "6.6.1CAN发送测试", () => new CanCommTestView() },
                         { "6.6.2CAN接收测试", () => new CanReceiveTestView() },
-                        { "8.5安全板CAN测试", () => new AirSimpleSequenceView("8.5安全板CAN测试") },
+                        { "8.5.1安全通道CAN发送测试", () => new S_C_8_5_1View() },
+                        { "8.5.2安全通道CAN接收测试", () => new S_C_8_5_2View() },
                         { "RS422通信测试", () => new RS422CommTabView() },
                         { "控制通道422发送测试", () => new RS422Control422TransmitTestView() },
                         { "控制通道422接收测试", () => new RS422Control422ReceiveTestView() },
@@ -167,6 +168,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
                         { "6.13.1控制通道压力传感器采集测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1095.21,1104.79]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1496.21,1504.79]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1995.21,2004.79]mbar。" },
                         { "6.13.2 S安全通道压力传感器测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1082,1118]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1482,1518]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1982,2018]mbar。" },
+                        { "6.5.1.1控制通道ARINC429发送通道1测试", "\t 上位机显示\"7F00AA55\"则检查通过。" },
+                        { "8.5.1安全通道CAN发送测试", "\t 上位机显示\"01010101\"（对应CAN帧后4字节为01 01 01 01）则检查通过。" },
+                        { "8.5.2安全通道CAN接收测试", "\t 上位机显示\"01010101\"则检查通过。" },
                     }
                 }
             };
@@ -390,10 +394,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.5ARINC429通讯测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.6.1CAN发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.6.2CAN接收测试"));
-                TestSequenceItems.Add(new TestSequenceItem("8.5安全板CAN测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.5.1安全通道CAN发送测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.5.2安全通道CAN接收测试"));
                 TestSequenceItems.Add(new TestSequenceItem("RS422通信测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道422发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道422接收测试"));
