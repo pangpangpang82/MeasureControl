@@ -222,6 +222,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Styles\**\*.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Compile Include="Views\Common\FloatingWindow.xaml.cs"><DependentUpon>FloatingWindow.xaml</DependentUpon></Compile>
     <Compile Include="Views\Common\HomePage.xaml.cs"><DependentUpon>HomePage.xaml</DependentUpon></Compile>
     <Compile Include="Views\Common\MainWindow.xaml.cs"><DependentUpon>MainWindow.xaml</DependentUpon></Compile>
@@ -482,10 +486,6 @@
     <Compile Include="Views\**\*.cs" />
     <Compile Include="Demos\**\*.cs" />
     <Compile Include="ViewModels\**\*.cs" />
-    <Page Include="Views\**\*.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">
