@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+О╩©<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Import disabled by automation: Costura.Fody props removed to avoid MSBuild compatibility issues during CI/local edits -->
   <!-- <Import Project="..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props" Condition="Exists('..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props')" /> -->
@@ -22,8 +22,8 @@
     <Prefer32Bit>false</Prefer32Bit>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <AssemblyTitle>MeasureControl - ╡БйтиХ╠╦©ьжфо╣мЁ</AssemblyTitle>
-    <AssemblyDescription>в╗р╣╣дPXI╡БйтиХ╠╦╧эюМ╨м©ьжфо╣мЁ</AssemblyDescription>
+    <AssemblyTitle>MeasureControl - О©╫О©╫О©╫О©╫О©╫Х╠╦О©╫О©╫О©╫О©╫о╣мЁ</AssemblyTitle>
+    <AssemblyDescription>в╗р╣О©╫О©╫PXIО©╫О©╫О©╫О©╫О©╫Х╠╦О©╫О©╫О©╫О©╫м©О©╫О©╫О©╫о╣мЁ</AssemblyDescription>
     <AssemblyCompany>MeasureControl Team</AssemblyCompany>
     <AssemblyProduct>MeasureControl</AssemblyProduct>
     <AssemblyCopyright>Copyright 2024</AssemblyCopyright>
@@ -815,7 +815,7 @@
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.8">
       <Visible>False</Visible>
-      <ProductName>Microsoft .NET Framework 4.8 %28x86 ╨м x64%29</ProductName>
+      <ProductName>Microsoft .NET Framework 4.8 %28x86 О©╫О©╫ x64%29</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
     <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
@@ -906,7 +906,7 @@
   </PropertyGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
-      <ErrorText>уБл╗╪фкЦ╩Зиох╠иы╢коНд©рЩсц╣д NuGet ЁлпР╟Э║ёй╧сц║╟NuGet ЁлпР╟Э╩╧т╜║╠©иобтьуБп╘ЁлпР╟Э║ёсп╧ь╦Э╤Юпео╒ё╛гК╡н╪Ш http://go.microsoft.com/fwlink/?LinkID=322105║ёх╠иы╣днд╪Чйг {0}║ё</ErrorText>
+      <ErrorText>О©╫О©╫л╗О©╫О©╫О©╫О©╫О©╫О©╫О©╫х╠О©╫ы╢О©╫О©╫О©╫д©О©╫О©╫О©╫ц╣О©╫ NuGet О©╫О©╫О©╫О©╫О©╫О©╫О©╫й╧О©╫ц║О©╫NuGet О©╫О©╫О©╫О©╫О©╫О©╫О©╫т╜О©╫О©╫О©╫О©╫О©╫О©╫О©╫О©╫О©╫О©╫п╘О©╫О©╫О©╫О©╫О©╫О©╫О©╫О©╫п╧ь╦О©╫О©╫О©╫О©╫О©╫о╒О©╫О©╫О©╫О©╫н╪О©╫ http://go.microsoft.com/fwlink/?LinkID=322105О©╫О©╫х╠О©╫ы╣О©╫О©╫д╪О©╫О©╫О©╫ {0}О©╫О©╫</ErrorText>
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\Fody.6.8.2\build\Fody.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Fody.6.8.2\build\Fody.targets'))" />
     <Error Condition="!Exists('..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props'))" />
