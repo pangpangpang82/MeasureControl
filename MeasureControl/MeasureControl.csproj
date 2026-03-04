@@ -479,30 +479,10 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_18_2_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_18_3_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_18_4_1ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_1ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_2ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_3ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\AirSimpleSequenceViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\PowerBoardSupplyTestViewModel.cs" />
-    <Compile Include="Views\**\*.cs" />
-    <Compile Include="Demos\**\*.cs" />
-    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh1TestView.cs" />
-    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh2TestView.cs" />
-    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh3TestView.cs" />
-    <Compile Include="ViewModels\**\*.cs" />
-    <Compile Include="Views\Common\ColumnFirstUniformGrid.cs" />
-    <Compile Include="Views\Hardware\ChassisConnectionCanvas.cs" />
     <Page Include="Views\**\*.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Demos\**\*.cs" />
-    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh1TestView.cs" />
-    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh2TestView.cs" />
-    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh3TestView.cs" />
-    <Compile Include="ViewModels\**\*.cs" />
-    <Compile Include="Views\Common\ColumnFirstUniformGrid.cs" />
-    <Compile Include="Views\Hardware\ChassisConnectionCanvas.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">
