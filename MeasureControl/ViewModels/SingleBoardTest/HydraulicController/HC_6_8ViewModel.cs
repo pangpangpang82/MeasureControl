@@ -14,26 +14,43 @@ using MeasureControl.Services.HardwareApis;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
+    /// <summary>
+    /// HC_6_8 测试项：输出有效性测试（Output Valid 控制验证）
+    /// 测试目的：验证液压控制器通过 ARINC429 接收"输出有效"指令后，
+    ///          能够正确控制输出针脚（Pin9-15）的开关状态。
+    /// 测试方法：
+    /// 1) 给被测板供电 28V。
+    /// 2) 开路测试：不发送指令，测量 Pin9-15 对地阻抗（应为高阻，>100kΩ）。
+    /// 3) 通路测试：通过 ARINC429 发送"输出有效"指令（Label=65oct），
+    ///    再测量 Pin9-15 对地阻抗（应为低阻，<10Ω）。
+    /// 4) 所有针脚都满足判据则"PASS"。
+    /// </summary>
     public class HC_6_8ViewModel : BindableBase
     {
+        // 电源配置（给被测板供电）
         private const string PowerSupplyIpAddress = "192.168.1.15";
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 0.1;
 
+        // 万用表和矩阵开关配置
         private const string DmmIpAddress = "192.168.1.13";
         private const string MatrixIpAddress = "192.168.1.3";
 
-        private const int MatrixSlotCommon = 4;
-        private const int MatrixSlotPinRoute = 1;
+        // 矩阵开关槽位配置
+        private const int MatrixSlotCommon = 4;       // 公共端槽位
+        private const int MatrixSlotPinRoute = 1;     // 针脚路由槽位
 
+        // ARINC429 发送配置
         private const int TxChannelIndex = 0; // 发送通道1 => index 0
         private const double ArincRate = 12500.0;
 
+        // ARINC429 指令参数（输出有效控制指令）
         private const byte LabelCmdDec = 53; // 65(oct)
         private const byte CmdSdi = 0;
 
-        private const double OpenPassThresholdOhm = 100_000.0;
-        private const double ClosePassThresholdOhm = 10.0;
+        // 阻抗判据
+        private const double OpenPassThresholdOhm = 100_000.0;   // 开路阻抗阈值：>100kΩ 为合格
+        private const double ClosePassThresholdOhm = 10.0;       // 通路阻抗阈值：<10Ω 为合格
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly IPxiChassisService _pxiChassisService;
@@ -156,6 +173,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public string ClosePin14Text { get => _closePin14Text; private set => SetProperty(ref _closePin14Text, value); }
         public string ClosePin15Text { get => _closePin15Text; private set => SetProperty(ref _closePin15Text, value); }
 
+        /// <summary>
+        /// 手动测试流程
+        /// 进入手动模式后，先初始化万用表和电源，
+        /// 然后由用户分别点击"测量开路"和"测量通路"按钮执行测量。
+        /// </summary>
         private async Task OnManualTestAsync()
         {
             if (IsManualTestRunning)
@@ -203,6 +225,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 自动测试流程
+        /// 自动依次执行开路测试和通路测试，所有针脚都满足判据则"PASS"。
+        /// </summary>
         private async Task OnAutoTestAsync()
         {
             if (IsAutoTestRunning)
@@ -275,6 +301,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 测量开路（手动模式）
+        /// 不发送 ARINC429 指令，直接测量 Pin9-15 对地阻抗。
+        /// </summary>
         private async Task OnMeasureOpenAsync()
         {
             var token = _manualCts?.Token ?? CancellationToken.None;
@@ -295,6 +325,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await TryFinalizeAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 测量通路（手动模式）
+        /// 先发送 ARINC429"输出有效"指令，再测量 Pin9-15 对地阻抗。
+        /// </summary>
         private async Task OnMeasureCloseAsync()
         {
             var token = _manualCts?.Token ?? CancellationToken.None;
@@ -313,6 +347,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await TryFinalizeAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 开路测试（核心测量方法）
+        /// 流程：
+        /// 1) 不发送 ARINC429 指令（输出应处于关闭状态）。
+        /// 2) 依次测量 Pin9-15 对地阻抗（应为高阻，>100kΩ）。
+        /// 3) 通过矩阵开关连接万用表到各针脚进行测量。
+        /// </summary>
         private async Task<bool> MeasureOpenAsync(CancellationToken cancellationToken)
         {
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -351,6 +392,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 通路测试（核心测量方法）
+        /// 流程：
+        /// 1) 通过 ARINC429 发送"输出有效"指令（Label=65oct）。
+        /// 2) 等待 100ms 让输出稳定。
+        /// 3) 依次测量 Pin9-15 对地阻抗（应为低阻，<10Ω）。
+        /// 4) 测量完成后发送"关闭输出"指令。
+        /// </summary>
         private async Task<bool> MeasureCloseAsync(CancellationToken cancellationToken)
         {
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -401,6 +450,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 测量单个针脚对地阻抗（通过矩阵开关连接万用表）
+        /// </summary>
+        /// <param name="pin">针脚编号（9-15）</param>
+        /// <returns>阻抗值和显示文本</returns>
         private async Task<(double? Value, string Text)> MeasureOnePinResistanceAsync(int pin, CancellationToken cancellationToken)
         {
             if (_dmm == null)
@@ -485,6 +539,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 通过 ARINC429 发送"输出有效"控制指令
+        /// </summary>
+        /// <param name="enable">true=开启输出，false=关闭输出</param>
         private async Task SendOutputEnableAsync(bool enable, CancellationToken cancellationToken)
         {
             await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
@@ -494,6 +552,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 构建"输出有效"指令的数据域（19-bit）
+        /// 按照协议要求设置特定位为 1，其余为 0
+        /// </summary>
         private static uint BuildEnableData19()
         {
             uint data19 = 0;
@@ -518,6 +580,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return data19;
         }
 
+        /// <summary>
+        /// 确保 ARINC429 发送通道已打开并配置（Odd parity, 标准 429 格式）
+        /// </summary>
         private async Task EnsureArincTxAsync(CancellationToken cancellationToken)
         {
             if (_arinc == null)
@@ -544,6 +609,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 在 PXI 机箱中查找 ARINC429 板卡（4227/4229）
+        /// </summary>
         private DeviceBase FindFirstArincDevice()
         {
             var chassisList = _pxiChassisService?.GetAllChassis();
@@ -579,6 +647,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 当开路和通路都已测量完成时，按阈值范围判定结果，并更新"上次/本次"测试结论。
+        /// 判据：开路 >100kΩ, 通路 <10Ω
+        /// </summary>
         private async Task TryFinalizeAsync()
         {
             if (!_measuredOpen || !_measuredClose)
@@ -613,6 +685,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 中止手动测试（通常用于初始化失败、测量超时、测量异常等）
+        /// </summary>
         private async Task AbortManualTestAsync(string reason)
         {
             _manualAborted = true;
@@ -624,6 +699,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await StopManualTestAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 停止手动测试并释放硬件资源（断开矩阵开关、万用表、ARINC429、关闭电源输出）
+        /// </summary>
         private async Task StopManualTestAsync()
         {
             try
@@ -670,6 +748,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log("手动测试已结束");
         }
 
+        /// <summary>
+        /// 停止自动测试并释放硬件资源
+        /// </summary>
         private async Task StopAutoTestAsync()
         {
             try

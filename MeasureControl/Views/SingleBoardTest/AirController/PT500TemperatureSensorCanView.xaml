@@ -89,7 +89,7 @@
                     VerticalAlignment="Center"
                     FontSize="24"
                     FontWeight="Bold"
-                    Text="PT500温度传感器测试" />
+                    Text="6.8.1控制通道PDTS传感器测试" />
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                     <Button
                         Width="100"

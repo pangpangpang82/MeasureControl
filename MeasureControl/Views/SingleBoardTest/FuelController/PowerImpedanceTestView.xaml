@@ -197,24 +197,24 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="前置条件：" FontWeight="Bold" VerticalAlignment="Center" Foreground="#92400e"/>
-                                <TextBlock Grid.Column="1" Text="通过动作继电器将产品与试验台隔离" VerticalAlignment="Center" Foreground="#92400e" Margin="5,0"/>
+                                <TextBlock Grid.Column="1" Text="组件下电，通过动作继电器将产品与试验台隔离" VerticalAlignment="Center" Foreground="#92400e" Margin="5,0"/>
                                 <Border Grid.Column="2" CornerRadius="4" Padding="8,3" Margin="5,0">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="#fecaca"/>
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsRelayActivated}" Value="True">
+                                                <DataTrigger Binding="{Binding IsPowerOn}" Value="False">
                                                     <Setter Property="Background" Value="#bbf7d0"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
-                                    <TextBlock Text="{Binding RelayStatus}" FontWeight="Bold" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding PowerStatus}" FontWeight="Bold" VerticalAlignment="Center">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="#dc2626"/>
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsRelayActivated}" Value="True">
+                                                    <DataTrigger Binding="{Binding IsPowerOn}" Value="False">
                                                         <Setter Property="Foreground" Value="#16a34a"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>

@@ -1361,23 +1361,9 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
             try
             {
                 AvailableTestTasks.Clear();
-                var taskNames = GetTestTaskNamesFromProject();
-                foreach (var task in taskNames)
-                {
-                    AvailableTestTasks.Add(task);
-                }
+                AvailableTestTasks.Add("默认测试任务");
 
-                string initialTask = null;
-                if (Device?.CardConfigData is ART1553BCardConfig cardConfig &&
-                    !string.IsNullOrEmpty(cardConfig.LastSelectedTestTask) &&
-                    taskNames.Contains(cardConfig.LastSelectedTestTask))
-                {
-                    initialTask = cardConfig.LastSelectedTestTask;
-                }
-                else
-                {
-                    initialTask = taskNames.FirstOrDefault();
-                }
+                string initialTask = "默认测试任务";
 
                 _selectedTestTask = initialTask;
                 RaisePropertyChanged(nameof(SelectedTestTask));

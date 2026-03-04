@@ -503,33 +503,9 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         private void LoadTestTaskOptions()
         {
             _availableTestTasks.Clear();
+            _availableTestTasks.Add(DefaultTaskName);
 
-            var tasks = GetTestTaskNamesFromProject();
-            foreach (var t in tasks)
-            {
-                if (!string.IsNullOrWhiteSpace(t) && !_availableTestTasks.Contains(t))
-                {
-                    _availableTestTasks.Add(t);
-                }
-            }
-
-            // 兼容：工程未配置测试任务时，提供一个默认项避免 UI 空白
-            if (_availableTestTasks.Count == 0)
-            {
-                _availableTestTasks.Add(DefaultTaskName);
-            }
-
-            string initialTask = null;
-            if (_device?.CardConfigData is LvdsCardConfig cardConfig &&
-                !string.IsNullOrEmpty(cardConfig.LastSelectedTestTask) &&
-                _availableTestTasks.Contains(cardConfig.LastSelectedTestTask))
-            {
-                initialTask = cardConfig.LastSelectedTestTask;
-            }
-            else
-            {
-                initialTask = _availableTestTasks.FirstOrDefault();
-            }
+            string initialTask = DefaultTaskName;
 
             _selectedTestTask = initialTask;
             RaisePropertyChanged(nameof(SelectedTestTask));

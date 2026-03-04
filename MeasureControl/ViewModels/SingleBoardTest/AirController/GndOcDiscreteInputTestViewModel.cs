@@ -36,7 +36,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private CancellationTokenSource _cts;
         private readonly AC_6_4Simulation _simulation = new AC_6_4Simulation();
 
-        private string _title = "控制通道GND/OC离散输入通道输入测试";
+        private string _title = "6.14.1控制通道GND/OC离散输入通道输入测试";
         private bool _isManualTestRunning;
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";

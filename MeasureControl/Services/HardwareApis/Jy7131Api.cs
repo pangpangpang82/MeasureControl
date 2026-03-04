@@ -10,13 +10,19 @@ using MeasureControl.Models.Devices;
 
 namespace MeasureControl.Services.HardwareApis
 {
+    /// <summary>
+    /// PXIe-7131 数字输出模式
+    /// </summary>
     public enum Jy7131OutputMode
     {
-        Sourcing,
-        Sinking,
-        PushPull
+        Sourcing,  // 源型输出（输出高电平时提供电流）
+        Sinking,   // 漏型输出（输出低电平时吸收电流）
+        PushPull   // 推挽输出（双向驱动）
     }
 
+    /// <summary>
+    /// PXIe-7131 数字输入阈值电压配置（8组）
+    /// </summary>
     public sealed class Jy7131DiThresholds
     {
         public double Group1 { get; set; }
@@ -31,21 +37,29 @@ namespace MeasureControl.Services.HardwareApis
         public double[] ToArray() => new[] { Group1, Group2, Group3, Group4, Group5, Group6, Group7, Group8 };
     }
 
+    /// <summary>
+    /// PXIe-7131 数字 I/O 板卡控制接口
+    /// 功能：
+    /// 1. 数字输入/输出（32路 DI + 32路 DO）
+    /// 2. 外部 485 继电器控制（16路，通过 COM24）
+    /// 3. DI 阈值电压设置（通过 COM14）
+    /// 4. 电源输出控制（4组可调电压）
+    /// </summary>
     public interface IJy7131Api : IAsyncDisposable
     {
-        bool IsConnected { get; }
-        bool IsRunning { get; }
+        bool IsConnected { get; }  // 是否已连接到板卡
+        bool IsRunning { get; }    // 板卡是否正在运行
 
-        Task ConnectAsync(CancellationToken cancellationToken = default);
-        Task DisconnectAsync(CancellationToken cancellationToken = default);
+        Task ConnectAsync(CancellationToken cancellationToken = default);  // 连接到板卡
+        Task DisconnectAsync(CancellationToken cancellationToken = default);  // 断开板卡连接
 
-        Task StartAsync(CancellationToken cancellationToken = default);
-        Task StopAsync(CancellationToken cancellationToken = default);
+        Task StartAsync(CancellationToken cancellationToken = default);  // 启动板卡
+        Task StopAsync(CancellationToken cancellationToken = default);   // 停止板卡
 
         Task SetOutputModeAsync(Jy7131OutputMode mode, CancellationToken cancellationToken = default);
 
-        Task<bool> ReadDiAsync(string diChannel, CancellationToken cancellationToken = default);
-        Task WriteDoAsync(string doChannel, bool value, CancellationToken cancellationToken = default);
+        Task<bool> ReadDiAsync(string diChannel, CancellationToken cancellationToken = default);  // 读取单个数字输入通道（DI0-DI31）
+        Task WriteDoAsync(string doChannel, bool value, CancellationToken cancellationToken = default);  // 写入单个数字输出通道（DO0-DO31）
 
         Task<uint> ReadDiBitmaskAsync(CancellationToken cancellationToken = default);
         Task<uint> ReadDoBitmaskAsync(CancellationToken cancellationToken = default);
@@ -55,25 +69,29 @@ namespace MeasureControl.Services.HardwareApis
 
         Task ApplyDiThresholdsAsync(Jy7131DiThresholds thresholds, CancellationToken cancellationToken = default);
 
-        Task<bool[]> ReadRelayStatesAsync(CancellationToken cancellationToken = default);
-        Task SetRelayAsync(int index, bool on, CancellationToken cancellationToken = default);
-        Task SetAllRelaysAsync(bool on, CancellationToken cancellationToken = default);
+        Task<bool[]> ReadRelayStatesAsync(CancellationToken cancellationToken = default);  // 读取外部 485 继电器状态（16路）
+        Task SetRelayAsync(int index, bool on, CancellationToken cancellationToken = default);  // 控制单个 485 继电器（index: 0-15）
+        Task SetAllRelaysAsync(bool on, CancellationToken cancellationToken = default);  // 控制所有 485 继电器
 
         Task SetPowerVoltagesAsync(double group1Voltage, double group2Voltage, double group3Voltage, double group4Voltage, CancellationToken cancellationToken = default);
         Task EnablePowerOutputsAsync(double group1Voltage, double group2Voltage, double group3Voltage, double group4Voltage, CancellationToken cancellationToken = default);
         Task DisablePowerOutputsAsync(CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    /// PXIe-7131 数字 I/O 板卡实现类
+    /// 集成了板卡本身的 DI/DO 功能 + 外部 485 继电器控制 + 阈值设置
+    /// </summary>
     public sealed class Jy7131Api : IJy7131Api
     {
-        private const string ThresholdComPort = "COM14";
+        private const string ThresholdComPort = "COM14";  // DI 阈值设置串口
         private const int ThresholdBaudRate = 115200;
 
-        private const string RelayComPort = "COM18";
+        private const string RelayComPort = "COM13";      // 外部 485 继电器控制串口
         private const int RelayBaudRate = 9600;
         private const byte RelaySlaveAddress = 1;
         private const ushort RelayStartCoilAddress = 0;
-        private const int RelayChannelCount = 16;
+        private const int RelayChannelCount = 16;         // 外部继电器数量（16路）
 
         private readonly DeviceBase _device;
         private readonly int _slotNumber;
@@ -93,6 +111,9 @@ namespace MeasureControl.Services.HardwareApis
 
         public bool IsRunning => _isRunning;
 
+        /// <summary>
+        /// 连接到 PXIe-7131 板卡
+        /// </summary>
         public async Task ConnectAsync(CancellationToken cancellationToken = default)
         {
             await _lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -114,11 +135,15 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 断开与 PXIe-7131 板卡的连接
+        /// </summary>
         public async Task DisconnectAsync(CancellationToken cancellationToken = default)
         {
             await _lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                // 如果未连接，直接返回（安全的重复调用）
                 if (_driver == null)
                     return;
 
@@ -138,6 +163,9 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 启动板卡（开始数据采集）
+        /// </summary>
         public async Task StartAsync(CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -155,6 +183,9 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 停止板卡（停止数据采集）
+        /// </summary>
         public async Task StopAsync(CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -172,6 +203,9 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 设置数字输出模式（源型/漏型/推挽）
+        /// </summary>
         public async Task SetOutputModeAsync(Jy7131OutputMode mode, CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -194,6 +228,11 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 读取单个数字输入通道（DI0-DI31）
+        /// </summary>
+        /// <param name="diChannel">通道名称，如 "DI0"、"DI15" 等</param>
+        /// <returns>true=高电平，false=低电平</returns>
         public async Task<bool> ReadDiAsync(string diChannel, CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -211,6 +250,11 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 写入单个数字输出通道（DO0-DO31）
+        /// </summary>
+        /// <param name="doChannel">通道名称，如 "DO0"、"DO29" 等</param>
+        /// <param name="value">true=高电平，false=低电平</param>
         public async Task WriteDoAsync(string doChannel, bool value, CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -230,6 +274,10 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 读取所有 32 路数字输入的状态（位掩码形式）
+        /// </summary>
+        /// <returns>32位掩码，bit0=DI0, bit1=DI1, ..., bit31=DI31</returns>
         public async Task<uint> ReadDiBitmaskAsync(CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -253,6 +301,10 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 读取所有 32 路数字输出的状态（位掩码形式）
+        /// </summary>
+        /// <returns>32位掩码，bit0=DO0, bit1=DO1, ..., bit31=DO31</returns>
         public async Task<uint> ReadDoBitmaskAsync(CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -276,6 +328,10 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 批量写入所有 32 路数字输出（位掩码形式）
+        /// </summary>
+        /// <param name="mask">32位掩码，bit0=DO0, bit1=DO1, ..., bit31=DO31</param>
         public async Task WriteDoBitmaskAsync(uint mask, CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -300,11 +356,18 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 复位所有数字输出为低电平（全部置 0）
+        /// </summary>
         public async Task ResetAllDoAsync(CancellationToken cancellationToken = default)
         {
             await WriteDoBitmaskAsync(0u, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 设置数字输入阈值电压（通过 COM14 串口发送到 DAC）
+        /// </summary>
+        /// <param name="thresholds">8组阈值电压配置</param>
         public async Task ApplyDiThresholdsAsync(Jy7131DiThresholds thresholds, CancellationToken cancellationToken = default)
         {
             if (thresholds == null)
@@ -330,6 +393,10 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 读取外部 485 继电器板的所有继电器状态（16路）
+        /// </summary>
+        /// <returns>长度为 16 的布尔数组，index 0-15 对应继电器 1-16</returns>
         public async Task<bool[]> ReadRelayStatesAsync(CancellationToken cancellationToken = default)
         {
             using (await SerialPortMutex.AcquireAsync(RelayComPort).ConfigureAwait(false))
@@ -343,6 +410,11 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 控制外部 485 继电器板的单个继电器（通过 COM24 串口 Modbus 协议）
+        /// </summary>
+        /// <param name="index">继电器索引 0-15（对应继电器 1-16）</param>
+        /// <param name="on">true=吸合，false=断开</param>
         public async Task SetRelayAsync(int index, bool on, CancellationToken cancellationToken = default)
         {
             if (index < 0 || index >= RelayChannelCount)
@@ -359,6 +431,10 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 控制外部 485 继电器板的所有继电器（16路同时操作）
+        /// </summary>
+        /// <param name="on">true=全部吸合，false=全部断开</param>
         public async Task SetAllRelaysAsync(bool on, CancellationToken cancellationToken = default)
         {
             using (await SerialPortMutex.AcquireAsync(RelayComPort).ConfigureAwait(false))
@@ -435,10 +511,12 @@ namespace MeasureControl.Services.HardwareApis
 
             // Public API accepts 1-based channel number (DI1..DI32 / DO1..DO32).
             // Hardware uses 0-based (DI0..DI31 / DO0..DO31).
-            if (idx < 1 || idx > 32)
-                throw new ArgumentOutOfRangeException(nameof(channel), "Channel index must be 1..32");
+            if (idx >= 0 && idx <= 31)
+                return idx;
+            if (idx >= 1 && idx <= 32)
+                return idx - 1;
 
-            return idx - 1;
+            throw new ArgumentOutOfRangeException(nameof(channel), "Channel index must be 0..31 or 1..32");
         }
 
         private static double ClampThreshold(double value)
