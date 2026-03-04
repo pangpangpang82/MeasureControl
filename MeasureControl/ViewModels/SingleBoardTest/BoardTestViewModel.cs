@@ -64,6 +64,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "6.6.2CAN接收测试", () => new CanReceiveTestView() },
                         { "8.5.1安全通道CAN发送测试", () => new S_C_8_5_1View() },
                         { "8.5.2安全通道CAN接收测试", () => new S_C_8_5_2View() },
+                        { "8.6.1S安全通道WAITS1传感器测试", () => new S_C_8_6_1View() },
+                        { "8.6.2S安全通道WAITS2传感器测试", () => new S_C_8_6_2View() },
                         { "RS422通信测试", () => new RS422CommTabView() },
                         { "控制通道422发送测试", () => new RS422Control422TransmitTestView() },
                         { "控制通道422接收测试", () => new RS422Control422ReceiveTestView() },
@@ -171,6 +173,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "6.5.1.1控制通道ARINC429发送通道1测试", "\t 上位机显示\"7F00AA55\"则检查通过。" },
                         { "8.5.1安全通道CAN发送测试", "\t 上位机显示\"01010101\"（对应CAN帧后4字节为01 01 01 01）则检查通过。" },
                         { "8.5.2安全通道CAN接收测试", "\t 上位机显示\"01010101\"则检查通过。" },
+                        { "8.6.1S安全通道WAITS1传感器测试", "\t 自动测试三档温度PASS则检查通过。" },
+                        { "8.6.2S安全通道WAITS2传感器测试", "\t 自动测试三档温度PASS则检查通过。" },
                     }
                 }
             };
@@ -398,6 +402,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.6.2CAN接收测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.5.1安全通道CAN发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.5.2安全通道CAN接收测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.6.1S安全通道WAITS1传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.6.2S安全通道WAITS2传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("RS422通信测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道422发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道422接收测试"));
