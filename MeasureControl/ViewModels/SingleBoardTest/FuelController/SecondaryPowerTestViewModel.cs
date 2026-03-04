@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using MeasureControl.Events;
 using MeasureControl.Models;
+using MeasureControl.Models.Devices;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
 using MeasureControl.Simulations.FuelController;
@@ -14,8 +15,6 @@ using Prism.Commands;
 using Prism.Events;
 using Prism.Mvvm;
 using System.Windows;
-using Ivi.Visa;
-using NationalInstruments.Visa;
 using MeasureControl.Views.Dialogs;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
@@ -78,10 +77,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const double VoltageUpperLimit = 5.5;
         
         /// <summary>硬件初始化默认超时时间（毫秒）</summary>
-        private const int DefaultTimeoutMs = 10000;
+        private const int DefaultTimeoutMs = 3000;
         
         /// <summary>万用表测量超时时间（毫秒）</summary>
-        private const int DmmTimeoutMs = 8000;
+        private const int DmmTimeoutMs = 2000;
+
+        private const string AiVoltageChannel = "AI1";
 
         #endregion
 
@@ -90,17 +91,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private readonly ISingleBoardTestContextService _singleBoardTestContext;  // 单板测试上下文服务
         private readonly ProjectService _projectService;                           // 项目服务，用于数据持久化
         private readonly IEventAggregator _eventAggregator;                        // 事件聚合器，用于跨模块通信
+        private readonly IComponentPowerStateApi _componentPowerStateApi;          // 组件供电状态API（复用）
+        private readonly IPxiChassisService _pxiChassisService;                    // PXI机箱服务，用于查找9774板卡
         private readonly IDmmApi _dmmApi;                                          // 万用表API，测量电压
         private readonly SecondaryPowerSimulation _simulation;                     // 仿真类，硬件不可用时使用
 
         #endregion
 
-        #region 万用表VISA通信（备用）
+        #region 9774板卡(优先采集)
 
-        private ResourceManager _dmmResourceManager;                               // VISA资源管理器
-        private MessageBasedSession _dmmSession;                                   // VISA会话
-        private readonly SemaphoreSlim _dmmIoLock = new SemaphoreSlim(1, 1);      // IO操作锁
-        
+        private IArt9774AiApi _ai9774Api;
+
+        #endregion
+
+        #region 万用表Socket连接
+
+        private IDmmApi _dmmSocket;                                                 // DmmSocketApi实例
+        private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);    // 测量操作锁
+
         #endregion
 
         #region 状态字段
@@ -114,7 +122,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isBusy;                                                      // 是否正在执行操作
         private bool _isPowerOn;                                                   // 28V供电是否已开启
 
-        private bool _useSimulatedDmm;                                             // DMM不可用时强制走仿真测量
+        private bool _useSimulatedDmm;                                             // DMM不可用时走仿真测量
 
         #endregion
 
@@ -124,7 +132,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private string _testResult = "--";    // 测试结果（PASS/FAIL/--）
         private string _overallResult = "--"; // 综合结果
         private string _lastTestTime = "--";  // 上次测试时间
-        private string _powerStatus = "未供电"; // 供电状态显示文本
+        private string _powerStatus = "未上电"; // 供电状态显示文本
 
         #endregion
 
@@ -137,19 +145,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             ISingleBoardTestContextService singleBoardTestContext,
             ProjectService projectService,
             IEventAggregator eventAggregator,
+            IComponentPowerStateApi componentPowerStateApi,
+            IPxiChassisService pxiChassisService,
             IDmmApi dmmApi = null)
         {
             // 保存依赖服务引用
             _singleBoardTestContext = singleBoardTestContext;
             _projectService = projectService;
             _eventAggregator = eventAggregator;
+            _componentPowerStateApi = componentPowerStateApi;
+            _pxiChassisService = pxiChassisService;
             _dmmApi = dmmApi;
             _simulation = new SecondaryPowerSimulation();
 
             // 初始化命令
             ManualTestCommand = new DelegateCommand(OnManualTest);
             AutoTestCommand = new DelegateCommand(OnAutoTest);
-            MeasureCommand = new DelegateCommand(async () => await MeasureSinglePointAsync(), () => !IsBusy && IsPowerOn);
+            MeasureCommand = new DelegateCommand(async () => await MeasureSinglePointAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized && IsPowerOn);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
             // 加载上次保存的测试结果
@@ -157,6 +169,187 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             
             // 订阅项目保存事件
             _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
+        }
+
+        private async Task<double> ReadVoltageAsync(CancellationToken token = default)
+        {
+            if (_ai9774Api != null && _ai9774Api.IsConnected)
+            {
+                try
+                {
+                    if (!_ai9774Api.IsRunning)
+                    {
+                        try { await _ai9774Api.StartAsync(token); } catch { }
+                    }
+
+                    var v = await _ai9774Api.GetLastValueAsync(AiVoltageChannel, token);
+                    AddLog("电压来源: 9774");
+                    return v;
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"9774采集异常: {ex.Message}，切换到万用表/仿真");
+                }
+            }
+
+            var dmmVoltage = await ReadVoltageFromDmmAsync(token);
+            AddLog(_useSimulatedDmm ? "电压来源: 仿真" : "电压来源: 万用表");
+            return dmmVoltage;
+        }
+
+        private static bool Is9774(DeviceBase device)
+        {
+            if (device == null) return false;
+            if (device is AnalogAcquisitionDevice) return true;
+            var model = (device.Model ?? string.Empty).ToUpperInvariant();
+            var devType = (device.DeviceTypeName ?? string.Empty).ToUpperInvariant();
+            return model.Contains("9774") || 
+                   devType.Contains("模拟量输入") || 
+                   devType.Contains("模拟量采集");
+        }
+
+        /// <summary>
+        /// 从 PXI 机箱中查找第一个 PXIe-9774 板卡
+        /// </summary>
+        private DeviceBase FindFirst9774Device()
+        {
+            var chassisList = _pxiChassisService?.GetAllChassis();
+            if (chassisList == null)
+            {
+                AddLog("[9774查找] 机箱列表为null");
+                return null;
+            }
+
+            foreach (var chassis in chassisList)
+            {
+                if (chassis?.Devices == null)
+                    continue;
+
+                // 直接在机箱设备列表中查找
+                var device = chassis.Devices.FirstOrDefault(d => Is9774(d));
+                if (device != null)
+                {
+                    AddLog($"[9774查找] 找到板卡: Name={device.Name}, Model={device.Model}");
+                    return device;
+                }
+
+                // 遍历子设备
+                foreach (var d in chassis.Devices)
+                {
+                    if (d?.Children == null)
+                        continue;
+
+                    var childDevice = d.Children.FirstOrDefault(c => Is9774(c));
+                    if (childDevice != null)
+                    {
+                        AddLog($"[9774查找] 找到板卡: Name={childDevice.Name}, Model={childDevice.Model}");
+                        return childDevice;
+                    }
+                }
+            }
+
+            AddLog("[9774查找] 未找到9774板卡");
+            return null;
+        }
+
+        private async Task Initialize9774AiAsync(CancellationToken token)
+        {
+            if (_ai9774Api != null && _ai9774Api.IsConnected)
+            {
+                AddLog("9774板卡已连接，跳过");
+                return;
+            }
+
+            var device = FindFirst9774Device();
+            if (device == null)
+            {
+                AddLog("未找到9774板卡，二次电源电压将使用万用表/仿真");
+                return;
+            }
+
+            try
+            {
+                AddLog($"正在连接9774板卡... Model={device.Model} Name={device.Name}");
+
+                var inferredDevName = Infer9774DevName(device);
+                _ai9774Api = new Art9774Api(device, new AiAcquisitionOptions
+                {
+                    Mode = AiAcquisitionMode.Continuous,
+                    SampleRateHz = 10000.0,
+                    SamplesPerChannel = 1000,
+                    DeviceName = string.IsNullOrWhiteSpace(inferredDevName) ? "Dev3" : inferredDevName
+                });
+
+                await _ai9774Api.ConnectAsync(token);
+                await _ai9774Api.ConfigureChannelsAsync(new[]
+                {
+                    new AiChannelConfig { Channel = AiVoltageChannel, Enabled = true, Range = AiInputRange.PlusMinus10V }
+                }, token);
+
+                await _ai9774Api.StartAsync(token);
+                AddLog("9774板卡初始化完成");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"9774板卡初始化异常: {ex.Message}，二次电源电压将使用万用表/仿真");
+                try
+                {
+                    if (_ai9774Api != null)
+                        await _ai9774Api.DisposeAsync();
+                }
+                catch { }
+                _ai9774Api = null;
+            }
+        }
+
+        private static string Infer9774DevName(DeviceBase device)
+        {
+            string ExtractDev(string text)
+            {
+                if (string.IsNullOrWhiteSpace(text))
+                    return null;
+
+                var parts = text.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var p in parts)
+                {
+                    if (p.Length >= 4 && p.StartsWith("Dev", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var suffix = p.Substring(3);
+                        if (int.TryParse(suffix, out var n) && n > 0)
+                            return $"Dev{n}";
+                    }
+                }
+
+                return null;
+            }
+
+            var byName = ExtractDev(device?.CardName) ?? ExtractDev(device?.Name);
+            if (!string.IsNullOrWhiteSpace(byName))
+                return byName;
+
+            var slot = device?.SlotPosition;
+            if (string.IsNullOrWhiteSpace(slot))
+                return null;
+
+            var digits = new string(slot.Where(char.IsDigit).ToArray());
+            if (!int.TryParse(digits, out var slotIndex))
+                return null;
+
+            switch (slotIndex)
+            {
+                case 4:
+                    return "Dev2";
+                case 6:
+                    return "Dev3";
+                case 9:
+                    return "Dev4";
+                case 8:
+                    return "Dev5";
+                case 7:
+                    return "Dev6";
+                default:
+                    return null;
+            }
         }
 
         #endregion
@@ -450,87 +643,66 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             try
             {
-                // ========== 步骤1：配置矩阵开关通路 ==========
-                AddLog("正在配置矩阵开关通路...");
-                bool matrixOk = false;
+                if (_hardwareInitialized)
+                {
+                    AddLog("硬件已初始化，跳过");
+                    return;
+                }
+
+                // ========== 步骤1：连接万用表 ==========
+                AddLog($"正在连接万用表 {DmmIpAddress} ...");
                 try
                 {
-                    matrixOk = await _simulation.ConnectMatrixAsync(msg => AddLog(msg), timeoutCts.Token);
+                    await ConnectDmmAsync(DmmIpAddress, timeoutCts.Token);
+                    AddLog("万用表连接成功");
+                    _useSimulatedDmm = false;
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"矩阵开关配置异常: {ex.Message}");
-                }
-                if (!matrixOk)
-                {
-                    AddLog("矩阵开关配置失败，继续使用仿真模式");
+                    AddLog($"万用表连接异常: {ex.Message}，使用仿真模式");
+                    _useSimulatedDmm = true;
                 }
 
-                // ========== 步骤2：开启28V供电 ==========
-                // 通过J3和J4提供28V供电，继电器保持NC状态
-                AddLog("正在开启28V供电（J3-J4）...");
+                await Initialize9774AiAsync(timeoutCts.Token);
+
+                // ========== 步骤3：设置组件供电状态（28V供电状态） ==========
+                AddLog("正在设置组件供电状态: 28V供电状态...");
                 try
                 {
-                    await _simulation.SimulatePowerOnAsync(msg => AddLog(msg), timeoutCts.Token);
+                    if (_componentPowerStateApi != null)
+                    {
+                        await _componentPowerStateApi.ApplyComponent28VStateAsync(timeoutCts.Token);
+                    }
+
+                    await _simulation.ApplyComponent28VStateAsync(msg => AddLog(msg), timeoutCts.Token);
                     Application.Current?.Dispatcher?.Invoke(() =>
                     {
                         IsPowerOn = true;
-                        PowerStatus = "已供电";
+                        PowerStatus = "已上电";
                     });
-                    AddLog("28V供电已开启");
+                    AddLog("组件28V供电状态已设置");
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"供电开启异常: {ex.Message}，使用仿真模式");
+                    AddLog($"上电异常: {ex.Message}");
                     Application.Current?.Dispatcher?.Invoke(() =>
                     {
-                        IsPowerOn = true;
-                        PowerStatus = "已供电(仿真)";
+                        IsPowerOn = false;
+                        PowerStatus = "未上电";
                     });
-                }
-
-                // ========== 步骤3：连接万用表 ==========
-                if (_dmmApi != null)
-                {
-                    try
-                    {
-                        AddLog("正在连接万用表...");
-                        if (!_dmmApi.IsConnected)
-                        {
-                            var dmmIp = GetDmmIpAddress();
-                            await _dmmApi.ConnectAsync(dmmIp, timeoutCts.Token);
-                        }
-                        AddLog($"万用表连接成功: {_dmmApi.IpAddress}");
-                        _useSimulatedDmm = false;
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"万用表连接异常: {ex.Message}，使用仿真模式");
-                        _useSimulatedDmm = true;
-                    }
-                }
-                else
-                {
-                    try
-                    {
-                        await InitializeDmmAsync();
-                        _useSimulatedDmm = false;
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"万用表VISA初始化异常: {ex.Message}，使用仿真模式");
-                        _useSimulatedDmm = true;
-                    }
+                    throw;
                 }
 
                 _hardwareInitialized = true;
                 AddLog("硬件初始化完成");
+                UpdateCommandStates();
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
             {
                 throw new TimeoutException($"硬件初始化超时（{DefaultTimeoutMs}ms）");
             }
         }
+
 
         /// <summary>
         /// 复位硬件
@@ -539,14 +711,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             AddLog("正在复位硬件...");
 
-            // 关闭28V供电
+            // 设置组件下电状态
             try
             {
-                await _simulation.SimulatePowerOffAsync(msg => AddLog(msg), token);
+                if (_componentPowerStateApi != null)
+                {
+                    await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
+                }
+
+                await _simulation.ApplyComponentDownStateAsync(msg => AddLog(msg), token);
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     IsPowerOn = false;
-                    PowerStatus = "未供电";
+                    PowerStatus = "未上电";
                 });
             }
             catch (Exception ex)
@@ -554,12 +731,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog($"关闭供电异常: {ex.Message}");
             }
 
+            // 断开矩阵开关
+            await DisconnectAllMatrixRoutesAsync();
+
             // 断开万用表
-            if (_dmmApi != null && _dmmApi.IsConnected)
+            if (_dmmSocket != null)
             {
                 try
                 {
-                    await _dmmApi.DisconnectAsync(token);
+                    if (_dmmSocket.IsConnected)
+                        await _dmmSocket.DisconnectAsync(token);
                     AddLog("万用表已断开");
                 }
                 catch (Exception ex)
@@ -568,17 +749,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
             }
 
-            // 断开矩阵开关
-            try
+            if (_ai9774Api != null)
             {
-                await _simulation.DisconnectMatrixAsync(msg => AddLog(msg), token);
-            }
-            catch (Exception ex)
-            {
-                AddLog($"断开矩阵开关异常: {ex.Message}");
+                try
+                {
+                    await _ai9774Api.DisposeAsync();
+                    AddLog("9774板卡已断开");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"断开9774异常: {ex.Message}");
+                }
+                finally
+                {
+                    _ai9774Api = null;
+                }
             }
 
+
             _hardwareInitialized = false;
+            UpdateCommandStates();
         }
 
         /// <summary>
@@ -648,7 +838,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 AddLog("正在测量 CRM_PIN1-PIN18 电压（+5V电源）...");
 
-                double voltage = await ReadVoltageFromDmmAsync(token);
+                double voltage = await ReadVoltageAsync(token);
                 string result = (voltage >= VoltageLowerLimit && voltage <= VoltageUpperLimit) ? "PASS" : "FAIL";
 
                 Application.Current?.Dispatcher?.Invoke(() =>
@@ -677,149 +867,91 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
+        private const string DmmIpAddress = "192.168.1.13";
+        private const string MatrixIpAddress = "192.168.1.3";
+
+        /// <summary>[NoInlining] 隔离NI-VISA加载，防止JIT编译调用方时崩溃</summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private async Task ConnectDmmAsync(string ipAddress, CancellationToken token)
+        {
+            _dmmSocket ??= new DmmSocketApi();
+            if (!_dmmSocket.IsConnected)
+                await _dmmSocket.ConnectAsync(ipAddress, token);
+        }
+
+        /// <summary>[NoInlining] 隔离NI-VISA加载，防止JIT编译调用方时崩溃</summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private async Task<DmmReading> DmmReadVoltageAsync(CancellationToken token)
+        {
+            if (_dmmSocket == null || !_dmmSocket.IsConnected)
+            {
+                _dmmSocket ??= new DmmSocketApi();
+                await _dmmSocket.ConnectAsync(DmmIpAddress, token);
+            }
+            return await _dmmSocket.ReadOnceAsync(
+                DmmMeasureMode.DCV,
+                new DmmReadOptions { TimeoutMilliseconds = DmmTimeoutMs },
+                token);
+        }
+        private const int MatrixSlotSig = 9;     // 2601(5) slotindex=9，信号侧（AD采集）
+        private const int MatrixSlotDmm = 4;     // 2601(1) slotindex=4，万用表侧
+
+        // CRM_PIN1(+5V) AD采集1：2601(5) 0/0 → 信号侧 I1,O0,slot9
+        // 万用表H侧：2601(1) 4/7 → I3,O7,slot4
+        private static readonly (string In, string Out, int Slot) MatrixSig = ("I1", "O0",  MatrixSlotSig);
+        private static readonly (string In, string Out, int Slot) MatrixDmmH = ("I3", "O7",  MatrixSlotDmm);
+
+        private async Task DisconnectAllMatrixRoutesAsync()
+        {
+            var matrix = MatrixControlService.Instance;
+            try { await matrix.DisconnectNodesAsync(MatrixSig.In,  MatrixSig.Out,  MatrixSig.Slot,  MatrixIpAddress); } catch { }
+            try { await matrix.DisconnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress); } catch { }
+        }
+
         /// <summary>
-        /// 从万用表读取电压值
+        /// 从万用表读取电压值（带矩阵开关路由）
         /// </summary>
         private async Task<double> ReadVoltageFromDmmAsync(CancellationToken token = default)
         {
             if (_useSimulatedDmm)
-            {
                 return await _simulation.SimulateMeasureVoltageAsync(token);
-            }
 
-            if (_dmmApi != null)
+            await _measureLock.WaitAsync(token);
+            try
             {
+                var matrix = MatrixControlService.Instance;
+                var ok1 = await matrix.ConnectNodesAsync(MatrixSig.In,  MatrixSig.Out,  MatrixSig.Slot,  MatrixIpAddress);
+                var ok2 = await matrix.ConnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress);
+                AddLog($"矩阵连接 {(ok1 && ok2 ? "OK" : "FAIL")} - SIG:{MatrixSig.In}-{MatrixSig.Out}(slot{MatrixSig.Slot}), DMM:{MatrixDmmH.In}-{MatrixDmmH.Out}(slot{MatrixDmmH.Slot})");
+
+                if (!ok1 || !ok2)
+                {
+                    AddLog("矩阵通路连接失败，使用仿真测量");
+                    _useSimulatedDmm = true;
+                    return await _simulation.SimulateMeasureVoltageAsync(token);
+                }
+
                 try
                 {
-                    if (!_dmmApi.IsConnected)
-                    {
-                        var dmmIp = GetDmmIpAddress();
-                        await _dmmApi.ConnectAsync(dmmIp, token);
-                    }
-
-                    var reading = await _dmmApi.ReadOnceAsync(
-                        DmmMeasureMode.DCV,
-                        new DmmReadOptions { TimeoutMilliseconds = DmmTimeoutMs },
-                        token);
+                    var reading = await DmmReadVoltageAsync(token);
 
                     if (reading?.Value != null)
-                    {
                         return reading.Value.Value;
-                    }
 
                     throw new InvalidOperationException($"万用表读数无效: {reading?.Raw}");
                 }
-                finally
+                catch (Exception ex)
                 {
-                    try
-                    {
-                        if (_dmmApi.IsConnected)
-                            await _dmmApi.DisconnectAsync(CancellationToken.None);
-                    }
-                    catch { }
-                }
-            }
-
-            // 备用VISA路径
-            await _dmmIoLock.WaitAsync(token);
-            try
-            {
-                if (_dmmSession == null)
-                {
-                    try
-                    {
-                        await InitializeDmmAsync();
-                    }
-                    catch
-                    {
-                        _useSimulatedDmm = true;
-                        return await _simulation.SimulateMeasureVoltageAsync(token);
-                    }
-                }
-
-                var visaTask = Task.Run(() =>
-                {
-                    _dmmSession.RawIO.Write("MEAS:VOLT:DC?\n");
-                    Thread.Sleep(500);
-                    return _dmmSession.RawIO.ReadString();
-                }, CancellationToken.None);
-
-                var completed = await Task.WhenAny(visaTask, Task.Delay(DmmTimeoutMs, token));
-                if (completed != visaTask)
-                {
+                    AddLog($"万用表测量异常: {ex.Message}，使用仿真模式");
                     _useSimulatedDmm = true;
-                    throw new TimeoutException($"万用表VISA读取超时（{DmmTimeoutMs}ms）");
+                    return await _simulation.SimulateMeasureVoltageAsync(token);
                 }
-
-                string response = await visaTask;
-
-                if (double.TryParse(response.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double voltage))
-                {
-                    return voltage;
-                }
-
-                throw new InvalidOperationException($"无法解析万用表返回值: {response}");
             }
             finally
             {
-                _dmmIoLock.Release();
+                try { await DisconnectAllMatrixRoutesAsync(); } catch { }
+                _measureLock.Release();
             }
-        }
-
-        /// <summary>
-        /// 初始化万用表（VISA方式）
-        /// </summary>
-        private async Task InitializeDmmAsync()
-        {
-            await _dmmIoLock.WaitAsync();
-            try
-            {
-                if (_dmmSession != null)
-                    return;
-
-                _dmmResourceManager = new ResourceManager();
-                var resources = _dmmResourceManager.Find("GPIB?*INSTR");
-
-                string dmmAddress = null;
-                foreach (var res in resources)
-                {
-                    if (res.Contains("GPIB"))
-                    {
-                        dmmAddress = res;
-                        break;
-                    }
-                }
-
-                if (string.IsNullOrEmpty(dmmAddress))
-                {
-                    dmmAddress = "GPIB0::22::INSTR";
-                }
-
-                _dmmSession = (MessageBasedSession)_dmmResourceManager.Open(dmmAddress);
-                _dmmSession.TimeoutMilliseconds = 5000;
-
-                _dmmSession.RawIO.Write("*RST\n");
-                await Task.Delay(500);
-                _dmmSession.RawIO.Write("*IDN?\n");
-                string idn = _dmmSession.RawIO.ReadString();
-                AddLog($"万用表: {idn.Trim()}");
-
-                _dmmSession.RawIO.Write("CONF:VOLT:DC\n");
-                await Task.Delay(200);
-            }
-            finally
-            {
-                _dmmIoLock.Release();
-            }
-        }
-
-        /// <summary>
-        /// 获取万用表IP地址
-        /// </summary>
-        private string GetDmmIpAddress()
-        {
-            // TODO: 从配置或上下文获取实际IP
-            return "192.168.1.100";
         }
 
         #endregion
@@ -831,6 +963,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             VoltageValue = null;
             TestResult = "--";
             OverallResult = "--";
+            LastTestTime = "--";
         }
 
         private void EvaluateOverallResult()
@@ -940,12 +1073,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             try
             {
-                _dmmSession?.Dispose();
-                _dmmResourceManager?.Dispose();
+                _ai9774Api?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            }
+            catch { }
+            finally
+            {
+                _ai9774Api = null;
+            }
+
+            try
+            {
+                DisconnectAllMatrixRoutesAsync().GetAwaiter().GetResult();
             }
             catch { }
 
-            _dmmIoLock?.Dispose();
+            try
+            {
+                if (_dmmSocket != null && _dmmSocket.IsConnected)
+                    _dmmSocket.DisconnectAsync(CancellationToken.None).GetAwaiter().GetResult();
+            }
+            catch { }
+
+            _measureLock?.Dispose();
             _simulation?.Dispose();
 
             if (_projectSavingToken != null)

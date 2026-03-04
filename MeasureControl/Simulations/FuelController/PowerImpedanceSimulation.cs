@@ -1,7 +1,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using MeasureControl.Services;
 
 namespace MeasureControl.Simulations.FuelController
 {
@@ -46,6 +45,7 @@ namespace MeasureControl.Simulations.FuelController
         private bool _jy7131Connected;    // 7131板卡连接状态（仿真）
         private bool _jy7131Running;      // 7131板卡运行状态（仿真）
         private bool _relay485Channel4;   // 485继电器第4路状态（仿真）
+        private bool _component28vOn;     // 组件供电状态（仿真）
 
         // 矩阵开关配置常量
         private const string MatrixIpAddress = "192.168.1.3";  // 矩阵开关IP地址
@@ -144,6 +144,20 @@ namespace MeasureControl.Simulations.FuelController
         }
 
         #endregion
+
+        public async Task ApplyComponentDownStateAsync(Action<string> log, CancellationToken token = default)
+        {
+            await Task.Delay(50, token);
+            _component28vOn = false;
+            log?.Invoke("[SIM] 组件下电状态已设置");
+        }
+
+        public async Task ApplyComponent28VStateAsync(Action<string> log, CancellationToken token = default)
+        {
+            await Task.Delay(100, token);
+            _component28vOn = true;
+            log?.Invoke("[SIM] 组件28V供电状态已设置");
+        }
 
         #region 继电器控制仿真方法
 
@@ -261,101 +275,17 @@ namespace MeasureControl.Simulations.FuelController
         /// </summary>
         public async Task<bool> ConnectMatrixAsync(Action<string> log, CancellationToken token = default)
         {
-            // 双重检查模式：先检查状态，避免不必要的锁等待
-            if (_matrixConnected)
-            {
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 矩阵开关已连接，跳过");
-                return true;
-            }
-
-            // 获取锁，确保同一时间只有一个线程操作矩阵开关
-            await _matrixSwitchLock.WaitAsync(token);
-            try
-            {
-                // 再次检查，防止在等待锁期间其他线程已完成连接
-                if (_matrixConnected)
-                    return true;
-
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 正在配置矩阵开关通路...");
-
-                // 步骤1：连接7131板卡通路 (I4->O6, slot=4)
-                // 这条通路用于DO信号输出，控制继电器
-                bool ok1 = await MatrixControlService.Instance.ConnectNodesAsync("I4", "O6", MatrixSlot7131, MatrixIpAddress);
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 矩阵开关通路(7131): I4->O6 slot={MatrixSlot7131} ip={MatrixIpAddress}, ok={ok1}");
-
-                if (!ok1)
-                {
-                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 7131板卡矩阵通路连接失败");
-                    return false;
-                }
-
-                // 步骤2：连接万用表通路 (I3->O30, slot=7)
-                // 这条通路用于阻抗测量
-                bool ok2 = await MatrixControlService.Instance.ConnectNodesAsync("I3", "O30", MatrixSlotDmm, MatrixIpAddress);
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 矩阵开关通路(DMM): I3->O30 slot={MatrixSlotDmm} ip={MatrixIpAddress}, ok={ok2}");
-
-                if (!ok2)
-                {
-                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 万用表矩阵通路连接失败");
-                    return false;
-                }
-
-                _matrixConnected = true;
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 矩阵开关通路配置完成");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 矩阵开关配置异常: {ex.Message}");
-                return false;
-            }
-            finally
-            {
-                // 无论成功失败，都要释放锁
-                _matrixSwitchLock.Release();
-            }
+            await Task.Delay(30, token);
+            _matrixConnected = true;
+            log?.Invoke("[SIM] 矩阵开关通路已配置（仿真）");
+            return true;
         }
 
-        /// <summary>
-        /// 断开矩阵开关通路
-        /// 
-        /// 【为什么需要断开】
-        /// 测试完成后必须断开矩阵开关通路，原因：
-        /// 1. 释放通路资源，供其他测试使用
-        /// 2. 防止信号串扰影响其他测试
-        /// 3. 确保设备处于安全状态
-        /// </summary>
         public async Task DisconnectMatrixAsync(Action<string> log, CancellationToken token = default)
         {
-            await _matrixSwitchLock.WaitAsync(token);
-            try
-            {
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 正在断开矩阵开关通路...");
-
-                // 断开7131板卡通路
-                bool ok1 = await MatrixControlService.Instance.DisconnectNodesAsync("I4", "O6", MatrixSlot7131, MatrixIpAddress);
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 矩阵开关断开(7131): I4->O6 slot={MatrixSlot7131}, ok={ok1}");
-
-                // 断开万用表通路
-                bool ok2 = await MatrixControlService.Instance.DisconnectNodesAsync("I3", "O30", MatrixSlotDmm, MatrixIpAddress);
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 矩阵开关断开(DMM): I3->O30 slot={MatrixSlotDmm}, ok={ok2}");
-
-                _matrixConnected = false;
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 矩阵开关通路已复位");
-            }
-            catch (OperationCanceledException)
-            {
-                // 取消操作需要向上抛出，让调用方处理
-                throw;
-            }
-            catch (Exception ex)
-            {
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 矩阵开关断开异常: {ex.Message}");
-            }
-            finally
-            {
-                _matrixSwitchLock.Release();
-            }
+            await Task.Delay(20, token);
+            _matrixConnected = false;
+            log?.Invoke("[SIM] 矩阵开关通路已断开（仿真）");
         }
 
         #endregion
@@ -372,6 +302,7 @@ namespace MeasureControl.Simulations.FuelController
             _jy7131Connected = false;
             _jy7131Running = false;
             _relay485Channel4 = false;
+            _component28vOn = false;
             _matrixSwitchLock?.Dispose();
         }
     }
