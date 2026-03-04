@@ -112,8 +112,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     "加放油单板",
                     new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
                     {
-                        { "电源阻抗测试", () => new PowerImpedanceTestView() },
+                        { "电源阻抗测试", () => new Views.SingleBoardTest.FuelController.PowerImpedanceTestView() },
                         { "二次电源测试", () => new SecondaryPowerTestView() },
+                    }
+                },
+                {
+                    "惰化单板",
+                    new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "电源阻抗测试", () => new Views.SingleBoardTest.InertController.PowerImpedanceTestView() },
+                        { "控制板电源阻抗测试", () => new Views.SingleBoardTest.InertController.ControlBoardPowerImpedanceTestView() },
+                        { "控制板离散输入模块测试", () => new Views.SingleBoardTest.InertController.ControlBoardDiscreteInputModuleTestView() },
+                        { "温度传感器信号采集", () => new Views.SingleBoardTest.InertController.TemperatureSensorSignalAcquisitionTestView() },
+                        { "压力传感器信号采集", () => new Views.SingleBoardTest.InertController.PressureSensorSignalAcquisitionTestView() },
+                        { "二次、三次电源测试", () => new Views.SingleBoardTest.InertController.SecondaryTertiaryPowerTestView() },
+                        { "电源监控测试", () => new Views.SingleBoardTest.InertController.PowerMonitorTestView() },
+                        { "超温切断模块电路测试", () => new Views.SingleBoardTest.InertController.OverTemperatureCutoffTestView() },
+                        { "锁存模块电路测试", () => new Views.SingleBoardTest.InertController.LatchModuleCircuitTestView() },
                     }
                 }
             };
@@ -141,6 +156,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     {
                         { "电源阻抗测试", "\t a) 阻抗值大于500Ω；\r\n \t b) 阻抗值大于500Ω。" },
                         { "二次电源测试", "\t a) 5V隔离二次电源输出电压范围在[4.925，5.075]V；\r\n \t b) 15V隔离二次电源输出电压范围在[14.775，15.225]V；\r\n \t c) -15V隔离二次电源输出电压范围在[-14.775，-15.225]V。" },
+                    }
+                },
+                {
+                    "惰化单板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "电源阻抗测试", "\t 测量阻抗值大于500Ω则合格。" },
+                        { "控制板电源阻抗测试", "\t 控制板下电；测量J1、J2、J4、J5到J18（COM）、J70（EARTH）之间的阻抗，阻抗值大于500Ω则合格。" },
+                        { "控制板离散输入模块测试", "\t 控制板供电28V；将引脚J40-J45、J75-J83分别配置为GND和开路，通过通信读取采集结果；将引脚J84、J85分别配置为28V和开路，通过通信读取采集结果。采集结果应与配置状态一致。" },
+                        { "温度传感器信号采集", "\t 控制板供电28V；按表7-2配置PT500A/PT500B/PT1000A/PT1000B模拟电阻值，通过通信读取换算温度；上位机读取温度满足表7-3与表7-4为合格。" },
+                        { "压力传感器信号采集", "\t 通过引脚J25、J26将“压力传感器”的模拟电压按表7-5进行设置，通过通讯读取的“压力”的数值；上位机读取的“压力”数据显示的值满足表7-6为合格。" },
+                        { "二次、三次电源测试", "\t a) 15V检测：15±1.5V；\r\n \t b) -15V检测：-15±1.5V；\r\n \t c) 5V检测：5±0.5V；\r\n \t d) 3.3V检测：3.3±0.33V。" },
+                        { "电源监控测试", "\t a) 供电28V：J86-J91电压为（2.46±0.24）V；\r\n \t b) 供电18V：J86-J91电压为（1.56±0.15）V；\r\n \t c) 供电32V：J86-J91电压为（2.81±0.28）V。" },
+                        { "超温切断模块电路测试", "\t a) PT500A电阻配置为（715.25±3.5）Ω：J31(T1_AWARN)输出高电平(3.3±0.33V)，J11(IIV +28VDC PWR IN_FB)开路(≤16V)，J12(IIV +28VDC PWR IN)开路(≤16V)。\r\n \t b) PT1000A电阻配置为（1411.6±7.1）Ω：J32(T2_AWARN)输出高电平(3.3±0.33V)，J13(TIV +28VDC PWR IN_FB)开路(≤16V)，J14(TIV +28VDC PWR IN)开路(≤16V)。" },
+                        { "锁存模块电路测试", "\t a) PT500A=730Ω：J31输出为高电平(3.3±0.33V)；\r\n \t b) PT500A降低为500Ω：J31输出仍为高电平(3.3±0.33V)；\r\n \t c) J34供电3.3V后：J31输出为低电平(0±0.1V)；\r\n \t d) PT1000A=1500Ω：J32输出为高电平(3.3±0.33V)；\r\n \t e) PT1000A降低为1000Ω：J32输出仍为高电平(3.3±0.33V)；\r\n \t f) J35供电3.3V后：J32输出为低电平(0±0.1V)。" },
                     }
                 },
                 {
@@ -402,6 +432,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
             if (string.Equals(boardType, "惰化单板", StringComparison.OrdinalIgnoreCase))
             {
+                TestSequenceItems.Add(new TestSequenceItem("电源阻抗测试"));
+                TestSequenceItems.Add(new TestSequenceItem("控制板电源阻抗测试"));
+                TestSequenceItems.Add(new TestSequenceItem("控制板离散输入模块测试"));
+                TestSequenceItems.Add(new TestSequenceItem("温度传感器信号采集"));
+                TestSequenceItems.Add(new TestSequenceItem("压力传感器信号采集"));
+                TestSequenceItems.Add(new TestSequenceItem("二次、三次电源测试"));
+                TestSequenceItems.Add(new TestSequenceItem("电源监控测试"));
+                TestSequenceItems.Add(new TestSequenceItem("超温切断模块电路测试"));
+                TestSequenceItems.Add(new TestSequenceItem("锁存模块电路测试"));
                 return;
             }
 

@@ -304,6 +304,8 @@
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_8ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\PowerImpedanceTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\SecondaryPowerTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\InertController\SecondaryTertiaryPowerTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\InertController\PowerMonitorTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_15_1_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_15_1_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_15_2_1ViewModel.cs" />
@@ -575,6 +577,38 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\SingleBoardTest\FuelController\SecondaryPowerTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\InertController\SecondaryTertiaryPowerTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\InertController\OverTemperatureCutoffTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\InertController\ControlBoardPowerImpedanceTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\InertController\ControlBoardDiscreteInputModuleTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\InertController\TemperatureSensorSignalAcquisitionTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\InertController\PressureSensorSignalAcquisitionTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\InertController\LatchModuleCircuitTestView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\InertController\PowerMonitorTestView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

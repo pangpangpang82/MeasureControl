@@ -12,6 +12,7 @@ using MeasureControl.ViewModels.SingleBoardTest;
 using MeasureControl.ViewModels.SingleBoardTest.AirController;
 using MeasureControl.ViewModels.SingleBoardTest.HydraulicController;
 using MeasureControl.ViewModels.SingleBoardTest.FuelController;
+using MeasureControl.ViewModels.TestTask;
 using MeasureControl.Services.HardwareApis;
 using MeasureControl.Views;
 using MeasureControl.Views.Common;
@@ -159,8 +160,17 @@ namespace MeasureControl
             containerRegistry.Register<HC_6_4ViewModel>();
             containerRegistry.Register<HC_6_5ViewModel>();
             containerRegistry.Register<HC_6_8ViewModel>();
-            containerRegistry.Register<PowerImpedanceTestViewModel>();
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.FuelController.PowerImpedanceTestViewModel>();
             containerRegistry.Register<PowerToGroundImpedanceTestViewModel>();
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.PowerImpedanceTestViewModel>();
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.ControlBoardPowerImpedanceTestViewModel>();
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.ControlBoardDiscreteInputModuleTestViewModel>();
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.TemperatureSensorSignalAcquisitionTestViewModel>();
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.PressureSensorSignalAcquisitionTestViewModel>();
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.SecondaryTertiaryPowerTestViewModel>();
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.PowerMonitorTestViewModel>();
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.OverTemperatureCutoffTestViewModel>();
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.LatchModuleCircuitTestViewModel>();
 
             // 注册导航页面
             // 单例页面（IsNavigationTarget返回true，重用实例）
