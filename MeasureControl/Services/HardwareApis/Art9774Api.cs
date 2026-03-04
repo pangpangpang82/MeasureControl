@@ -9,20 +9,29 @@ using MeasureControl.Models.Devices;
 
 namespace MeasureControl.Services.HardwareApis
 {
+    /// <summary>
+    /// 模拟量输入采集模式
+    /// </summary>
     public enum AiAcquisitionMode
     {
-        Finite,
-        Continuous
+        Finite,      // 有限采样：采集指定数量的样本后自动停止
+        Continuous   // 连续采样：持续采集直到手动停止
     }
 
+    /// <summary>
+    /// 模拟量输入电压范围
+    /// </summary>
     public enum AiInputRange
     {
-        PlusMinus10V,
-        PlusMinus5V,
-        PlusMinus2V,
-        PlusMinus1V
+        PlusMinus10V,  // ±10V 范围
+        PlusMinus5V,   // ±5V 范围
+        PlusMinus2V,   // ±2V 范围
+        PlusMinus1V    // ±1V 范围
     }
 
+    /// <summary>
+    /// 模拟量输入通道配置
+    /// </summary>
     public sealed class AiChannelConfig
     {
         public string Channel { get; set; }
@@ -30,6 +39,9 @@ namespace MeasureControl.Services.HardwareApis
         public AiInputRange Range { get; set; } = AiInputRange.PlusMinus10V;
     }
 
+    /// <summary>
+    /// 模拟量采集选项
+    /// </summary>
     public sealed class AiAcquisitionOptions
     {
         public AiAcquisitionMode Mode { get; set; } = AiAcquisitionMode.Continuous;
@@ -39,6 +51,9 @@ namespace MeasureControl.Services.HardwareApis
         public int TerminalConfig { get; set; } = ArtDAQ_Val_Cfg_Default;
     }
 
+    /// <summary>
+    /// 采集到的样本数据块
+    /// </summary>
     public sealed class AiSampleBlock
     {
         public IReadOnlyDictionary<string, double[]> Samples { get; set; }
@@ -46,23 +61,27 @@ namespace MeasureControl.Services.HardwareApis
         public DateTime Timestamp { get; set; }
     }
 
+    /// <summary>
+    /// ART9774 模拟量输入板卡控制接口
+    /// 功能：采集多通道模拟电压信号（最多32路）
+    /// </summary>
     public interface IArt9774AiApi : IAsyncDisposable
     {
-        bool IsConnected { get; }
-        bool IsRunning { get; }
+        bool IsConnected { get; }  // 是否已连接到板卡
+        bool IsRunning { get; }    // 是否正在采集数据
 
         event Action<AiSampleBlock> SamplesAvailable;
 
-        Task ConnectAsync(CancellationToken cancellationToken = default);
-        Task DisconnectAsync(CancellationToken cancellationToken = default);
+        Task ConnectAsync(CancellationToken cancellationToken = default);  // 连接到板卡
+        Task DisconnectAsync(CancellationToken cancellationToken = default);  // 断开板卡连接
 
         Task ConfigureAcquisitionAsync(AiAcquisitionOptions options, CancellationToken cancellationToken = default);
 
         Task ConfigureChannelAsync(AiChannelConfig config, CancellationToken cancellationToken = default);
         Task ConfigureChannelsAsync(IEnumerable<AiChannelConfig> configs, CancellationToken cancellationToken = default);
 
-        Task StartAsync(CancellationToken cancellationToken = default);
-        Task StopAsync(CancellationToken cancellationToken = default);
+        Task StartAsync(CancellationToken cancellationToken = default);  // 开始采集
+        Task StopAsync(CancellationToken cancellationToken = default);   // 停止采集
 
         Task<double> GetLastValueAsync(string aiChannel, CancellationToken cancellationToken = default);
         Task<IDictionary<string, double>> GetLastValuesAsync(IEnumerable<string> aiChannels, CancellationToken cancellationToken = default);
@@ -70,6 +89,10 @@ namespace MeasureControl.Services.HardwareApis
         Task<IDictionary<string, double[]>> AcquireFiniteAsync(CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    /// ART9774 模拟量输入板卡实现类
+    /// 通道命名：AI1-AI32（外部）对应 AI0-AI31（内部驱动）
+    /// </summary>
     public sealed class Art9774Api : IArt9774AiApi
     {
         private readonly DeviceBase _device;
@@ -104,6 +127,9 @@ namespace MeasureControl.Services.HardwareApis
 
         public event Action<AiSampleBlock> SamplesAvailable;
 
+        /// <summary>
+        /// 连接到 ART9774 模拟量输入板卡
+        /// </summary>
         public async Task ConnectAsync(CancellationToken cancellationToken = default)
         {
             await _lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -129,14 +155,19 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 断开与 ART9774 板卡的连接
+        /// </summary>
         public async Task DisconnectAsync(CancellationToken cancellationToken = default)
         {
             await _lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                // 如果未连接，直接返回（安全的重复调用）
                 if (_driver == null)
                     return;
 
+                // 如果正在采集，先停止
                 if (_isRunning)
                 {
                     try { await StopAsync(cancellationToken).ConfigureAwait(false); } catch { }
@@ -160,6 +191,10 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 配置采集参数（采样率、采样数、采集模式等）
+        /// </summary>
+        /// <param name="options">采集选项配置</param>
         public async Task ConfigureAcquisitionAsync(AiAcquisitionOptions options, CancellationToken cancellationToken = default)
         {
             if (options == null)
@@ -188,6 +223,10 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 配置单个模拟量输入通道
+        /// </summary>
+        /// <param name="config">通道配置（通道号、是否启用、电压范围）</param>
         public async Task ConfigureChannelAsync(AiChannelConfig config, CancellationToken cancellationToken = default)
         {
             if (config == null)
@@ -215,6 +254,10 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 批量配置多个模拟量输入通道
+        /// </summary>
+        /// <param name="configs">多个通道的配置列表</param>
         public async Task ConfigureChannelsAsync(IEnumerable<AiChannelConfig> configs, CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -249,6 +292,9 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 开始采集数据（根据配置的模式：有限采样或连续采样）
+        /// </summary>
         public async Task StartAsync(CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -271,6 +317,9 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 停止数据采集
+        /// </summary>
         public async Task StopAsync(CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -293,6 +342,11 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 读取单个通道的最新采样值
+        /// </summary>
+        /// <param name="aiChannel">通道名称，如 "AI1", "AI16" 等（1-32）</param>
+        /// <returns>最新的电压值</returns>
         public async Task<double> GetLastValueAsync(string aiChannel, CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -309,6 +363,11 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 批量读取多个通道的最新采样值
+        /// </summary>
+        /// <param name="aiChannels">通道名称列表</param>
+        /// <returns>通道名到电压值的字典</returns>
         public async Task<IDictionary<string, double>> GetLastValuesAsync(IEnumerable<string> aiChannels, CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -337,6 +396,10 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        /// <summary>
+        /// 执行有限次采样并等待完成（仅在 Finite 模式下使用）
+        /// </summary>
+        /// <returns>每个通道的采样数据数组</returns>
         public async Task<IDictionary<string, double[]>> AcquireFiniteAsync(CancellationToken cancellationToken = default)
         {
             EnsureConnected();
@@ -408,6 +471,9 @@ namespace MeasureControl.Services.HardwareApis
             _ioLock.Dispose();
         }
 
+        /// <summary>
+        /// 确保已连接到板卡，否则抛出异常
+        /// </summary>
         private void EnsureConnected()
         {
             if (_disposed)
@@ -477,6 +543,9 @@ namespace MeasureControl.Services.HardwareApis
             return ext;
         }
 
+        /// <summary>
+        /// 将外部通道名（AI1-AI32）转换为内部驱动通道名（AI0-AI31）
+        /// </summary>
         private static string NormalizeAiChannel(string externalChannel)
         {
             if (string.IsNullOrWhiteSpace(externalChannel))
@@ -496,6 +565,9 @@ namespace MeasureControl.Services.HardwareApis
             return $"AI{idx - 1}";
         }
 
+        /// <summary>
+        /// 将内部驱动通道名（AI0-AI31）转换为外部通道名（AI1-AI32）
+        /// </summary>
         private static string ToExternalChannel(string internalChannel)
         {
             if (string.IsNullOrWhiteSpace(internalChannel))
@@ -512,6 +584,9 @@ namespace MeasureControl.Services.HardwareApis
             return $"AI{idx + 1}";
         }
 
+        /// <summary>
+        /// 将电压范围枚举转换为驱动所需的字符串格式
+        /// </summary>
         private static string RangeToDriverString(AiInputRange range)
         {
             switch (range)
