@@ -81,7 +81,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         //private const string ThresholdComPort = "COM10"; //第二套
         //private const string ThresholdComPort = "COM9"; //第三套
 
-        private const string RelayComPort = "COM18"; //第一套
+        private const string RelayComPort = "COM13"; //第一套
         //private const string RelayComPort = "COM11"; //第二套
         //private const string RelayComPort = "COM9"; //第三套
         private const int RelayBaudRate = 9600;
@@ -1487,29 +1487,15 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
             try
             {
                 AvailableTestTasks.Clear();
-                var taskNames = GetTestTaskNamesFromProject();
-                foreach (var task in taskNames)
-                {
-                    AvailableTestTasks.Add(task);
-                }
+                AvailableTestTasks.Add("默认测试任务");
 
                 var cardConfig = EnsureDigitalCardConfig();
                 if (cardConfig != null)
                 {
-                    EnsureTaskConfigsExist(cardConfig, taskNames);
+                    EnsureTaskConfigsExist(cardConfig, AvailableTestTasks);
                 }
 
-                string initialTask = null;
-                if (Device?.CardConfigData is Models.DigitalIOCardConfig existingConfig &&
-                    !string.IsNullOrEmpty(existingConfig.LastSelectedTestTask) &&
-                    taskNames.Contains(existingConfig.LastSelectedTestTask))
-                {
-                    initialTask = existingConfig.LastSelectedTestTask;
-                }
-                else
-                {
-                    initialTask = taskNames.FirstOrDefault();
-                }
+                string initialTask = "默认测试任务";
 
                 _selectedTestTask = initialTask;
                 RaisePropertyChanged(nameof(SelectedTestTask));

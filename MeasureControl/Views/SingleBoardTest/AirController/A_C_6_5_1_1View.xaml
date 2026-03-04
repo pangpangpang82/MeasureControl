@@ -394,7 +394,7 @@
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
                                 FontSize="16"
-                                Text="发送测试命令：" />
+                                Text="发送测试指令AB_A429TX0_TRANSMIT：" />
                             <TextBlock
                                 Margin="0,0,0,0"
                                 VerticalAlignment="Center"
@@ -430,7 +430,7 @@
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
                                     FontSize="12"
-                                    Text="0x04 01 01 02 AA AA AA AA" />
+                                    Text="0x04 01 01 01 00 00 00 00" />
                             </Border>
 
                             <Button

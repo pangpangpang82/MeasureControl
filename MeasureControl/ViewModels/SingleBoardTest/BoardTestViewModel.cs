@@ -28,17 +28,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     "空气单板",
                     new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
                     {
-                        { "电源对地阻抗检查", () => new PowerToGroundImpedanceTestView() },
-                        { "控制通道光耦供电测试", () => new AC_6_4CommTabView() },
-                        { "控制通道GND/OC离散输入通道输入测试", () => new GndOcDiscreteInputTestView() },
-                        { "GND/OC型100mA离散输出通道3输出测试", () => new GndOcDiscreteOutputCh3TestView() },
-                        { "GND/OC型100mA离散输出通道2输出测试", () => new GndOcDiscreteOutputCh2TestView() },
-                        { "A控制通道28V/OC型100mA离散输出通道1输出测试", () => new A28vOc100mADiscreteOutputCh1TestView() },
-                        { "A控制通道28V/OC型100mA离散输出通道2输出测试", () => new A28vOc100mADiscreteOutputCh2TestView() },
-                        { "A控制通道28V/OC型400mA离散输出通道1输出测试", () => new A28vOc400mADiscreteOutputCh1TestView() },
-                        { "A控制通道28V/OC型400mA离散输出通道2输出测试", () => new A28vOc400mADiscreteOutputCh2TestView() },
-                        { "A控制通道28V/OC型400mA离散输出通道3输出测试", () => new A28vOc400mADiscreteOutputCh3TestView() },
-                        { "PT500型温度传感器测试", () => new PT500TemperatureSensorCommTabView() },
+                        { "6.1电源对地阻抗检查", () => new PowerToGroundImpedanceTestView() },
+                        { "6.4控制通道光耦供电测试", () => new AC_6_4CommTabView() },
+                        { "6.14.1控制通道GND/OC离散输入通道输入测试", () => new GndOcDiscreteInputTestView() },
+                        { "6.15.1.1GND/OC型离散输出通道3输出测试", () => new GndOcDiscreteOutputCh3TestView() },
+                        { "6.15.1.2GND/OC型100mA离散输出通道2输出测试", () => new GndOcDiscreteOutputCh2TestView() },
+                        { "6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试", () => new A28vOc100mADiscreteOutputCh1TestView() },
+                        { "6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试", () => new A28vOc100mADiscreteOutputCh2TestView() },
+                        { "6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试", () => new A28vOc400mADiscreteOutputCh1TestView() },
+                        { "6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试", () => new A28vOc400mADiscreteOutputCh2TestView() },
+                        { "6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试", () => new A28vOc400mADiscreteOutputCh3TestView() },
+                        { "6.8.1控制通道PDTS传感器测试", () => new PT500TemperatureSensorCommTabView() },
                         { "6.8.2控制通道MIXTS传感器测试", () => new R_6_8_2View() },
                         { "6.8.3控制通道CAR_TS传感器测试", () => new R_6_8_3View() },
                         { "6.8.4控制通道CKPT_DTS传感器测试", () => new R_6_8_4View() },
@@ -56,13 +56,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
                         { "8.3.2 S安全通道ARINC429接收通道1测试", () => new S_C_8_3_2View() },
                         { "8.3.3 S安全通道ARINC429接收通道2测试", () => new S_C_8_3_3View() },
-                        { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
-                        { "5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
-                        { "A控制通道功率板供电测试", () => new PowerBoardSupplyTestView("A", "A控制通道功率板供电测试") },
-                        { "B控制通道功率板供电测试", () => new PowerBoardSupplyTestView("B", "B控制通道功率板供电测试") },
-                        { "CAN发送测试", () => new CanCommTestView() },
-                        { "CAN接收测试", () => new CanReceiveTestView() },
-                        { "安全板CAN测试", () => new AirSimpleSequenceView("安全板CAN测试") },
+                        { "6.2.1A控制通道供电测试", () => new AirSimpleSequenceView("6.2.1A控制通道供电测试") },
+                        { "6.3 5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
+                        { "7.2.1A控制通道功率板供电测试", () => new PowerBoardSupplyTestView("A", "7.2.1A控制通道功率板供电测试") },
+                        { "7.2.2B控制通道功率板供电测试", () => new PowerBoardSupplyTestView("B", "7.2.2B控制通道功率板供电测试") },
+                        { "6.6.1CAN发送测试", () => new CanCommTestView() },
+                        { "6.6.2CAN接收测试", () => new CanReceiveTestView() },
+                        { "8.5.1安全通道CAN发送测试", () => new S_C_8_5_1View() },
+                        { "8.5.2安全通道CAN接收测试", () => new S_C_8_5_2View() },
                         { "RS422通信测试", () => new RS422CommTabView() },
                         { "控制通道422发送测试", () => new RS422Control422TransmitTestView() },
                         { "控制通道422接收测试", () => new RS422Control422ReceiveTestView() },
@@ -117,6 +118,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     {
                         { "电源阻抗测试", () => new PowerImpedanceTestView() },
                         { "二次电源测试", () => new SecondaryPowerTestView() },
+                        { "低电压告警功能测试", () => new LowVoltageAlarmTestView() },
+                        { "温度采集功能", () => new TemperatureAcquisitionTestView() },
+                        { "离散量采集功能测试", () => new DiscreteInputTestView() },
+                        { "离散量输出功能测试", () => new DiscreteOutputTestView() },
+                        { "RS422通信功能测试", () => new RS422CommunicationFunctionTestView() },
+                        { "RS422通信自检测功能测试", () => new RS422SelfCheckTestView() },
                     }
                 }
             };
@@ -142,22 +149,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     "加放油单板",
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
-                        { "电源阻抗测试", "\t a) 阻抗值大于500Ω；\r\n \t b) 阻抗值大于500Ω。" },
-                        { "二次电源测试", "\t a) 5V隔离二次电源输出电压范围在[4.925，5.075]V；\r\n \t b) 15V隔离二次电源输出电压范围在[14.775，15.225]V；\r\n \t c) -15V隔离二次电源输出电压范围在[-14.775，-15.225]V。" },
+                        { "电源阻抗测试", "\t a) J3-J4 外部28V对地阻抗大于500Ω；\r\n\t b) J14-J24 内部28V对地阻抗大于500Ω；\r\n\t c) J3-J5 外部28V对壳体阻抗大于500Ω；\r\n\t d) J14-J5 内部28V对壳体阻抗大于500Ω。" },
+                        { "二次电源测试", "\t CRM_PIN1对CRM_PIN18之间的直流电压在[4.5V, 5.5V]范围内为PASS。" },
+                        { "低电压告警功能测试", "\t 供电电压从17V下降过程中，CRM_PIN3电平在供电电压低于15V之前发生翻转为PASS。" },
+                        { "温度采集功能", "\t 通过DS18B20温度传感器解析CRM_PIN7信号，温度值在[15℃, 45℃]区间内为PASS。" },
+                        { "离散量采集功能测试", "\t a) 接地测试：所有DO通道接地时，DI采集结果均为1；\r\n\t b) 开路测试：所有DO通道开路时，DI采集结果均为0。" },
+                        { "离散量输出功能测试", "\t a) DO接地时，对地阻抗小于10Ω；\r\n\t b) DO开路时，对地阻抗大于100kΩ；\r\n\t c) 28V上电后，J14电压不低于16V。" },
+                        { "RS422通信功能测试", "\t a/b/c/d四个步骤：发送0xAA 55，接收数据与发送数据一致为PASS。" },
+                        { "RS422通信自检测功能测试", "\t a) CRM_PIN9发送，CRM_PIN19接收，回环数据一致为PASS；\r\n\t b) CRM_PIN10发送，CRM_PIN20接收，回环数据一致为PASS。" },
                     }
                 },
                 {
                     "空气单板",
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
-                        { "电源对地阻抗检查", "\t 电源的对地阻抗应不小于200Ω。" },
-                        { "A控制通道28V/OC型100mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
-                        { "A控制通道28V/OC型100mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
-                        { "A控制通道28V/OC型400mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
-                        { "A控制通道28V/OC型400mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
-                        { "A控制通道28V/OC型400mA离散输出通道3输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.1电源对地阻抗检查", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
                         { "6.13.1控制通道压力传感器采集测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1095.21,1104.79]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1496.21,1504.79]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1995.21,2004.79]mbar。" },
                         { "6.13.2 S安全通道压力传感器测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1082,1118]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1482,1518]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1982,2018]mbar。" },
+                        { "6.5.1.1控制通道ARINC429发送通道1测试", "\t 上位机显示\"7F00AA55\"则检查通过。" },
+                        { "8.5.1安全通道CAN发送测试", "\t 上位机显示\"01010101\"（对应CAN帧后4字节为01 01 01 01）则检查通过。" },
+                        { "8.5.2安全通道CAN接收测试", "\t 上位机显示\"01010101\"则检查通过。" },
                     }
                 }
             };
@@ -324,11 +340,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
             if (string.Equals(boardType, "空气单板", StringComparison.OrdinalIgnoreCase))
             {
-                TestSequenceItems.Add(new TestSequenceItem("电源对地阻抗检查"));
-                TestSequenceItems.Add(new TestSequenceItem("电源模块测试"));
-                TestSequenceItems.Add(new TestSequenceItem("A控制通道功率板供电测试"));
-                TestSequenceItems.Add(new TestSequenceItem("B控制通道功率板供电测试"));
-                TestSequenceItems.Add(new TestSequenceItem("PT500型温度传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.1电源对地阻抗检查"));
+                TestSequenceItems.Add(new TestSequenceItem("6.2.1A控制通道供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.2.1A控制通道功率板供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.2.2B控制通道功率板供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.1控制通道PDTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.2控制通道MIXTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.3控制通道CAR_TS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.4控制通道CKPT_DTS传感器测试"));
@@ -337,8 +353,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.8.7控制通道BTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.8控制通道PTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.9控制通道CDTS传感器测试"));
-                TestSequenceItems.Add(new TestSequenceItem("5V传感器供电电压测试"));
-                TestSequenceItems.Add(new TestSequenceItem("控制通道光耦供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.3 5V传感器供电电压测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.4控制通道光耦供电测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.1.1控制通道ARINC429发送通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.1.2A控制通道ARINC429发送通道2/B控制通道ARINC429接收通道5测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.1A控制通道ARINC接收通道1测试"));
@@ -376,18 +392,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("8.3.1 S安全通道ARINC429发送通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.2 S安全通道ARINC429接收通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.3 S安全通道ARINC429接收通道2测试"));
-                TestSequenceItems.Add(new TestSequenceItem("控制通道GND/OC离散输入通道输入测试"));
-                TestSequenceItems.Add(new TestSequenceItem("GND/OC型100mA离散输出通道3输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("GND/OC型100mA离散输出通道2输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型100mA离散输出通道1输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型100mA离散输出通道2输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型400mA离散输出通道1输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型400mA离散输出通道2输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型400mA离散输出通道3输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("ARINC429通讯测试"));
-                TestSequenceItems.Add(new TestSequenceItem("CAN发送测试"));
-                TestSequenceItems.Add(new TestSequenceItem("CAN接收测试"));
-                TestSequenceItems.Add(new TestSequenceItem("安全板CAN测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.14.1控制通道GND/OC离散输入通道输入测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.1.1GND/OC型离散输出通道3输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.1.2GND/OC型100mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.6.1CAN发送测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.6.2CAN接收测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.5.1安全通道CAN发送测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.5.2安全通道CAN接收测试"));
                 TestSequenceItems.Add(new TestSequenceItem("RS422通信测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道422发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道422接收测试"));
@@ -415,6 +431,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 TestSequenceItems.Add(new TestSequenceItem("电源阻抗测试"));
                 TestSequenceItems.Add(new TestSequenceItem("二次电源测试"));
+                TestSequenceItems.Add(new TestSequenceItem("低电压告警功能测试"));
+                TestSequenceItems.Add(new TestSequenceItem("温度采集功能"));
+                TestSequenceItems.Add(new TestSequenceItem("离散量采集功能测试"));
+                TestSequenceItems.Add(new TestSequenceItem("离散量输出功能测试"));
+                TestSequenceItems.Add(new TestSequenceItem("RS422通信功能测试"));
+                TestSequenceItems.Add(new TestSequenceItem("RS422通信自检测功能测试"));
                 return;
             }
         }

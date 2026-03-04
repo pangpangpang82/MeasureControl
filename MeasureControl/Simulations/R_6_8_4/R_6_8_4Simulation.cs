@@ -61,6 +61,11 @@ namespace MeasureControl.Simulations.R_6_8_4
         /// </summary>
         public Func<string> GetCurrentResistorGear { get; set; }
 
+        /// <summary>
+        /// 由 ViewModel 设置，用于仿真遥测时获取当前室温选择，以生成对应合格区间内温度
+        /// </summary>
+        public Func<string> GetCurrentAmbientTemperatureSelection { get; set; }
+
         public void StopTelemetryOutput()
         {
             _telemetryEnabled = false;
@@ -632,7 +637,8 @@ namespace MeasureControl.Simulations.R_6_8_4
 
                     // 基于当前电阻档位生成模拟温度
                     string gear = GetCurrentResistorGear?.Invoke() ?? "1挡";
-                    double temperature = GenerateSimulatedTemperature(gear);
+                    string ambientSelection = GetCurrentAmbientTemperatureSelection?.Invoke() ?? "10~50℃";
+                    double temperature = GenerateSimulatedTemperature(gear, ambientSelection);
 
                     // 构造温度遥测帧: 07 01 04 02 + 温度数据
                     var tempPayload = new byte[8];
@@ -696,23 +702,27 @@ namespace MeasureControl.Simulations.R_6_8_4
             }
         }
 
-        private double GenerateSimulatedTemperature(string gear)
+        private double GenerateSimulatedTemperature(string gear, string ambientSelection)
         {
-            var (min, max) = GetQualifiedTemperatureRange(gear);
+            var (min, max) = GetQualifiedTemperatureRange(gear, ambientSelection);
             lock (_rand)
             {
                 return min + _rand.NextDouble() * (max - min);
             }
         }
 
-        private static (double Min, double Max) GetQualifiedTemperatureRange(string gear)
+        private static bool IsAmbientTemperatureBetween10And50(string ambientSelection)
+            => string.Equals(ambientSelection, "10~50℃", StringComparison.Ordinal);
+
+        private static (double Min, double Max) GetQualifiedTemperatureRange(string gear, string ambientSelection)
         {
+            var ambient = IsAmbientTemperatureBetween10And50(ambientSelection);
             return gear switch
             {
-                "1挡" => (-65.93, -64.07),
-                "2挡" => (24.75, 26.61),
-                "3挡" => (134.06, 135.94),
-                _ => (-65.93, -64.07)
+                "1挡" => ambient ? (-65.93, -64.07) : (-69.05, -60.95),
+                "2挡" => ambient ? (24.75, 26.61) : (21.63, 29.73),
+                "3挡" => ambient ? (134.06, 135.94) : (130.94, 139.06),
+                _ => ambient ? (-65.93, -64.07) : (-69.05, -60.95)
             };
         }
 
