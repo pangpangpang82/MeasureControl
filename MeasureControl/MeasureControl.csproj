@@ -218,14 +218,6 @@
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
-    <Page Include="Views\**\*.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Styles\**\*.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Compile Include="Views\Common\FloatingWindow.xaml.cs"><DependentUpon>FloatingWindow.xaml</DependentUpon></Compile>
     <Compile Include="Views\Common\HomePage.xaml.cs"><DependentUpon>HomePage.xaml</DependentUpon></Compile>
     <Compile Include="Views\Common\MainWindow.xaml.cs"><DependentUpon>MainWindow.xaml</DependentUpon></Compile>
@@ -391,12 +383,17 @@
     <Compile Include="Simulations\**\*.cs" />
     <Compile Include="MatrixSwitchDemo.cs" />
     <Compile Include="Demos\**\*.cs" />
-    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh1TestView.cs" />
-    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh2TestView.cs" />
-    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh3TestView.cs" />
     <Compile Include="ViewModels\**\*.cs" />
-    <Compile Include="Views\Common\ColumnFirstUniformGrid.cs" />
-    <Compile Include="Views\Hardware\ChassisConnectionCanvas.cs" />
+    <Compile Include="Views\**\*.cs" />
+    <Compile Remove="Views\**\*.Designer.cs" />
+    <Page Include="Views\**\*.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Styles\**\*.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">
