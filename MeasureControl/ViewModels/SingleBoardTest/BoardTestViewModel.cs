@@ -29,6 +29,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
                     {
                         { "6.1电源对地阻抗检查", () => new PowerToGroundImpedanceTestView() },
+                        { "8.1电源对地阻抗测试", () => new A_C_8_1View() },
                         { "6.4控制通道光耦供电测试", () => new AC_6_4CommTabView() },
                         { "6.14.1控制通道GND/OC离散输入通道输入测试", () => new GndOcDiscreteInputTestView() },
                         { "6.15.1.1GND/OC型离散输出通道3输出测试", () => new GndOcDiscreteOutputCh3TestView() },
@@ -167,6 +168,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
                         { "6.1电源对地阻抗检查", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "8.1电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
                         { "6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
                         { "6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
                         { "6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
@@ -395,6 +397,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.18.4.1 A控制通道功率板VAV力矩电机驱动测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.2.1 A控制通道功率板AWV直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.2.2 A控制通道功率板AVV直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.1电源对地阻抗测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.1 S安全通道ARINC429发送通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.2 S安全通道ARINC429接收通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.3 S安全通道ARINC429接收通道2测试"));

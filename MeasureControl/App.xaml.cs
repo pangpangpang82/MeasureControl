@@ -342,6 +342,8 @@ namespace MeasureControl
 
             containerRegistry.Register<PowerToGroundImpedanceTestViewModel>();
 
+            containerRegistry.Register<A_C_8_1ViewModel>();
+
 
 
 
