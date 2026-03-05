@@ -33,7 +33,7 @@
                     VerticalAlignment="Center"
                     FontSize="24"
                     FontWeight="Bold"
-                    Text="电源对地阻抗检查" />
+                    Text="6.1电源对地阻抗检查" />
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                     <Button
                         Width="100"
