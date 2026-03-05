@@ -290,6 +290,7 @@
     <Compile Include="Views\SingleBoardTest\AirController\Pot5VSupplyTestView.xaml.cs"><DependentUpon>Pot5VSupplyTestView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\PowerBoardSupplyTestView.xaml.cs"><DependentUpon>PowerBoardSupplyTestView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\PowerToGroundImpedanceTestView.xaml.cs"><DependentUpon>PowerToGroundImpedanceTestView.xaml</DependentUpon></Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_8_1View.xaml.cs"><DependentUpon>A_C_8_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\PT500TemperatureSensor429View.xaml.cs"><DependentUpon>PT500TemperatureSensor429View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorCanView.xaml.cs"><DependentUpon>PT500TemperatureSensorCanView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorCommTabView.xaml.cs"><DependentUpon>PT500TemperatureSensorCommTabView.xaml</DependentUpon></Compile>
