@@ -64,6 +64,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "6.6.2CAN接收测试", () => new CanReceiveTestView() },
                         { "8.5.1安全通道CAN发送测试", () => new S_C_8_5_1View() },
                         { "8.5.2安全通道CAN接收测试", () => new S_C_8_5_2View() },
+                        { "8.7.1S安全通道FWD_AVENTS1传感器测试", () => new S_C_8_7_1View() },
+                        { "8.7.2S安全通道FWD_AVENTS2传感器测试", () => new S_C_8_7_2View() },
+                        { "8.7.3S安全通道AFT_AVENTS传感器测试", () => new S_C_8_7_3View() },
                         { "RS422通信测试", () => new RS422CommTabView() },
                         { "控制通道422发送测试", () => new RS422Control422TransmitTestView() },
                         { "控制通道422接收测试", () => new RS422Control422ReceiveTestView() },
@@ -174,6 +177,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "6.5.1.1控制通道ARINC429发送通道1测试", "\t 上位机显示\"7F00AA55\"则检查通过。" },
                         { "8.5.1安全通道CAN发送测试", "\t 上位机显示\"01010101\"（对应CAN帧后4字节为01 01 01 01）则检查通过。" },
                         { "8.5.2安全通道CAN接收测试", "\t 上位机显示\"01010101\"则检查通过。" },
+                        { "8.7.1S安全通道FWD_AVENTS1传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t b) 每挡发送S_FWDAVENTS_MEA01(15 02 01 01 00 00 00 00)，接收温度遥测(15 02 01 02 .. .. .. ..)；\r\n\t c) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                        { "8.7.2S安全通道FWD_AVENTS2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t b) 每挡发送S_FWDAVENTS_MEA02(15 02 02 01 00 00 00 00)，接收温度遥测(15 02 02 02 .. .. .. ..)；\r\n\t c) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                        { "8.7.3S安全通道AFT_AVENTS传感器测试", "\t a) 测试J55、J56；\r\n\t b) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t c) 每挡发送S_AFTAVENTS_MEA(15 02 03 01 00 00 00 00)，接收温度遥测(15 02 03 02 .. .. .. ..)；\r\n\t d) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
                     }
                 }
             };
@@ -404,6 +410,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.6.2CAN接收测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.5.1安全通道CAN发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.5.2安全通道CAN接收测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.7.1S安全通道FWD_AVENTS1传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.7.2S安全通道FWD_AVENTS2传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.7.3S安全通道AFT_AVENTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("RS422通信测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道422发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道422接收测试"));
