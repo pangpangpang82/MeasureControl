@@ -385,8 +385,26 @@
     <Compile Include="Demos\**\*.cs" />
     <Compile Include="ViewModels\**\*.cs" />
     <Compile Include="Views\**\*.cs" />
+    <Compile Remove="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml.cs" />
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml.cs">
+      <DependentUpon>S_C_8_7_2View.xaml</DependentUpon>
+    </Compile>
+    <Compile Remove="Views\SingleBoardTest\AirController\S_C_8_7_3View.xaml.cs" />
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_7_3View.xaml.cs">
+      <DependentUpon>S_C_8_7_3View.xaml</DependentUpon>
+    </Compile>
     <Compile Remove="Views\**\*.Designer.cs" />
     <Page Include="Views\**\*.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Remove="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml" />
+    <Page Include="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Remove="Views\SingleBoardTest\AirController\S_C_8_7_3View.xaml" />
+    <Page Include="Views\SingleBoardTest\AirController\S_C_8_7_3View.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
