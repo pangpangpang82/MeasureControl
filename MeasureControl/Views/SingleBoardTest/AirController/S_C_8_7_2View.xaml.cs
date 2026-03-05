@@ -8,12 +8,12 @@ using MeasureControl.ViewModels.SingleBoardTest.AirController;
 
 namespace MeasureControl.Views.SingleBoardTest.AirController
 {
-    public partial class A_C_6_9_2_1View : UserControl
+    public partial class S_C_8_7_2View : UserControl
     {
-        public A_C_6_9_2_1View()
+        public S_C_8_7_2View()
         {
             InitializeComponent();
-            DataContext = new A_C_6_9_2_1ViewModel();
+            DataContext = new S_C_8_7_2ViewModel();
         }
 
         private void RootGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)
