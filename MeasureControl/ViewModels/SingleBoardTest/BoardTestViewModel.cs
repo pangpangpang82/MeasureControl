@@ -74,6 +74,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "6.9.2控制通道CAB_VENTS传感器测试", () => new A_C_6_9_2_1View() },
                         { "6.10.1控制通道BMPS压力传感器测试", () => new A_C_6_10_1_1View() },
                         { "6.10.2A控制通道BPS传感器测试", () => new A_C_6_10_2_1View() },
+                        { "6.10.3控制通道WAIPSI1传感器测试", () => new A_C_6_10_3_1View() },
+                        { "6.10.5控制通道PDPS传感器测试", () => new A_C_6_10_5_1View() },
+                        { "6.10.6A控制通道PIFS传感器测试", () => new A_C_6_10_6_1View() },
                         { "6.13.1控制通道压力传感器采集测试", () => new A_C_6_13_1_1View() },
                         { "6.13.2 S安全通道压力传感器测试", () => new S_C_6_13_2_1View() },
                         { "6.10.7控制通道RAIA_POS传感器测试", () => new A_C_6_10_7_1View() },
@@ -366,6 +369,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.9.2控制通道CAB_VENTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.1控制通道BMPS压力传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.2A控制通道BPS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.10.3控制通道WAIPSI1传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.10.5控制通道PDPS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.10.6A控制通道PIFS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.13.1控制通道压力传感器采集测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.13.2 S安全通道压力传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.7控制通道RAIA_POS传感器测试"));
