@@ -564,97 +564,10 @@
                                             TextWrapping="Wrap" />
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
-
-                    </StackPanel>
+                            </ListBox>
+                        </Border>
+                    </Grid>
                 </Grid>
-                <Grid Grid.Column="1" VerticalAlignment="Center">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="auto" />
-                        <RowDefinition Height="auto" />
-                    </Grid.RowDefinitions>
-
-                    <StackPanel
-                        Grid.Column="1"
-                        Margin="10,10,0,10"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="20"
-                            FontWeight="Bold"
-                            Text="测试信息" />
-                        <Button
-                            Width="80"
-                            Height="32"
-                            Margin="180,5,0,0"
-                            VerticalAlignment="Center"
-                            BorderThickness="0"
-                            Command="{Binding ClearLogCommand}">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border
-                                        x:Name="border"
-                                        Background="#3b82f6"
-                                        CornerRadius="4">
-                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                            <TextBlock
-                                                x:Name="DeviceAction"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Foreground="White"
-                                                Text="清除内容" />
-                                        </StackPanel>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                        </Trigger>
-                                        <Trigger Property="IsEnabled" Value="False">
-                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                            <Setter Property="Cursor" Value="Arrow" />
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
-                    </StackPanel>
-                    <Border
-                        Grid.Row="1"
-                        Grid.RowSpan="5"
-                        Grid.Column="1"
-                        Width="350"
-                        Height="360"
-                        Margin="0,0,5,0"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        BorderBrush="#D9D9D9"
-                        BorderThickness="1.5"
-                        CornerRadius="4">
-                        <ListBox
-                            Margin="5"
-                            BorderThickness="0"
-                            ItemsSource="{Binding Logs}"
-                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                            ScrollViewer.VerticalScrollBarVisibility="Auto">
-                            <ListBox.Resources>
-                                <Style BasedOn="{StaticResource SimpleScrollViewerStyle}" TargetType="ScrollViewer" />
-                            </ListBox.Resources>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock
-                                        FontSize="12"
-                                        Text="{Binding}"
-                                        TextWrapping="Wrap" />
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Border>
-
-                </Grid>
-
             </Grid>
         </Border>
         <Border
