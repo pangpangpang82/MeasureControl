@@ -308,6 +308,7 @@
     <Compile Include="Views\SingleBoardTest\AirController\RS422Control422ReceiveTestView.xaml.cs"><DependentUpon>RS422Control422ReceiveTestView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\RS422Control422TransmitTestView.xaml.cs"><DependentUpon>RS422Control422TransmitTestView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_6_13_2_1View.xaml.cs"><DependentUpon>S_C_6_13_2_1View.xaml</DependentUpon></Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_10_1View.xaml.cs"><DependentUpon>S_C_8_10_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_1View.xaml.cs"><DependentUpon>S_C_8_3_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_2View.xaml.cs"><DependentUpon>S_C_8_3_2View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_3View.xaml.cs"><DependentUpon>S_C_8_3_3View.xaml</DependentUpon></Compile>
