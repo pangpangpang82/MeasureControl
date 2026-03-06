@@ -24,6 +24,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const string DmmIpAddress = "192.168.1.13";        // 万用表 IP
         private const string MatrixIpAddress = "192.168.1.3";      // 矩阵开关 IP
 
+        // 程控电源（额外 24V 供电）
+        private const string AuxPowerSupplyIpAddress = "192.168.1.16";
+        private const double AuxPowerVoltageV = 24.0;
+        private const double AuxPowerCurrentA = 0.1;
+
         // 矩阵开关槽位配置（用于信号路由）
         private const int MatrixSlotResistanceCh1 = 6;   // 485 线路 1-4 通道
         private const int MatrixSlotResistanceCh2 = 6;   // 485 线路 18-2 通道
@@ -41,6 +46,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private CancellationTokenSource _autoCts;
 
         private IDmmApi _dmm;
+        private IPowerSupplyApi _auxPower;
 
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
@@ -345,6 +351,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log("开始自动测试");
             Log($"判据: R14>{PassThresholdOhm:0}Ω && R182>{PassThresholdOhm:0}Ω");
             Log($"连接万用表 {DmmIpAddress} ...");
+            Log($"连接程控电源 {AuxPowerSupplyIpAddress} 并输出 CH1 {AuxPowerVoltageV:0.###}V {AuxPowerCurrentA:0.###}A ...");
 
             try
             {
@@ -385,6 +392,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
+                await EnsureAuxPowerAsync(cancellationToken).ConfigureAwait(false);
+
                 _dmm ??= new DmmSocketApi();
                 await _dmm.ConnectAsync(DmmIpAddress, cancellationToken).ConfigureAwait(false);
                 Log("万用表连接成功");
@@ -517,9 +526,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             Log("开始手动测试");
             Log($"连接万用表 {DmmIpAddress} ...");
+            Log($"连接程控电源 {AuxPowerSupplyIpAddress} 并输出 CH1 {AuxPowerVoltageV:0.###}V {AuxPowerCurrentA:0.###}A ...");
 
             try
             {
+                await EnsureAuxPowerAsync(_manualCts.Token).ConfigureAwait(false);
+
                 _dmm ??= new DmmSocketApi();
                 await _dmm.ConnectAsync(DmmIpAddress, _manualCts.Token).ConfigureAwait(false);
                 Log("万用表连接成功");
@@ -587,6 +599,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
+                await CleanupAuxPowerAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+
+            try
+            {
                 if (_jy7131 != null)
                 {
                     try { await _jy7131.StopAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
@@ -638,8 +658,45 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
+            try
+            {
+                await CleanupAuxPowerAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+
             IsAutoTestRunning = false;
             Log("自动测试已结束");
+        }
+
+        private async Task EnsureAuxPowerAsync(CancellationToken cancellationToken)
+        {
+            _auxPower ??= new PowerSupplySocketApi();
+            if (!_auxPower.IsConnected)
+            {
+                await _auxPower.ConnectAsync(AuxPowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
+            }
+
+            await _auxPower.ApplyAsync(PowerSupplyChannel.CH1, AuxPowerVoltageV, AuxPowerCurrentA, cancellationToken).ConfigureAwait(false);
+            await _auxPower.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task CleanupAuxPowerAsync()
+        {
+            try
+            {
+                if (_auxPower != null)
+                {
+                    try { await _auxPower.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _auxPower.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _auxPower.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+            }
+            finally
+            {
+                _auxPower = null;
+            }
         }
 
         /// <summary>
