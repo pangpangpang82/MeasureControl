@@ -11,6 +11,7 @@ using System.Windows;
 using MeasureControl.Models.Devices;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
+using MeasureControl.Drivers;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
