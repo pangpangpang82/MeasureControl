@@ -218,14 +218,6 @@
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
-    <Page Include="Views\**\*.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Styles\**\*.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Compile Include="Views\Common\FloatingWindow.xaml.cs"><DependentUpon>FloatingWindow.xaml</DependentUpon></Compile>
     <Compile Include="Views\Common\HomePage.xaml.cs"><DependentUpon>HomePage.xaml</DependentUpon></Compile>
     <Compile Include="Views\Common\MainWindow.xaml.cs"><DependentUpon>MainWindow.xaml</DependentUpon></Compile>
@@ -492,7 +484,7 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_3ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\AirSimpleSequenceViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\PowerBoardSupplyTestViewModel.cs" />
-    <Compile Include="Views\**\*.cs" />
+    <Compile Include="Views\**\*.cs" Exclude="Views\**\*.xaml.cs;Views\**\*.Designer.cs" />
     <Page Include="Styles\ScrollBarStyles.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -1425,6 +1417,31 @@
   <ItemGroup>
     <Resource Include="Resources\Logo\search_w.png" />
     <Resource Include="Resources\Logo\search_b.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="ViewModels\**\*.cs" />
+    <Compile Include="ViewModels\**\*.cs" Exclude="ViewModels\**\*.Designer.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Views\**\*.cs" />
+    <Compile Include="Views\**\*.cs" Exclude="Views\**\*.Designer.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Views\**\*.xaml.cs">
+      <DependentUpon>%(Filename)</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Remove="Views\**\*.xaml" />
+    <Page Remove="Styles\**\*.xaml" />
+    <Page Include="Views\**\*.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Styles\**\*.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>
