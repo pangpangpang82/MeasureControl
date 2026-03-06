@@ -1053,12 +1053,13 @@
                 BorderBrush="#D9D9D9"
                 BorderThickness="1.5"
                 CornerRadius="8">
+                <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="auto" />
                         <RowDefinition Height="auto" />
                     </Grid.RowDefinitions>
+
                     <StackPanel
-                        Grid.Column="1"
                         Margin="10,10,0,10"
                         Orientation="Horizontal">
                         <TextBlock
@@ -1105,10 +1106,9 @@
                             </Button.Template>
                         </Button>
                     </StackPanel>
+
                     <Border
                         Grid.Row="1"
-                        Grid.RowSpan="5"
-                        Grid.Column="1"
                         Width="350"
                         Height="360"
                         Margin="0,0,5,0"
@@ -1137,49 +1137,49 @@
                         </ListBox>
                     </Border>
                 </Grid>
-            </Grid>
-        </Grid>
-        <Border
-            Grid.Row="2"
-            Margin="8,4,8,8"
-            Background="White"
-            BorderBrush="#D9D9D9"
-            BorderThickness="1.5"
-            CornerRadius="8">
-            <Grid Grid.Row="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="1.5*" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-                <TextBlock
-                    Grid.Row="0"
-                    Margin="10,0,0,0"
-                    VerticalAlignment="Center"
-                    FontSize="18"
-                    FontWeight="Bold"
-                    Text="{Binding CurrentTestResult, StringFormat=测试结果：{0}, TargetNullValue=测试结果：--, FallbackValue=测试结果：--}" />
-                <Grid Grid.Row="1">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition />
-                        <ColumnDefinition />
-                    </Grid.ColumnDefinitions>
+            </Border>
+            <Border
+                Grid.Row="2"
+                Margin="8,4,8,8"
+                Background="White"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1.5"
+                CornerRadius="8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="1.5*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
                     <TextBlock
-                        Grid.Column="0"
-                        Margin="20,0,0,0"
+                        Grid.Row="0"
+                        Margin="10,0,0,0"
                         VerticalAlignment="Center"
-                        FontSize="14"
+                        FontSize="18"
                         FontWeight="Bold"
-                        Text="{Binding PreviousTestTime, StringFormat=上次测试时间：{0}, TargetNullValue=上次测试时间：--, FallbackValue=上次测试时间：--}" />
-                    <TextBlock
-                        Grid.Column="1"
-                        Margin="30,0,0,0"
-                        VerticalAlignment="Center"
-                        FontSize="14"
-                        FontWeight="Bold"
-                        Text="{Binding PreviousTestResult, StringFormat=上次测试结果：{0}, TargetNullValue=上次测试结果：--, FallbackValue=上次测试结果：--}" />
+                        Text="{Binding CurrentTestResult, StringFormat=测试结果：{0}, TargetNullValue=测试结果：--, FallbackValue=测试结果：--}" />
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            Grid.Column="0"
+                            Margin="20,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            FontWeight="Bold"
+                            Text="{Binding PreviousTestTime, StringFormat=上次测试时间：{0}, TargetNullValue=上次测试时间：--, FallbackValue=上次测试时间：--}" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Margin="30,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            FontWeight="Bold"
+                            Text="{Binding PreviousTestResult, StringFormat=上次测试结果：{0}, TargetNullValue=上次测试结果：--, FallbackValue=上次测试结果：--}" />
+                    </Grid>
                 </Grid>
-            </Grid>
-        </Border>
+            </Border>
+        </Grid>
     </Grid>
 </Grid>
 </UserControl>
