@@ -673,12 +673,12 @@ namespace MeasureControl.Simulations.AC_6_4
                                         payloadResp[6] = (byte)((CanCommTestExpectedValue >> 8) & 0xFF);
                                         payloadResp[7] = (byte)(CanCommTestExpectedValue & 0xFF);
 
-                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到CAN发送测试指令(分片label) -> 回包 labels={FormatBytes(CanBenchResponseFragLabels)} payload8={FormatBytes(payloadResp)}");
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到6.6.1CAN发送测试指令(分片label) -> 回包 labels={FormatBytes(CanBenchResponseFragLabels)} payload8={FormatBytes(payloadResp)}");
                                         await SendMultiFrameResponseWithLabelsAsync(CanBenchResponseFragLabels, payloadResp, log, token);
                                     }
                                     else if (cmd8ByLabel.SequenceEqual(CanCommReceiveCommand))
                                     {
-                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到CAN接收测试指令(分片label) -> 回包 labels={FormatBytes(CanBenchResponseFragLabels)} payload8={FormatBytes(CanCommReceiveResponse)}");
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到6.6.2CAN接收测试指令(分片label) -> 回包 labels={FormatBytes(CanBenchResponseFragLabels)} payload8={FormatBytes(CanCommReceiveResponse)}");
                                         await SendMultiFrameResponseWithLabelsAsync(CanBenchResponseFragLabels, CanCommReceiveResponse, log, token);
                                     }
                                 }
@@ -749,12 +749,12 @@ namespace MeasureControl.Simulations.AC_6_4
                                         canTxRespPayload8[6] = (byte)((CanCommTestExpectedValue >> 8) & 0xFF);
                                         canTxRespPayload8[7] = (byte)(CanCommTestExpectedValue & 0xFF);
 
-                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到CAN发送测试指令 -> 回包 payload8={FormatBytes(canTxRespPayload8)}");
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到6.6.1CAN发送测试指令 -> 回包 payload8={FormatBytes(canTxRespPayload8)}");
                                         await SendMultiFrameResponseAsync(label, canTxRespPayload8, log, token);
                                     }
                                     else if (cmd8.SequenceEqual(CanCommReceiveCommand))
                                     {
-                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到CAN接收测试指令 -> 回包 payload8={FormatBytes(CanCommReceiveResponse)}");
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到6.6.2CAN接收测试指令 -> 回包 payload8={FormatBytes(CanCommReceiveResponse)}");
                                         await SendMultiFrameResponseAsync(label, CanCommReceiveResponse, log, token);
                                     }
                                     else if (cmd8.SequenceEqual(Ab5VPotSupplyCommand))

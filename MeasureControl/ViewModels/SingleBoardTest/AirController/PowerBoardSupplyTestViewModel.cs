@@ -88,7 +88,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             SendCommandAndReadTelemetryCommand = new DelegateCommand(async () => await OnSendCommandAndReadTelemetryAsync());
             SendExitAtpCommand = new DelegateCommand(async () => await OnSendExitAtpAsync());
 
-            Configure("A", "A控制通道功率板供电测试");
+            Configure("A", "7.2.1A控制通道功率板供电测试");
         }
 
         public void Configure(string channel, string title)
