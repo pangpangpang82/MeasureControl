@@ -4,6 +4,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
 
@@ -22,6 +23,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _lastTestResult;
         private string _previousTestTime;
         private string _previousTestResult;
+        private string _currentTestResult = "--";
 
         private const string TestItemName = "离散量采集测试";
 
@@ -44,13 +46,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 if (!string.IsNullOrWhiteSpace(testItemNode.LastTestTime))
                 {
-                    _lastTestTime = testItemNode.LastTestTime;
-                    RaisePropertyChanged(nameof(LastTestTime));
+                    _previousTestTime = testItemNode.LastTestTime;
+                    RaisePropertyChanged(nameof(PreviousTestTime));
                 }
                 if (!string.IsNullOrWhiteSpace(testItemNode.LastTestResult))
                 {
-                    _lastTestResult = testItemNode.LastTestResult;
-                    RaisePropertyChanged(nameof(LastTestResult));
+                    _previousTestResult = testItemNode.LastTestResult;
+                    RaisePropertyChanged(nameof(PreviousTestResult));
                 }
             }
         }
@@ -60,9 +62,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
             if (testItemNode != null)
             {
-                testItemNode.LastTestTime = LastTestTime;
-                testItemNode.LastTestResult = LastTestResult;
+                testItemNode.LastTestTime = PreviousTestTime;
+                testItemNode.LastTestResult = PreviousTestResult;
             }
+        }
+
+        public string CurrentTestResult
+        {
+            get => _currentTestResult;
+            private set => SetProperty(ref _currentTestResult, value);
         }
 
         public string LastTestTime
@@ -113,8 +121,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             cancellationToken.ThrowIfCancellationRequested();
             await Task.CompletedTask.ConfigureAwait(false);
-            Logs.Add("[--:--:--.---] 未实现，跳过");
-            return "合格";
+
+            CurrentTestResult = "--";
+
+            var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            var resultText = "合格";
+            CurrentTestResult = resultText;
+            PreviousTestTime = now;
+            PreviousTestResult = resultText;
+            LastTestTime = now;
+            LastTestResult = resultText;
+            SaveTestResultToProject();
+
+            Log("未实现，跳过");
+            return resultText;
+        }
+
+        private void Log(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return;
+            }
+
+            var line = $"[{DateTime.Now:HH:mm:ss.fff}] {message}";
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.CheckAccess())
+            {
+                dispatcher.Invoke(() => Logs.Add(line));
+                return;
+            }
+
+            Logs.Add(line);
         }
     }
 }

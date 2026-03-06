@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Windows;
 using MeasureControl.Models.Devices;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
@@ -67,6 +68,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _lastTestResult = "--";
         private string _previousTestTime = "--";
         private string _previousTestResult = "--";
+        private string _currentTestResult = "--";
 
         public HC_6_1ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
         {
@@ -88,14 +90,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 if (!string.IsNullOrWhiteSpace(testItemNode.LastTestTime))
                 {
-                    _lastTestTime = testItemNode.LastTestTime;
-                    RaisePropertyChanged(nameof(LastTestTime));
+                    _previousTestTime = testItemNode.LastTestTime;
+                    RaisePropertyChanged(nameof(PreviousTestTime));
                 }
 
                 if (!string.IsNullOrWhiteSpace(testItemNode.LastTestResult))
                 {
-                    _lastTestResult = testItemNode.LastTestResult;
-                    RaisePropertyChanged(nameof(LastTestResult));
+                    _previousTestResult = testItemNode.LastTestResult;
+                    RaisePropertyChanged(nameof(PreviousTestResult));
                 }
             }
         }
@@ -105,8 +107,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
             if (testItemNode != null)
             {
-                testItemNode.LastTestTime = LastTestTime;
-                testItemNode.LastTestResult = LastTestResult;
+                testItemNode.LastTestTime = PreviousTestTime;
+                testItemNode.LastTestResult = PreviousTestResult;
             }
         }
 
@@ -329,6 +331,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             IsAutoTestRunning = true;
             CanMeasure = false;
 
+            CurrentTestResult = "--";
+
             _resistance14 = null;
             _resistance182 = null;
             Resistance14Text = "--";
@@ -367,6 +371,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             IsAutoTestRunning = true;
             CanMeasure = false;
+
+            CurrentTestResult = "--";
 
             _resistance14 = null;
             _resistance182 = null;
@@ -458,6 +464,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             get => _lastTestResult;
             set => SetProperty(ref _lastTestResult, value);
+        }
+
+        public string CurrentTestResult
+        {
+            get => _currentTestResult;
+            set => SetProperty(ref _currentTestResult, value);
         }
 
         public string PreviousTestTime
@@ -760,14 +772,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 // 检查是否超量程（OL = Over Load）
                 if (reading.IsOverrange)
                 {
-                    afterSetText(null, "OL");
-                    Log($"{name}: 读数为OL(过量程)，视为无效，本次手动测试中止");
-                    if (IsManualTestRunning)
-                    {
-                        await AbortManualTestAsync($"{name}: 读数OL(过量程)，手动测试中止").ConfigureAwait(false);
-                    }
-
-                    return false;
+                    afterSetText(double.PositiveInfinity, "OL");
+                    Log($"{name}: 读数为OL(过量程)");
+                    return true;
                 }
 
                 if (reading.Value == null)
@@ -854,11 +861,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log($"R14={Resistance14Text} => {(pass14 ? "合格" : "不合格")}");
             Log($"R182={Resistance182Text} => {(pass182 ? "合格" : "不合格")}");
 
-            PreviousTestTime = LastTestTime;
-            PreviousTestResult = LastTestResult;
-            LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            LastTestResult = pass ? "合格" : "不合格";
-            Log($"最终结果: {LastTestResult}");
+            var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            var resultText = pass ? "合格" : "不合格";
+            CurrentTestResult = resultText;
+            PreviousTestTime = now;
+            PreviousTestResult = resultText;
+            Log($"最终结果: {resultText}");
 
             SaveTestResultToProject();
 
@@ -888,6 +896,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             var text = $"[{DateTime.Now:HH:mm:ss.fff}] {message}";
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.CheckAccess())
+            {
+                dispatcher.Invoke(() => Logs.Add(text));
+                return;
+            }
+
             Logs.Add(text);
         }
     }
