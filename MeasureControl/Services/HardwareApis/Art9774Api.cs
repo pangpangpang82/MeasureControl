@@ -47,8 +47,8 @@ namespace MeasureControl.Services.HardwareApis
         public AiAcquisitionMode Mode { get; set; } = AiAcquisitionMode.Continuous;
         public double SampleRateHz { get; set; } = 10000.0;
         public int SamplesPerChannel { get; set; } = 1000;
-        public string DeviceName { get; set; } = "Dev3"; // 加放油
-        //public string DeviceName { get; set; } = "Dev1" // 液压
+        //public string DeviceName { get; set; } = "Dev3"; // 加放油
+        public string DeviceName { get; set; } = "Dev1"; // 液压
         public int TerminalConfig { get; set; } = ArtDAQ_Val_Cfg_Default;
     }
 

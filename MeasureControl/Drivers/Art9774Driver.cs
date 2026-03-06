@@ -31,8 +31,8 @@ namespace MeasureControl.Drivers
         private bool _isConnected;
         private bool _isAcquisitionRunning;
         private IntPtr _taskHandle = IntPtr.Zero;
-        private string _deviceName = "Dev3"; // 加放油
-        //private string _deviceName = "Dev1"; // 液压
+        //private string _deviceName = "Dev3"; // 加放油
+        private string _deviceName = "Dev1"; // 液压
         //private string _deviceName = "Dev2"; // 第三套
         private Task _acquisitionTask;
         private CancellationTokenSource _acquisitionCancellationTokenSource;

@@ -27,7 +27,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         // 程控电源（额外 24V 供电）
         private const string AuxPowerSupplyIpAddress = "192.168.1.16";
         private const double AuxPowerVoltageV = 24.0;
-        private const double AuxPowerCurrentA = 0.1;
+        private const double AuxPowerCurrentA = 1;
 
         // 矩阵开关槽位配置（用于信号路由）
         private const int MatrixSlotResistanceCh1 = 6;   // 485 线路 1-4 通道

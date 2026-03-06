@@ -23,7 +23,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         // 电源配置
         private const string PowerSupplyIpAddress = "192.168.1.15";  // 程控电源 IP 地址
         private const double InputVoltageV = 28.0;                    // 输入电压 28V
-        private const double InputCurrentA = 0.1;                     // 输入限流 0.1A
+        private const double InputCurrentA = 1;                     // 输入限流 0.1A
 
         // ARINC429 配置
         private const int RxChannelIndex = 2;           // 接收通道索引
