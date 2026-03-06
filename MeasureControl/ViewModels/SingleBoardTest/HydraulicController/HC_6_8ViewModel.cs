@@ -31,7 +31,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         // 电源配置（给被测板供电）
         private const string PowerSupplyIpAddress = "192.168.1.15";
         private const double InputVoltageV = 28.0;
-        private const double InputCurrentA = 0.1;
+        private const double InputCurrentA = 1;
 
         // 万用表和矩阵开关配置
         private const string DmmIpAddress = "192.168.1.13";
