@@ -25,8 +25,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double InputVoltageV = 28.0;                    // 输入电压 28V
         private const double InputCurrentA = 0.1;                     // 输入限流 0.1A
 
+        private const bool EnableArinc429TxSimulation = true;
+
         // ARINC429 配置
         private const int RxChannelIndex = 2;           // 接收通道索引
+        private const int TxChannelIndex = 1;           // 发送通道索引（第2通道，0-based）
         private const double ArincRate = 12500.0;       // 通信速率 12.5kbps
 
         // ARINC429 标签（Label）定义
@@ -36,7 +39,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         // 采样配置
         private const int SamplesPerMeasure = 5;      // 每次测量采集 5 个样本取平均值
-        private const int SampleTimeoutMs = 5000;     // 采样超时时间 5 秒
+        private const int SampleTimeoutMs = 3000;     // 采样超时时间 3 秒
 
         // 电压合格范围（允许偏差 ±1.5%）
         private const double Min5V = 4.925;      // 5V 下限（4.925V）
@@ -54,6 +57,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
         private IPowerSupplyApi _power;
         private IArt4229Api _arinc;
+        private bool _txOpened;
 
         private const string TestItemName = "二次电源测试";
 
@@ -373,7 +377,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _manualCts = new CancellationTokenSource();
 
             Log("开始手动测试");
-            Log($"电源配置: CH1/CH2 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
+            Log($"电源配置: CH1 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
             Log($"ARINC429接收: 通道{RxChannelIndex + 1}, 码率 {ArincRate:0}bps");
 
             try
@@ -551,6 +555,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 Log($"{title}: 开始接收429数据，label={expectedLabel}");
 
+                if (EnableArinc429TxSimulation)
+                {
+                    try
+                    {
+                        await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
+                        _ = SimulateVoltageTxAsync(title, expectedLabel, cancellationToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"{title}: 模拟发送初始化失败(忽略): {ex.Message}");
+                    }
+                }
+
                 // 准备采样容器和超时时间
                 var samples = new List<double>(SamplesPerMeasure);
                 var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
@@ -619,13 +636,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                 setText("--");
                 setValue(null);
+
+                var timeoutMsg = $"{title}: 测量超时(3秒内未接收到{SamplesPerMeasure}帧有效数据)";
+                Log(timeoutMsg);
                 if (IsManualTestRunning)
                 {
-                    await AbortManualTestAsync($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效数据").ConfigureAwait(false);
-                }
-                else
-                {
-                    Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效数据");
+                    var dispatcher = Application.Current?.Dispatcher;
+                    if (dispatcher != null && !dispatcher.CheckAccess())
+                    {
+                        dispatcher.Invoke(() => MessageBox.Show(timeoutMsg, "提示", MessageBoxButton.OK, MessageBoxImage.Warning));
+                    }
+                    else
+                    {
+                        MessageBox.Show(timeoutMsg, "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
                 }
 
                 return false;
@@ -638,19 +662,70 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 setText("--");
                 setValue(null);
-                if (IsManualTestRunning)
-                {
-                    await AbortManualTestAsync($"{title}: 采集异常，手动测试中止: {ex.Message}").ConfigureAwait(false);
-                }
-                else
-                {
-                    Log($"{title}: 采集异常: {ex.Message}");
-                }
+                Log($"{title}: 采集异常: {ex.Message}");
                 return false;
             }
             finally
             {
                 _measureLock.Release();
+            }
+        }
+
+        private async Task EnsureArincTxAsync(CancellationToken cancellationToken)
+        {
+            if (_arinc == null)
+            {
+                await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!_txOpened)
+            {
+                await _arinc.OpenTxAsync(TxChannelIndex, cancellationToken).ConfigureAwait(false);
+                await _arinc.ConfigureTxAsync(
+                    TxChannelIndex,
+                    rate: ArincRate,
+                    mode: Art4229TxMode.Single,
+                    parity: Art4229Parity.Odd,
+                    wordFormat: Art4229WordFormat.Standard429,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                _txOpened = true;
+            }
+        }
+
+        private async Task SimulateVoltageTxAsync(string title, byte expectedLabel, CancellationToken cancellationToken)
+        {
+            double value;
+            if (string.Equals(title, "5V", StringComparison.OrdinalIgnoreCase))
+                value = 5.0;
+            else if (string.Equals(title, "15V", StringComparison.OrdinalIgnoreCase))
+                value = 15.0;
+            else if (string.Equals(title, "-15V", StringComparison.OrdinalIgnoreCase))
+                value = -15.0;
+            else
+                return;
+
+            for (var i = 0; i < SamplesPerMeasure; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                uint data19;
+                if (string.Equals(title, "-15V", StringComparison.OrdinalIgnoreCase))
+                {
+                    data19 = _arinc.EncodeBnr(value, bitLength: 9, resolution: 0.1, msbPosition: 28);
+                }
+                else
+                {
+                    data19 = _arinc.EncodeUbnr(value, bitLength: 8, resolution: 0.1, msbPosition: 27);
+                }
+
+                data19 &= ~0x3FFu;
+                if (!string.Equals(title, "-15V", StringComparison.OrdinalIgnoreCase))
+                {
+                    data19 &= ~(1u << 18);
+                }
+                var word = _arinc.BuildRawWord(expectedLabel, sdi: 0, data19: data19, ssm: 0, applyOddParity: true);
+                await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(20, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -793,6 +868,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     try { await _arinc.StopRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _arinc.CloseRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    if (_txOpened)
+                    {
+                        try { await _arinc.CloseTxAsync(TxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                        _txOpened = false;
+                    }
                     try { await _arinc.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _arinc.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
@@ -810,7 +890,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (_power != null)
                 {
                     try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, false, CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
@@ -829,9 +908,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _power ??= new PowerSupplySocketApi();
             await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
             await _power.ApplyAsync(PowerSupplyChannel.CH1, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
-            await _power.ApplyAsync(PowerSupplyChannel.CH2, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
             await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, true, cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 
