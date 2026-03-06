@@ -199,73 +199,56 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private static bool Is9774(DeviceBase device)
         {
-            var model = (device?.Model ?? string.Empty).ToUpperInvariant();
-            return model.Contains("9774") || model.Contains("PXIE-9774") || model.Contains("PXI-9774");
+            if (device == null) return false;
+            if (device is AnalogAcquisitionDevice) return true;
+            var model = (device.Model ?? string.Empty).ToUpperInvariant();
+            var devType = (device.DeviceTypeName ?? string.Empty).ToUpperInvariant();
+            return model.Contains("9774") || 
+                   devType.Contains("模拟量输入") || 
+                   devType.Contains("模拟量采集");
         }
 
-        private DeviceBase Find9774DeviceInChassis(string chassisName)
+        /// <summary>
+        /// 从 PXI 机箱中查找第一个 PXIe-9774 板卡
+        /// </summary>
+        private DeviceBase FindFirst9774Device()
         {
-            DeviceBase Walk(DeviceBase d)
-            {
-                if (Is9774(d))
-                    return d;
-
-                if (d?.Children == null)
-                    return null;
-
-                foreach (var c in d.Children)
-                {
-                    var found = Walk(c);
-                    if (found != null)
-                        return found;
-                }
-
-                return null;
-            }
-
-            if (!string.IsNullOrWhiteSpace(chassisName))
-            {
-                var devices = _pxiChassisService?.GetChassisDevices(chassisName);
-                if (devices != null && devices.Count > 0)
-                {
-                    foreach (var d in devices)
-                    {
-                        var found = Walk(d);
-                        if (found != null)
-                            return found;
-                    }
-                }
-            }
-
             var chassisList = _pxiChassisService?.GetAllChassis();
-            if (chassisList == null || chassisList.Count == 0)
+            if (chassisList == null)
+            {
+                AddLog("[9774查找] 机箱列表为null");
                 return null;
+            }
 
             foreach (var chassis in chassisList)
             {
-                if (chassis == null)
+                if (chassis?.Devices == null)
                     continue;
 
-                System.Collections.Generic.IList<DeviceBase> devices = chassis.Devices;
-                if (devices == null || devices.Count == 0)
+                // 直接在机箱设备列表中查找
+                var device = chassis.Devices.FirstOrDefault(d => Is9774(d));
+                if (device != null)
                 {
-                    if (!string.IsNullOrWhiteSpace(chassis.Name))
-                    {
-                        devices = _pxiChassisService?.GetChassisDevices(chassis.Name);
-                    }
+                    AddLog($"[9774查找] 找到板卡: Name={device.Name}, Model={device.Model}");
+                    return device;
                 }
 
-                if (devices == null || devices.Count == 0)
-                    continue;
-
-                foreach (var d in devices)
+                // 遍历子设备
+                foreach (var d in chassis.Devices)
                 {
-                    var found = Walk(d);
-                    if (found != null)
-                        return found;
+                    if (d?.Children == null)
+                        continue;
+
+                    var childDevice = d.Children.FirstOrDefault(c => Is9774(c));
+                    if (childDevice != null)
+                    {
+                        AddLog($"[9774查找] 找到板卡: Name={childDevice.Name}, Model={childDevice.Model}");
+                        return childDevice;
+                    }
                 }
             }
 
+            AddLog("[9774查找] 未找到9774板卡");
             return null;
         }
 
@@ -277,8 +260,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 return;
             }
 
-            var chassisName = _singleBoardTestContext?.ChassisName;
-            var device = Find9774DeviceInChassis(chassisName);
+            var device = FindFirst9774Device();
             if (device == null)
             {
                 AddLog("未找到9774板卡，二次电源电压将使用万用表/仿真");

@@ -75,7 +75,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             ClearContentCommand = new DelegateCommand(ClearContent);
         }
 
-        public string PageTitle => "GND/OC型100mA离散输出通道2输出测试";
+        public string PageTitle => "6.15.1.2GND/OC型100mA离散输出通道2输出测试";
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
 

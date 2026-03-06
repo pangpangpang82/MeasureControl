@@ -64,12 +64,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly IPxiChassisService _pxiChassisService;
+        private readonly ISingleBoardTestContextService _singleBoardTestContext;
 
         private CancellationTokenSource _manualCts;
         private CancellationTokenSource _autoCts;
 
         private IPowerSupplyApi _power;
         private IArt4229Api _arinc;
+
+        private const string TestItemName = "压差传感器信号采集测试";
 
         private bool _canMeasure;
         private bool _measured14;
@@ -105,14 +108,45 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _dptSys210mAText = "--";
         private string _dptSys310mAText = "--";
 
-        public HC_6_5ViewModel(IPxiChassisService pxiChassisService)
+        public HC_6_5ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
         {
             _pxiChassisService = pxiChassisService;
+            _singleBoardTestContext = singleBoardTestContext;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
             Measure14Command = new DelegateCommand(async () => await OnMeasure14Async(), () => CanMeasure14);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
+
+            LoadLastTestResultFromProject();
+        }
+
+        private void LoadLastTestResultFromProject()
+        {
+            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
+            if (testItemNode != null)
+            {
+                if (!string.IsNullOrWhiteSpace(testItemNode.LastTestTime))
+                {
+                    _lastTestTime = testItemNode.LastTestTime;
+                    RaisePropertyChanged(nameof(LastTestTime));
+                }
+                if (!string.IsNullOrWhiteSpace(testItemNode.LastTestResult))
+                {
+                    _lastTestResult = testItemNode.LastTestResult;
+                    RaisePropertyChanged(nameof(LastTestResult));
+                }
+            }
+        }
+
+        private void SaveTestResultToProject()
+        {
+            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
+            if (testItemNode != null)
+            {
+                testItemNode.LastTestTime = LastTestTime;
+                testItemNode.LastTestResult = LastTestResult;
+            }
         }
 
         public DelegateCommand ManualTestCommand { get; }
@@ -168,6 +202,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         }
 
         public bool CanMeasure14 => IsManualTestRunning && CanMeasure && !_measured14;
+
+        /// <summary>
+        /// 整板串行自动测试入口。
+        /// 由外部(整板自动测试)调用，支持 await 等待完成，并通过 CancellationToken 实现“立即停止当前测量”。
+        /// 返回值仅为“合格/不合格”。
+        /// </summary>
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning)
+            {
+                await StopAutoTestAsync().ConfigureAwait(false);
+            }
+
+            if (IsManualTestRunning)
+            {
+                await StopManualTestAsync().ConfigureAwait(false);
+            }
+
+            _autoCts?.Cancel();
+            _autoCts?.Dispose();
+            _autoCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                return await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
 
         public string LastTestTime
         {
@@ -292,18 +358,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                await EnsurePowerAsync(_autoCts.Token).ConfigureAwait(false);
-                await EnsureArincRxAsync(_autoCts.Token).ConfigureAwait(false);
-
-                var ok4 = await MeasureGroupAsync("4mA", Set4mA, _autoCts.Token).ConfigureAwait(false);
-                await Task.Delay(80, _autoCts.Token).ConfigureAwait(false);
-                var ok20 = await MeasureGroupAsync("20mA", Set20mA, _autoCts.Token).ConfigureAwait(false);
-                await Task.Delay(80, _autoCts.Token).ConfigureAwait(false);
-                var ok10 = await MeasureGroupAsync("10mA", Set10mA, _autoCts.Token).ConfigureAwait(false);
-
-                _measured14 = ok4 && ok20 && ok10;
-                await TryFinalizeAsync().ConfigureAwait(false);
-                await StopAutoTestAsync().ConfigureAwait(false);
+                _ = await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -314,6 +369,53 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 Log($"自动测试异常: {ex.Message}");
                 await StopAutoTestAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
+
+        private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
+        {
+            IsAutoTestRunning = true;
+            CanMeasure = false;
+            _manualAborted = false;
+            _measured14 = false;
+
+            ResetAllDisplays();
+
+            Log("开始自动测试");
+
+            try
+            {
+                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+                await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+
+                var ok4 = await MeasureGroupAsync("4mA", Set4mA, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+                var ok20 = await MeasureGroupAsync("20mA", Set20mA, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+                var ok10 = await MeasureGroupAsync("10mA", Set10mA, cancellationToken).ConfigureAwait(false);
+
+                _measured14 = ok4 && ok20 && ok10;
+                await TryFinalizeAsync().ConfigureAwait(false);
+                await StopAutoTestAsync().ConfigureAwait(false);
+
+                return LastTestResult;
+            }
+            catch (OperationCanceledException)
+            {
+                Log("自动测试已停止");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"自动测试异常: {ex.Message}");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
             }
         }
 
@@ -544,13 +646,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private async Task TryFinalizeAsync()
         {
-            if (!_measured14)
-                return;
+            var pass = _measured14;
 
             PreviousTestTime = LastTestTime;
             PreviousTestResult = LastTestResult;
             LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            LastTestResult = "PASS";
+            LastTestResult = pass ? "合格" : "不合格";
+
+            SaveTestResultToProject();
+            Log($"最终结果: {LastTestResult}");
 
             if (IsManualTestRunning)
             {

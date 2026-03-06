@@ -15,6 +15,8 @@ namespace MeasureControl.Models
         private string _type;
         private string _communicationChannelName;
         private ObservableCollection<ProjectItem> _children;
+        private string _lastTestTime;
+        private string _lastTestResult;
 
         public string Name
         {
@@ -90,6 +92,24 @@ namespace MeasureControl.Models
             set => SetProperty(ref _communicationChannelName, value);
         }
 
+        /// <summary>
+        /// 上次测试时间（用于单个测试项的历史记录）
+        /// </summary>
+        public string LastTestTime
+        {
+            get => _lastTestTime;
+            set => SetProperty(ref _lastTestTime, value);
+        }
+
+        /// <summary>
+        /// 上次测试结果（用于单个测试项的历史记录）
+        /// </summary>
+        public string LastTestResult
+        {
+            get => _lastTestResult;
+            set => SetProperty(ref _lastTestResult, value);
+        }
+
         // PXI机箱数据存储
         public ObservableCollection<ChassisModel> PxiChassisData { get; set; }
 
@@ -157,6 +177,7 @@ namespace MeasureControl.Models
         public bool ShouldSerializeTestInterfaceControls() => IsRoot || (TestInterfaceControls != null && TestInterfaceControls.Count > 0);
 
         public bool ShouldSerializeMatrixSwitchTableItems() => IsRoot || (MatrixSwitchTableItems != null && MatrixSwitchTableItems.Count > 0);
+        
         public bool ShouldSerializeCalibrationRecords() => IsRoot || (CalibrationRecords != null && CalibrationRecords.Count > 0);
 
         public bool ShouldSerializeDocumentId() => !string.IsNullOrEmpty(DocumentId);
@@ -164,6 +185,10 @@ namespace MeasureControl.Models
         public bool ShouldSerializeProtocolType() => !string.IsNullOrEmpty(ProtocolType);
 
         public bool ShouldSerializeCommunicationChannelName() => !string.IsNullOrEmpty(CommunicationChannelName);
+
+        public bool ShouldSerializeLastTestTime() => !string.IsNullOrEmpty(LastTestTime);
+
+        public bool ShouldSerializeLastTestResult() => !string.IsNullOrEmpty(LastTestResult);
 
         #endregion
     }
