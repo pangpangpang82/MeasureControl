@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using MeasureControl.Models.Devices;
 using MeasureControl.Models.Devices.DeviceCategories;
 using MeasureControl.Services;
@@ -78,6 +79,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _lastTestResult = "--";
         private string _previousTestTime = "--";
         private string _previousTestResult = "--";
+        private string _currentTestResult = "--";
 
         private string _p1Sys1Text = "--";
         private string _p1Sys2Text = "--";
@@ -125,13 +127,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 if (!string.IsNullOrWhiteSpace(testItemNode.LastTestTime))
                 {
-                    _lastTestTime = testItemNode.LastTestTime;
-                    RaisePropertyChanged(nameof(LastTestTime));
+                    _previousTestTime = testItemNode.LastTestTime;
+                    RaisePropertyChanged(nameof(PreviousTestTime));
                 }
                 if (!string.IsNullOrWhiteSpace(testItemNode.LastTestResult))
                 {
-                    _lastTestResult = testItemNode.LastTestResult;
-                    RaisePropertyChanged(nameof(LastTestResult));
+                    _previousTestResult = testItemNode.LastTestResult;
+                    RaisePropertyChanged(nameof(PreviousTestResult));
                 }
             }
         }
@@ -141,9 +143,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
             if (testItemNode != null)
             {
-                testItemNode.LastTestTime = LastTestTime;
-                testItemNode.LastTestResult = LastTestResult;
+                testItemNode.LastTestTime = PreviousTestTime;
+                testItemNode.LastTestResult = PreviousTestResult;
             }
+        }
+
+        public string CurrentTestResult
+        {
+            get => _currentTestResult;
+            private set => SetProperty(ref _currentTestResult, value);
         }
 
         public DelegateCommand ManualTestCommand { get; }
@@ -336,6 +344,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             IsManualTestRunning = true;
+            CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
 
@@ -382,6 +391,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             IsAutoTestRunning = true;
+            CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
 
@@ -677,9 +687,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!(_measured1 && _measured2 && _measured3))
                 return;
 
-            PreviousTestTime = LastTestTime;
-            PreviousTestResult = LastTestResult;
-            LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
             const double P1Min = 0.0;
             const double P1Max = 85.0;
@@ -717,14 +725,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Check("P3-SYS2", _p3Sys2, P3Min, P3Max);
             Check("P3-SYS3", _p3Sys3, P3Min, P3Max);
 
+            var resultText = failures.Count == 0 ? "合格" : "不合格";
+            CurrentTestResult = resultText;
+            PreviousTestTime = now;
+            PreviousTestResult = resultText;
+            LastTestTime = now;
+            LastTestResult = resultText;
+
             if (failures.Count == 0)
             {
-                LastTestResult = "合格";
                 Log("自动判定: 合格 (三档位三路压力均在范围内)");
             }
             else
             {
-                LastTestResult = "不合格";
                 Log("自动判定: 不合格");
                 foreach (var f in failures)
                 {
@@ -980,7 +993,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private void Log(string message)
         {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return;
+            }
+
             var line = $"[{DateTime.Now:HH:mm:ss}] {message}";
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.CheckAccess())
+            {
+                dispatcher.Invoke(() => Logs.Add(line));
+                return;
+            }
+
             Logs.Add(line);
         }
     }

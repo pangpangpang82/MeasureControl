@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using MeasureControl.Models.Devices;
 using MeasureControl.Models.Devices.DeviceCategories;
 using MeasureControl.Services;
@@ -86,6 +87,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _lastTestResult = "--";
         private string _previousTestTime = "--";
         private string _previousTestResult = "--";
+        private string _currentTestResult = "--";
 
         private string _dptEdp2A4mAText = "--";
         private string _dptEmp2B4mAText = "--";
@@ -128,13 +130,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 if (!string.IsNullOrWhiteSpace(testItemNode.LastTestTime))
                 {
-                    _lastTestTime = testItemNode.LastTestTime;
-                    RaisePropertyChanged(nameof(LastTestTime));
+                    _previousTestTime = testItemNode.LastTestTime;
+                    RaisePropertyChanged(nameof(PreviousTestTime));
                 }
                 if (!string.IsNullOrWhiteSpace(testItemNode.LastTestResult))
                 {
-                    _lastTestResult = testItemNode.LastTestResult;
-                    RaisePropertyChanged(nameof(LastTestResult));
+                    _previousTestResult = testItemNode.LastTestResult;
+                    RaisePropertyChanged(nameof(PreviousTestResult));
                 }
             }
         }
@@ -144,9 +146,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
             if (testItemNode != null)
             {
-                testItemNode.LastTestTime = LastTestTime;
-                testItemNode.LastTestResult = LastTestResult;
+                testItemNode.LastTestTime = PreviousTestTime;
+                testItemNode.LastTestResult = PreviousTestResult;
             }
+        }
+
+        public string CurrentTestResult
+        {
+            get => _currentTestResult;
+            private set => SetProperty(ref _currentTestResult, value);
         }
 
         public DelegateCommand ManualTestCommand { get; }
@@ -299,6 +307,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             IsManualTestRunning = true;
+            CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
             _measured14 = false;
@@ -344,6 +353,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             IsAutoTestRunning = true;
+            CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
             _measured14 = false;
@@ -648,13 +658,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             var pass = _measured14;
 
-            PreviousTestTime = LastTestTime;
-            PreviousTestResult = LastTestResult;
-            LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            LastTestResult = pass ? "合格" : "不合格";
+            var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            var resultText = pass ? "合格" : "不合格";
+            CurrentTestResult = resultText;
+            PreviousTestTime = now;
+            PreviousTestResult = resultText;
+            LastTestTime = now;
+            LastTestResult = resultText;
 
             SaveTestResultToProject();
-            Log($"最终结果: {LastTestResult}");
+            Log($"最终结果: {resultText}");
 
             if (IsManualTestRunning)
             {
@@ -865,7 +878,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private void Log(string message)
         {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return;
+            }
+
             var line = $"[{DateTime.Now:HH:mm:ss}] {message}";
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.CheckAccess())
+            {
+                dispatcher.Invoke(() => Logs.Add(line));
+                return;
+            }
+
             Logs.Add(line);
         }
     }
