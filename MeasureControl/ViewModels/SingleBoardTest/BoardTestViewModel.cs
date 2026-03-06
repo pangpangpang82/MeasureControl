@@ -56,6 +56,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
                         { "8.3.2 S安全通道ARINC429接收通道1测试", () => new S_C_8_3_2View() },
                         { "8.3.3 S安全通道ARINC429接收通道2测试", () => new S_C_8_3_3View() },
+                        { "8.10.1 S通道OFV/TRV直流电机驱动模块速度控制测试", () => new S_C_8_10_1View() },
                         { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
                         { "5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
                         { "A控制通道功率板供电测试", () => new PowerBoardSupplyTestView("A", "A控制通道功率板供电测试") },
@@ -382,6 +383,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("8.3.1 S安全通道ARINC429发送通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.2 S安全通道ARINC429接收通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.3 S安全通道ARINC429接收通道2测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.10.1 S通道OFV/TRV直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道GND/OC离散输入通道输入测试"));
                 TestSequenceItems.Add(new TestSequenceItem("GND/OC型100mA离散输出通道3输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("GND/OC型100mA离散输出通道2输出测试"));
