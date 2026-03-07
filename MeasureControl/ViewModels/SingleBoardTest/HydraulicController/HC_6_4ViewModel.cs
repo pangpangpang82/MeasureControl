@@ -33,10 +33,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         // ARINC429 接收配置
         private const int RxChannelIndex = 2;
-        private const double ArincRate = 12500.0;
+        private const double ArincRate = 100000.0;
+
+        // ---- 模拟产品开关（后续注释掉两处调用即可，无需改此常量）----
+        private const bool EnableArincTxSimulation = true;
+        // ---- END ----
+
+        // ARINC429 发送配置
+        private const int TxChannelIndex = 0;
 
         // 压力数据定义（Label=174(oct) 即十进制 124）
         private const byte PressLabelDec = 124; // 174(oct)
+
+        // 协议规定 SSM=3 为正常数据
+        private const byte SsmNormal = 0;
 
         // 采样参数
         private const int SamplesPerMeasure = 5;      // 每路采集 5 帧取平均
@@ -50,7 +60,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         // 压力的 ARINC429 编码参数（12-bit 数据，位于 bit16-27）
         private const int PressureBitLength = 12;
-        private const int PressureData19Shift = 6;    // 在 19-bit 数据域中的偏移
+        private const int PressureData19Shift = 5;    // 在 19-bit 数据域中的偏移
         private const uint PressureMask = (1u << PressureBitLength) - 1u;
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
@@ -63,6 +73,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private IPowerSupplyApi _power;
         private IArt4229Api _arinc;
         private IMtx532Api _mtx532;
+        private bool _txOpened;
 
         private const string TestItemName = "压力传感器信号采集测试";
 
@@ -359,15 +370,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _manualCts = new CancellationTokenSource();
 
             Log("开始手动测试");
-            Log($"电源: CH1/CH2 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
+            Log($"电源: CH1 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
             Log($"MTX532: AO前三通道输出同电压");
-            Log($"ARINC429: RX通道{RxChannelIndex + 1}, 码率 {ArincRate:0}bps, 压力Label=174(oct) SDI=0/1/2->SYS1/2/3");
+            Log($"ARINC429: RX通道{RxChannelIndex + 1}, 码率 {ArincRate:0}bps, 压力Label=174(oct) SDI=1/2/3->SYS1/2/3");
 
             try
             {
                 await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
                 await EnsureMtx532Async(_manualCts.Token).ConfigureAwait(false);
                 await EnsureArincRxAsync(_manualCts.Token).ConfigureAwait(false);
+
+                // ---- 模拟产品启动（后续注释掉此 if 块即可关闭模拟）----
+                if (EnableArincTxSimulation)
+                {
+                    await EnsureArincTxAsync(_manualCts.Token).ConfigureAwait(false);
+                    _ = SimulateProductContinuousTxAsync(_manualCts.Token);
+                    await Task.Delay(100, _manualCts.Token).ConfigureAwait(false);
+                    Log("模拟产品: 已启动压力数据持续发送");
+                }
+                // ---- 模拟产品启动 END ----
+
                 CanMeasure = true;
                 Log("手动测试初始化完成，可分别点击三档电压测量压力");
             }
@@ -447,6 +469,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
                 await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
                 await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+
+                // ---- 模拟产品启动（后续注释掉此 if 块即可关闭模拟）----
+                if (EnableArincTxSimulation)
+                {
+                    await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
+                    _ = SimulateProductContinuousTxAsync(cancellationToken);
+                    await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+                    Log("模拟产品: 已启动压力数据持续发送");
+                }
+                // ---- 模拟产品启动 END ----
 
                 var ok1 = await MeasurePointAllSystemsAsync("0.5V点", Point1VoltageV,
                     setSys1: t => PressurePoint1Sys1Text = t,
@@ -592,9 +624,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await SetAo012Async(aoVoltage, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(AoSettleMs, cancellationToken).ConfigureAwait(false);
 
-                var ok1 = await MeasureSingleSystemAsync($"{title}-SYS1", sdi: 0, setSys1, setV1, cancellationToken).ConfigureAwait(false);
-                var ok2 = await MeasureSingleSystemAsync($"{title}-SYS2", sdi: 1, setSys2, setV2, cancellationToken).ConfigureAwait(false);
-                var ok3 = await MeasureSingleSystemAsync($"{title}-SYS3", sdi: 2, setSys3, setV3, cancellationToken).ConfigureAwait(false);
+                var ok1 = await MeasureSingleSystemAsync($"{title}-SYS1", sdi: 1, setSys1, setV1, cancellationToken).ConfigureAwait(false);
+                var ok2 = await MeasureSingleSystemAsync($"{title}-SYS2", sdi: 2, setSys2, setV2, cancellationToken).ConfigureAwait(false);
+                var ok3 = await MeasureSingleSystemAsync($"{title}-SYS3", sdi: 3, setSys3, setV3, cancellationToken).ConfigureAwait(false);
 
                 return ok1 && ok2 && ok3;
             }
@@ -805,6 +837,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     try { await _arinc.StopRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _arinc.CloseRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    
+                    if (_txOpened)
+                    {
+                        try { await _arinc.CloseTxAsync(TxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                        _txOpened = false;
+                    }
+                    
                     try { await _arinc.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _arinc.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
@@ -815,6 +854,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             finally
             {
                 _arinc = null;
+                _txOpened = false;
             }
 
             try
@@ -840,7 +880,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (_power != null)
                 {
                     try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, false, CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
@@ -882,9 +921,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _power ??= new PowerSupplySocketApi();
             await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
             await _power.ApplyAsync(PowerSupplyChannel.CH1, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
-            await _power.ApplyAsync(PowerSupplyChannel.CH2, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
             await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, true, cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 
@@ -898,7 +935,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 throw new InvalidOperationException("未找到MTX532(模拟量输出)板卡");
 
             var slot = device is PxiDeviceBase pxi ? pxi.SlotIndex : 7;
-            _mtx532 = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 1000.0 }, slotNumber: slot);
+            _mtx532 = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 20000.0 }, slotNumber: slot);
 
             await _mtx532.ConnectAsync(cancellationToken).ConfigureAwait(false);
             await _mtx532.StartOutputAsync(cancellationToken).ConfigureAwait(false);
@@ -989,6 +1026,134 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             return null;
+        }
+
+        // =====================================================================
+        // 模拟产品持续发送
+        // =====================================================================
+
+        /// <summary>
+        /// 模拟产品持续发送压力数据
+        /// 根据图片中的协议定义：
+        /// - Label=174(oct) 对应所有三个压力系统
+        /// - PRESS_SYS1_T1A: SDI=1
+        /// - PRESS_SYS2_T1A: SDI=2  
+        /// - PRESS_SYS3_T1A: SDI=3
+        /// - 数据格式：12-bit UBNR，位于bit16-27，分辨率1，单位psia
+        /// - SSM=3（正常数据），奇校验
+        /// </summary>
+        private async Task SimulateProductContinuousTxAsync(CancellationToken cancellationToken)
+        {
+            Log("模拟产品: 开始持续发送压力数据 (PRESS_SYS1/2/3)");
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    var aoVoltage = await GetCurrentAoVoltageAsync(cancellationToken).ConfigureAwait(false);
+                    var pressureValue = VoltageToPressure(aoVoltage);
+
+                    // Label 174(oct) PRESS_SYS1_T1A: SDI=1
+                    await SendSimulatedPressureWordAsync(sdi: 1, pressureValue: pressureValue, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(40, cancellationToken).ConfigureAwait(false);
+
+                    // Label 174(oct) PRESS_SYS2_T1A: SDI=2
+                    await SendSimulatedPressureWordAsync(sdi: 2, pressureValue: pressureValue, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(40, cancellationToken).ConfigureAwait(false);
+
+                    // Label 174(oct) PRESS_SYS3_T1A: SDI=3
+                    await SendSimulatedPressureWordAsync(sdi: 3, pressureValue: pressureValue, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(40, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { Log($"模拟产品: 发送异常: {ex.Message}"); }
+            finally { Log("模拟产品: 持续发送已停止"); }
+        }
+
+        /// <summary>
+        /// 电压到压力的转换函数
+        /// 根据测试点的电压范围和对应的压力范围进行映射
+        /// </summary>
+        private double VoltageToPressure(double voltage)
+        {
+            if (Math.Abs(voltage - Point1VoltageV) < 0.1)
+                return 42.5; // 0.5V -> 中间值约42.5 psia
+            else if (Math.Abs(voltage - Point2VoltageV) < 0.1)
+                return 3957.5; // 7.17V -> 中间值约3957.5 psia
+            else if (Math.Abs(voltage - Point3VoltageV) < 0.1)
+                return 1499.5; // 3.0V -> 中间值约1499.5 psia
+            else
+                return voltage * 100; // 默认简单映射
+        }
+
+        private async Task<double> GetCurrentAoVoltageAsync(CancellationToken cancellationToken)
+        {
+            if (_mtx532 == null || !_mtx532.IsConnected)
+                return 0.0;
+
+            try
+            {
+                return await _mtx532.GetLastOutputVoltageAsync("AO1", cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                return 0.0;
+            }
+        }
+
+        /// <summary>
+        /// 构造并发送单个模拟压力字
+        /// 根据协议图片中的定义：
+        /// - Label: 174(oct) 
+        /// - SDI: 1/2/3 (对应SYS1/2/3)
+        /// - 数据: 12-bit UBNR，位于bit16-27，分辨率1，单位psia
+        /// - SSM=3，奇校验
+        /// </summary>
+        private async Task SendSimulatedPressureWordAsync(byte sdi, double pressureValue, CancellationToken cancellationToken)
+        {
+            // 压力数据编码：12-bit UBNR，位于bit16-27
+            // 在19-bit数据域中，对应bit5-16（因为bit16-27映射到data19的bit5-16）
+            uint data19 = (uint)pressureValue & 0xFFFu; // 12-bit数据
+            data19 <<= 5; // 移位到bit5-16位置
+
+            // bit10-15和bit28协议规定未使用，必须为0
+            data19 &= ~((0x3Fu << 10) | (1u << 18)); // 清零bit10-15和bit28
+
+            // SSM=3（正常数据），奇校验
+            var word = _arinc.BuildRawWord(PressLabelDec, sdi: sdi, data19: data19, ssm: SsmNormal, applyOddParity: true);
+            await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// 确保ARINC429发送通道已初始化
+        /// </summary>
+        private async Task EnsureArincTxAsync(CancellationToken cancellationToken)
+        {
+            if (_arinc == null)
+            {
+                var device = FindFirstArincDevice();
+                if (device == null)
+                    throw new InvalidOperationException("未找到ART4227/ART4229(ARINC429)板卡，无法发送429数据");
+                _arinc = new Art4229Api(device, deviceIndex: 0);
+            }
+
+            if (!_arinc.IsConnected)
+            {
+                await _arinc.ConnectAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!_txOpened)
+            {
+                await _arinc.OpenTxAsync(TxChannelIndex, cancellationToken).ConfigureAwait(false);
+                await _arinc.ConfigureTxAsync(
+                    TxChannelIndex,
+                    rate: ArincRate,
+                    mode: Art4229TxMode.Single,
+                    parity: Art4229Parity.Odd,
+                    wordFormat: Art4229WordFormat.Standard429,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                _txOpened = true;
+            }
         }
 
         private void Log(string message)

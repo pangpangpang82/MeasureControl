@@ -38,7 +38,7 @@ namespace MeasureControl.Services.HardwareApis
     /// </summary>
     public sealed class Mtx532Options
     {
-        public double SampleRateHz { get; set; } = 1000.0;
+        public double SampleRateHz { get; set; } = 20000.0;
         public bool SuppressNativeDialogs { get; set; } = true;
         public bool ResetToZeroOnStop { get; set; } = true;
         public int ResetDelayMs { get; set; } = 500;

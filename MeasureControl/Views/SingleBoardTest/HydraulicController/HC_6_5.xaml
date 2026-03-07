@@ -337,7 +337,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_EDP2A压差：" />
+                                                        Text="DPT_EDP1/EDP2A压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -358,7 +358,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_EMP2B压差：" />
+                                                        Text="DPT_EMP1B/EMP2B压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -386,7 +386,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_EMP3B压差：" />
+                                                        Text="DPT_EMP3A/EMP3B压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -407,7 +407,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_SYS1压差：" />
+                                                        Text="DPT_RF1/RF2压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -434,7 +434,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_SYS2压差：" />
+                                                        Text="DPT_RF3/SYS2压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -455,7 +455,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_SYS3压差：" />
+                                                        Text="DPT_SYS1/SYS3压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -553,7 +553,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_EDP2A压差：" />
+                                                        Text="DPT_EDP1/EDP2A压差" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -574,7 +574,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_EMP2B压差：" />
+                                                        Text="DPT_EMP1B/EMP2B压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -602,7 +602,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_EMP3B压差：" />
+                                                        Text="DPT_EMP1B/EMP2B压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -623,7 +623,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_SYS1压差：" />
+                                                        Text="DPT_RF1/RF2压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -650,7 +650,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_SYS2压差：" />
+                                                        Text="DPT_RF3/SYS2压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -671,7 +671,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_SYS3压差：" />
+                                                        Text="DPT_SYS1/SYS3压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -769,7 +769,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_EDP2A压差：" />
+                                                        Text="DPT_EDP1/EDP2A压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -790,7 +790,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_EMP2B压差：" />
+                                                        Text="DPT_EMP1B/EMP2B压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -818,7 +818,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_EMP3B压差：" />
+                                                        Text="DPT_EMP1B/EMP2B压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -839,7 +839,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_SYS1压差：" />
+                                                        Text="DPT_RF1/RF2压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -866,7 +866,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_SYS2压差：" />
+                                                        Text="DPT_RF3/SYS2压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -887,7 +887,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_SYS3压差：" />
+                                                       Text="DPT_SYS1/SYS3压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
