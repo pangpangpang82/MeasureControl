@@ -67,6 +67,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private static readonly byte[] TempChannelASdis = { 1, 2 };
         private static readonly byte[] TempChannelBSdis = { 1, 3 };
 
+        private readonly Random _random = new Random();
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private CancellationTokenSource _manualCts;
         private CancellationTokenSource _autoCts;
@@ -568,12 +569,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     _manualCts?.Token ?? CancellationToken.None)
                 .ConfigureAwait(false);
             if (!IsManualTestRunning || _manualAborted) return;
-            if (ok)
-            {
-                _measured1 = true;
-                RaisePropertyChanged(nameof(CanMeasurePoint1));
-                MeasurePoint1Command?.RaiseCanExecuteChanged();
-            }
+            _measured1 = true;
+            RaisePropertyChanged(nameof(CanMeasurePoint1));
+            MeasurePoint1Command?.RaiseCanExecuteChanged();
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
@@ -592,12 +590,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     _manualCts?.Token ?? CancellationToken.None)
                 .ConfigureAwait(false);
             if (!IsManualTestRunning || _manualAborted) return;
-            if (ok)
-            {
-                _measured2 = true;
-                RaisePropertyChanged(nameof(CanMeasurePoint2));
-                MeasurePoint2Command?.RaiseCanExecuteChanged();
-            }
+            _measured2 = true;
+            RaisePropertyChanged(nameof(CanMeasurePoint2));
+            MeasurePoint2Command?.RaiseCanExecuteChanged();
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
@@ -616,12 +611,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     _manualCts?.Token ?? CancellationToken.None)
                 .ConfigureAwait(false);
             if (!IsManualTestRunning || _manualAborted) return;
-            if (ok)
-            {
-                _measured3 = true;
-                RaisePropertyChanged(nameof(CanMeasurePoint3));
-                MeasurePoint3Command?.RaiseCanExecuteChanged();
-            }
+            _measured3 = true;
+            RaisePropertyChanged(nameof(CanMeasurePoint3));
+            MeasurePoint3Command?.RaiseCanExecuteChanged();
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
@@ -727,15 +719,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     await Task.Delay(10, cancellationToken).ConfigureAwait(false);
                 }
 
-                setTextA("--");
+                setTextA("超时");
                 setValueA(null);
 
-                setTextB("--");
+                setTextB("超时");
                 setValueB(null);
 
                 if (IsManualTestRunning)
                 {
-                    await AbortManualTestAsync($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效温度数据").ConfigureAwait(false);
+                    Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效温度数据");
+                    Log($"{title}: 本次测量按超时结束处理，结果保留为--，不可重复点击");
                 }
                 else
                 {
@@ -777,11 +770,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    await SendSimulatedTempWordAsync(TempChannelASdis[0], 35.0, cancellationToken).ConfigureAwait(false);
+                    var simulatedTemp = GetSimulatedTemperatureForCurrentResistance();
+
+                    await SendSimulatedTempWordAsync(TempChannelASdis[0], simulatedTemp, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(40, cancellationToken).ConfigureAwait(false);
-                    await SendSimulatedTempWordAsync(TempChannelASdis[1], 35.0, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedTempWordAsync(TempChannelASdis[1], simulatedTemp, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(40, cancellationToken).ConfigureAwait(false);
-                    await SendSimulatedTempWordAsync(TempChannelBSdis[1], 35.0, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedTempWordAsync(TempChannelBSdis[1], simulatedTemp, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(40, cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -805,6 +800,42 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             var word = _arinc.BuildRawWord(TempLabelDec, sdi: sdi, data19: data19, ssm: SsmNormal, applyOddParity: true);
             await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
+        }
+
+        private double GetSimulatedTemperatureForCurrentResistance()
+        {
+            if (Math.Abs(GetCurrentResistanceForSimulation() - R1_Ohm) <= 0.2)
+                return NextRandomInRange(T1_Min, T1_Max);
+
+            if (Math.Abs(GetCurrentResistanceForSimulation() - R2_Ohm) <= 0.2)
+                return NextRandomInRange(T2_Min, T2_Max);
+
+            if (Math.Abs(GetCurrentResistanceForSimulation() - R3_Ohm) <= 0.2)
+                return NextRandomInRange(T3_Min, T3_Max);
+
+            return NextRandomInRange(T3_Min, T3_Max);
+        }
+
+        private double GetCurrentResistanceForSimulation()
+        {
+            if (_temp1 == null && _temp2 == null && _temp3 == null && _temp1B == null && _temp2B == null && _temp3B == null)
+                return R1_Ohm;
+
+            if (_measured2)
+                return R3_Ohm;
+
+            if (_measured1)
+                return R2_Ohm;
+
+            return R1_Ohm;
+        }
+
+        private double NextRandomInRange(double min, double max)
+        {
+            lock (_random)
+            {
+                return min + _random.NextDouble() * (max - min);
+            }
         }
 
         /// <summary>

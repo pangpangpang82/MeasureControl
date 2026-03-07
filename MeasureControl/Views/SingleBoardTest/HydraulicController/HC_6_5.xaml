@@ -337,7 +337,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_EDP1/EDP2A压差：" />
+                                                        Text="DPT_EDP1/EDP2压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -350,7 +350,7 @@
                                                             Margin="5,0,1,0"
                                                             VerticalAlignment="Center"
                                                             FontSize="15"
-                                                            Text="{Binding DptEdp2A4mAText, TargetNullValue=---, FallbackValue=---}" />
+                                                            Text="{Binding DptEdp24mAText, TargetNullValue=---, FallbackValue=---}" />
                                                     </Border>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Orientation="Vertical">
@@ -553,7 +553,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_EDP1/EDP2A压差" />
+                                                        Text="DPT_EDP1/EDP2压差" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"
@@ -769,7 +769,7 @@
                                                         Margin="0,10,0,10"
                                                         HorizontalAlignment="Center"
                                                         FontSize="16"
-                                                        Text="DPT_EDP1/EDP2A压差：" />
+                                                        Text="DPT_EDP1/EDP2压差：" />
                                                     <Border
                                                         Width="120"
                                                         Height="28"

@@ -22,7 +22,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private const int RxChannelIndex = 2;
         private const int TxChannelIndex = 0;
-        private const double ArincRate = 12500.0;
+        private const double ArincRate = 100000.0;
         private const bool EnableArincTxSimulation = true;
 
         private const string PressureUnit = "Psid";
@@ -43,6 +43,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int DataBitLength = 9;
         private const double DataResolution = 1.0;
         private const int DataMsbPosition = 27;
+
+        private const double Range4mAMin = 0.0;
+        private const double Range4mAMax = 3.4;
+        private const double Range20mAMin = 121.5;
+        private const double Range20mAMax = 128.4;
+        private const double Range10mAMin = 43.44;
+        private const double Range10mAMax = 50.31;
 
         private static readonly string[] AoChannels = { "AO4", "AO5", "AO6", "AO7", "AO8", "AO9" };
 
@@ -65,6 +72,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
+        private readonly Random _random = new Random();
 
         private CancellationTokenSource _manualCts;
         private CancellationTokenSource _autoCts;
@@ -89,7 +97,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _previousTestResult = "--";
         private string _currentTestResult = "--";
 
-        private string _dptEdp2A4mAText = "--";
+        private string _DptEdp24mAText = "--";
         private string _dptEmp2B4mAText = "--";
         private string _dptEmp3B4mAText = "--";
         private string _dptSys14mAText = "--";
@@ -225,7 +233,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             set => SetProperty(ref _previousTestResult, value);
         }
 
-        public string DptEdp2A4mAText { get => _dptEdp2A4mAText; private set => SetProperty(ref _dptEdp2A4mAText, value); }
+        public string DptEdp24mAText { get => _DptEdp24mAText; private set => SetProperty(ref _DptEdp24mAText, value); }
         public string DptEmp2B4mAText { get => _dptEmp2B4mAText; private set => SetProperty(ref _dptEmp2B4mAText, value); }
         public string DptEmp3B4mAText { get => _dptEmp3B4mAText; private set => SetProperty(ref _dptEmp3B4mAText, value); }
         public string DptSys14mAText { get => _dptSys14mAText; private set => SetProperty(ref _dptSys14mAText, value); }
@@ -424,33 +432,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task OnMeasure14Async()
         {
             var token = _manualCts?.Token ?? CancellationToken.None;
-
-            bool ok;
             switch (SelectedTabIndex)
             {
                 case 0:
-                    ok = await MeasureGroupAsync("4mA", Current4mA, Set4mA, token).ConfigureAwait(false);
+                    await MeasureGroupAsync("4mA", Current4mA, Set4mA, token).ConfigureAwait(false);
                     break;
                 case 1:
-                    ok = await MeasureGroupAsync("20mA", Current20mA, Set20mA, token).ConfigureAwait(false);
+                    await MeasureGroupAsync("20mA", Current20mA, Set20mA, token).ConfigureAwait(false);
                     break;
                 case 2:
-                    ok = await MeasureGroupAsync("10mA", Current10mA, Set10mA, token).ConfigureAwait(false);
+                    await MeasureGroupAsync("10mA", Current10mA, Set10mA, token).ConfigureAwait(false);
                     break;
                 default:
-                    ok = await MeasureGroupAsync("当前档位", Current4mA, Set4mA, token).ConfigureAwait(false);
+                    await MeasureGroupAsync("当前档位", Current4mA, Set4mA, token).ConfigureAwait(false);
                     break;
             }
 
             if (!IsManualTestRunning || _manualAborted)
                 return;
 
-            if (ok)
-            {
-                _measured14 = true;
-                RaisePropertyChanged(nameof(CanMeasure14));
-                Measure14Command?.RaiseCanExecuteChanged();
-            }
+            _measured14 = true;
+            RaisePropertyChanged(nameof(CanMeasure14));
+            Measure14Command?.RaiseCanExecuteChanged();
 
             await TryFinalizeAsync().ConfigureAwait(false);
         }
@@ -459,7 +462,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             switch (name)
             {
-                case "EDP": DptEdp2A4mAText = text; break;
+                case "EDP": DptEdp24mAText = text; break;
                 case "EMP12": DptEmp2B4mAText = text; break;
                 case "EMP3": DptEmp3B4mAText = text; break;
                 case "RF12": DptSys14mAText = text; break;
@@ -575,10 +578,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 }
 
                 foreach (var key in samples.Keys)
-                    setTextByName(key, "--");
+                    setTextByName(key, "超时");
 
                 if (IsManualTestRunning)
-                    await AbortManualTestAsync($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效DPT数据").ConfigureAwait(false);
+                {
+                    Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效DPT数据");
+                    Log($"{title}: 本次测量按超时结束处理，结果保留为--，不可重复点击");
+                }
                 else
                     Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效DPT数据");
 
@@ -859,7 +865,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private void ResetAllDisplays()
         {
-            DptEdp2A4mAText = "--";
+            DptEdp24mAText = "--";
             DptEmp2B4mAText = "--";
             DptEmp3B4mAText = "--";
             DptSys14mAText = "--";
@@ -887,17 +893,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    await SendSimulatedWordAsync(LabelDptEdpDec, 2, 48, cancellationToken).ConfigureAwait(false);
+                    var simulatedValue = GetSimulatedPressureForCurrentGroup();
+
+                    await SendSimulatedWordAsync(LabelDptEdpDec, 2, simulatedValue, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(20, cancellationToken).ConfigureAwait(false);
-                    await SendSimulatedWordAsync(LabelDptEmpDec, 2, 52, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedWordAsync(LabelDptEmpDec, 2, simulatedValue, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(20, cancellationToken).ConfigureAwait(false);
-                    await SendSimulatedWordAsync(LabelDptEmpDec, 3, 55, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedWordAsync(LabelDptEmpDec, 3, simulatedValue, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(20, cancellationToken).ConfigureAwait(false);
-                    await SendSimulatedWordAsync(LabelDptRfDec, 2, 44, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedWordAsync(LabelDptRfDec, 2, simulatedValue, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(20, cancellationToken).ConfigureAwait(false);
-                    await SendSimulatedWordAsync(LabelDptSysDec, 2, 50, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedWordAsync(LabelDptSysDec, 2, simulatedValue, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(20, cancellationToken).ConfigureAwait(false);
-                    await SendSimulatedWordAsync(LabelDptSysDec, 3, 53, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedWordAsync(LabelDptSysDec, 3, simulatedValue, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(20, cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -916,6 +924,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             uint data19 = (uint)(encoded & 0x1FF);
             var word = _arinc.BuildRawWord(label, sdi, data19, SsmNormal, applyOddParity: true);
             await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
+        }
+
+        private double GetSimulatedPressureForCurrentGroup()
+        {
+            if (SelectedTabIndex == 0)
+                return NextRandomInRange(Range4mAMin, Range4mAMax);
+
+            if (SelectedTabIndex == 1)
+                return NextRandomInRange(Range20mAMin, Range20mAMax);
+
+            if (SelectedTabIndex == 2)
+                return NextRandomInRange(Range10mAMin, Range10mAMax);
+
+            return NextRandomInRange(Range4mAMin, Range4mAMax);
+        }
+
+        private double NextRandomInRange(double min, double max)
+        {
+            lock (_random)
+            {
+                return min + _random.NextDouble() * (max - min);
+            }
         }
 
         private void Log(string message)
