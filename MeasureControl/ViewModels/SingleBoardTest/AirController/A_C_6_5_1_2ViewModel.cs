@@ -17,6 +17,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public sealed class A_C_6_5_1_2ViewModel : BindableBase, IDisposable
     {
+        private const string FixedATxChannel = "429_CH3";
+        private const string FixedARxChannel = "429_CH1";
+        private const string FixedBTxChannel = "429_CH2";
+        private const string FixedBRxChannel = "429_CH0";
+
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
@@ -63,15 +68,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public A_C_6_5_1_2ViewModel()
         {
-            ATxChannel = "429_CH0";
-            ARxChannel = "429_CH1";
-            BTxChannel = "429_CH2";
-            BRxChannel = "429_CH3";
+            _aTxChannel = FixedATxChannel;
+            _aRxChannel = FixedARxChannel;
+            _bTxChannel = FixedBTxChannel;
+            _bRxChannel = FixedBRxChannel;
 
-            EnterAtpTxChannel = ATxChannel;
-            EnterAtpRxChannel = ARxChannel;
-            ExitAtpTxChannel = ATxChannel;
-            ExitAtpRxChannel = ARxChannel;
+            _enterAtpTxChannel = ATxChannel;
+            _enterAtpRxChannel = ARxChannel;
+            _exitAtpTxChannel = ATxChannel;
+            _exitAtpRxChannel = ARxChannel;
 
             EnterAtpRxDataText = "--";
             ARxDataText = "--";
@@ -108,49 +113,41 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string ATxChannel
         {
             get => _aTxChannel;
-            set => SetProperty(ref _aTxChannel, value);
         }
 
         public string ARxChannel
         {
             get => _aRxChannel;
-            set => SetProperty(ref _aRxChannel, value);
         }
 
         public string BTxChannel
         {
             get => _bTxChannel;
-            set => SetProperty(ref _bTxChannel, value);
         }
 
         public string BRxChannel
         {
             get => _bRxChannel;
-            set => SetProperty(ref _bRxChannel, value);
         }
 
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
         }
 
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
         }
 
         public string EnterAtpRxDataText
