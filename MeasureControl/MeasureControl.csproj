@@ -247,6 +247,7 @@
     <Compile Include="Views\Login.xaml.cs"><DependentUpon>Login.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_1_1View.xaml.cs"><DependentUpon>A_C_6_10_1_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_2_1View.xaml.cs"><DependentUpon>A_C_6_10_2_1View.xaml</DependentUpon></Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_4_1View.xaml.cs"><DependentUpon>A_C_6_10_4_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_7_1View.xaml.cs"><DependentUpon>A_C_6_10_7_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_11_1_1View.xaml.cs"><DependentUpon>A_C_6_11_1_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_12_1_1View.xaml.cs"><DependentUpon>A_C_6_12_1_1View.xaml</DependentUpon></Compile>

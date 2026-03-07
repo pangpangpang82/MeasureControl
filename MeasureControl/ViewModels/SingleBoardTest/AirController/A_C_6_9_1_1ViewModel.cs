@@ -58,7 +58,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-        private const string AoChannel = "AO1";
+        private const string AoChannel = "AO5";
 
 
 
@@ -350,7 +350,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     var token = CancellationToken.None;
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 设置档位{gearIndex}：AO1={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 设置档位{gearIndex}：AO5={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
 
 
 
@@ -2358,7 +2358,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：设置AO1={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：设置AO5={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
 
             var okVoltage = await OutputVoltageAsync(voltageV, token);
 
@@ -2530,7 +2530,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动档位{gearIndex}：设置AO1={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动档位{gearIndex}：设置AO5={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
 
                     var okVoltage = await OutputVoltageAsync(voltageV, token);
 
