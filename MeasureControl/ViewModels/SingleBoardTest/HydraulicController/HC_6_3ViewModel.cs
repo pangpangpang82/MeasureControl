@@ -9,8 +9,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using MeasureControl.Models.Devices;
+using MeasureControl.Models.Devices.DeviceCategories;
+using MeasureControl.Events;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
+using Prism.Events;
+using Prism.Ioc;
 using MeasureControl.Drivers;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
@@ -62,7 +66,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         // 同一温度 Label 下，用 SDI 区分两路温度系统
         private const int TxChannelIndex = 0;
-        private const byte SsmNormal = 0;
+        private const byte SsmNormal = 3;
         private const bool EnableArincTxSimulation = true;
         private static readonly byte[] TempChannelASdis = { 1, 2 };
         private static readonly byte[] TempChannelBSdis = { 1, 3 };
@@ -85,6 +89,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private bool _measured2;
         private bool _measured3;
         private bool _manualAborted;
+        private bool _historyLoaded;
 
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
@@ -130,6 +135,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private void LoadLastTestResultFromProject()
         {
+            if (_historyLoaded)
+                return;
+
             var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
             if (testItemNode != null)
             {
@@ -143,6 +151,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     _previousTestResult = testItemNode.LastTestResult;
                     RaisePropertyChanged(nameof(PreviousTestResult));
                 }
+
+                _historyLoaded = true;
             }
         }
 
@@ -153,6 +163,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 testItemNode.LastTestTime = PreviousTestTime;
                 testItemNode.LastTestResult = PreviousTestResult;
+
+                var eventAggregator = ContainerLocator.Container?.Resolve(typeof(IEventAggregator)) as IEventAggregator;
+                eventAggregator?.GetEvent<ProjectModifiedEvent>()?.Publish(new ProjectModifiedEventArgs
+                {
+                    ModificationType = "SingleBoardTestResult",
+                    Description = $"单板测试结果已更新: {TestItemName}"
+                });
             }
         }
 
@@ -225,8 +242,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         }
 
         public bool CanMeasurePoint1 => IsManualTestRunning && CanMeasure && !_measured1;
-        public bool CanMeasurePoint2 => IsManualTestRunning && CanMeasure && _measured1 && !_measured2;
-        public bool CanMeasurePoint3 => IsManualTestRunning && CanMeasure && _measured1 && _measured2 && !_measured3;
+        public bool CanMeasurePoint2 => IsManualTestRunning && CanMeasure && !_measured2;
+        public bool CanMeasurePoint3 => IsManualTestRunning && CanMeasure && !_measured3;
+
+        private void RefreshMeasureCommands()
+        {
+            RaisePropertyChanged(nameof(CanMeasurePoint1));
+            RaisePropertyChanged(nameof(CanMeasurePoint2));
+            RaisePropertyChanged(nameof(CanMeasurePoint3));
+            MeasurePoint1Command?.RaiseCanExecuteChanged();
+            MeasurePoint2Command?.RaiseCanExecuteChanged();
+            MeasurePoint3Command?.RaiseCanExecuteChanged();
+        }
 
         /// <summary>
         /// 整板串行自动测试入口。
@@ -298,25 +325,41 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         public string LastTestTime
         {
-            get => _lastTestTime;
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _lastTestTime;
+            }
             set => SetProperty(ref _lastTestTime, value);
         }
 
         public string LastTestResult
         {
-            get => _lastTestResult;
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _lastTestResult;
+            }
             set => SetProperty(ref _lastTestResult, value);
         }
 
         public string PreviousTestTime
         {
-            get => _previousTestTime;
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _previousTestTime;
+            }
             set => SetProperty(ref _previousTestTime, value);
         }
 
         public string PreviousTestResult
         {
-            get => _previousTestResult;
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _previousTestResult;
+            }
             set => SetProperty(ref _previousTestResult, value);
         }
 
@@ -531,9 +574,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         cancellationToken)
                     .ConfigureAwait(false);
 
-                _measured1 = _temp1 != null && _temp1B != null;
-                _measured2 = _temp2 != null && _temp2B != null;
-                _measured3 = _temp3 != null && _temp3B != null;
+                _measured1 = true;
+                _measured2 = true;
+                _measured3 = true;
 
                 await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
                 await StopAutoTestAsync().ConfigureAwait(false);
@@ -570,8 +613,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 .ConfigureAwait(false);
             if (!IsManualTestRunning || _manualAborted) return;
             _measured1 = true;
-            RaisePropertyChanged(nameof(CanMeasurePoint1));
-            MeasurePoint1Command?.RaiseCanExecuteChanged();
+            RefreshMeasureCommands();
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
@@ -591,8 +633,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 .ConfigureAwait(false);
             if (!IsManualTestRunning || _manualAborted) return;
             _measured2 = true;
-            RaisePropertyChanged(nameof(CanMeasurePoint2));
-            MeasurePoint2Command?.RaiseCanExecuteChanged();
+            RefreshMeasureCommands();
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
@@ -612,8 +653,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 .ConfigureAwait(false);
             if (!IsManualTestRunning || _manualAborted) return;
             _measured3 = true;
-            RaisePropertyChanged(nameof(CanMeasurePoint3));
-            MeasurePoint3Command?.RaiseCanExecuteChanged();
+            RefreshMeasureCommands();
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
@@ -1158,13 +1198,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (chassisList == null)
                 return null;
 
+            var preferredChassisName = _singleBoardTestContext?.ChassisName;
+
+            foreach (var chassis in chassisList)
+            {
+                if (!string.IsNullOrWhiteSpace(preferredChassisName) &&
+                    !string.Equals(chassis?.Name, preferredChassisName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var typedDevice = chassis?.Devices?.FirstOrDefault(d => d is ProgrammableResistorDevice);
+                if (typedDevice != null)
+                    return typedDevice;
+            }
+
             foreach (var chassis in chassisList)
             {
                 var device = chassis?.Devices?.FirstOrDefault(d =>
-                    (d?.Model?.IndexOf("6010", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d is ProgrammableResistorDevice) ||
+                    (d?.Model?.IndexOf("7012", StringComparison.OrdinalIgnoreCase) >= 0) ||
                     (d?.Model?.IndexOf("ACTS", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceType?.IndexOf("resistor", StringComparison.OrdinalIgnoreCase) >= 0) ||
                     (d?.Name?.IndexOf("6010", StringComparison.OrdinalIgnoreCase) >= 0) ||
-                    (d?.Name?.IndexOf("ACTS", StringComparison.OrdinalIgnoreCase) >= 0));
+                    (d?.Name?.IndexOf("ACTS", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.CardName?.IndexOf("6010", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.CardName?.IndexOf("ACTS", StringComparison.OrdinalIgnoreCase) >= 0));
 
                 if (device != null)
                     return device;

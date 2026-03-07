@@ -8,9 +8,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using MeasureControl.Models.Devices;
+using MeasureControl.Events;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
 using MeasureControl.Views.Dialogs;
+using Prism.Events;
+using Prism.Ioc;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
@@ -54,7 +57,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         // 采样配置
         private const int SamplesPerMeasure = 5;
-        private const int SampleTimeoutMs = 3000;
+        private const int SampleTimeoutMs = 5000;
 
         // 电压合格范围（允许偏差 ±1.5%）
         private const double Min5V = 4.925;
@@ -82,6 +85,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private bool _measured15v;
         private bool _measuredM15v;
         private bool _manualAborted;
+        private bool _historyLoaded;
 
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
@@ -122,6 +126,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private void LoadLastTestResultFromProject()
         {
+            if (_historyLoaded)
+                return;
+
             var node = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
             if (node == null) return;
 
@@ -135,6 +142,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 _previousTestResult = node.LastTestResult;
                 RaisePropertyChanged(nameof(PreviousTestResult));
             }
+
+            _historyLoaded = true;
         }
 
         private void SaveTestResultToProject()
@@ -143,6 +152,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (node == null) return;
             node.LastTestTime = PreviousTestTime;
             node.LastTestResult = PreviousTestResult;
+
+            var eventAggregator = ContainerLocator.Container?.Resolve(typeof(IEventAggregator)) as IEventAggregator;
+            eventAggregator?.GetEvent<ProjectModifiedEvent>()?.Publish(new ProjectModifiedEventArgs
+            {
+                ModificationType = "SingleBoardTestResult",
+                Description = $"单板测试结果已更新: {TestItemName}"
+            });
         }
 
         // =====================================================================
@@ -228,25 +244,41 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         public string LastTestTime
         {
-            get => _lastTestTime;
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _lastTestTime;
+            }
             set => SetProperty(ref _lastTestTime, value);
         }
 
         public string LastTestResult
         {
-            get => _lastTestResult;
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _lastTestResult;
+            }
             set => SetProperty(ref _lastTestResult, value);
         }
 
         public string PreviousTestTime
         {
-            get => _previousTestTime;
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _previousTestTime;
+            }
             set => SetProperty(ref _previousTestTime, value);
         }
 
         public string PreviousTestResult
         {
-            get => _previousTestResult;
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _previousTestResult;
+            }
             set => SetProperty(ref _previousTestResult, value);
         }
 
@@ -328,7 +360,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasure5VAsync()
         {
-            await MeasureVoltageFrom429Async(
+            var ok = await MeasureVoltageFrom429Async(
                 title: "5V",
                 expectedLabel: Label5V,
                 decode: Decode5V,
@@ -339,7 +371,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             // 如果测试已手动中止或停止，则不再进行后续操作
             if (!IsManualTestRunning || _manualAborted) return;
 
-            // 无论测量成功与否，都标记为“已测量”
             _measured5v = true;
             RaisePropertyChanged(nameof(CanMeasure5V));
             Measure5VCommand?.RaiseCanExecuteChanged();
@@ -350,7 +381,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasure15VAsync()
         {
-            await MeasureVoltageFrom429Async(
+            var ok = await MeasureVoltageFrom429Async(
                 title: "15V",
                 expectedLabel: Label15V,
                 decode: Decode15V,
@@ -361,7 +392,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             // 如果测试已手动中止或停止，则不再进行后续操作
             if (!IsManualTestRunning || _manualAborted) return;
 
-            // 无论测量成功与否，都标记为“已测量”
             _measured15v = true;
             RaisePropertyChanged(nameof(CanMeasure15V));
             Measure15VCommand?.RaiseCanExecuteChanged();
@@ -372,7 +402,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasureM15VAsync()
         {
-            await MeasureVoltageFrom429Async(
+            var ok = await MeasureVoltageFrom429Async(
                 title: "-15V",
                 expectedLabel: LabelM15V,
                 decode: DecodeM15V,
@@ -456,7 +486,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         setText: t => Voltage5VText = t, setValue: v => _voltage5V = v,
                         cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
-                _measured5v = true;   // 强制标记
+                _measured5v = true;
 
                 await Task.Delay(120, cancellationToken).ConfigureAwait(false);
 
@@ -466,7 +496,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         setText: t => Voltage15VText = t, setValue: v => _voltage15V = v,
                         cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
-                _measured15v = true;  // 强制标记
+                _measured15v = true;
 
                 await Task.Delay(120, cancellationToken).ConfigureAwait(false);
 
@@ -476,7 +506,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         setText: t => VoltageM15VText = t, setValue: v => _voltageM15V = v,
                         cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
-                _measuredM15v = true; // 强制标记
+                _measuredM15v = true;
 
                 // 此时三个都已“测量”（可能成功可能失败），可以最终判定
                 await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
@@ -559,8 +589,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 data19 &= ~(1u << 18);   // 确保 bit28=0
             }
 
-            // bit10-19 协议规定未使用，清零
-            data19 &= ~0x3FFu;
+            // bit11-19 协议规定未使用，映射到 data19 bit0..8，清零
+            data19 &= ~0x1FFu;
 
             // SSM=3（正常数据），奇校验
             var word = _arinc.BuildRawWord(label, sdi: 0, data19: data19, ssm: SsmNormal, applyOddParity: true);
@@ -610,15 +640,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                             cancellationToken: cancellationToken)
                         .ConfigureAwait(false);
 
-                    // 调试日志：确认收到数据后可删除
-                    Log($"{title}: 本次读到 {words.Count} 个字");
-
                     foreach (var w in words)
                     {
-                        // 调试日志：确认 label 匹配后可删除
-                        _arinc.ParseRawWord(w.Data429, out var rawLabel, out _, out _, out _);
-                        Log($"{title}: label=0{Convert.ToString(rawLabel, 8)}(oct) expected=0{Convert.ToString(expectedLabel, 8)}(oct) raw=0x{w.Data429:X8}");
-
                         // ① Label 过滤（含字节位序颠倒形式）
                         if (!IsExpectedLabel(w.Data429, expectedLabel))
                             continue;
@@ -638,8 +661,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         if (ssm != SsmNormal)
                             continue;
 
-                        // ⑥ bit10-19 协议定义未使用，必须为 0
-                        if ((data19 & 0x3FFu) != 0)
+                        // ⑥ bit11-19 协议定义未使用，映射到 data19 bit0..8，必须为 0
+                        if ((data19 & 0x1FFu) != 0)
                             continue;
 
                         // ⑦ UBNR 通道（15V / 5V）bit28（data19 bit18）协议定义未使用，必须为 0
@@ -670,7 +693,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 setText("超时");
                 setValue(null);
 
-                var timeoutMsg = $"{title}: 测量超时(3秒内未接收到{SamplesPerMeasure}帧有效数据)";
+                var timeoutMsg = $"{title}: 测量超时({SampleTimeoutMs / 1000.0:0.#}秒内未接收到{SamplesPerMeasure}帧有效数据)";
                 Log(timeoutMsg);
 
                 if (IsManualTestRunning)

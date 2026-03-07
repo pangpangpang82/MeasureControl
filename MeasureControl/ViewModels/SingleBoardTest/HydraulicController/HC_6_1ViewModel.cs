@@ -7,9 +7,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
 using System.Windows;
+using MeasureControl.Events;
 using MeasureControl.Models.Devices;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
+using Prism.Events;
+using Prism.Ioc;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
@@ -115,6 +118,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 testItemNode.LastTestTime = PreviousTestTime;
                 testItemNode.LastTestResult = PreviousTestResult;
+
+                var eventAggregator = ContainerLocator.Container?.Resolve(typeof(IEventAggregator)) as IEventAggregator;
+                eventAggregator?.GetEvent<ProjectModifiedEvent>()?.Publish(new ProjectModifiedEventArgs
+                {
+                    ModificationType = "SingleBoardTestResult",
+                    Description = $"单板测试结果已更新: {TestItemName}"
+                });
             }
         }
 
@@ -717,12 +727,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return;
             }
 
-            if (ok)
-            {
-                _measured14 = true;
-                RaisePropertyChanged(nameof(CanMeasure14));
-                Measure14Command?.RaiseCanExecuteChanged();
-            }
+            _measured14 = true;
+            RaisePropertyChanged(nameof(CanMeasure14));
+            Measure14Command?.RaiseCanExecuteChanged();
 
             await TryFinalizeIfBothMeasuredAsync().ConfigureAwait(false);
         }
@@ -744,12 +751,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return;
             }
 
-            if (ok)
-            {
-                _measured182 = true;
-                RaisePropertyChanged(nameof(CanMeasure182));
-                Measure182Command?.RaiseCanExecuteChanged();
-            }
+            _measured182 = true;
+            RaisePropertyChanged(nameof(CanMeasure182));
+            Measure182Command?.RaiseCanExecuteChanged();
 
             await TryFinalizeIfBothMeasuredAsync().ConfigureAwait(false);
         }
