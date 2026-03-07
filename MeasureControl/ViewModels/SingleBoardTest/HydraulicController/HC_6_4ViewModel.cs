@@ -43,7 +43,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         // ---- END ----
 
         // ARINC429 发送配置
-        private const int TxChannelIndex = 0;
+        private const int TxChannelIndex = 1;
 
         // 压力数据定义（Label=174(oct) 即十进制 124）
         private const byte PressLabelDec = 124; // 174(oct)
@@ -52,11 +52,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const byte SsmNormal = 0;
 
         // 采样参数
-        private const int SamplesPerMeasure = 5;      // 每路采集 5 帧取平均
+        private const int SamplesPerMeasure = 3;      // 每路采集 3 帧取平均
         private const int SampleTimeoutMs = 5000;     // 采样超时 5 秒
         private const int AoSettleMs = 100;            // 模拟量输出稳定等待时间
         private const int Mtx532ReadyTimeoutMs = 6000;
         private const int Mtx532ReadyPollMs = 200;
+        private const int PostSwitchRxFlushMs = 120;
 
         // 三个测试点对应的模拟电压（由 MTX532 输出到压力传感器模拟通道）
         private const double Point1VoltageV = 0.5;    // 点1: 0.5V
@@ -611,6 +612,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 Log($"{title}: 设置AO输出 AO0/AO1/AO2={aoVoltage:0.###}V");
                 await SetAo012Async(aoVoltage, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(AoSettleMs, cancellationToken).ConfigureAwait(false);
+                _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await Task.Delay(PostSwitchRxFlushMs, cancellationToken).ConfigureAwait(false);
 
                 var ok1 = await MeasureSingleSystemAsync($"{title}-SYS1", sdi: 1, setSys1, setV1, cancellationToken).ConfigureAwait(false);
                 var ok2 = await MeasureSingleSystemAsync($"{title}-SYS2", sdi: 2, setSys2, setV2, cancellationToken).ConfigureAwait(false);
@@ -660,12 +663,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         samples.Add(v);
 
                         var avg = samples.Average();
-                        setText($"{v:0.###} ({samples.Count}/{SamplesPerMeasure}) 平均:{avg:0.###}");
+                        setText($"{v:0.000}");
 
                         if (samples.Count >= SamplesPerMeasure)
                         {
                             setValue(avg);
-                            setText($"{avg:0.###}");
+                            setText($"{avg:0.000}");
                             Log($"{title}: 完成，平均压力={avg:0.###}");
                             return true;
                         }
@@ -1029,7 +1032,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             foreach (var chassis in chassisList)
             {
                 var device = chassis?.Devices?.FirstOrDefault(d =>
-                    (d?.Model?.IndexOf("mtx532", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.Model?.IndexOf("X532", StringComparison.OrdinalIgnoreCase) >= 0) ||
                     (d?.Name?.IndexOf("mtx532", StringComparison.OrdinalIgnoreCase) >= 0));
 
                 if (device != null)
@@ -1088,13 +1091,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private double VoltageToPressure(double voltage)
         {
             if (Math.Abs(voltage - Point1VoltageV) < 0.1)
-                return NextRandomInRange(0.0, 85.0);
+                return NextRandomInRange(42.5 - 2.5, 42.5 + 2.5);
             else if (Math.Abs(voltage - Point2VoltageV) < 0.1)
-                return NextRandomInRange(3915.0, 4000.0);
+                return NextRandomInRange(3957.5 - 10.0, 3957.5 + 10.0);
             else if (Math.Abs(voltage - Point3VoltageV) < 0.1)
-                return NextRandomInRange(1414.0, 1585.0);
+                return NextRandomInRange(1499.5 - 12.0, 1499.5 + 12.0);
             else
-                return NextRandomInRange(1414.0, 1585.0);
+                return 1499.5;
         }
 
         private async Task<double> GetCurrentAoVoltageAsync(CancellationToken cancellationToken)
@@ -1122,15 +1125,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private async Task SendSimulatedPressureWordAsync(byte sdi, double pressureValue, CancellationToken cancellationToken)
         {
-            // 压力数据编码：12-bit UBNR，位于bit16-27
-            // 在19-bit数据域中，对应bit5-16（因为bit16-27映射到data19的bit5-16）
-            uint data19 = (uint)pressureValue & 0xFFFu; // 12-bit数据
-            data19 <<= 5; // 移位到bit5-16位置
+            uint data19 = _arinc.EncodeUbnr(pressureValue, bitLength: PressureBitLength, resolution: 1.0, msbPosition: 27);
 
-            // bit10-15和bit28协议规定未使用，必须为0
-            data19 &= ~((0x3Fu << 10) | (1u << 18)); // 清零bit10-15和bit28
-
-            // SSM=3（正常数据），奇校验
             var word = _arinc.BuildRawWord(PressLabelDec, sdi: sdi, data19: data19, ssm: SsmNormal, applyOddParity: true);
             await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
         }

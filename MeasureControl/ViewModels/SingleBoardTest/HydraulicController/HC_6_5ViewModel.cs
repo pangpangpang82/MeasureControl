@@ -24,16 +24,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double InputCurrentA = 1;
 
         private const int RxChannelIndex = 2;
-        private const int TxChannelIndex = 0;
+        private const int TxChannelIndex = 1;
         private const double ArincRate = 100000.0;
         private const bool EnableArincTxSimulation = true;
 
         private const string PressureUnit = "Psid";
-        private const int SamplesPerMeasure = 5;
+        private const int SamplesPerMeasure = 3;
         private const int SampleTimeoutMs = 5000;
         private const int AoSettleMs = 100;
         private const int Mtx532ReadyTimeoutMs = 6000;
         private const int Mtx532ReadyPollMs = 200;
+        private const int PostSwitchRxFlushMs = 120;
 
         private const double Current4mA = 4.0;
         private const double Current10mA = 10.0;
@@ -86,6 +87,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private IArt4229Api _arinc;
         private IMtx532Api _mtx532;
         private bool _txOpened;
+        private double _currentSimulatedCurrentmA = Current4mA;
 
         private const string TestItemName = "压差传感器信号采集测试";
 
@@ -612,10 +614,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                _currentSimulatedCurrentmA = currentmA;
                 var voltageV = ConvertCurrentToVoltage(currentmA);
                 Log($"{title}: 设置AO4-AO9={voltageV:0.###}V（等效 {currentmA:0.###}mA）");
                 await SetAo456789Async(voltageV, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(AoSettleMs, cancellationToken).ConfigureAwait(false);
+                _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, 4096, false, false, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(PostSwitchRxFlushMs, cancellationToken).ConfigureAwait(false);
                 Log($"{title}: 开始接收DPT数据 Label/SDI过滤，自动识别A/B组");
 
                 var samples = new Dictionary<string, List<double>>(StringComparer.OrdinalIgnoreCase)
@@ -664,14 +669,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                         list.Add(value.Value);
                         var avg = list.Average();
-                        setTextByName(definition.SlotKey, $"{value.Value:0.###} {PressureUnit} ({list.Count}/{SamplesPerMeasure}) 平均:{avg:0.###} {PressureUnit}");
+                        setTextByName(definition.SlotKey, $"{value.Value:0.000} {PressureUnit}");
                     }
 
                     if (samples.Values.All(l => l.Count >= SamplesPerMeasure))
                     {
                         foreach (var kv in samples)
                         {
-                            setTextByName(kv.Key, $"{kv.Value.Average():0.###} {PressureUnit}");
+                            setTextByName(kv.Key, $"{kv.Value.Average():0.000} {PressureUnit}");
                         }
 
                         Log($"{title}: 完成{(string.IsNullOrWhiteSpace(activeGroup) ? string.Empty : $"，组别={activeGroup}")}");
@@ -884,7 +889,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private double ConvertCurrentToVoltage(double currentmA)
         {
-            return currentmA * 10.0 / 42.0;
+            return (currentmA - 21.0) * 10.0 / 21.0;
         }
 
         private async Task EnsureArincRxAsync(CancellationToken cancellationToken)
@@ -997,7 +1002,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 var device = chassis?.Devices?.FirstOrDefault(d =>
                     (d is AnalogOutputDevice) ||
-                    (d?.Model?.IndexOf("mtx532", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.Model?.IndexOf("X532", StringComparison.OrdinalIgnoreCase) >= 0) ||
                     (d?.Name?.IndexOf("mtx532", StringComparison.OrdinalIgnoreCase) >= 0) ||
                     (d?.CardName?.IndexOf("mtx532", StringComparison.OrdinalIgnoreCase) >= 0) ||
                     (d?.DeviceType?.IndexOf("analog", StringComparison.OrdinalIgnoreCase) >= 0) ||
@@ -1067,21 +1072,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task SendSimulatedWordAsync(byte label, byte sdi, double value, CancellationToken cancellationToken)
         {
-            var encoded = Math.Max(0, Math.Min(511, (int)Math.Round(value / DataResolution, MidpointRounding.AwayFromZero)));
-            uint data19 = (uint)(encoded & 0x1FF);
+            uint data19 = _arinc.EncodeUbnr(value, bitLength: DataBitLength, resolution: DataResolution, msbPosition: DataMsbPosition);
             var word = _arinc.BuildRawWord(label, sdi, data19, SsmNormal, applyOddParity: true);
             await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
         }
 
         private double GetSimulatedPressureForCurrentGroup()
         {
-            if (SelectedTabIndex == 0)
+            if (Math.Abs(_currentSimulatedCurrentmA - Current4mA) < 0.01)
                 return NextRandomInRange(Range4mAMin, Range4mAMax);
 
-            if (SelectedTabIndex == 1)
+            if (Math.Abs(_currentSimulatedCurrentmA - Current20mA) < 0.01)
                 return NextRandomInRange(Range20mAMin, Range20mAMax);
 
-            if (SelectedTabIndex == 2)
+            if (Math.Abs(_currentSimulatedCurrentmA - Current10mA) < 0.01)
                 return NextRandomInRange(Range10mAMin, Range10mAMax);
 
             return NextRandomInRange(Range4mAMin, Range4mAMax);

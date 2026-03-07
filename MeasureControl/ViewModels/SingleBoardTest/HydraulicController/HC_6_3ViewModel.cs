@@ -42,9 +42,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         // 温度数据定义与采样参数
         private const byte TempLabelDec = 125; // 175(oct)
-        private const int SamplesPerMeasure = 5;
+        private const int SamplesPerMeasure = 3;
         private const int SampleTimeoutMs = 5000;
-        private const int ResistanceSettleMs = 100;
+        private const int ResistanceSettleMs = 400;
 
         // 三个测试点对应的“模拟电阻值”（由程控电阻箱输出到 PT500 模拟通道）
         private const double R1_Ohm = 763.3;
@@ -65,11 +65,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int TempMsbPosition = 28;
 
         // 同一温度 Label 下，用 SDI 区分两路温度系统
-        private const int TxChannelIndex = 0;
+        private const int TxChannelIndex = 1;
         private const byte SsmNormal = 3;
         private const bool EnableArincTxSimulation = true;
-        private static readonly byte[] TempChannelASdis = { 1, 2 };
-        private static readonly byte[] TempChannelBSdis = { 1, 3 };
+        private const byte TempChannelAUnifiedSdi = 1;
+        private const byte TempChannelBLeftSdi = 2;
+        private const byte TempChannelBRightSdi = 3;
 
         private readonly Random _random = new Random();
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
@@ -115,6 +116,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private double? _temp1B;
         private double? _temp2B;
         private double? _temp3B;
+        private double _currentSimulatedResistance = R1_Ohm;
 
         public HC_6_3ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
         {
@@ -686,15 +688,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             try
             {
                 Log($"{title}: 设置程控电阻 RO0/RO1={resistanceOhm:0.###}Ω");
+                _currentSimulatedResistance = resistanceOhm;
                 await SetResistanceAsync(resistanceOhm, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(ResistanceSettleMs, cancellationToken).ConfigureAwait(false);
+                _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-                Log($"{title}: 开始接收温度数据，Label=175(oct) 112~114接收SDI1/2，116~118接收SDI1/3");
+                Log($"{title}: 开始接收温度数据，Label=175(oct) A版使用SDI1同时更新两框，B版使用SDI2/3分别更新两框");
 
                 var samplesA = new List<double>(SamplesPerMeasure);
                 var samplesB = new List<double>(SamplesPerMeasure);
-                byte? matchedSdiA = null;
-                byte? matchedSdiB = null;
+                string matchedMode = null;
                 var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
 
                 // 循环接收 ARINC429 数据直到采集足够样本或超时
@@ -717,26 +720,50 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                             if (!IsExpectedLabel(label))
                                 continue;
 
-                            if (!IsAcceptedSdi(wordSdi, TempChannelASdis, matchedSdiA) && !IsAcceptedSdi(wordSdi, TempChannelBSdis, matchedSdiB))
+                            if (matchedMode == null)
+                            {
+                                if (wordSdi == TempChannelAUnifiedSdi)
+                                    matchedMode = "A";
+                                else if (wordSdi == TempChannelBLeftSdi || wordSdi == TempChannelBRightSdi)
+                                    matchedMode = "B";
+                            }
+
+                            if (matchedMode == null)
                                 continue;
 
                             var v = DecodeTemp(data19);
                             if (v == null)
                                 continue;
 
-                            if (IsAcceptedSdi(wordSdi, TempChannelASdis, matchedSdiA) && samplesA.Count < SamplesPerMeasure)
+                            if (matchedMode == "A")
                             {
-                                matchedSdiA ??= wordSdi;
-                                samplesA.Add(v.Value);
+                                if (wordSdi != TempChannelAUnifiedSdi)
+                                    continue;
+
+                                if (samplesA.Count < SamplesPerMeasure)
+                                    samplesA.Add(v.Value);
+                                if (samplesB.Count < SamplesPerMeasure)
+                                    samplesB.Add(v.Value);
+
                                 var avgA = samplesA.Average();
-                                setTextA($"SDI{matchedSdiA.Value}: {v.Value:0.###} ℃ ({samplesA.Count}/{SamplesPerMeasure})  平均:{avgA:0.###} ℃");
-                            }
-                            else if (IsAcceptedSdi(wordSdi, TempChannelBSdis, matchedSdiB) && samplesB.Count < SamplesPerMeasure)
-                            {
-                                matchedSdiB ??= wordSdi;
-                                samplesB.Add(v.Value);
                                 var avgB = samplesB.Average();
-                                setTextB($"SDI{matchedSdiB.Value}: {v.Value:0.###} ℃ ({samplesB.Count}/{SamplesPerMeasure})  平均:{avgB:0.###} ℃");
+                                setTextA($"{v.Value:0.000} ℃");
+                                setTextB($"{v.Value:0.000} ℃");
+                            }
+                            else if (matchedMode == "B")
+                            {
+                                if (wordSdi == TempChannelBLeftSdi && samplesA.Count < SamplesPerMeasure)
+                                {
+                                    samplesA.Add(v.Value);
+                                    var avgA = samplesA.Average();
+                                    setTextA($"{v.Value:0.000} ℃");
+                                }
+                                else if (wordSdi == TempChannelBRightSdi && samplesB.Count < SamplesPerMeasure)
+                                {
+                                    samplesB.Add(v.Value);
+                                    var avgB = samplesB.Average();
+                                    setTextB($"{v.Value:0.000} ℃");
+                                }
                             }
 
                             if (samplesA.Count >= SamplesPerMeasure && samplesB.Count >= SamplesPerMeasure)
@@ -747,10 +774,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                                 setValueA(avgA);
                                 setValueB(avgB);
 
-                                setTextA($"SDI{matchedSdiA.GetValueOrDefault()}: {avgA:0.###} ℃");
-                                setTextB($"SDI{matchedSdiB.GetValueOrDefault()}: {avgB:0.###} ℃");
+                                if (matchedMode == "A")
+                                {
+                                    setTextA($"{avgA:0.000} ℃");
+                                    setTextB($"{avgB:0.000} ℃");
+                                }
+                                else
+                                {
+                                    setTextA($"{avgA:0.000} ℃");
+                                    setTextB($"{avgB:0.000} ℃");
+                                }
 
-                                Log($"{title}: 完成，112~114使用SDI{matchedSdiA.GetValueOrDefault()} 平均={avgA:0.###}℃  116~118使用SDI{matchedSdiB.GetValueOrDefault()} 平均={avgB:0.###}℃");
+                                Log($"{title}: 完成，模式={matchedMode} 左框平均={avgA:0.###}℃ 右框平均={avgB:0.###}℃");
                                 return true;
                             }
                         }
@@ -812,11 +847,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     var simulatedTemp = GetSimulatedTemperatureForCurrentResistance();
 
-                    await SendSimulatedTempWordAsync(TempChannelASdis[0], simulatedTemp, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedTempWordAsync(TempChannelBLeftSdi, simulatedTemp, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(40, cancellationToken).ConfigureAwait(false);
-                    await SendSimulatedTempWordAsync(TempChannelASdis[1], simulatedTemp, cancellationToken).ConfigureAwait(false);
-                    await Task.Delay(40, cancellationToken).ConfigureAwait(false);
-                    await SendSimulatedTempWordAsync(TempChannelBSdis[1], simulatedTemp, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedTempWordAsync(TempChannelBRightSdi, simulatedTemp, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(40, cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -844,30 +877,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private double GetSimulatedTemperatureForCurrentResistance()
         {
-            if (Math.Abs(GetCurrentResistanceForSimulation() - R1_Ohm) <= 0.2)
+            if (Math.Abs(_currentSimulatedResistance - R1_Ohm) <= 2.0)
                 return NextRandomInRange(T1_Min, T1_Max);
 
-            if (Math.Abs(GetCurrentResistanceForSimulation() - R2_Ohm) <= 0.2)
+            if (Math.Abs(_currentSimulatedResistance - R2_Ohm) <= 4.0)
                 return NextRandomInRange(T2_Min, T2_Max);
 
-            if (Math.Abs(GetCurrentResistanceForSimulation() - R3_Ohm) <= 0.2)
+            if (Math.Abs(_currentSimulatedResistance - R3_Ohm) <= 1.6)
                 return NextRandomInRange(T3_Min, T3_Max);
 
             return NextRandomInRange(T3_Min, T3_Max);
-        }
-
-        private double GetCurrentResistanceForSimulation()
-        {
-            if (_temp1 == null && _temp2 == null && _temp3 == null && _temp1B == null && _temp2B == null && _temp3B == null)
-                return R1_Ohm;
-
-            if (_measured2)
-                return R3_Ohm;
-
-            if (_measured1)
-                return R2_Ohm;
-
-            return R1_Ohm;
         }
 
         private double NextRandomInRange(double min, double max)
@@ -884,14 +903,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private bool IsExpectedLabel(byte label)
         {
             return label == TempLabelDec || label == _arinc.ReverseLabel(TempLabelDec);
-        }
-
-        private static bool IsAcceptedSdi(byte sdi, IReadOnlyCollection<byte> candidates, byte? matchedSdi)
-        {
-            if (matchedSdi.HasValue)
-                return sdi == matchedSdi.Value;
-
-            return candidates.Contains(sdi);
         }
 
         /// <summary>

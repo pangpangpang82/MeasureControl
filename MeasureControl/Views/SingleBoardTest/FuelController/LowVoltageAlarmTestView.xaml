@@ -18,8 +18,8 @@
                 <RowDefinition Height="6*" />
                 <RowDefinition Height="1.2*" />
             </Grid.RowDefinitions>
-            
-            <!-- 标题栏 -->
+
+            <!--  标题栏  -->
             <Border
                 x:Name="Test_name"
                 Grid.Row="0"
@@ -38,7 +38,7 @@
                         FontWeight="Bold"
                         Text="低电压告警功能测试" />
                     <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                        <!-- 手动测试按钮 -->
+                        <!--  手动测试按钮  -->
                         <Button
                             Width="100"
                             Height="32"
@@ -98,7 +98,7 @@
                                 </ControlTemplate>
                             </Button.Template>
                         </Button>
-                        <!-- 自动测试按钮 -->
+                        <!--  自动测试按钮  -->
                         <Button
                             Width="100"
                             Height="32"
@@ -161,8 +161,8 @@
                     </StackPanel>
                 </Grid>
             </Border>
-            
-            <!-- 主内容区 -->
+
+            <!--  主内容区  -->
             <Border
                 Grid.Row="1"
                 Margin="8,4,8,4"
@@ -180,7 +180,7 @@
                         <ColumnDefinition Width="1.6*" />
                         <ColumnDefinition Width="1*" />
                     </Grid.ColumnDefinitions>
-                    
+
                     <TextBlock
                         Grid.Row="0"
                         Margin="10,5,0,5"
@@ -191,50 +191,98 @@
 
                     <StackPanel Grid.Row="1" Margin="10,5,10,5">
 
-                        <!-- 供电状态提示区域 -->
-                        <Border Margin="0,10,0,0" Background="#fef3c7" BorderBrush="#f59e0b" BorderThickness="1" CornerRadius="6" Padding="6">
+                        <!--  供电状态提示区域  -->
+                        <Border
+                            Margin="0,10,0,0"
+                            Padding="6"
+                            Background="#fef3c7"
+                            BorderBrush="#f59e0b"
+                            BorderThickness="1"
+                            CornerRadius="6">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="200"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="200" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Foreground="#92400e" Text="供电状态: "/>
-                                <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Foreground="#92400e" Text="{Binding PowerStatus}"/>
-                                <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Foreground="#92400e" Text="当前电压: "/>
-                                <TextBlock Grid.Column="3" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Foreground="#0369a1" Text="{Binding CurrentVoltage, StringFormat={}{0:F1}V}"/>
+                                <TextBlock
+                                    Grid.Column="0"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Foreground="#92400e"
+                                    Text="供电状态: " />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Foreground="#92400e"
+                                    Text="{Binding PowerStatus}" />
+                                <TextBlock
+                                    Grid.Column="2"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Foreground="#92400e"
+                                    Text="当前电压: " />
+                                <TextBlock
+                                    Grid.Column="3"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Foreground="#0369a1"
+                                    Text="{Binding CurrentVoltage, StringFormat={}{0:F1}V}" />
                             </Grid>
                         </Border>
 
-                        <!-- 降压控制区域 -->
-                        <Border Margin="0,10,0,0" Background="#f0fdf4" BorderBrush="#22c55e" BorderThickness="1" CornerRadius="6" Padding="10">
+                        <!--  降压控制区域  -->
+                        <Border
+                            Margin="0,10,0,0"
+                            Padding="10"
+                            Background="#f0fdf4"
+                            BorderBrush="#22c55e"
+                            BorderThickness="1"
+                            CornerRadius="6">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                    <TextBlock VerticalAlignment="Center" FontSize="14" Text="电平状态: "/>
-                                    <Border Width="60" Height="24" CornerRadius="4" Margin="5,0,20,0">
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="电平状态: " />
+                                    <Border
+                                        Width="60"
+                                        Height="24"
+                                        Margin="5,0,20,0"
+                                        CornerRadius="4">
                                         <Border.Style>
                                             <Style TargetType="Border">
-                                                <Setter Property="Background" Value="#ef4444"/>
+                                                <Setter Property="Background" Value="#ef4444" />
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding CurrentPinLevel}" Value="True">
-                                                        <Setter Property="Background" Value="#22c55e"/>
+                                                        <Setter Property="Background" Value="#22c55e" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
-                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="White">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            FontWeight="Bold"
+                                            Foreground="White">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Text" Value="低电平"/>
+                                                    <Setter Property="Text" Value="低电平" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding CurrentPinLevel}" Value="True">
-                                                            <Setter Property="Text" Value="高电平"/>
+                                                            <Setter Property="Text" Value="高电平" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -242,28 +290,38 @@
                                         </TextBlock>
                                     </Border>
                                 </StackPanel>
-                                <ProgressBar Grid.Column="1" Height="20" Margin="10,0" Value="{Binding TestProgress}" Maximum="100"/>
-                                <Button Grid.Column="2" Width="80" Height="28" Content="降压 -0.2V" Command="{Binding StepDownCommand}">
+                                <ProgressBar
+                                    Grid.Column="1"
+                                    Height="20"
+                                    Margin="10,0"
+                                    Maximum="100"
+                                    Value="{Binding TestProgress}" />
+                                <Button
+                                    Grid.Column="2"
+                                    Width="80"
+                                    Height="28"
+                                    Command="{Binding StepDownCommand}"
+                                    Content="降压 -0.2V">
                                     <Button.Style>
                                         <Style TargetType="Button">
-                                            <Setter Property="Background" Value="#3b82f6"/>
-                                            <Setter Property="Foreground" Value="White"/>
-                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Background" Value="#3b82f6" />
+                                            <Setter Property="Foreground" Value="White" />
+                                            <Setter Property="BorderThickness" Value="0" />
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="Button">
                                                         <Border Background="{TemplateBinding Background}" CornerRadius="4">
-                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Border>
                                                     </ControlTemplate>
                                                 </Setter.Value>
                                             </Setter>
                                             <Style.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#2563eb"/>
+                                                    <Setter Property="Background" Value="#2563eb" />
                                                 </Trigger>
                                                 <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter Property="Background" Value="#9ca3af"/>
+                                                    <Setter Property="Background" Value="#9ca3af" />
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -272,81 +330,154 @@
                             </Grid>
                         </Border>
 
-                        <!-- 测试记录表格 -->
-                        <TextBlock Margin="0,15,0,5" FontSize="14" FontWeight="Bold" Text="测试记录"/>
-                        <Border BorderBrush="#e5e7eb" BorderThickness="1" CornerRadius="4" MaxHeight="200">
+                        <!--  测试记录表格  -->
+                        <TextBlock
+                            Margin="0,15,0,5"
+                            FontSize="14"
+                            FontWeight="Bold"
+                            Text="测试记录" />
+                        <Border
+                            MaxHeight="200"
+                            BorderBrush="#e5e7eb"
+                            BorderThickness="1"
+                            CornerRadius="4">
                             <DataGrid
-                                ItemsSource="{Binding TestRecords}"
                                 AutoGenerateColumns="False"
+                                BorderThickness="0"
                                 CanUserAddRows="False"
                                 CanUserDeleteRows="False"
-                                IsReadOnly="True"
-                                HeadersVisibility="Column"
                                 GridLinesVisibility="Horizontal"
-                                BorderThickness="0">
+                                HeadersVisibility="Column"
+                                IsReadOnly="True"
+                                ItemsSource="{Binding TestRecords}">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="电压(V)" Binding="{Binding Voltage, StringFormat={}{0:F1}}" Width="80"/>
-                                    <DataGridTextColumn Header="电平" Binding="{Binding LevelText}" Width="60"/>
-                                    <DataGridTextColumn Header="时间" Binding="{Binding Timestamp, StringFormat={}{0:HH:mm:ss}}" Width="80"/>
+                                    <DataGridTextColumn
+                                        Width="80"
+                                        Binding="{Binding Voltage, StringFormat={}{0:F1}}"
+                                        Header="电压(V)" />
+                                    <DataGridTextColumn
+                                        Width="60"
+                                        Binding="{Binding LevelText}"
+                                        Header="电平" />
+                                    <DataGridTextColumn
+                                        Width="80"
+                                        Binding="{Binding Timestamp, StringFormat={}{0:HH:mm:ss}}"
+                                        Header="时间" />
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Border>
 
-                        <!-- 测试结果区域 -->
-                        <Border Margin="0,15,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="10">
+                        <!--  测试结果区域  -->
+                        <Border
+                            Margin="0,15,0,0"
+                            Padding="10"
+                            Background="#f8fafc"
+                            BorderBrush="#e2e8f0"
+                            BorderThickness="1"
+                            CornerRadius="6">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                
-                                <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" FontSize="14" Text="翻转电压: "/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="#0369a1">
+
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="翻转电压: " />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    FontSize="16"
+                                    FontWeight="Bold"
+                                    Foreground="#0369a1">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
-                                            <Setter Property="Text" Value="--"/>
+                                            <Setter Property="Text" Value="--" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding FlipVoltage}" Value="{x:Null}">
-                                                    <Setter Property="Text" Value="--"/>
+                                                    <Setter Property="Text" Value="--" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </TextBlock.Style>
                                 </TextBlock>
-                                <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="#0369a1" 
-                                           Text="{Binding FlipVoltage, StringFormat={}{0:F1}V, TargetNullValue='--'}"/>
-                                
-                                <TextBlock Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" FontSize="14" Text="测试结果: " Margin="20,0,0,0"/>
-                                <Border Grid.Row="0" Grid.Column="3" Width="60" Height="24" CornerRadius="4" Margin="5,0,0,0" HorizontalAlignment="Left">
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    FontSize="16"
+                                    FontWeight="Bold"
+                                    Foreground="#0369a1"
+                                    Text="{Binding FlipVoltage, StringFormat={}{0:F1}V, TargetNullValue='--'}" />
+
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="2"
+                                    Margin="20,0,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="测试结果: " />
+                                <Border
+                                    Grid.Row="0"
+                                    Grid.Column="3"
+                                    Width="60"
+                                    Height="24"
+                                    Margin="5,0,0,0"
+                                    HorizontalAlignment="Left"
+                                    CornerRadius="4">
                                     <Border.Style>
                                         <Style TargetType="Border">
-                                            <Setter Property="Background" Value="#9ca3af"/>
+                                            <Setter Property="Background" Value="#9ca3af" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding TestResult}" Value="PASS">
-                                                    <Setter Property="Background" Value="#22c55e"/>
+                                                    <Setter Property="Background" Value="#22c55e" />
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding TestResult}" Value="FAIL">
-                                                    <Setter Property="Background" Value="#ef4444"/>
+                                                    <Setter Property="Background" Value="#ef4444" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="White" Text="{Binding TestResult}"/>
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        FontWeight="Bold"
+                                        Foreground="White"
+                                        Text="{Binding TestResult}" />
                                 </Border>
-                                
-                                <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" FontSize="14" Text="上次测试: " Margin="0,10,0,0"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" VerticalAlignment="Center" FontSize="14" Foreground="#64748b" Text="{Binding LastTestTime}" Margin="0,10,0,0"/>
+
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Grid.Column="0"
+                                    Margin="0,10,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="上次测试: " />
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Grid.Column="1"
+                                    Grid.ColumnSpan="3"
+                                    Margin="0,10,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Foreground="#64748b"
+                                    Text="{Binding LastTestTime}" />
                             </Grid>
                         </Border>
                     </StackPanel>
 
-                    <!-- 右侧：测试日志区域 -->
+                    <!--  右侧：测试日志区域  -->
                     <Border
                         Grid.Row="0"
                         Grid.RowSpan="3"
@@ -358,53 +489,73 @@
                         CornerRadius="6">
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Margin="10,10,0,5" FontSize="16" FontWeight="Bold" Text="测试日志"/>
-                                <Button Grid.Column="1" 
-                                        Width="80" Height="28" 
-                                        Margin="0,5,10,5" 
-                                        VerticalAlignment="Center"
-                                        BorderThickness="0"
-                                        Command="{Binding ClearLogCommand}">
+                                <TextBlock
+                                    Margin="10,10,0,5"
+                                    FontSize="16"
+                                    FontWeight="Bold"
+                                    Text="测试日志" />
+                                <Button
+                                    Grid.Column="1"
+                                    Width="80"
+                                    Height="28"
+                                    Margin="0,5,10,5"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding ClearLogCommand}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
-                                                <TextBlock x:Name="btnText" 
-                                                           HorizontalAlignment="Center" 
-                                                           VerticalAlignment="Center" 
-                                                           FontSize="14" 
-                                                           Foreground="White" 
-                                                           Text="清除内容"/>
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="4">
+                                                <TextBlock
+                                                    x:Name="btnText"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    FontSize="14"
+                                                    Foreground="White"
+                                                    Text="清除内容" />
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8"/>
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
                                                 </Trigger>
                                                 <Trigger Property="IsPressed" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8"/>
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
                                                 </Trigger>
                                                 <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
-                                                    <Setter Property="Cursor" Value="Arrow"/>
+                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
                                     </Button.Template>
                                 </Button>
                             </Grid>
-                            <Border Grid.Row="1" Margin="5" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4">
+                            <Border
+                                Grid.Row="1"
+                                Margin="5"
+                                Background="White"
+                                BorderBrush="#d1d5db"
+                                BorderThickness="1"
+                                CornerRadius="4">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding Logs}" Margin="5">
+                                    <ItemsControl Margin="5" ItemsSource="{Binding Logs}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" Margin="0,1"/>
+                                                <TextBlock
+                                                    Margin="0,1"
+                                                    FontSize="12"
+                                                    Text="{Binding}"
+                                                    TextWrapping="Wrap" />
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -412,47 +563,68 @@
                             </Border>
                         </Grid>
                     </Border>
-                    
-                    <!-- 综合结果区域 -->
-                    <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Margin="10,5">
-                        <TextBlock Text="综合结果：" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <Border CornerRadius="4" Padding="15,5" Margin="10,0">
+
+                    <!--  综合结果区域  -->
+                    <StackPanel
+                        Grid.Row="2"
+                        Grid.Column="0"
+                        Margin="10,5"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Text="综合结果：" />
+                        <Border
+                            Margin="10,0"
+                            Padding="15,5"
+                            CornerRadius="4">
                             <Border.Style>
                                 <Style TargetType="Border">
-                                    <Setter Property="Background" Value="#f3f4f6"/>
+                                    <Setter Property="Background" Value="#f3f4f6" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding OverallResult}" Value="PASS">
-                                            <Setter Property="Background" Value="#dcfce7"/>
+                                            <Setter Property="Background" Value="#dcfce7" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding OverallResult}" Value="FAIL">
-                                            <Setter Property="Background" Value="#fee2e2"/>
+                                            <Setter Property="Background" Value="#fee2e2" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
-                            <TextBlock Text="{Binding OverallResult}" FontSize="16" FontWeight="Bold">
+                            <TextBlock
+                                FontSize="16"
+                                FontWeight="Bold"
+                                Text="{Binding OverallResult}">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="#6b7280"/>
+                                        <Setter Property="Foreground" Value="#6b7280" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding OverallResult}" Value="PASS">
-                                                <Setter Property="Foreground" Value="#16a34a"/>
+                                                <Setter Property="Foreground" Value="#16a34a" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding OverallResult}" Value="FAIL">
-                                                <Setter Property="Foreground" Value="#dc2626"/>
+                                                <Setter Property="Foreground" Value="#dc2626" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </TextBlock.Style>
                             </TextBlock>
                         </Border>
-                        <TextBlock Text="上次测试时间：" FontSize="14" VerticalAlignment="Center" Margin="20,0,5,0"/>
-                        <TextBlock Text="{Binding LastTestTime}" FontSize="14" VerticalAlignment="Center"/>
+                        <TextBlock
+                            Margin="20,0,5,0"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="上次测试时间：" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="{Binding LastTestTime}" />
                     </StackPanel>
                 </Grid>
             </Border>
-            
-            <!-- 底部：测试说明 -->
+
+            <!--  底部：测试说明  -->
             <Border
                 Grid.Row="2"
                 Margin="8,4,8,8"
@@ -460,10 +632,18 @@
                 BorderBrush="#D9D9D9"
                 BorderThickness="1.5"
                 CornerRadius="8">
-                <StackPanel Orientation="Horizontal" Margin="10,5">
-                    <TextBlock Text="测试说明：" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
-                    <TextBlock Text="组件28V供电状态下，供电电压从17V以0.2V梯度递减，监测CRM_PIN3(INT_AD2)电平翻转点，翻转发生在15V之前为PASS。" 
-                               FontSize="14" VerticalAlignment="Center" Foreground="#666" Margin="10,0,0,0"/>
+                <StackPanel Margin="10,5" Orientation="Horizontal">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        FontWeight="Bold"
+                        Text="测试说明：" />
+                    <TextBlock
+                        Margin="10,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Foreground="#666"
+                        Text="组件28V供电状态下，供电电压从17V以0.2V梯度递减，监测CRM_PIN3(INT_AD2)电平翻转点，翻转发生在15V之前为PASS。" />
                 </StackPanel>
             </Border>
         </Grid>

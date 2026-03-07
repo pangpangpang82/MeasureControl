@@ -168,8 +168,8 @@
                                     CornerRadius="4">
                                     <TextBlock
                                         x:Name="DeviceAction"
-                                        VerticalAlignment="Center"
                                         HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
                                         Foreground="White"
                                         Text="连接仪表" />
                                 </Border>
@@ -245,20 +245,104 @@
                     <ColumnDefinition Width="85" />
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Row="0" Grid.ColumnSpan="9" Background="#f3f4f6" CornerRadius="6" Margin="0,0,-31,0" />
-                <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold" Text="通道" />
-                <TextBlock Grid.Row="0" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold" Text="模式" />
-                <TextBlock Grid.Row="0" Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold" Text="设定值" />
-                <TextBlock Grid.Row="0" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold" Text="范围" />
-                <TextBlock Grid.Row="0" Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold" Text="V_Read" />
-                <TextBlock Grid.Row="0" Grid.Column="5" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold" Text="I_Read" />
-                <TextBlock Grid.Row="0" Grid.Column="6" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold" Text="P_Read" />
-                <TextBlock Grid.Row="0" Grid.Column="7" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold" Text="Load" />
-                <TextBlock Grid.Row="0" Grid.Column="8" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold" Text="Short" />
+                <Border
+                    Grid.Row="0"
+                    Grid.ColumnSpan="9"
+                    Margin="0,0,-31,0"
+                    Background="#f3f4f6"
+                    CornerRadius="6" />
+                <TextBlock
+                    Grid.Row="0"
+                    Grid.Column="0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    FontWeight="SemiBold"
+                    Text="通道" />
+                <TextBlock
+                    Grid.Row="0"
+                    Grid.Column="1"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    FontWeight="SemiBold"
+                    Text="模式" />
+                <TextBlock
+                    Grid.Row="0"
+                    Grid.Column="2"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    FontWeight="SemiBold"
+                    Text="设定值" />
+                <TextBlock
+                    Grid.Row="0"
+                    Grid.Column="3"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    FontWeight="SemiBold"
+                    Text="范围" />
+                <TextBlock
+                    Grid.Row="0"
+                    Grid.Column="4"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    FontWeight="SemiBold"
+                    Text="V_Read" />
+                <TextBlock
+                    Grid.Row="0"
+                    Grid.Column="5"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    FontWeight="SemiBold"
+                    Text="I_Read" />
+                <TextBlock
+                    Grid.Row="0"
+                    Grid.Column="6"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    FontWeight="SemiBold"
+                    Text="P_Read" />
+                <TextBlock
+                    Grid.Row="0"
+                    Grid.Column="7"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    FontWeight="SemiBold"
+                    Text="Load" />
+                <TextBlock
+                    Grid.Row="0"
+                    Grid.Column="8"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    FontWeight="SemiBold"
+                    Text="Short" />
 
-                <TextBlock Grid.Row="1" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Text="CH1" />
-                <ComboBox Grid.Row="1" Grid.Column="1" Margin="6" Height="30" ItemsSource="{Binding ModeOptions}" SelectedItem="{Binding Ch1Mode, UpdateSourceTrigger=PropertyChanged}" />
-                <Border Grid.Row="1" Grid.Column="2" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
+                <TextBlock
+                    Grid.Row="1"
+                    Grid.Column="0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    Text="CH1" />
+                <ComboBox
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    Height="30"
+                    Margin="6"
+                    ItemsSource="{Binding ModeOptions}"
+                    SelectedItem="{Binding Ch1Mode, UpdateSourceTrigger=PropertyChanged}" />
+                <Border
+                    Grid.Row="1"
+                    Grid.Column="2"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="0.7*" />
@@ -266,27 +350,107 @@
                             <ColumnDefinition Width="44" />
                         </Grid.ColumnDefinitions>
 
-                        <TextBox Grid.Column="0" Margin="6,0,6,0" VerticalAlignment="Center" BorderThickness="0" FontSize="16" Text="{Binding Ch1SetValue, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Grid.Column="1" Margin="0,0,4,0" VerticalAlignment="Center" FontSize="16" Text="{Binding Ch1SetUnit}" />
-                        <Button Grid.Column="2" Width="40" Height="24" Margin="0,0,4,0" VerticalAlignment="Center" Content="设定" FontSize="16" Command="{Binding ApplySetValueCommand}" CommandParameter="1" />
+                        <TextBox
+                            Grid.Column="0"
+                            Margin="6,0,6,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            FontSize="16"
+                            Text="{Binding Ch1SetValue, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Margin="0,0,4,0"
+                            VerticalAlignment="Center"
+                            FontSize="16"
+                            Text="{Binding Ch1SetUnit}" />
+                        <Button
+                            Grid.Column="2"
+                            Width="40"
+                            Height="24"
+                            Margin="0,0,4,0"
+                            VerticalAlignment="Center"
+                            Command="{Binding ApplySetValueCommand}"
+                            CommandParameter="1"
+                            Content="设定"
+                            FontSize="16" />
                     </Grid>
                 </Border>
-                <TextBlock Grid.Row="1" Grid.Column="3" Margin="6,0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Ch1RangeText}" TextAlignment="Center" />
-                <Border Grid.Row="1" Grid.Column="4" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
-                    <TextBlock VerticalAlignment="Center" FontSize="16" Text="{Binding Ch1MeasVoltage}" />
+                <TextBlock
+                    Grid.Row="1"
+                    Grid.Column="3"
+                    Margin="6,0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="14"
+                    Text="{Binding Ch1RangeText}"
+                    TextAlignment="Center" />
+                <Border
+                    Grid.Row="1"
+                    Grid.Column="4"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="{Binding Ch1MeasVoltage}" />
                 </Border>
-                <Border Grid.Row="1" Grid.Column="5" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
-                    <TextBlock VerticalAlignment="Center" FontSize="16" Text="{Binding Ch1MeasCurrent}" />
+                <Border
+                    Grid.Row="1"
+                    Grid.Column="5"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="{Binding Ch1MeasCurrent}" />
                 </Border>
-                <Border Grid.Row="1" Grid.Column="6" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
-                    <TextBlock VerticalAlignment="Center" FontSize="16" Text="{Binding Ch1MeasPower}" />
+                <Border
+                    Grid.Row="1"
+                    Grid.Column="6"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="{Binding Ch1MeasPower}" />
                 </Border>
-                <Button Grid.Row="1" Grid.Column="7" Tag="{Binding Ch1LoadOn}" Content="{Binding Ch1LoadText}" Command="{Binding ToggleLoadCommand}" CommandParameter="1" Style="{StaticResource ToggleButtonStyle}" />
-                <Button Grid.Row="1" Grid.Column="8" Tag="{Binding Ch1ShortOn}" Content="{Binding Ch1ShortText}" Command="{Binding ToggleShortCommand}" CommandParameter="1" Style="{StaticResource ToggleButtonStyle}" IsEnabled="{Binding Ch1LoadOn}" />
+                <Button
+                    Grid.Row="1"
+                    Grid.Column="7"
+                    Command="{Binding ToggleLoadCommand}"
+                    CommandParameter="1"
+                    Content="{Binding Ch1LoadText}"
+                    Style="{StaticResource ToggleButtonStyle}"
+                    Tag="{Binding Ch1LoadOn}" />
+                <Button
+                    Grid.Row="1"
+                    Grid.Column="8"
+                    Command="{Binding ToggleShortCommand}"
+                    CommandParameter="1"
+                    Content="{Binding Ch1ShortText}"
+                    IsEnabled="{Binding Ch1LoadOn}"
+                    Style="{StaticResource ToggleButtonStyle}"
+                    Tag="{Binding Ch1ShortOn}" />
 
-                <TextBlock Grid.Row="2" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Text="CH2" />
-                <ComboBox Grid.Row="2" Grid.Column="1" Margin="6" Height="30" ItemsSource="{Binding ModeOptions}" SelectedItem="{Binding Ch2Mode, UpdateSourceTrigger=PropertyChanged}" />
-                <Border Grid.Row="2" Grid.Column="2" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
+                <TextBlock
+                    Grid.Row="2"
+                    Grid.Column="0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    Text="CH2" />
+                <ComboBox
+                    Grid.Row="2"
+                    Grid.Column="1"
+                    Height="30"
+                    Margin="6"
+                    ItemsSource="{Binding ModeOptions}"
+                    SelectedItem="{Binding Ch2Mode, UpdateSourceTrigger=PropertyChanged}" />
+                <Border
+                    Grid.Row="2"
+                    Grid.Column="2"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="0.7*" />
@@ -294,27 +458,107 @@
                             <ColumnDefinition Width="44" />
                         </Grid.ColumnDefinitions>
 
-                        <TextBox Grid.Column="0" Margin="6,0,6,0" VerticalAlignment="Center" BorderThickness="0" FontSize="16" Text="{Binding Ch2SetValue, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Grid.Column="1" Margin="0,0,4,0" VerticalAlignment="Center" FontSize="16" Text="{Binding Ch2SetUnit}" />
-                        <Button Grid.Column="2" Width="40" Height="24" Margin="0,0,4,0" VerticalAlignment="Center" Content="设定" FontSize="16" Command="{Binding ApplySetValueCommand}" CommandParameter="2" />
+                        <TextBox
+                            Grid.Column="0"
+                            Margin="6,0,6,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            FontSize="16"
+                            Text="{Binding Ch2SetValue, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Margin="0,0,4,0"
+                            VerticalAlignment="Center"
+                            FontSize="16"
+                            Text="{Binding Ch2SetUnit}" />
+                        <Button
+                            Grid.Column="2"
+                            Width="40"
+                            Height="24"
+                            Margin="0,0,4,0"
+                            VerticalAlignment="Center"
+                            Command="{Binding ApplySetValueCommand}"
+                            CommandParameter="2"
+                            Content="设定"
+                            FontSize="16" />
                     </Grid>
                 </Border>
-                <TextBlock Grid.Row="2" Grid.Column="3" Margin="6,0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Ch2RangeText}" TextAlignment="Center" />
-                <Border Grid.Row="2" Grid.Column="4" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
-                    <TextBlock VerticalAlignment="Center" FontSize="16" Text="{Binding Ch2MeasVoltage}" />
+                <TextBlock
+                    Grid.Row="2"
+                    Grid.Column="3"
+                    Margin="6,0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="14"
+                    Text="{Binding Ch2RangeText}"
+                    TextAlignment="Center" />
+                <Border
+                    Grid.Row="2"
+                    Grid.Column="4"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="{Binding Ch2MeasVoltage}" />
                 </Border>
-                <Border Grid.Row="2" Grid.Column="5" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
-                    <TextBlock VerticalAlignment="Center" FontSize="16" Text="{Binding Ch2MeasCurrent}" />
+                <Border
+                    Grid.Row="2"
+                    Grid.Column="5"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="{Binding Ch2MeasCurrent}" />
                 </Border>
-                <Border Grid.Row="2" Grid.Column="6" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
-                    <TextBlock VerticalAlignment="Center" FontSize="16" Text="{Binding Ch2MeasPower}" />
+                <Border
+                    Grid.Row="2"
+                    Grid.Column="6"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="{Binding Ch2MeasPower}" />
                 </Border>
-                <Button Grid.Row="2" Grid.Column="7" Tag="{Binding Ch2LoadOn}" Content="{Binding Ch2LoadText}" Command="{Binding ToggleLoadCommand}" CommandParameter="2" Style="{StaticResource ToggleButtonStyle}" />
-                <Button Grid.Row="2" Grid.Column="8" Tag="{Binding Ch2ShortOn}" Content="{Binding Ch2ShortText}" Command="{Binding ToggleShortCommand}" CommandParameter="2" Style="{StaticResource ToggleButtonStyle}" IsEnabled="{Binding Ch2LoadOn}" />
+                <Button
+                    Grid.Row="2"
+                    Grid.Column="7"
+                    Command="{Binding ToggleLoadCommand}"
+                    CommandParameter="2"
+                    Content="{Binding Ch2LoadText}"
+                    Style="{StaticResource ToggleButtonStyle}"
+                    Tag="{Binding Ch2LoadOn}" />
+                <Button
+                    Grid.Row="2"
+                    Grid.Column="8"
+                    Command="{Binding ToggleShortCommand}"
+                    CommandParameter="2"
+                    Content="{Binding Ch2ShortText}"
+                    IsEnabled="{Binding Ch2LoadOn}"
+                    Style="{StaticResource ToggleButtonStyle}"
+                    Tag="{Binding Ch2ShortOn}" />
 
-                <TextBlock Grid.Row="3" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Text="CH3" />
-                <ComboBox Grid.Row="3" Grid.Column="1" Margin="6" Height="30" ItemsSource="{Binding ModeOptions}" SelectedItem="{Binding Ch3Mode, UpdateSourceTrigger=PropertyChanged}" />
-                <Border Grid.Row="3" Grid.Column="2" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
+                <TextBlock
+                    Grid.Row="3"
+                    Grid.Column="0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    Text="CH3" />
+                <ComboBox
+                    Grid.Row="3"
+                    Grid.Column="1"
+                    Height="30"
+                    Margin="6"
+                    ItemsSource="{Binding ModeOptions}"
+                    SelectedItem="{Binding Ch3Mode, UpdateSourceTrigger=PropertyChanged}" />
+                <Border
+                    Grid.Row="3"
+                    Grid.Column="2"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="0.7*" />
@@ -322,27 +566,107 @@
                             <ColumnDefinition Width="44" />
                         </Grid.ColumnDefinitions>
 
-                        <TextBox Grid.Column="0" Margin="6,0,6,0" VerticalAlignment="Center" BorderThickness="0" FontSize="16" Text="{Binding Ch3SetValue, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Grid.Column="1" Margin="0,0,4,0" VerticalAlignment="Center" FontSize="16" Text="{Binding Ch3SetUnit}" />
-                        <Button Grid.Column="2" Width="40" Height="24" Margin="0,0,4,0" VerticalAlignment="Center" Content="设定" FontSize="16" Command="{Binding ApplySetValueCommand}" CommandParameter="3" />
+                        <TextBox
+                            Grid.Column="0"
+                            Margin="6,0,6,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            FontSize="16"
+                            Text="{Binding Ch3SetValue, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Margin="0,0,4,0"
+                            VerticalAlignment="Center"
+                            FontSize="16"
+                            Text="{Binding Ch3SetUnit}" />
+                        <Button
+                            Grid.Column="2"
+                            Width="40"
+                            Height="24"
+                            Margin="0,0,4,0"
+                            VerticalAlignment="Center"
+                            Command="{Binding ApplySetValueCommand}"
+                            CommandParameter="3"
+                            Content="设定"
+                            FontSize="16" />
                     </Grid>
                 </Border>
-                <TextBlock Grid.Row="3" Grid.Column="3" Margin="6,0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Ch3RangeText}" TextAlignment="Center" />
-                <Border Grid.Row="3" Grid.Column="4" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
-                    <TextBlock VerticalAlignment="Center" FontSize="16" Text="{Binding Ch3MeasVoltage}" />
+                <TextBlock
+                    Grid.Row="3"
+                    Grid.Column="3"
+                    Margin="6,0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="14"
+                    Text="{Binding Ch3RangeText}"
+                    TextAlignment="Center" />
+                <Border
+                    Grid.Row="3"
+                    Grid.Column="4"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="{Binding Ch3MeasVoltage}" />
                 </Border>
-                <Border Grid.Row="3" Grid.Column="5" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
-                    <TextBlock VerticalAlignment="Center" FontSize="16" Text="{Binding Ch3MeasCurrent}" />
+                <Border
+                    Grid.Row="3"
+                    Grid.Column="5"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="{Binding Ch3MeasCurrent}" />
                 </Border>
-                <Border Grid.Row="3" Grid.Column="6" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
-                    <TextBlock VerticalAlignment="Center" FontSize="16" Text="{Binding Ch3MeasPower}" />
+                <Border
+                    Grid.Row="3"
+                    Grid.Column="6"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="{Binding Ch3MeasPower}" />
                 </Border>
-                <Button Grid.Row="3" Grid.Column="7" Tag="{Binding Ch3LoadOn}" Content="{Binding Ch3LoadText}" Command="{Binding ToggleLoadCommand}" CommandParameter="3" Style="{StaticResource ToggleButtonStyle}" />
-                <Button Grid.Row="3" Grid.Column="8" Tag="{Binding Ch3ShortOn}" Content="{Binding Ch3ShortText}" Command="{Binding ToggleShortCommand}" CommandParameter="3" Style="{StaticResource ToggleButtonStyle}" IsEnabled="{Binding Ch3LoadOn}" />
+                <Button
+                    Grid.Row="3"
+                    Grid.Column="7"
+                    Command="{Binding ToggleLoadCommand}"
+                    CommandParameter="3"
+                    Content="{Binding Ch3LoadText}"
+                    Style="{StaticResource ToggleButtonStyle}"
+                    Tag="{Binding Ch3LoadOn}" />
+                <Button
+                    Grid.Row="3"
+                    Grid.Column="8"
+                    Command="{Binding ToggleShortCommand}"
+                    CommandParameter="3"
+                    Content="{Binding Ch3ShortText}"
+                    IsEnabled="{Binding Ch3LoadOn}"
+                    Style="{StaticResource ToggleButtonStyle}"
+                    Tag="{Binding Ch3ShortOn}" />
 
-                <TextBlock Grid.Row="4" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Text="CH4" />
-                <ComboBox Grid.Row="4" Grid.Column="1" Margin="6" Height="30" ItemsSource="{Binding ModeOptions}" SelectedItem="{Binding Ch4Mode, UpdateSourceTrigger=PropertyChanged}" />
-                <Border Grid.Row="4" Grid.Column="2" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
+                <TextBlock
+                    Grid.Row="4"
+                    Grid.Column="0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    Text="CH4" />
+                <ComboBox
+                    Grid.Row="4"
+                    Grid.Column="1"
+                    Height="30"
+                    Margin="6"
+                    ItemsSource="{Binding ModeOptions}"
+                    SelectedItem="{Binding Ch4Mode, UpdateSourceTrigger=PropertyChanged}" />
+                <Border
+                    Grid.Row="4"
+                    Grid.Column="2"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="0.7*" />
@@ -350,28 +674,109 @@
                             <ColumnDefinition Width="44" />
                         </Grid.ColumnDefinitions>
 
-                        <TextBox Grid.Column="0" Margin="6,0,6,0" VerticalAlignment="Center" BorderThickness="0" FontSize="16" Text="{Binding Ch4SetValue, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Grid.Column="1" Margin="0,0,4,0" VerticalAlignment="Center" FontSize="16" Text="{Binding Ch4SetUnit}" />
-                        <Button Grid.Column="2" Width="40" Height="24" Margin="0,0,4,0" VerticalAlignment="Center" Content="设定" FontSize="16" Command="{Binding ApplySetValueCommand}" CommandParameter="4" />
+                        <TextBox
+                            Grid.Column="0"
+                            Margin="6,0,6,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            FontSize="16"
+                            Text="{Binding Ch4SetValue, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Margin="0,0,4,0"
+                            VerticalAlignment="Center"
+                            FontSize="16"
+                            Text="{Binding Ch4SetUnit}" />
+                        <Button
+                            Grid.Column="2"
+                            Width="40"
+                            Height="24"
+                            Margin="0,0,4,0"
+                            VerticalAlignment="Center"
+                            Command="{Binding ApplySetValueCommand}"
+                            CommandParameter="4"
+                            Content="设定"
+                            FontSize="16" />
                     </Grid>
                 </Border>
-                <TextBlock Grid.Row="4" Grid.Column="3" Margin="6,0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Ch4RangeText}" TextAlignment="Center" />
-                <Border Grid.Row="4" Grid.Column="4" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
-                    <TextBlock VerticalAlignment="Center" FontSize="16" Text="{Binding Ch4MeasVoltage}" />
+                <TextBlock
+                    Grid.Row="4"
+                    Grid.Column="3"
+                    Margin="6,0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="14"
+                    Text="{Binding Ch4RangeText}"
+                    TextAlignment="Center" />
+                <Border
+                    Grid.Row="4"
+                    Grid.Column="4"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="{Binding Ch4MeasVoltage}" />
                 </Border>
-                <Border Grid.Row="4" Grid.Column="5" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
-                    <TextBlock VerticalAlignment="Center" FontSize="16" Text="{Binding Ch4MeasCurrent}" />
+                <Border
+                    Grid.Row="4"
+                    Grid.Column="5"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="{Binding Ch4MeasCurrent}" />
                 </Border>
-                <Border Grid.Row="4" Grid.Column="6" Margin="6" Style="{StaticResource ReadbackValueBorderStyle}">
-                    <TextBlock VerticalAlignment="Center" FontSize="16" Text="{Binding Ch4MeasPower}" />
+                <Border
+                    Grid.Row="4"
+                    Grid.Column="6"
+                    Margin="6"
+                    Style="{StaticResource ReadbackValueBorderStyle}">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="{Binding Ch4MeasPower}" />
                 </Border>
-                <Button Grid.Row="4" Grid.Column="7" Tag="{Binding Ch4LoadOn}" Content="{Binding Ch4LoadText}" Command="{Binding ToggleLoadCommand}" CommandParameter="4" Style="{StaticResource ToggleButtonStyle}" />
-                <Button Grid.Row="4" Grid.Column="8" Tag="{Binding Ch4ShortOn}" Content="{Binding Ch4ShortText}" Command="{Binding ToggleShortCommand}" CommandParameter="4" Style="{StaticResource ToggleButtonStyle}" IsEnabled="{Binding Ch4LoadOn}" />
+                <Button
+                    Grid.Row="4"
+                    Grid.Column="7"
+                    Command="{Binding ToggleLoadCommand}"
+                    CommandParameter="4"
+                    Content="{Binding Ch4LoadText}"
+                    Style="{StaticResource ToggleButtonStyle}"
+                    Tag="{Binding Ch4LoadOn}" />
+                <Button
+                    Grid.Row="4"
+                    Grid.Column="8"
+                    Command="{Binding ToggleShortCommand}"
+                    CommandParameter="4"
+                    Content="{Binding Ch4ShortText}"
+                    IsEnabled="{Binding Ch4LoadOn}"
+                    Style="{StaticResource ToggleButtonStyle}"
+                    Tag="{Binding Ch4ShortOn}" />
 
-                <Border Grid.Row="5" Grid.ColumnSpan="9" BorderBrush="#e5e7eb" BorderThickness="0,1,0,0" Margin="0,0,-61,0" />
-                <StackPanel Grid.Row="5" Grid.ColumnSpan="9" Margin="0,8,0,0" Orientation="Horizontal" VerticalAlignment="Top">
-                    <TextBlock VerticalAlignment="Center" FontSize="16" Text="设备信息：" />
-                    <TextBlock Margin="6,0,0,0" VerticalAlignment="Center" FontSize="14" Text="{Binding DeviceIdn}" />
+                <Border
+                    Grid.Row="5"
+                    Grid.ColumnSpan="9"
+                    Margin="0,0,-61,0"
+                    BorderBrush="#e5e7eb"
+                    BorderThickness="0,1,0,0" />
+                <StackPanel
+                    Grid.Row="5"
+                    Grid.ColumnSpan="9"
+                    Margin="0,8,0,0"
+                    VerticalAlignment="Top"
+                    Orientation="Horizontal">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="设备信息：" />
+                    <TextBlock
+                        Margin="6,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="{Binding DeviceIdn}" />
                 </StackPanel>
             </Grid>
         </Border>
