@@ -28,7 +28,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] SAftAventsMea038 = { 0x15, 0x02, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] TelemetryPrefix4 = { 0x15, 0x02, 0x03, 0x02 };
 
-        private const string AoChannel = "AO5";
+        private const string AoChannel = "AO4";
 
         private readonly S_C_8_7_3Simulation _simulation = new S_C_8_7_3Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
@@ -482,13 +482,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     TestCommandRxDataText = "--";
 
                     var voltageV = GetGearVoltage(gearIndex);
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：设置AO5={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：设置AO4={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
 
                     var okVoltage = await OutputVoltageAsync(voltageV, CancellationToken.None);
                     if (!okVoltage)
                     {
                         SetLastTestResult("FAIL");
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] AO5输出失败");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] AO4输出失败");
                         return;
                     }
 
@@ -568,13 +568,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
 
                 var voltageV = GetGearVoltage(gearIndex);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 设置档位{gearIndex}：AO5={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 设置档位{gearIndex}：AO4={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
 
                 var ok = await OutputVoltageAsync(voltageV, CancellationToken.None);
                 if (!ok)
                 {
                     SetLastTestResult("FAIL");
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] AO5输出失败");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] AO4输出失败");
                 }
             }
             catch (Exception ex)
@@ -845,7 +845,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             var okVoltage = await OutputVoltageAsync(voltageV, token);
             if (!okVoltage)
             {
-                failures.Add($"档位{gearIndex} AO5输出失败");
+                failures.Add($"档位{gearIndex} AO4输出失败");
                 return;
             }
 
