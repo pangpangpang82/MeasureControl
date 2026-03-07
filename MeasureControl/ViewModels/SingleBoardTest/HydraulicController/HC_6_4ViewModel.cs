@@ -7,10 +7,13 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using MeasureControl.Events;
 using MeasureControl.Models.Devices;
 using MeasureControl.Models.Devices.DeviceCategories;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
+using Prism.Events;
+using Prism.Ioc;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
@@ -52,6 +55,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int SamplesPerMeasure = 5;      // 每路采集 5 帧取平均
         private const int SampleTimeoutMs = 5000;     // 采样超时 5 秒
         private const int AoSettleMs = 100;            // 模拟量输出稳定等待时间
+        private const int Mtx532ReadyTimeoutMs = 6000;
+        private const int Mtx532ReadyPollMs = 200;
 
         // 三个测试点对应的模拟电压（由 MTX532 输出到压力传感器模拟通道）
         private const double Point1VoltageV = 0.5;    // 点1: 0.5V
@@ -78,11 +83,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private const string TestItemName = "压力传感器信号采集测试";
 
-        private bool _canMeasure;
         private bool _measured1;
         private bool _measured2;
         private bool _measured3;
         private bool _manualAborted;
+        private bool _historyLoaded;
 
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
@@ -134,6 +139,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private void LoadLastTestResultFromProject()
         {
+            if (_historyLoaded)
+                return;
+
             var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
             if (testItemNode != null)
             {
@@ -147,6 +155,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     _previousTestResult = testItemNode.LastTestResult;
                     RaisePropertyChanged(nameof(PreviousTestResult));
                 }
+
+                _historyLoaded = true;
             }
         }
 
@@ -157,6 +167,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 testItemNode.LastTestTime = PreviousTestTime;
                 testItemNode.LastTestResult = PreviousTestResult;
+
+                var eventAggregator = ContainerLocator.Container?.Resolve(typeof(IEventAggregator)) as IEventAggregator;
+                eventAggregator?.GetEvent<ProjectModifiedEvent>()?.Publish(new ProjectModifiedEventArgs
+                {
+                    ModificationType = "SingleBoardTestResult",
+                    Description = $"单板测试结果已更新: {TestItemName}"
+                });
             }
         }
 
@@ -177,60 +194,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
 
-        public bool IsManualTestRunning
-        {
-            get => _isManualTestRunning;
-            set
-            {
-                if (SetProperty(ref _isManualTestRunning, value))
-                {
-                    RaisePropertyChanged(nameof(CanMeasurePoint1));
-                    RaisePropertyChanged(nameof(CanMeasurePoint2));
-                    RaisePropertyChanged(nameof(CanMeasurePoint3));
-                    MeasurePoint1Command?.RaiseCanExecuteChanged();
-                    MeasurePoint2Command?.RaiseCanExecuteChanged();
-                    MeasurePoint3Command?.RaiseCanExecuteChanged();
-                }
-            }
-        }
-
-        public bool IsAutoTestRunning
-        {
-            get => _isAutoTestRunning;
-            set
-            {
-                if (SetProperty(ref _isAutoTestRunning, value))
-                {
-                    RaisePropertyChanged(nameof(CanMeasurePoint1));
-                    RaisePropertyChanged(nameof(CanMeasurePoint2));
-                    RaisePropertyChanged(nameof(CanMeasurePoint3));
-                    MeasurePoint1Command?.RaiseCanExecuteChanged();
-                    MeasurePoint2Command?.RaiseCanExecuteChanged();
-                    MeasurePoint3Command?.RaiseCanExecuteChanged();
-                }
-            }
-        }
-
-        public bool CanMeasure
-        {
-            get => _canMeasure;
-            private set
-            {
-                if (SetProperty(ref _canMeasure, value))
-                {
-                    RaisePropertyChanged(nameof(CanMeasurePoint1));
-                    RaisePropertyChanged(nameof(CanMeasurePoint2));
-                    RaisePropertyChanged(nameof(CanMeasurePoint3));
-                    MeasurePoint1Command?.RaiseCanExecuteChanged();
-                    MeasurePoint2Command?.RaiseCanExecuteChanged();
-                    MeasurePoint3Command?.RaiseCanExecuteChanged();
-                }
-            }
-        }
-
         public bool CanMeasurePoint1 => IsManualTestRunning && CanMeasure && !_measured1;
         public bool CanMeasurePoint2 => IsManualTestRunning && CanMeasure && !_measured2;
         public bool CanMeasurePoint3 => IsManualTestRunning && CanMeasure && !_measured3;
+
+        private void RefreshMeasureCommands()
+        {
+            RaisePropertyChanged(nameof(CanMeasurePoint1));
+            RaisePropertyChanged(nameof(CanMeasurePoint2));
+            RaisePropertyChanged(nameof(CanMeasurePoint3));
+            MeasurePoint1Command?.RaiseCanExecuteChanged();
+            MeasurePoint2Command?.RaiseCanExecuteChanged();
+            MeasurePoint3Command?.RaiseCanExecuteChanged();
+        }
 
         /// <summary>
         /// 整板串行自动测试入口。
@@ -548,8 +524,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             if (!IsManualTestRunning || _manualAborted) return;
             _measured1 = true;
-            RaisePropertyChanged(nameof(CanMeasurePoint1));
-            MeasurePoint1Command?.RaiseCanExecuteChanged();
+            RefreshMeasureCommands();
 
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
@@ -567,8 +542,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             if (!IsManualTestRunning || _manualAborted) return;
             _measured2 = true;
-            RaisePropertyChanged(nameof(CanMeasurePoint2));
-            MeasurePoint2Command?.RaiseCanExecuteChanged();
+            RefreshMeasureCommands();
 
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
@@ -586,8 +560,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             if (!IsManualTestRunning || _manualAborted) return;
             _measured3 = true;
-            RaisePropertyChanged(nameof(CanMeasurePoint3));
-            MeasurePoint3Command?.RaiseCanExecuteChanged();
+            RefreshMeasureCommands();
 
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
@@ -830,13 +803,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     try { await _arinc.StopRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _arinc.CloseRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    
+
                     if (_txOpened)
                     {
                         try { await _arinc.CloseTxAsync(TxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
                         _txOpened = false;
                     }
-                    
+
                     try { await _arinc.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _arinc.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
@@ -931,8 +904,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _mtx532 = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 20000.0 }, slotNumber: slot);
 
             await _mtx532.ConnectAsync(cancellationToken).ConfigureAwait(false);
-            await _mtx532.StartOutputAsync(cancellationToken).ConfigureAwait(false);
             await SetAo012Async(0.0, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+            await WaitForMtx532ReadyAsync(cancellationToken).ConfigureAwait(false);
+            await _mtx532.StartOutputAsync(cancellationToken).ConfigureAwait(false);
+            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task WaitForMtx532ReadyAsync(CancellationToken cancellationToken)
+        {
+            if (_mtx532 == null || !_mtx532.IsConnected)
+                throw new InvalidOperationException("MTX532未连接");
+
+            var deadline = DateTime.UtcNow.AddMilliseconds(Mtx532ReadyTimeoutMs);
+            while (DateTime.UtcNow <= deadline)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (await _mtx532.CanStartOutputAsync(cancellationToken).ConfigureAwait(false))
+                    return;
+
+                await Task.Delay(Mtx532ReadyPollMs, cancellationToken).ConfigureAwait(false);
+            }
+
+            throw new InvalidOperationException("MTX532已连接，但在等待超时前仍未准备好输出");
         }
 
         private async Task EnsureArincRxAsync(CancellationToken cancellationToken)

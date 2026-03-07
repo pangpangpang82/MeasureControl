@@ -9,8 +9,11 @@ using System.Threading.Tasks;
 using System.Windows;
 using MeasureControl.Models.Devices;
 using MeasureControl.Models.Devices.DeviceCategories;
+using MeasureControl.Events;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
+using Prism.Events;
+using Prism.Ioc;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
@@ -29,6 +32,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int SamplesPerMeasure = 5;
         private const int SampleTimeoutMs = 5000;
         private const int AoSettleMs = 100;
+        private const int Mtx532ReadyTimeoutMs = 6000;
+        private const int Mtx532ReadyPollMs = 200;
 
         private const double Current4mA = 4.0;
         private const double Current10mA = 10.0;
@@ -38,7 +43,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const byte LabelDptEdpDec = 57;
         private const byte LabelDptSysDec = 58;
         private const byte LabelDptEmpDec = 59;
-        private const byte SsmNormal = 3;
+        private const byte SsmNormal = 0;
 
         private const int DataBitLength = 9;
         private const double DataResolution = 1.0;
@@ -85,8 +90,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const string TestItemName = "压差传感器信号采集测试";
 
         private bool _canMeasure;
-        private bool _measured14;
+        private bool _measured4mA;
+        private bool _measured20mA;
+        private bool _measured10mA;
+        private bool _passed4mA;
+        private bool _passed20mA;
+        private bool _passed10mA;
         private bool _manualAborted;
+        private bool _historyLoaded;
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private int _selectedTabIndex;
@@ -185,7 +196,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public int SelectedTabIndex
         {
             get => _selectedTabIndex;
-            set => SetProperty(ref _selectedTabIndex, value);
+            set
+            {
+                if (SetProperty(ref _selectedTabIndex, value))
+                {
+                    RaisePropertyChanged(nameof(CanMeasure14));
+                    Measure14Command?.RaiseCanExecuteChanged();
+                }
+            }
         }
 
         public bool CanMeasure
@@ -201,7 +219,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        public bool CanMeasure14 => IsManualTestRunning && CanMeasure && !_measured14;
+        public bool CanMeasure14
+        {
+            get
+            {
+                if (!(IsManualTestRunning && CanMeasure))
+                    return false;
+
+                switch (SelectedTabIndex)
+                {
+                    case 0:
+                        return !_measured4mA;
+                    case 1:
+                        return !_measured20mA;
+                    case 2:
+                        return !_measured10mA;
+                    default:
+                        return !_measured4mA;
+                }
+            }
+        }
+
+        private void RefreshMeasureCommand()
+        {
+            RaisePropertyChanged(nameof(CanMeasure14));
+            Measure14Command?.RaiseCanExecuteChanged();
+        }
 
         public string CurrentTestResult
         {
@@ -211,25 +254,41 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         public string LastTestTime
         {
-            get => _lastTestTime;
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _lastTestTime;
+            }
             set => SetProperty(ref _lastTestTime, value);
         }
 
         public string LastTestResult
         {
-            get => _lastTestResult;
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _lastTestResult;
+            }
             set => SetProperty(ref _lastTestResult, value);
         }
 
         public string PreviousTestTime
         {
-            get => _previousTestTime;
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _previousTestTime;
+            }
             set => SetProperty(ref _previousTestTime, value);
         }
 
         public string PreviousTestResult
         {
-            get => _previousTestResult;
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _previousTestResult;
+            }
             set => SetProperty(ref _previousTestResult, value);
         }
 
@@ -279,6 +338,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private void LoadLastTestResultFromProject()
         {
+            if (_historyLoaded)
+                return;
+
             var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
             if (testItemNode == null)
                 return;
@@ -294,6 +356,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 _previousTestResult = testItemNode.LastTestResult;
                 RaisePropertyChanged(nameof(PreviousTestResult));
             }
+
+            _historyLoaded = true;
         }
 
         private void SaveTestResultToProject()
@@ -304,6 +368,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             testItemNode.LastTestTime = PreviousTestTime;
             testItemNode.LastTestResult = PreviousTestResult;
+
+            var eventAggregator = ContainerLocator.Container?.Resolve(typeof(IEventAggregator)) as IEventAggregator;
+            eventAggregator?.GetEvent<ProjectModifiedEvent>()?.Publish(new ProjectModifiedEventArgs
+            {
+                ModificationType = "SingleBoardTestResult",
+                Description = $"单板测试结果已更新: {TestItemName}"
+            });
         }
 
         private async Task OnManualTestAsync()
@@ -321,7 +392,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
-            _measured14 = false;
+            _measured4mA = false;
+            _measured20mA = false;
+            _measured10mA = false;
+            _passed4mA = false;
+            _passed20mA = false;
+            _passed10mA = false;
 
             ResetAllDisplays();
 
@@ -372,7 +448,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
-            _measured14 = false;
+            _measured4mA = false;
+            _measured20mA = false;
+            _measured10mA = false;
+            _passed4mA = false;
+            _passed20mA = false;
+            _passed10mA = false;
 
             ResetAllDisplays();
 
@@ -423,7 +504,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await Task.Delay(80, cancellationToken).ConfigureAwait(false);
             var ok10 = await MeasureGroupAsync("10mA", Current10mA, Set10mA, cancellationToken).ConfigureAwait(false);
 
-            _measured14 = ok4 && ok20 && ok10;
+            _measured4mA = true;
+            _measured20mA = true;
+            _measured10mA = true;
+            _passed4mA = ok4;
+            _passed20mA = ok20;
+            _passed10mA = ok10;
             await TryFinalizeAsync().ConfigureAwait(false);
             await StopAutoTestAsync().ConfigureAwait(false);
             return LastTestResult;
@@ -432,28 +518,46 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task OnMeasure14Async()
         {
             var token = _manualCts?.Token ?? CancellationToken.None;
+            var ok = false;
             switch (SelectedTabIndex)
             {
                 case 0:
-                    await MeasureGroupAsync("4mA", Current4mA, Set4mA, token).ConfigureAwait(false);
+                    ok = await MeasureGroupAsync("4mA", Current4mA, Set4mA, token).ConfigureAwait(false);
                     break;
                 case 1:
-                    await MeasureGroupAsync("20mA", Current20mA, Set20mA, token).ConfigureAwait(false);
+                    ok = await MeasureGroupAsync("20mA", Current20mA, Set20mA, token).ConfigureAwait(false);
                     break;
                 case 2:
-                    await MeasureGroupAsync("10mA", Current10mA, Set10mA, token).ConfigureAwait(false);
+                    ok = await MeasureGroupAsync("10mA", Current10mA, Set10mA, token).ConfigureAwait(false);
                     break;
                 default:
-                    await MeasureGroupAsync("当前档位", Current4mA, Set4mA, token).ConfigureAwait(false);
+                    ok = await MeasureGroupAsync("当前档位", Current4mA, Set4mA, token).ConfigureAwait(false);
                     break;
             }
 
             if (!IsManualTestRunning || _manualAborted)
                 return;
 
-            _measured14 = true;
-            RaisePropertyChanged(nameof(CanMeasure14));
-            Measure14Command?.RaiseCanExecuteChanged();
+            switch (SelectedTabIndex)
+            {
+                case 0:
+                    _measured4mA = true;
+                    _passed4mA = ok;
+                    break;
+                case 1:
+                    _measured20mA = true;
+                    _passed20mA = ok;
+                    break;
+                case 2:
+                    _measured10mA = true;
+                    _passed10mA = ok;
+                    break;
+                default:
+                    _measured4mA = true;
+                    _passed4mA = ok;
+                    break;
+            }
+            RefreshMeasureCommand();
 
             await TryFinalizeAsync().ConfigureAwait(false);
         }
@@ -617,7 +721,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task TryFinalizeAsync()
         {
-            var resultText = _measured14 ? "合格" : "不合格";
+            if (!(_measured4mA && _measured20mA && _measured10mA))
+                return;
+
+            var resultText = (_passed4mA && _passed20mA && _passed10mA) ? "合格" : "不合格";
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
             CurrentTestResult = resultText;
@@ -721,8 +828,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var slot = device is PxiDeviceBase pxi ? pxi.SlotIndex : 7;
             _mtx532 = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 20000.0 }, slotNumber: slot);
             await _mtx532.ConnectAsync(cancellationToken).ConfigureAwait(false);
-            await _mtx532.StartOutputAsync(cancellationToken).ConfigureAwait(false);
             await SetAo456789Async(0.0, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+
+            await WaitForMtx532ReadyAsync(cancellationToken).ConfigureAwait(false);
+            await _mtx532.StartOutputAsync(cancellationToken).ConfigureAwait(false);
+            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task WaitForMtx532ReadyAsync(CancellationToken cancellationToken)
+        {
+            if (_mtx532 == null || !_mtx532.IsConnected)
+                throw new InvalidOperationException("MTX532未连接");
+
+            var deadline = DateTime.UtcNow.AddMilliseconds(Mtx532ReadyTimeoutMs);
+            while (DateTime.UtcNow <= deadline)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (await _mtx532.CanStartOutputAsync(cancellationToken).ConfigureAwait(false))
+                    return;
+
+                await Task.Delay(Mtx532ReadyPollMs, cancellationToken).ConfigureAwait(false);
+            }
+
+            throw new InvalidOperationException("MTX532已连接，但在等待超时前仍未准备好输出");
         }
 
         private async Task CleanupMtxAsync()
@@ -850,11 +980,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (chassisList == null)
                 return null;
 
+            var preferredChassisName = _singleBoardTestContext?.ChassisName;
+
+            foreach (var chassis in chassisList)
+            {
+                if (!string.IsNullOrWhiteSpace(preferredChassisName) &&
+                    !string.Equals(chassis?.Name, preferredChassisName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var typedDevice = chassis?.Devices?.FirstOrDefault(d => d is AnalogOutputDevice);
+                if (typedDevice != null)
+                    return typedDevice;
+            }
+
             foreach (var chassis in chassisList)
             {
                 var device = chassis?.Devices?.FirstOrDefault(d =>
+                    (d is AnalogOutputDevice) ||
                     (d?.Model?.IndexOf("mtx532", StringComparison.OrdinalIgnoreCase) >= 0) ||
-                    (d?.Name?.IndexOf("mtx532", StringComparison.OrdinalIgnoreCase) >= 0));
+                    (d?.Name?.IndexOf("mtx532", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.CardName?.IndexOf("mtx532", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceType?.IndexOf("analog", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceType?.IndexOf("output", StringComparison.OrdinalIgnoreCase) >= 0));
 
                 if (device != null)
                     return device;
