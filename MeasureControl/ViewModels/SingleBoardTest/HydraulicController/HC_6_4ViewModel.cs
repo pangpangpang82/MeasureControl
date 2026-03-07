@@ -122,23 +122,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private bool _canMeasure;
 
-        public bool IsManualTestRunning
-        {
-            get => _isManualTestRunning;
-            private set => SetProperty(ref _isManualTestRunning, value);
-        }
 
-        public bool IsAutoTestRunning
-        {
-            get => _isAutoTestRunning;
-            private set => SetProperty(ref _isAutoTestRunning, value);
-        }
-
-        public bool CanMeasure
-        {
-            get => _canMeasure;
-            private set => SetProperty(ref _canMeasure, value);
-        }
 
         public HC_6_4ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
         {
@@ -214,6 +198,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
 
+        public bool IsManualTestRunning
+        {
+            get => _isManualTestRunning;
+            private set => SetProperty(ref _isManualTestRunning, value);
+        }
+
+        public bool IsAutoTestRunning
+        {
+            get => _isAutoTestRunning;
+            private set => SetProperty(ref _isAutoTestRunning, value);
+        }
+
+        public bool CanMeasure
+        {
+            get => _canMeasure;
+            private set => SetProperty(ref _canMeasure, value);
+        }
 
 
         public bool CanMeasurePoint1 => IsManualTestRunning && CanMeasure && !_measured1;
