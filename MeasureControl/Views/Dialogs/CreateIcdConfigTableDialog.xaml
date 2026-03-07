@@ -28,10 +28,10 @@
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
                             <Border
-                    Background="{TemplateBinding Background}"
-                    BorderBrush="{TemplateBinding BorderBrush}"
-                    BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="3">
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
                             <ControlTemplate.Triggers>
@@ -183,7 +183,7 @@
                     Click="OkButton_Click"
                     Content="确定"
                     IsDefault="True"
-                    Style="{StaticResource DialogButtonStyle}"  />
+                    Style="{StaticResource DialogButtonStyle}" />
                 <Button
                     x:Name="CancelButton"
                     Width="60"

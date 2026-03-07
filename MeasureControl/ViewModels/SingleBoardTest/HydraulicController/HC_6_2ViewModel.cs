@@ -56,7 +56,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const byte SsmNormal = 3;
 
         // 采样配置
-        private const int SamplesPerMeasure = 5;
+        private const int SamplesPerMeasure = 3;
         private const int SampleTimeoutMs = 5000;
 
         // 电压合格范围（允许偏差 ±1.5%）
@@ -66,6 +66,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double Max15V = 15.225;
         private const double MinM15V = -15.225;
         private const double MaxM15V = -14.775;
+
+        private const double Simulated5V = 5.0;
+        private const double Simulated15V = 15.0;
+        private const double SimulatedM15V = -15.0;
 
         private readonly Random _random = new Random();
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
@@ -539,9 +543,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    var simulated15V = NextRandomInRange(Min15V, Max15V);
-                    var simulatedM15V = NextRandomInRange(MinM15V, MaxM15V);
-                    var simulated5V = NextRandomInRange(Min5V, Max5V);
+                    var simulated15V = Simulated15V;
+                    var simulatedM15V = SimulatedM15V;
+                    var simulated5V = Simulated5V;
 
                     // Label 060(oct) BIT_PS_P15V  UBNR bit20-27 bit28=0 SSM=3
                     await SendSimulatedVoltageWordAsync(Label15V, simulated15V, isNegative: false, cancellationToken).ConfigureAwait(false);
@@ -676,12 +680,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                         samples.Add(v.Value);
                         var avg = samples.Average();
-                        setText($"{v.Value:0.###} V ({samples.Count}/{SamplesPerMeasure})  平均:{avg:0.###} V");
+                        setText($"{v.Value:0.000} V");
 
                         if (samples.Count >= SamplesPerMeasure)
                         {
                             setValue(avg);
-                            setText($"{avg:0.###} V");
+                            setText($"{avg:0.000} V");
                             Log($"{title}: 完成，平均值={avg:0.###}V");
                             return true;
                         }
