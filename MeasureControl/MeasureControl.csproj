@@ -290,6 +290,7 @@
     <Compile Include="Views\SingleBoardTest\AirController\Pot5VSupplyTestView.xaml.cs"><DependentUpon>Pot5VSupplyTestView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\PowerBoardSupplyTestView.xaml.cs"><DependentUpon>PowerBoardSupplyTestView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\PowerToGroundImpedanceTestView.xaml.cs"><DependentUpon>PowerToGroundImpedanceTestView.xaml</DependentUpon></Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_8_1View.xaml.cs"><DependentUpon>A_C_8_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\PT500TemperatureSensor429View.xaml.cs"><DependentUpon>PT500TemperatureSensor429View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorCanView.xaml.cs"><DependentUpon>PT500TemperatureSensorCanView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorCommTabView.xaml.cs"><DependentUpon>PT500TemperatureSensorCommTabView.xaml</DependentUpon></Compile>
@@ -310,8 +311,12 @@
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_1View.xaml.cs"><DependentUpon>S_C_8_3_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_2View.xaml.cs"><DependentUpon>S_C_8_3_2View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_3View.xaml.cs"><DependentUpon>S_C_8_3_3View.xaml</DependentUpon></Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml.cs"><DependentUpon>S_C_8_7_2View.xaml</DependentUpon></Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_7_3View.xaml.cs"><DependentUpon>S_C_8_7_3View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_5_1View.xaml.cs"><DependentUpon>S_C_8_5_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_5_2View.xaml.cs"><DependentUpon>S_C_8_5_2View.xaml</DependentUpon></Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_6_1View.xaml.cs"><DependentUpon>S_C_8_6_1View.xaml</DependentUpon></Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_6_2View.xaml.cs"><DependentUpon>S_C_8_6_2View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\BoardTest.xaml.cs"><DependentUpon>BoardTest.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\FuelController\DiscreteInputTestView.xaml.cs"><DependentUpon>DiscreteInputTestView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\FuelController\DiscreteOutputTestView.xaml.cs"><DependentUpon>DiscreteOutputTestView.xaml</DependentUpon></Compile>
@@ -479,11 +484,6 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_18_2_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_18_3_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_18_4_1ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_1ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_2ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_3ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\AirSimpleSequenceViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\PowerBoardSupplyTestViewModel.cs" />
     <Compile Include="Views\**\*.cs" Exclude="Views\**\*.xaml.cs;Views\**\*.Designer.cs" />
     <Page Include="Styles\ScrollBarStyles.xaml">
       <SubType>Designer</SubType>
@@ -621,417 +621,19 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Views\SingleBoardTest\AirController\S_C_8_3_1View.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\S_C_8_3_2View.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\S_C_8_3_3View.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\AirSimpleSequenceView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\PowerBoardSupplyTestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\CanCommTestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\CanReceiveTestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\GndOcDiscreteInputTestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\GndOcDiscreteOutputCh3TestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\GndOcDiscreteOutputCh2TestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\A28vOc100mADiscreteOutputCh1TestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\A28vOc100mADiscreteOutputCh2TestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputTestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\Pot5VSupplyTestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorTestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\PT500TemperatureSensor429View.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorCanView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\PT500TemperatureSensorCommTabView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\RS422CommTabView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\RS422Control422TransmitTestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\RS422Control422ReceiveTestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\RS422CommunicationCheckView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\R_6_8_2View.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\R_6_8_3View.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\R_6_8_4View.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\R_6_8_5View.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\R_6_8_6View.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\R_6_8_7View.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\R_6_8_8View.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\AirController\R_6_8_9View.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\FuelController\PowerImpedanceTestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\FuelController\SecondaryPowerTestView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\BoardTest.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_1.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_2.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_3.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_4.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_5.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_6.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_7.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_8.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestControl\ButtonControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestControl\LabelControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestControl\LampControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestControl\SwitchControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestControl\TextLabelControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestControl\DisplayBoxControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestControl\InputBoxControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestControl\CircularGaugeControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestControl\VerticalGaugeControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Dialogs\ColorPickerDialog.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\ART4229ConfigPanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\DmmTestPanelView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\FrequencyCounterTestPanelView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\MatrixSwitchConfigTable.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\OscilloscopeTestPanelView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\PowerSupplyTestPanelView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\ElectronicLoadTestPanelView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\SignalGeneratorTestPanelView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\SwitchPXI3022ConfigPanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\PXI4004CANConfigPanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\RsSerialDebugPanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\ConfigTabel\ChannelConfigTabel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\ConfigTabel\DataCalibration.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Dialogs\ChassisConnectionDialog.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Dialogs\AddChassisDialog.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Database\DatabaseConfig.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Hardware\DeviceInfoPanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\CardCATPanel\PXIe7131\PXIe7131_DIDO.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\CardCATPanel\PXIe7131\DM8600_485.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\CardCATPanel\PXI9774_AI.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Common\FloatingWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Hardware\HardwareConfig.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Common\HomePage.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\CardCATPanel\MT532_AO.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\CardCATPanel\PXI7012_RO.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\LvdtSimulatorConfigPanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\ResolverSimulatorConfigPanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\ConfigTabel\IcdConfigTabel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Dialogs\AddIcdMappingDialog.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Dialogs\CreateIcdConfigTableDialog.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Login.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Views\Common\MainWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Views\Hardware\PxiChassis.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Dialogs\ReMessageBox.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Dialogs\RenameDialog.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Dialogs\CreateSingleBoardTestTaskDialog.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\TestContent\ReportConfigTabel.xaml">
-      <SubType>Designer</SubType>
+    <Page Remove="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml" />
+    <Page Include="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml">
       <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\ConfigTabel\SignalConfigTabel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\ConfigTabel\IcdMappingTabel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\CardCATPanel\MIL1394B\Mil1394TestPanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\CardCATPanel\MIL1394B\Mil1394CardPanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\CardCATPanel\MIL1394B\Mil1394NodeConfigPanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\CardCATPanel\MIL1394B\Mil1394EditPayloadWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\CardCATPanel\MIL1394B\Mil1394NodeSendRcvPanel.xaml">
       <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\CardCATPanel\MTX970_LVDS.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Database\TaskConfigDatabase.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TdmSystem\TDMSystem.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\Database\TestDataBase.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Views\TestTask\CardCATPanel\PXI2601_SWITCH.xaml">
+    <Page Remove="Views\SingleBoardTest\AirController\S_C_8_7_3View.xaml" />
+    <Page Include="Views\SingleBoardTest\AirController\S_C_8_7_3View.xaml">
       <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Views\TestTask\CardCATPanel\ART1553BConfigPanel.xaml">
       <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Views\TestTask\TestContent\TestInterface.xaml">
-      <SubType>Designer</SubType>
+    <Page Include="Styles\**\*.xaml">
       <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestTask\TestContent\TestSequence.xaml">
       <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
   <ItemGroup>
