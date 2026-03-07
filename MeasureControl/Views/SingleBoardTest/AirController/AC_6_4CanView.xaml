@@ -58,7 +58,7 @@
                     VerticalAlignment="Center"
                     FontSize="24"
                     FontWeight="Bold"
-                    Text="控制通道光耦供电测试" />
+                    Text="6.4控制通道光耦供电测试" />
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                     <Button
                         Width="100"

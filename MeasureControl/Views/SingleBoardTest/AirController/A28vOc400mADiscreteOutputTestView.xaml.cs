@@ -8,7 +8,7 @@ namespace MeasureControl.Views.SingleBoardTest.AirController
         public A28vOc400mADiscreteOutputTestView()
         {
             InitializeComponent();
-            DataContext = new A28vOc400mADiscreteOutputTestViewModel(1, "A控制通道28V/OC型400mA离散输出通道1输出测试");
+            DataContext = new A28vOc400mADiscreteOutputTestViewModel(1, "6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试");
         }
 
         public A28vOc400mADiscreteOutputTestView(int channelNumber, string pageTitle)

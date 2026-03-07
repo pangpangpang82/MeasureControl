@@ -59,7 +59,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private double? _latestDmmVoltage;
         private double? _latestPotSupVoltage;
 
-        private string _title = "5V传感器供电电压测试";
+        private string _title = "6.3 5V传感器供电电压测试";
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private string _lastTestTime = "--";
