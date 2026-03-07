@@ -508,6 +508,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             IsAutoTestRunning = false;
             IsManualTestRunning = true;
             CanMeasure = false;
+            CurrentTestResult = "--";
 
             _manualAborted = false;
             _measured14 = false;

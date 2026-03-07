@@ -15,7 +15,7 @@ using Prism.Regions;
 
 namespace MeasureControl.ViewModels.SingleBoardTest
 {
-    public class BoardTestViewModel : BindableBase, INavigationAware
+    public class BoardTestViewModel : BindableBase, INavigationAware, IConfirmNavigationRequest, ICloseGuard
     {
         private readonly IEventAggregator _eventAggregator;
         private readonly MeasureControl.Services.ISingleBoardTestContextService _singleBoardTestContext;
@@ -198,6 +198,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 }
             };
 
+        private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> NotesByBoardType =
+            new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                {
+                    "液压单板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        {
+                            "温度采集测试",
+                            ""
+                        },
+                        {
+                            "压差传感器信号采集测试",
+                            ""
+                        },
+                        {
+                            "离散量采集测试",
+                            ""
+                        },
+
+                    }
+                },
+            };
+
         private string _testTaskName;
         private string _boardType;
         private string _parentChassisName;
@@ -205,6 +229,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         private object _rightPanelContent;
         private TestSequenceItem _selectedTestItem;
         private string _selectedTestCriteriaText;
+        private string _selectedTestNotesText;
+
+        /// <summary>右侧"操作步骤"面板标题</summary>
+        public string TestNotesTitle => "注意事项";
+
+        /// <summary>右侧"操作步骤"内容，随左侧选中测试项联动更新</summary>
+        public string SelectedTestNotesText
+        {
+            get => _selectedTestNotesText;
+            private set => SetProperty(ref _selectedTestNotesText, value);
+        }
 
         public string TestTaskName
         {
@@ -258,16 +293,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             get => _selectedTestItem;
             set
             {
+                if (!ReferenceEquals(value, _selectedTestItem) && _selectedTestItem != null && IsCurrentTestRunning())
+                {
+                    ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                    RaisePropertyChanged(nameof(SelectedTestItem));
+                    return;
+                }
+
                 if (SetProperty(ref _selectedTestItem, value))
                 {
+                    // ── FIX：value == null 时同时清空两个面板 ──────────────────
                     if (value == null)
                     {
                         RightPanelContent = null;
                         SelectedTestCriteriaText = string.Empty;
+                        SelectedTestNotesText = string.Empty;  // ← 新增
                         return;
                     }
 
+                    // ── FIX：正常分支同时更新测试判据与操作步骤 ───────────────
                     SelectedTestCriteriaText = ResolveCriteriaText(BoardType, value.Name);
+                    SelectedTestNotesText = ResolveNotesText(BoardType, value.Name);  // ← 新增
 
                     if (TryGetViewFactory(BoardType, value.Name, out var viewFactory))
                     {
@@ -292,8 +338,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             TestTaskName = parameters?.GetValue<string>("TestTaskName") ?? string.Empty;
             BoardType = parameters?.GetValue<string>("BoardType") ?? string.Empty;
             ParentChassisName = parameters?.GetValue<string>("ParentChassisName")
-                                ?? parameters?.GetValue<string>("ChassisName")
-                                ?? string.Empty;
+                             ?? parameters?.GetValue<string>("ChassisName")
+                             ?? string.Empty;
 
             _singleBoardTestContext.Update(ParentChassisName, TestTaskName, BoardType);
 
@@ -302,6 +348,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
             LoadFixedTestItems(BoardType);
 
+            // ── FIX：直接赋值触发 setter，setter 内部会同时更新判据与操作步骤 ──
+            // 原代码末尾多余的 SelectedTestNotesText = ResolveNotesText(BoardType, value.Name)
+            // 已删除（value 在此方法中未定义，是编译错误的根源）
             SelectedTestItem = TestSequenceItems.FirstOrDefault();
         }
 
@@ -312,6 +361,64 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
         public void OnNavigatedFrom(NavigationContext navigationContext)
         {
+        }
+
+        public void ConfirmNavigationRequest(NavigationContext navigationContext, Action<bool> continuationCallback)
+        {
+            if (continuationCallback == null)
+            {
+                return;
+            }
+
+            if (IsCurrentTestRunning())
+            {
+                ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                continuationCallback(false);
+                return;
+            }
+
+            continuationCallback(true);
+        }
+
+        public bool CanClose()
+        {
+            if (IsCurrentTestRunning())
+            {
+                ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool IsCurrentTestRunning()
+        {
+            if (RightPanelContent is not System.Windows.FrameworkElement element)
+            {
+                return false;
+            }
+
+            var dc = element.DataContext;
+            if (dc == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                var type = dc.GetType();
+                var pManual = type.GetProperty("IsManualTestRunning");
+                var pAuto = type.GetProperty("IsAutoTestRunning");
+
+                var manual = pManual?.PropertyType == typeof(bool) && (bool)(pManual.GetValue(dc) ?? false);
+                var auto = pAuto?.PropertyType == typeof(bool) && (bool)(pAuto.GetValue(dc) ?? false);
+
+                return manual || auto;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static bool TryGetViewFactory(string boardType, string testItemName, out Func<UserControl> viewFactory)
@@ -340,11 +447,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         private static string ResolveCriteriaText(string boardType, string testItemName)
         {
             if (string.IsNullOrWhiteSpace(boardType) || string.IsNullOrWhiteSpace(testItemName))
-            {
                 return string.Empty;
-            }
 
             if (CriteriaTextsByBoardType.TryGetValue(boardType, out var perBoard)
+                && perBoard != null
+                && perBoard.TryGetValue(testItemName, out var text))
+            {
+                return text ?? string.Empty;
+            }
+
+            return string.Empty;
+        }
+
+        private static string ResolveNotesText(string boardType, string testItemName)
+        {
+            if (string.IsNullOrWhiteSpace(boardType) || string.IsNullOrWhiteSpace(testItemName))
+                return string.Empty;
+
+            if (NotesByBoardType.TryGetValue(boardType, out var perBoard)
                 && perBoard != null
                 && perBoard.TryGetValue(testItemName, out var text))
             {
@@ -470,6 +590,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
         private void OnCloseInRegion()
         {
+            if (IsCurrentTestRunning())
+            {
+                ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
             var result = ReMessageBox.Show("确定要关闭单板测试吗？", "确认", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
             if (result == System.Windows.MessageBoxResult.Yes)
             {

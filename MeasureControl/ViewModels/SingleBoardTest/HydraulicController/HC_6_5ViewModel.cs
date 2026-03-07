@@ -14,54 +14,53 @@ using MeasureControl.Services.HardwareApis;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
-    /// <summary>
-    /// HC_6_5 测试项：差压信号测试（差压传感器校验）
-    /// 测试目的：验证液压控制器在不同电流档位（4mA/10mA/20mA）下，
-    ///          从 ARINC429 接收的差压数据是否正确。
-    /// 测试方法：
-    /// 1) 给被测板供电 28V。
-    /// 2) 被测板会输出三种电流档位（4mA/10mA/20mA）的差压信号。
-    /// 3) 从 ARINC429 接收差压数据，包括：
-    ///    - DPT_SYS (Label=72oct, SDI=1/2/3) - 三路系统差压
-    ///    - DPT_EDP2A (Label=71oct, SDI=2) - EDP2A 差压
-    ///    - DPT_EMP (Label=73oct, SDI=2/3) - EMP2B/EMP3B 差压
-    /// 4) 每个通道每个档位采集 5 帧数据取平均值，共 18 组数据（6通道×3电流）。
-    /// </summary>
     public class HC_6_5ViewModel : BindableBase
     {
-        // 电源配置（给被测板供电）
         private const string PowerSupplyIpAddress = "192.168.1.15";
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 1;
 
-        // ARINC429 接收配置
         private const int RxChannelIndex = 2;
+        private const int TxChannelIndex = 0;
         private const double ArincRate = 12500.0;
+        private const bool EnableArincTxSimulation = true;
 
-        // 差压单位
         private const string PressureUnit = "Psid";
+        private const int SamplesPerMeasure = 5;
+        private const int SampleTimeoutMs = 5000;
+        private const int AoSettleMs = 100;
 
-        // 采样参数
-        private const int SamplesPerMeasure = 5;      // 每路采集 5 帧取平均
-        private const int SampleTimeoutMs = 5000;     // 采样超时 5 秒
+        private const double Current4mA = 4.0;
+        private const double Current10mA = 10.0;
+        private const double Current20mA = 20.0;
 
-        // 差压数据的 ARINC429 Label 定义
-        private const byte LabelDptSysDec = 58; // 72(oct) - 系统差压
-        private const byte LabelDptEdp2ADec = 57; // 71(oct) - EDP2A 差压
-        private const byte LabelDptEmpDec = 59; // 73(oct) - EMP 差压
+        private const byte LabelDptRfDec = 56;
+        private const byte LabelDptEdpDec = 57;
+        private const byte LabelDptSysDec = 58;
+        private const byte LabelDptEmpDec = 59;
+        private const byte SsmNormal = 3;
 
-        // 差压数据的 SDI 定义（用于区分不同通道）
-        private const byte SdiSys1 = 1;    // 系统1
-        private const byte SdiSys2 = 2;    // 系统2
-        private const byte SdiSys3 = 3;    // 系统3
-        private const byte SdiEdp2A = 2;   // EDP2A
-        private const byte SdiEmp2B = 2;   // EMP2B
-        private const byte SdiEmp3B = 3;   // EMP3B
-
-        // 差压的 ARINC429 编码参数（BNR：有符号二进制数）
         private const int DataBitLength = 9;
         private const double DataResolution = 1.0;
         private const int DataMsbPosition = 27;
+
+        private static readonly string[] AoChannels = { "AO4", "AO5", "AO6", "AO7", "AO8", "AO9" };
+
+        private static readonly DptChannelDefinition[] DptChannels =
+        {
+            new DptChannelDefinition("A", "EDP", "EDP1", LabelDptEdpDec, 1),
+            new DptChannelDefinition("A", "EMP12", "EMP1B", LabelDptEmpDec, 1),
+            new DptChannelDefinition("A", "EMP3", "EMP3A", LabelDptEmpDec, 3),
+            new DptChannelDefinition("A", "RF12", "RF1", LabelDptRfDec, 1),
+            new DptChannelDefinition("A", "RF3SYS2", "RF3", LabelDptRfDec, 3),
+            new DptChannelDefinition("A", "SYS1SYS3", "SYS1", LabelDptSysDec, 1),
+            new DptChannelDefinition("B", "EDP", "EDP2A", LabelDptEdpDec, 2),
+            new DptChannelDefinition("B", "EMP12", "EMP2B", LabelDptEmpDec, 2),
+            new DptChannelDefinition("B", "EMP3", "EMP3B", LabelDptEmpDec, 3),
+            new DptChannelDefinition("B", "RF12", "RF2", LabelDptRfDec, 2),
+            new DptChannelDefinition("B", "RF3SYS2", "SYS2", LabelDptSysDec, 2),
+            new DptChannelDefinition("B", "SYS1SYS3", "SYS3", LabelDptSysDec, 3),
+        };
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly IPxiChassisService _pxiChassisService;
@@ -72,13 +71,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private IPowerSupplyApi _power;
         private IArt4229Api _arinc;
+        private IMtx532Api _mtx532;
+        private bool _txOpened;
 
         private const string TestItemName = "压差传感器信号采集测试";
 
         private bool _canMeasure;
         private bool _measured14;
         private bool _manualAborted;
-
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private int _selectedTabIndex;
@@ -110,6 +110,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _dptSys210mAText = "--";
         private string _dptSys310mAText = "--";
 
+        private sealed class DptChannelDefinition
+        {
+            public DptChannelDefinition(string group, string slotKey, string channelName, byte label, byte sdi)
+            {
+                Group = group;
+                SlotKey = slotKey;
+                ChannelName = channelName;
+                Label = label;
+                Sdi = sdi;
+            }
+
+            public string Group { get; }
+            public string SlotKey { get; }
+            public string ChannelName { get; }
+            public byte Label { get; }
+            public byte Sdi { get; }
+        }
+
         public HC_6_5ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
         {
             _pxiChassisService = pxiChassisService;
@@ -121,40 +139,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
             LoadLastTestResultFromProject();
-        }
-
-        private void LoadLastTestResultFromProject()
-        {
-            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
-            if (testItemNode != null)
-            {
-                if (!string.IsNullOrWhiteSpace(testItemNode.LastTestTime))
-                {
-                    _previousTestTime = testItemNode.LastTestTime;
-                    RaisePropertyChanged(nameof(PreviousTestTime));
-                }
-                if (!string.IsNullOrWhiteSpace(testItemNode.LastTestResult))
-                {
-                    _previousTestResult = testItemNode.LastTestResult;
-                    RaisePropertyChanged(nameof(PreviousTestResult));
-                }
-            }
-        }
-
-        private void SaveTestResultToProject()
-        {
-            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
-            if (testItemNode != null)
-            {
-                testItemNode.LastTestTime = PreviousTestTime;
-                testItemNode.LastTestResult = PreviousTestResult;
-            }
-        }
-
-        public string CurrentTestResult
-        {
-            get => _currentTestResult;
-            private set => SetProperty(ref _currentTestResult, value);
         }
 
         public DelegateCommand ManualTestCommand { get; }
@@ -211,36 +195,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         public bool CanMeasure14 => IsManualTestRunning && CanMeasure && !_measured14;
 
-        /// <summary>
-        /// 整板串行自动测试入口。
-        /// 由外部(整板自动测试)调用，支持 await 等待完成，并通过 CancellationToken 实现“立即停止当前测量”。
-        /// 返回值仅为“合格/不合格”。
-        /// </summary>
-        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        public string CurrentTestResult
         {
-            if (IsAutoTestRunning)
-            {
-                await StopAutoTestAsync().ConfigureAwait(false);
-            }
-
-            if (IsManualTestRunning)
-            {
-                await StopManualTestAsync().ConfigureAwait(false);
-            }
-
-            _autoCts?.Cancel();
-            _autoCts?.Dispose();
-            _autoCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-            try
-            {
-                return await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
-            }
-            finally
-            {
-                _autoCts?.Dispose();
-                _autoCts = null;
-            }
+            get => _currentTestResult;
+            private set => SetProperty(ref _currentTestResult, value);
         }
 
         public string LastTestTime
@@ -288,11 +246,58 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public string DptSys210mAText { get => _dptSys210mAText; private set => SetProperty(ref _dptSys210mAText, value); }
         public string DptSys310mAText { get => _dptSys310mAText; private set => SetProperty(ref _dptSys310mAText, value); }
 
-        /// <summary>
-        /// 手动测试流程
-        /// 进入手动模式后，先初始化电源/ARINC429，
-        /// 然后由用户点击"测量 1-4mA"按钮执行测量（会依次测量 4mA/20mA/10mA 三个档位）。
-        /// </summary>
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning)
+                await StopAutoTestAsync().ConfigureAwait(false);
+
+            if (IsManualTestRunning)
+                await StopManualTestAsync().ConfigureAwait(false);
+
+            _autoCts?.Cancel();
+            _autoCts?.Dispose();
+            _autoCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                return await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
+
+        private void LoadLastTestResultFromProject()
+        {
+            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
+            if (testItemNode == null)
+                return;
+
+            if (!string.IsNullOrWhiteSpace(testItemNode.LastTestTime))
+            {
+                _previousTestTime = testItemNode.LastTestTime;
+                RaisePropertyChanged(nameof(PreviousTestTime));
+            }
+
+            if (!string.IsNullOrWhiteSpace(testItemNode.LastTestResult))
+            {
+                _previousTestResult = testItemNode.LastTestResult;
+                RaisePropertyChanged(nameof(PreviousTestResult));
+            }
+        }
+
+        private void SaveTestResultToProject()
+        {
+            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
+            if (testItemNode == null)
+                return;
+
+            testItemNode.LastTestTime = PreviousTestTime;
+            testItemNode.LastTestResult = PreviousTestResult;
+        }
+
         private async Task OnManualTestAsync()
         {
             if (IsManualTestRunning)
@@ -302,9 +307,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             if (IsAutoTestRunning)
-            {
                 await StopAutoTestAsync().ConfigureAwait(false);
-            }
 
             IsManualTestRunning = true;
             CurrentTestResult = "--";
@@ -320,12 +323,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             Log("开始手动测试");
             Log($"电源: CH1/CH2 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
-            Log($"ARINC429: RX通道{RxChannelIndex + 1}, 码率 {ArincRate:0}bps, DPT数据 bit19-27 UBNR(9bit) LSB=1");
+            Log($"MTX532: AO4-AO9 六通道同档输出电流等效电压");
+            Log($"ARINC429: RX通道{RxChannelIndex + 1}, TX通道{TxChannelIndex + 1}, 码率 {ArincRate:0}bps, DPT数据 bit19-27 UBNR(9bit) LSB=1");
 
             try
             {
                 await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
+                await EnsureMtx532Async(_manualCts.Token).ConfigureAwait(false);
                 await EnsureArincRxAsync(_manualCts.Token).ConfigureAwait(false);
+
+                if (EnableArincTxSimulation)
+                {
+                    await EnsureArincTxAsync(_manualCts.Token).ConfigureAwait(false);
+                    _ = SimulateProductContinuousTxAsync(_manualCts.Token);
+                    await Task.Delay(100, _manualCts.Token).ConfigureAwait(false);
+                    Log("模拟产品: 已启动压差数据持续发送");
+                }
+
                 CanMeasure = true;
                 Log("手动测试初始化完成，可点击测量");
             }
@@ -335,10 +349,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        /// <summary>
-        /// 自动测试流程
-        /// 自动依次测量 4mA/20mA/10mA 三个档位的所有通道差压数据，共 18 组数据。
-        /// </summary>
         private async Task OnAutoTestAsync()
         {
             if (IsAutoTestRunning)
@@ -348,9 +358,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             if (IsManualTestRunning)
-            {
                 await StopManualTestAsync().ConfigureAwait(false);
-            }
 
             IsAutoTestRunning = true;
             CurrentTestResult = "--";
@@ -389,50 +397,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
         {
-            IsAutoTestRunning = true;
-            CanMeasure = false;
-            _manualAborted = false;
-            _measured14 = false;
+            await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+            await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
+            await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
 
-            ResetAllDisplays();
-
-            Log("开始自动测试");
-
-            try
+            if (EnableArincTxSimulation)
             {
-                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
-                await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
-
-                var ok4 = await MeasureGroupAsync("4mA", Set4mA, cancellationToken).ConfigureAwait(false);
-                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
-                var ok20 = await MeasureGroupAsync("20mA", Set20mA, cancellationToken).ConfigureAwait(false);
-                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
-                var ok10 = await MeasureGroupAsync("10mA", Set10mA, cancellationToken).ConfigureAwait(false);
-
-                _measured14 = ok4 && ok20 && ok10;
-                await TryFinalizeAsync().ConfigureAwait(false);
-                await StopAutoTestAsync().ConfigureAwait(false);
-
-                return LastTestResult;
+                await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
+                _ = SimulateProductContinuousTxAsync(cancellationToken);
+                await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+                Log("模拟产品: 已启动压差数据持续发送");
             }
-            catch (OperationCanceledException)
-            {
-                Log("自动测试已停止");
-                await StopAutoTestAsync().ConfigureAwait(false);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Log($"自动测试异常: {ex.Message}");
-                await StopAutoTestAsync().ConfigureAwait(false);
-                throw;
-            }
+
+            var ok4 = await MeasureGroupAsync("4mA", Current4mA, Set4mA, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+            var ok20 = await MeasureGroupAsync("20mA", Current20mA, Set20mA, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+            var ok10 = await MeasureGroupAsync("10mA", Current10mA, Set10mA, cancellationToken).ConfigureAwait(false);
+
+            _measured14 = ok4 && ok20 && ok10;
+            await TryFinalizeAsync().ConfigureAwait(false);
+            await StopAutoTestAsync().ConfigureAwait(false);
+            return LastTestResult;
         }
 
-        /// <summary>
-        /// 测量 1-4mA 档位（手动模式）
-        /// 根据当前选中的 Tab 页，测量对应档位的所有通道差压数据。
-        /// </summary>
         private async Task OnMeasure14Async()
         {
             var token = _manualCts?.Token ?? CancellationToken.None;
@@ -441,16 +429,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             switch (SelectedTabIndex)
             {
                 case 0:
-                    ok = await MeasureGroupAsync("4mA", Set4mA, token).ConfigureAwait(false);
+                    ok = await MeasureGroupAsync("4mA", Current4mA, Set4mA, token).ConfigureAwait(false);
                     break;
                 case 1:
-                    ok = await MeasureGroupAsync("20mA", Set20mA, token).ConfigureAwait(false);
+                    ok = await MeasureGroupAsync("20mA", Current20mA, Set20mA, token).ConfigureAwait(false);
                     break;
                 case 2:
-                    ok = await MeasureGroupAsync("10mA", Set10mA, token).ConfigureAwait(false);
+                    ok = await MeasureGroupAsync("10mA", Current10mA, Set10mA, token).ConfigureAwait(false);
                     break;
                 default:
-                    ok = await MeasureGroupAsync("当前档位", Set4mA, token).ConfigureAwait(false);
+                    ok = await MeasureGroupAsync("当前档位", Current4mA, Set4mA, token).ConfigureAwait(false);
                     break;
             }
 
@@ -471,12 +459,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             switch (name)
             {
-                case "EDP2A": DptEdp2A4mAText = text; break;
-                case "EMP2B": DptEmp2B4mAText = text; break;
-                case "EMP3B": DptEmp3B4mAText = text; break;
-                case "SYS1": DptSys14mAText = text; break;
-                case "SYS2": DptSys24mAText = text; break;
-                case "SYS3": DptSys34mAText = text; break;
+                case "EDP": DptEdp2A4mAText = text; break;
+                case "EMP12": DptEmp2B4mAText = text; break;
+                case "EMP3": DptEmp3B4mAText = text; break;
+                case "RF12": DptSys14mAText = text; break;
+                case "RF3SYS2": DptSys24mAText = text; break;
+                case "SYS1SYS3": DptSys34mAText = text; break;
             }
         }
 
@@ -484,12 +472,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             switch (name)
             {
-                case "EDP2A": DptEdp2A20mAText = text; break;
-                case "EMP2B": DptEmp2B20mAText = text; break;
-                case "EMP3B": DptEmp3B20mAText = text; break;
-                case "SYS1": DptSys120mAText = text; break;
-                case "SYS2": DptSys220mAText = text; break;
-                case "SYS3": DptSys320mAText = text; break;
+                case "EDP": DptEdp2A20mAText = text; break;
+                case "EMP12": DptEmp2B20mAText = text; break;
+                case "EMP3": DptEmp3B20mAText = text; break;
+                case "RF12": DptSys120mAText = text; break;
+                case "RF3SYS2": DptSys220mAText = text; break;
+                case "SYS1SYS3": DptSys320mAText = text; break;
             }
         }
 
@@ -497,26 +485,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             switch (name)
             {
-                case "EDP2A": DptEdp2A10mAText = text; break;
-                case "EMP2B": DptEmp2B10mAText = text; break;
-                case "EMP3B": DptEmp3B10mAText = text; break;
-                case "SYS1": DptSys110mAText = text; break;
-                case "SYS2": DptSys210mAText = text; break;
-                case "SYS3": DptSys310mAText = text; break;
+                case "EDP": DptEdp2A10mAText = text; break;
+                case "EMP12": DptEmp2B10mAText = text; break;
+                case "EMP3": DptEmp3B10mAText = text; break;
+                case "RF12": DptSys110mAText = text; break;
+                case "RF3SYS2": DptSys210mAText = text; break;
+                case "SYS1SYS3": DptSys310mAText = text; break;
             }
         }
 
-        /// <summary>
-        /// 测量一组电流档位的所有通道差压数据（核心测量方法）
-        /// 流程：
-        /// 1) 从 ARINC429 接收差压数据，根据 Label 和 SDI 过滤出 6 个通道。
-        /// 2) 每个通道采集 5 帧有效数据取平均值。
-        /// 3) 所有通道都采集完成后返回成功。
-        /// </summary>
-        /// <param name="title">档位名称（4mA/10mA/20mA，用于日志）</param>
-        /// <param name="setTextByName">设置界面显示文本的回调函数</param>
-        /// <returns>true=所有通道都成功采集，false=超时/异常</returns>
-        private async Task<bool> MeasureGroupAsync(string title, Action<string, string> setTextByName, CancellationToken cancellationToken)
+        private async Task<bool> MeasureGroupAsync(string title, double currentmA, Action<string, string> setTextByName, CancellationToken cancellationToken)
         {
             if (!(IsAutoTestRunning || (IsManualTestRunning && CanMeasure)))
             {
@@ -527,18 +505,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                Log($"{title}: 开始接收DPT数据 Label/SDI过滤，SSM不限制");
+                var voltageV = ConvertCurrentToVoltage(currentmA);
+                Log($"{title}: 设置AO4-AO9={voltageV:0.###}V（等效 {currentmA:0.###}mA）");
+                await SetAo456789Async(voltageV, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(AoSettleMs, cancellationToken).ConfigureAwait(false);
+                Log($"{title}: 开始接收DPT数据 Label/SDI过滤，自动识别A/B组");
 
                 var samples = new Dictionary<string, List<double>>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["SYS1"] = new List<double>(SamplesPerMeasure),
-                    ["SYS2"] = new List<double>(SamplesPerMeasure),
-                    ["SYS3"] = new List<double>(SamplesPerMeasure),
-                    ["EDP2A"] = new List<double>(SamplesPerMeasure),
-                    ["EMP2B"] = new List<double>(SamplesPerMeasure),
-                    ["EMP3B"] = new List<double>(SamplesPerMeasure),
+                    ["EDP"] = new List<double>(SamplesPerMeasure),
+                    ["EMP12"] = new List<double>(SamplesPerMeasure),
+                    ["EMP3"] = new List<double>(SamplesPerMeasure),
+                    ["RF12"] = new List<double>(SamplesPerMeasure),
+                    ["RF3SYS2"] = new List<double>(SamplesPerMeasure),
+                    ["SYS1SYS3"] = new List<double>(SamplesPerMeasure),
                 };
 
+                string activeGroup = null;
                 var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
                 while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
                 {
@@ -551,33 +534,40 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                             continue;
 
                         _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out _);
-
-                        var channel = ResolveChannel(label, wordSdi);
-                        if (channel == null)
+                        var definition = ResolveChannel(label, wordSdi);
+                        if (definition == null)
                             continue;
 
-                        var v = DecodeValue(data19);
-                        if (!v.HasValue)
+                        if (activeGroup == null)
+                        {
+                            activeGroup = definition.Group;
+                            Log($"{title}: 已识别 {activeGroup} 组数据");
+                        }
+
+                        if (!string.Equals(activeGroup, definition.Group, StringComparison.OrdinalIgnoreCase))
                             continue;
 
-                        var list = samples[channel];
+                        var value = DecodeValue(data19);
+                        if (!value.HasValue)
+                            continue;
+
+                        var list = samples[definition.SlotKey];
                         if (list.Count >= SamplesPerMeasure)
                             continue;
 
-                        list.Add(v.Value);
+                        list.Add(value.Value);
                         var avg = list.Average();
-                        setTextByName(channel, $"{v.Value:0.###} {PressureUnit} ({list.Count}/{SamplesPerMeasure}) 平均:{avg:0.###} {PressureUnit}");
+                        setTextByName(definition.SlotKey, $"{value.Value:0.###} {PressureUnit} ({list.Count}/{SamplesPerMeasure}) 平均:{avg:0.###} {PressureUnit}");
                     }
 
                     if (samples.Values.All(l => l.Count >= SamplesPerMeasure))
                     {
                         foreach (var kv in samples)
                         {
-                            var avg = kv.Value.Average();
-                            setTextByName(kv.Key, $"{avg:0.###} {PressureUnit}");
+                            setTextByName(kv.Key, $"{kv.Value.Average():0.###} {PressureUnit}");
                         }
 
-                        Log($"{title}: 完成");
+                        Log($"{title}: 完成{(string.IsNullOrWhiteSpace(activeGroup) ? string.Empty : $"，组别={activeGroup}")}");
                         return true;
                     }
 
@@ -585,18 +575,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 }
 
                 foreach (var key in samples.Keys)
-                {
                     setTextByName(key, "--");
-                }
 
                 if (IsManualTestRunning)
-                {
                     await AbortManualTestAsync($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效DPT数据").ConfigureAwait(false);
-                }
                 else
-                {
                     Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效DPT数据");
-                }
 
                 return false;
             }
@@ -606,92 +590,51 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        /// <summary>
-        /// 根据 ARINC429 的 Label 和 SDI 解析出通道名称
-        /// </summary>
-        /// <returns>通道名称（SYS1/SYS2/SYS3/EDP2A/EMP2B/EMP3B），如果不匹配则返回 null</returns>
-        private string ResolveChannel(byte label, byte sdi)
+        private DptChannelDefinition ResolveChannel(byte label, byte sdi)
         {
-            if (IsExpectedLabel(label, LabelDptSysDec))
-            {
-                if (sdi == SdiSys1) return "SYS1";
-                if (sdi == SdiSys2) return "SYS2";
-                if (sdi == SdiSys3) return "SYS3";
-                return null;
-            }
-
-            if (IsExpectedLabel(label, LabelDptEdp2ADec) && sdi == SdiEdp2A)
-                return "EDP2A";
-
-            if (IsExpectedLabel(label, LabelDptEmpDec))
-            {
-                if (sdi == SdiEmp2B) return "EMP2B";
-                if (sdi == SdiEmp3B) return "EMP3B";
-            }
-
-            return null;
+            return DptChannels.FirstOrDefault(d => IsExpectedLabel(label, d.Label) && d.Sdi == sdi);
         }
 
-        /// <summary>
-        /// 判断当前 ARINC429 Label 是否匹配期望值（兼容字节序反转）
-        /// </summary>
         private bool IsExpectedLabel(byte label, byte expected)
         {
             return label == expected || label == _arinc.ReverseLabel(expected);
         }
 
-        /// <summary>
-        /// 解码差压值（UBNR：无符号二进制数，9-bit，范围 0-511）
-        /// </summary>
         private double? DecodeValue(uint data19)
         {
-            var v = _arinc.DecodeUbnr(data19, bitLength: DataBitLength, resolution: DataResolution, msbPosition: DataMsbPosition);
-            if (v < 0 || v > 511)
+            var value = _arinc.DecodeUbnr(data19, bitLength: DataBitLength, resolution: DataResolution, msbPosition: DataMsbPosition);
+            if (value < 0 || value > 511)
                 return null;
-            return v;
+
+            return value;
         }
 
-        /// <summary>
-        /// 当所有档位都已测量完成时，更新"上次/本次"测试结论并结束测试
-        /// </summary>
         private async Task TryFinalizeAsync()
         {
-            var pass = _measured14;
-
+            var resultText = _measured14 ? "合格" : "不合格";
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            var resultText = pass ? "合格" : "不合格";
+
             CurrentTestResult = resultText;
             PreviousTestTime = now;
             PreviousTestResult = resultText;
             LastTestTime = now;
             LastTestResult = resultText;
-
             SaveTestResultToProject();
             Log($"最终结果: {resultText}");
 
             if (IsManualTestRunning)
-            {
                 await StopManualTestAsync().ConfigureAwait(false);
-            }
         }
 
-        /// <summary>
-        /// 中止手动测试（通常用于初始化失败、采集超时、采集异常等）
-        /// </summary>
         private async Task AbortManualTestAsync(string reason)
         {
             _manualAborted = true;
             if (!string.IsNullOrWhiteSpace(reason))
-            {
                 Log(reason);
-            }
 
             await StopManualTestAsync().ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// 停止手动测试并释放硬件资源（停止 ARINC429 接收、关闭电源输出）
-        /// </summary>
         private async Task StopManualTestAsync()
         {
             try
@@ -703,24 +646,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log("手动测试停止/结束，正在停止429接收...");
+            Log("手动测试停止/结束，正在关闭电源输出、MTX532输出并停止429收发...");
+            await CleanupMtxAsync().ConfigureAwait(false);
             await CleanupArincAsync().ConfigureAwait(false);
-
-            try
-            {
-                await CleanupPowerAsync().ConfigureAwait(false);
-            }
-            catch
-            {
-            }
+            await CleanupPowerAsync().ConfigureAwait(false);
 
             IsManualTestRunning = false;
             Log("手动测试已结束");
         }
 
-        /// <summary>
-        /// 停止自动测试并释放硬件资源
-        /// </summary>
         private async Task StopAutoTestAsync()
         {
             try
@@ -731,24 +665,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log("自动测试停止/结束，正在停止429接收...");
+            Log("自动测试停止/结束，正在关闭电源输出、MTX532输出并停止429收发...");
+            await CleanupMtxAsync().ConfigureAwait(false);
             await CleanupArincAsync().ConfigureAwait(false);
-
-            try
-            {
-                await CleanupPowerAsync().ConfigureAwait(false);
-            }
-            catch
-            {
-            }
+            await CleanupPowerAsync().ConfigureAwait(false);
 
             IsAutoTestRunning = false;
             Log("自动测试已结束");
         }
 
-        /// <summary>
-        /// 确保程控电源已连接并输出 28V（CH1/CH2）
-        /// </summary>
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
         {
             _power ??= new PowerSupplySocketApi();
@@ -778,49 +703,52 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        private async Task CleanupArincAsync()
+        private async Task EnsureMtx532Async(CancellationToken cancellationToken)
+        {
+            if (_mtx532 != null && _mtx532.IsConnected)
+                return;
+
+            var device = FindFirstMtx532Device();
+            if (device == null)
+                throw new InvalidOperationException("未找到MTX532(模拟量输出)板卡");
+
+            var slot = device is PxiDeviceBase pxi ? pxi.SlotIndex : 7;
+            _mtx532 = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 20000.0 }, slotNumber: slot);
+            await _mtx532.ConnectAsync(cancellationToken).ConfigureAwait(false);
+            await _mtx532.StartOutputAsync(cancellationToken).ConfigureAwait(false);
+            await SetAo456789Async(0.0, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task CleanupMtxAsync()
         {
             try
             {
-                if (_arinc != null)
+                if (_mtx532 != null)
                 {
-                    try { await _arinc.StopRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _arinc.CloseRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _arinc.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _arinc.DisposeAsync().ConfigureAwait(false); } catch { }
+                    try { await _mtx532.StopOutputAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.ResetAllToZeroAsync(disableAfterReset: true, cancellationToken: CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
-            }
-            catch
-            {
             }
             finally
             {
-                _arinc = null;
+                _mtx532 = null;
             }
         }
 
-        private void ResetAllDisplays()
+        private async Task SetAo456789Async(double voltageV, CancellationToken cancellationToken)
         {
-            DptEdp2A4mAText = "--";
-            DptEmp2B4mAText = "--";
-            DptEmp3B4mAText = "--";
-            DptSys14mAText = "--";
-            DptSys24mAText = "--";
-            DptSys34mAText = "--";
+            if (_mtx532 == null || !_mtx532.IsConnected)
+                throw new InvalidOperationException("MTX532未连接");
 
-            DptEdp2A20mAText = "--";
-            DptEmp2B20mAText = "--";
-            DptEmp3B20mAText = "--";
-            DptSys120mAText = "--";
-            DptSys220mAText = "--";
-            DptSys320mAText = "--";
+            var outputs = AoChannels.ToDictionary(ch => ch, _ => voltageV, StringComparer.OrdinalIgnoreCase);
+            await _mtx532.WriteOnceDcAsync(outputs, cancellationToken).ConfigureAwait(false);
+        }
 
-            DptEdp2A10mAText = "--";
-            DptEmp2B10mAText = "--";
-            DptEmp3B10mAText = "--";
-            DptSys110mAText = "--";
-            DptSys210mAText = "--";
-            DptSys310mAText = "--";
+        private double ConvertCurrentToVoltage(double currentmA)
+        {
+            return currentmA * 10.0 / 42.0;
         }
 
         private async Task EnsureArincRxAsync(CancellationToken cancellationToken)
@@ -834,22 +762,56 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             if (!_arinc.IsConnected)
-            {
                 await _arinc.ConnectAsync(cancellationToken).ConfigureAwait(false);
-            }
 
             await _arinc.OpenRxAsync(RxChannelIndex, cancellationToken).ConfigureAwait(false);
-            await _arinc.ConfigureRxAsync(
-                RxChannelIndex,
-                rate: ArincRate,
-                parity: Art4229Parity.Odd,
-                wordFormat: Art4229WordFormat.Standard429,
-                enableInterrupt: false,
-                interruptDepth: 512,
-                enableTimeTag: false,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+            await _arinc.ConfigureRxAsync(RxChannelIndex, ArincRate, Art4229Parity.Odd, Art4229WordFormat.Standard429, false, 512, false, cancellationToken).ConfigureAwait(false);
             await _arinc.StartRxAsync(RxChannelIndex, cancellationToken).ConfigureAwait(false);
-            _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+            _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, 4096, false, false, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task EnsureArincTxAsync(CancellationToken cancellationToken)
+        {
+            if (_arinc == null)
+            {
+                var device = FindFirstArincDevice();
+                if (device == null)
+                    throw new InvalidOperationException("未找到ART4227/ART4229(ARINC429)板卡，无法发送429数据");
+                _arinc = new Art4229Api(device, deviceIndex: 0);
+            }
+
+            if (!_arinc.IsConnected)
+                await _arinc.ConnectAsync(cancellationToken).ConfigureAwait(false);
+
+            if (!_txOpened)
+            {
+                await _arinc.OpenTxAsync(TxChannelIndex, cancellationToken).ConfigureAwait(false);
+                await _arinc.ConfigureTxAsync(TxChannelIndex, ArincRate, Art4229TxMode.Single, Art4229Parity.Odd, Art4229WordFormat.Standard429, cancellationToken).ConfigureAwait(false);
+                _txOpened = true;
+            }
+        }
+
+        private async Task CleanupArincAsync()
+        {
+            try
+            {
+                if (_arinc != null)
+                {
+                    try { await _arinc.StopRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _arinc.CloseRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    if (_txOpened)
+                    {
+                        try { await _arinc.CloseTxAsync(TxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                        _txOpened = false;
+                    }
+                    try { await _arinc.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _arinc.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+            }
+            finally
+            {
+                _arinc = null;
+            }
         }
 
         private DeviceBase FindFirstArincDevice()
@@ -876,12 +838,90 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return null;
         }
 
+        private DeviceBase FindFirstMtx532Device()
+        {
+            var chassisList = _pxiChassisService?.GetAllChassis();
+            if (chassisList == null)
+                return null;
+
+            foreach (var chassis in chassisList)
+            {
+                var device = chassis?.Devices?.FirstOrDefault(d =>
+                    (d?.Model?.IndexOf("mtx532", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.Name?.IndexOf("mtx532", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                if (device != null)
+                    return device;
+            }
+
+            return null;
+        }
+
+        private void ResetAllDisplays()
+        {
+            DptEdp2A4mAText = "--";
+            DptEmp2B4mAText = "--";
+            DptEmp3B4mAText = "--";
+            DptSys14mAText = "--";
+            DptSys24mAText = "--";
+            DptSys34mAText = "--";
+
+            DptEdp2A20mAText = "--";
+            DptEmp2B20mAText = "--";
+            DptEmp3B20mAText = "--";
+            DptSys120mAText = "--";
+            DptSys220mAText = "--";
+            DptSys320mAText = "--";
+
+            DptEdp2A10mAText = "--";
+            DptEmp2B10mAText = "--";
+            DptEmp3B10mAText = "--";
+            DptSys110mAText = "--";
+            DptSys210mAText = "--";
+            DptSys310mAText = "--";
+        }
+
+        private async Task SimulateProductContinuousTxAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    await SendSimulatedWordAsync(LabelDptEdpDec, 2, 48, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(20, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedWordAsync(LabelDptEmpDec, 2, 52, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(20, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedWordAsync(LabelDptEmpDec, 3, 55, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(20, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedWordAsync(LabelDptRfDec, 2, 44, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(20, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedWordAsync(LabelDptSysDec, 2, 50, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(20, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedWordAsync(LabelDptSysDec, 3, 53, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(20, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                Log($"模拟产品: 发送异常: {ex.Message}");
+            }
+        }
+
+        private async Task SendSimulatedWordAsync(byte label, byte sdi, double value, CancellationToken cancellationToken)
+        {
+            var encoded = Math.Max(0, Math.Min(511, (int)Math.Round(value / DataResolution, MidpointRounding.AwayFromZero)));
+            uint data19 = (uint)(encoded & 0x1FF);
+            var word = _arinc.BuildRawWord(label, sdi, data19, SsmNormal, applyOddParity: true);
+            await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
+        }
+
         private void Log(string message)
         {
             if (string.IsNullOrWhiteSpace(message))
-            {
                 return;
-            }
 
             var line = $"[{DateTime.Now:HH:mm:ss}] {message}";
             var dispatcher = Application.Current?.Dispatcher;
