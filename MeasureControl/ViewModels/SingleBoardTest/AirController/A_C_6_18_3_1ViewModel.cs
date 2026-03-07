@@ -580,13 +580,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _matrixSwitchLock.WaitAsync(token);
             try
             {
-                bool ok1 = await MatrixControlService.Instance.ConnectNodesAsync("I1", "O1", MatrixSlotIndex, MatrixIpAddress);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路: I1->O1 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok1}");
+                var task3022 = MatrixControlService.Instance.ConnectNodesAsync("I0", "O53", 3, MatrixIpAddress, 50300);
+                var task2601 = MatrixControlService.Instance.ConnectNodesAsync("I4", "O11", MatrixSlotIndex, MatrixIpAddress);
 
-                bool ok2 = await MatrixControlService.Instance.ConnectNodesAsync("I2", "O2", MatrixSlotIndex, MatrixIpAddress);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路: I2->O2 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok2}");
+                var results = await Task.WhenAll(task3022, task2601);
+                bool ok3022 = results.Length > 0 && results[0];
+                bool ok2601 = results.Length > 1 && results[1];
 
-                return ok1 && ok2;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(3022): I0->O53 slot=3 ip={MatrixIpAddress} basePort=50300, ok={ok3022}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(2601): I4->O11 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok2601}");
+
+                bool ok = results.All(r => r);
+                if (ok)
+                    await Task.Delay(200, token);
+                return ok;
             }
             finally
             {
@@ -599,11 +606,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _matrixSwitchLock.WaitAsync(token);
             try
             {
-                bool ok1 = await MatrixControlService.Instance.DisconnectNodesAsync("I1", "O1", MatrixSlotIndex, MatrixIpAddress);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开: I1->O1 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok1}");
+                var task3022 = MatrixControlService.Instance.DisconnectNodesAsync("I0", "O53", 3, MatrixIpAddress, 50300);
+                var task2601 = MatrixControlService.Instance.DisconnectNodesAsync("I4", "O11", MatrixSlotIndex, MatrixIpAddress);
 
-                bool ok2 = await MatrixControlService.Instance.DisconnectNodesAsync("I2", "O2", MatrixSlotIndex, MatrixIpAddress);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开: I2->O2 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok2}");
+                var results = await Task.WhenAll(task3022, task2601);
+                bool ok3022 = results.Length > 0 && results[0];
+                bool ok2601 = results.Length > 1 && results[1];
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开(3022): I0->O53 slot=3 ip={MatrixIpAddress} basePort=50300, ok={ok3022}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开(2601): I4->O11 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok2601}");
             }
             catch (Exception ex)
             {

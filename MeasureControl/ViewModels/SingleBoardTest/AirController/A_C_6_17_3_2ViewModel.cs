@@ -30,7 +30,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] DirLowCommand8 = { 0x22, 0x03, 0x03, 0x02, 0x00, 0x00, 0x00, 0x00 };
 
         private const string MatrixIp = "192.168.1.3";
-        private const int MatrixScopeSlotIndex = 6;
 
         private readonly A_C_6_17_3_2Simulation _simulation = new A_C_6_17_3_2Simulation();
 
@@ -62,9 +61,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private double? _dirHighLevel;
         private double? _dirLowLevel;
-
-        private string _dirHighVppText = "--";
-        private string _dirLowVppText = "--";
 
         private string _dirHighVmaxText = "--";
         private string _dirHighVminText = "--";
@@ -156,12 +152,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _exitAtpRxDataText, value);
         }
 
-        public string DirHighVppText
-        {
-            get => _dirHighVppText;
-            private set => SetProperty(ref _dirHighVppText, value);
-        }
-
         public string DirHighVmaxText
         {
             get => _dirHighVmaxText;
@@ -172,12 +162,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _dirHighVminText;
             private set => SetProperty(ref _dirHighVminText, value);
-        }
-
-        public string DirLowVppText
-        {
-            get => _dirLowVppText;
-            private set => SetProperty(ref _dirLowVppText, value);
         }
 
         public string DirLowVmaxText
@@ -258,8 +242,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             ExitAtpRxDataText = "--";
             _dirHighLevel = null;
             _dirLowLevel = null;
-            DirHighVppText = "--";
-            DirLowVppText = "--";
             DirHighVmaxText = "--";
             DirHighVminText = "--";
             DirLowVmaxText = "--";
@@ -635,13 +617,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await Task.Delay(20, token);
             await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
             await Task.Delay(200, token);
-
-            var vpp = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VPP", token);
             var vmax = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VMAX", token);
             var vmin = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VMIN", token);
-            if (!vpp.HasValue)
+
+            if (!vmax.HasValue)
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] VPP测量无有效值");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] VMAX测量无有效值");
                 return false;
             }
 
@@ -657,18 +638,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (isHigh)
             {
                 _dirHighLevel = level;
-                DirHighVppText = $"{vpp.Value:0.00000} V";
                 if (vmax.HasValue) DirHighVmaxText = $"{vmax.Value:0.00000} V";
                 if (vmin.HasValue) DirHighVminText = $"{vmin.Value:0.00000} V";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] DIR高电平 VPP={vpp.Value:0.00000} V, VMAX={(vmax.HasValue ? vmax.Value.ToString("0.00000", CultureInfo.InvariantCulture) : "--")} V, VMIN={(vmin.HasValue ? vmin.Value.ToString("0.00000", CultureInfo.InvariantCulture) : "--")} V");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] DIR高电平 VMAX={(vmax.HasValue ? vmax.Value.ToString("0.00000", CultureInfo.InvariantCulture) : "--")} V, VMIN={(vmin.HasValue ? vmin.Value.ToString("0.00000", CultureInfo.InvariantCulture) : "--")} V");
             }
             else
             {
                 _dirLowLevel = level;
-                DirLowVppText = $"{vpp.Value:0.00000} V";
                 if (vmax.HasValue) DirLowVmaxText = $"{vmax.Value:0.00000} V";
                 if (vmin.HasValue) DirLowVminText = $"{vmin.Value:0.00000} V";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] DIR低电平 VPP={vpp.Value:0.00000} V, VMAX={(vmax.HasValue ? vmax.Value.ToString("0.00000", CultureInfo.InvariantCulture) : "--")} V, VMIN={(vmin.HasValue ? vmin.Value.ToString("0.00000", CultureInfo.InvariantCulture) : "--")} V");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] DIR低电平 VMAX={(vmax.HasValue ? vmax.Value.ToString("0.00000", CultureInfo.InvariantCulture) : "--")} V, VMIN={(vmin.HasValue ? vmin.Value.ToString("0.00000", CultureInfo.InvariantCulture) : "--")} V");
             }
 
             return true;
@@ -680,11 +659,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return true;
 
             var svc = MatrixControlService.Instance;
-            var okScope = await svc.ConnectNodesAsync("I2", "O3", MatrixScopeSlotIndex, MatrixIp);
 
-            _matrixRouted = okScope;
+            var operations = new (string inNode, string outNode, int slot, string ip)[]
+            {
+                ("I1", "O19", 9, MatrixIp),
+                ("I0", "O8", 4, MatrixIp)
+            };
+
+            var connectTasks = operations
+                .Select(op => svc.ConnectNodesAsync(op.inNode, op.outNode, op.slot, op.ip))
+                .ToArray();
+
+            var results = await Task.WhenAll(connectTasks);
+            _matrixRouted = results.All(r => r);
+
+            if (_matrixRouted)
+                await Task.Delay(200, token);
             _ = token;
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(示波器): I2->O3 slot={MatrixScopeSlotIndex} ip={MatrixIp}, ok={okScope}");
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(示波器): I1->O19 slot=9 + I0->O8 slot=4, ip={MatrixIp}, ok={_matrixRouted}");
             return _matrixRouted;
         }
 
@@ -730,7 +722,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     if (_matrixRouted)
                     {
                         var svc = MatrixControlService.Instance;
-                        _ = await svc.DisconnectNodesAsync("I2", "O3", MatrixScopeSlotIndex, MatrixIp);
+
+                        var operations = new (string inNode, string outNode, int slot, string ip)[]
+                        {
+                            ("I1", "O19", 9, MatrixIp),
+                            ("I0", "O8", 4, MatrixIp)
+                        };
+
+                        var disconnectTasks = operations
+                            .Select(op => svc.DisconnectNodesAsync(op.inNode, op.outNode, op.slot, op.ip))
+                            .ToArray();
+
+                        _ = await Task.WhenAll(disconnectTasks);
                     }
                 }
                 catch
