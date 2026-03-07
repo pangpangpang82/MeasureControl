@@ -28,10 +28,6 @@
             <sys:String>429_CH14</sys:String>
             <sys:String>429_CH15</sys:String>
         </x:Array>
-        <x:Array x:Key="DmmChannels" Type="sys:String">
-            <sys:String>Port1</sys:String>
-            <sys:String>Port2</sys:String>
-        </x:Array>
     </UserControl.Resources>
     <Grid
         x:Name="RootGrid"
@@ -499,21 +495,40 @@
                             VerticalAlignment="Center"
                             FontSize="16"
                             Text="供电模块输出电压：" />
-                        <ComboBox
-                            Width="80"
+                        <Button
+                            Width="60"
                             Height="28"
                             Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource DmmChannels}"
-                            SelectedItem="{Binding DmmChannel, Mode=TwoWay}">
-                            <ComboBox.Style>
-                                <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                    <Setter Property="Opacity" Value="1" />
-                                </Style>
-                            </ComboBox.Style>
-                        </ComboBox>
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding MeasureVoltageCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                            <TextBlock
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontSize="14"
+                                                Foreground="White"
+                                                Text="测量" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            <Setter Property="Cursor" Value="Arrow" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
                         <Border
                             Width="100"
                             Height="28"
