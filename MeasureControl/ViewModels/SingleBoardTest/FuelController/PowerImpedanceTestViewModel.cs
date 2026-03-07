@@ -1038,6 +1038,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         AddLog($"DO写回读取失败: {ex.Message}");
                     }
                     AddLog("DO15输出完成，继电器线圈得电");
+
+                    // 打开485继电器第4路（index=3，从0开始计数），配合DO15完成产品隔离
+                    AddLog("正在打开485继电器第4路...");
+                    try
+                    {
+                        await _jy7131Api.SetRelayAsync(3, true, timeoutCts.Token);
+                        AddLog("485继电器第4路已打开");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"485继电器操作失败: {ex.Message}");
+                    }
                 }
                 else
                 {
@@ -1106,6 +1118,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         AddLog($"DO写回读取失败: {ex.Message}");
                     }
                     AddLog("DO15输出完成，继电器线圈失电");
+
+                    // 关闭485继电器第4路（index=3，从0开始计数），配合DO15恢复产品连接
+                    AddLog("正在关闭485继电器第4路...");
+                    try
+                    {
+                        await _jy7131Api.SetRelayAsync(3, false, timeoutCts.Token);
+                        AddLog("485继电器第4路已关闭");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"485继电器操作失败: {ex.Message}");
+                    }
                 }
                 else
                 {
