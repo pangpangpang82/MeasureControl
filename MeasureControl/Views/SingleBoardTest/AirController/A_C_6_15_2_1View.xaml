@@ -128,7 +128,7 @@
 
                     FontWeight="Bold"
 
-                    ><Run Language="zh-CN" Text="6.15.2.1 A控制通道功率板AWV直流电机驱动模块速度控制测试"/></TextBlock>
+                    ><Run Text="6.15.2.1 A控制通道功率板A"/><Run Language="zh-cn" Text="V"/><Run Text="V直流电机驱动模块速度控制测试"/></TextBlock>
 
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
 
