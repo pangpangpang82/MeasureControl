@@ -1030,7 +1030,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     {
                         var mask = await _jy7131Api.ReadDoBitmaskAsync(timeoutCts.Token);
                         var ok = int.TryParse(RelayControlChannel.Substring(2), out var doIdx);
-                        var bit = ok ? doIdx : 15;
+                        var bit = ok ? (doIdx == 0 ? 0 : doIdx - 1) : 14;
                         AddLog($"DO写回读取: mask=0x{mask:X8}，{RelayControlChannel}={(mask & (1u << bit)) != 0}");
                     }
                     catch (Exception ex)
@@ -1083,6 +1083,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 if (_jy7131Api != null && _jy7131Api.IsConnected)
                 {
+                    // 某些情况下Stop后仍保持IsConnected，此时写DO可能无效；确保DO任务已Start
+                    if (!_jy7131Api.IsRunning)
+                    {
+                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.PushPull, timeoutCts.Token);
+                        await _jy7131Api.StartAsync(timeoutCts.Token);
+                        AddLog("7131板卡已启动");
+                    }
+
                     // DO15低电平 → 继电器线圈失电 → 触点恢复NC → 产品与试验台恢复连接
                     AddLog("正在写DO15（低电平）...");
                     await _jy7131Api.WriteDoAsync(RelayControlChannel, false, timeoutCts.Token);
@@ -1090,7 +1098,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     {
                         var mask = await _jy7131Api.ReadDoBitmaskAsync(timeoutCts.Token);
                         var ok = int.TryParse(RelayControlChannel.Substring(2), out var doIdx);
-                        var bit = ok ? doIdx : 15;
+                        var bit = ok ? (doIdx == 0 ? 0 : doIdx - 1) : 14;
                         AddLog($"DO写回读取: mask=0x{mask:X8}，{RelayControlChannel}={(mask & (1u << bit)) != 0}");
                     }
                     catch (Exception ex)
