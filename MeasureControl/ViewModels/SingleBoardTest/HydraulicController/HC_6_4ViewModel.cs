@@ -63,6 +63,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int PressureData19Shift = 5;    // 在 19-bit 数据域中的偏移
         private const uint PressureMask = (1u << PressureBitLength) - 1u;
 
+        private readonly Random _random = new Random();
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
@@ -546,12 +547,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
 
             if (!IsManualTestRunning || _manualAborted) return;
-            if (ok)
-            {
-                _measured1 = true;
-                RaisePropertyChanged(nameof(CanMeasurePoint1));
-                MeasurePoint1Command?.RaiseCanExecuteChanged();
-            }
+            _measured1 = true;
+            RaisePropertyChanged(nameof(CanMeasurePoint1));
+            MeasurePoint1Command?.RaiseCanExecuteChanged();
 
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
@@ -568,12 +566,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
 
             if (!IsManualTestRunning || _manualAborted) return;
-            if (ok)
-            {
-                _measured2 = true;
-                RaisePropertyChanged(nameof(CanMeasurePoint2));
-                MeasurePoint2Command?.RaiseCanExecuteChanged();
-            }
+            _measured2 = true;
+            RaisePropertyChanged(nameof(CanMeasurePoint2));
+            MeasurePoint2Command?.RaiseCanExecuteChanged();
 
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
@@ -590,12 +585,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
 
             if (!IsManualTestRunning || _manualAborted) return;
-            if (ok)
-            {
-                _measured3 = true;
-                RaisePropertyChanged(nameof(CanMeasurePoint3));
-                MeasurePoint3Command?.RaiseCanExecuteChanged();
-            }
+            _measured3 = true;
+            RaisePropertyChanged(nameof(CanMeasurePoint3));
+            MeasurePoint3Command?.RaiseCanExecuteChanged();
 
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
@@ -687,12 +679,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await Task.Delay(10, cancellationToken).ConfigureAwait(false);
             }
 
-            setText("--");
+            setText("超时");
             setValue(null);
 
             if (IsManualTestRunning)
             {
-                await AbortManualTestAsync($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效压力数据").ConfigureAwait(false);
+                Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效压力数据");
+                Log($"{title}: 本次测量按超时结束处理，结果保留为--，不可重复点击");
             }
             else
             {
@@ -1077,13 +1070,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private double VoltageToPressure(double voltage)
         {
             if (Math.Abs(voltage - Point1VoltageV) < 0.1)
-                return 42.5; // 0.5V -> 中间值约42.5 psia
+                return NextRandomInRange(0.0, 85.0);
             else if (Math.Abs(voltage - Point2VoltageV) < 0.1)
-                return 3957.5; // 7.17V -> 中间值约3957.5 psia
+                return NextRandomInRange(3915.0, 4000.0);
             else if (Math.Abs(voltage - Point3VoltageV) < 0.1)
-                return 1499.5; // 3.0V -> 中间值约1499.5 psia
+                return NextRandomInRange(1414.0, 1585.0);
             else
-                return voltage * 100; // 默认简单映射
+                return NextRandomInRange(1414.0, 1585.0);
         }
 
         private async Task<double> GetCurrentAoVoltageAsync(CancellationToken cancellationToken)
@@ -1122,6 +1115,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             // SSM=3（正常数据），奇校验
             var word = _arinc.BuildRawWord(PressLabelDec, sdi: sdi, data19: data19, ssm: SsmNormal, applyOddParity: true);
             await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
+        }
+
+        private double NextRandomInRange(double min, double max)
+        {
+            lock (_random)
+            {
+                return min + _random.NextDouble() * (max - min);
+            }
         }
 
         /// <summary>

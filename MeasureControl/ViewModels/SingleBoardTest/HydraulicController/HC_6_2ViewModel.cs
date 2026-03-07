@@ -64,6 +64,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double MinM15V = -15.225;
         private const double MaxM15V = -14.775;
 
+        private readonly Random _random = new Random();
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private CancellationTokenSource _manualCts;
         private CancellationTokenSource _autoCts;
@@ -508,22 +509,34 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
+                    var simulated15V = NextRandomInRange(Min15V, Max15V);
+                    var simulatedM15V = NextRandomInRange(MinM15V, MaxM15V);
+                    var simulated5V = NextRandomInRange(Min5V, Max5V);
+
                     // Label 060(oct) BIT_PS_P15V  UBNR bit20-27 bit28=0 SSM=3
-                    await SendSimulatedVoltageWordAsync(Label15V, 15.0, isNegative: false, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedVoltageWordAsync(Label15V, simulated15V, isNegative: false, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(50, cancellationToken).ConfigureAwait(false);
 
                     // Label 061(oct) BIT_PS_M15V  BNR  bit20-28 符号位28 SSM=3
-                    await SendSimulatedVoltageWordAsync(LabelM15V, -15.0, isNegative: true, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedVoltageWordAsync(LabelM15V, simulatedM15V, isNegative: true, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(50, cancellationToken).ConfigureAwait(false);
 
                     // Label 062(oct) BIT_PS_P5V   UBNR bit20-27 bit28=0 SSM=3
-                    await SendSimulatedVoltageWordAsync(Label5V, 5.0, isNegative: false, cancellationToken).ConfigureAwait(false);
+                    await SendSimulatedVoltageWordAsync(Label5V, simulated5V, isNegative: false, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(50, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) { Log($"模拟产品: 发送异常: {ex.Message}"); }
             finally { Log("模拟产品: 持续发送已停止"); }
+        }
+
+        private double NextRandomInRange(double min, double max)
+        {
+            lock (_random)
+            {
+                return min + _random.NextDouble() * (max - min);
+            }
         }
 
         /// <summary>
@@ -654,7 +667,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     await Task.Delay(10, cancellationToken).ConfigureAwait(false);
                 }
 
-                setText("--");
+                setText("超时");
                 setValue(null);
 
                 var timeoutMsg = $"{title}: 测量超时(3秒内未接收到{SamplesPerMeasure}帧有效数据)";
@@ -662,11 +675,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                 if (IsManualTestRunning)
                 {
-                    var dispatcher = Application.Current?.Dispatcher;
-                    if (dispatcher != null && !dispatcher.CheckAccess())
-                        dispatcher.Invoke(() => ReMessageBox.Show(timeoutMsg, "提示", MessageBoxButton.OK, MessageBoxImage.Warning));
-                    else
-                        MessageBox.Show(timeoutMsg, "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    Log($"{title}: 本次测量按超时结束处理，结果保留为--，不可重复点击");
                 }
 
                 return false;
