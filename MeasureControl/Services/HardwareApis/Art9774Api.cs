@@ -140,7 +140,7 @@ namespace MeasureControl.Services.HardwareApis
                     return;
 
                 var deviceName = _options?.DeviceName;
-                _driver = new Art9774Driver(_device, deviceNameOverride: deviceName);
+                _driver = new Art9774Driver(_device);
                 _driver.SamplesAvailable += OnDriverSamplesAvailable;
                 _driver.AcquisitionStatusChanged += OnDriverAcquisitionStatusChanged;
 
@@ -499,6 +499,19 @@ namespace MeasureControl.Services.HardwareApis
 
         private void OnDriverSamplesAvailable(Dictionary<string, double[]> internalSamples)
         {
+            // 更新驱动内部的通道值缓存，使 GetLastValueAsync 能读取到最新值
+            if (internalSamples != null && _driver != null)
+            {
+                foreach (var kvp in internalSamples)
+                {
+                    if (kvp.Value != null && kvp.Value.Length > 0)
+                    {
+                        // 取最后一个采样值作为当前值
+                        _driver.SetChannelValue(kvp.Key, kvp.Value[kvp.Value.Length - 1]);
+                    }
+                }
+            }
+
             var handler = SamplesAvailable;
             if (handler == null)
                 return;

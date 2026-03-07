@@ -383,7 +383,14 @@
     <Compile Include="Models\**\*.cs" />
     <Compile Include="Services\**\*.cs" />
     <Compile Include="Simulations\**\*.cs" />
+    <Compile Include="Demos\**\*.cs" />
     <Compile Include="MatrixSwitchDemo.cs" />
+    <Compile Include="ViewModels\**\*.cs" />
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh1TestView.cs" />
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh2TestView.cs" />
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh3TestView.cs" />
+    <Compile Include="Views\Common\ColumnFirstUniformGrid.cs" />
+    <Compile Include="Views\Hardware\ChassisConnectionCanvas.cs" />
     <Compile Include="Demos\**\*.cs" />
     <Compile Include="ViewModels\**\*.cs" />
     <Compile Include="Views\**\*.cs" />
