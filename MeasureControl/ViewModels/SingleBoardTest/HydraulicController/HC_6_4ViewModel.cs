@@ -21,7 +21,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
     /// 1) 给被测板供电 28V。
     /// 2) MTX532 的 AO1/AO2/AO3 同时输出指定电压（点1: 0.5V, 点2: 7.17V, 点3: 3.0V）。
     /// 3) 从 ARINC429 接收压力 Label=174(oct)（十进制 124）数据，分别统计 SDI0/1/2（对应 SYS1/2/3）。
-    /// 4) 每路采集 5 帧有效数据取平均值，并与阈值范围比对，给出"PASS/FAIL"。
+    /// 4) 每路采集 5 帧有效数据取平均值，并与阈值范围比对，给出“合格/不合格”。
     /// </summary>
     public class HC_6_4ViewModel : BindableBase
     {
@@ -54,6 +54,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly IPxiChassisService _pxiChassisService;
+        private readonly ISingleBoardTestContextService _singleBoardTestContext;
 
         private CancellationTokenSource _manualCts;
         private CancellationTokenSource _autoCts;
@@ -61,6 +62,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private IPowerSupplyApi _power;
         private IArt4229Api _arinc;
         private IMtx532Api _mtx532;
+
+        private const string TestItemName = "压力传感器信号采集测试";
 
         private bool _canMeasure;
         private bool _measured1;
@@ -98,9 +101,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private double? _p3Sys2;
         private double? _p3Sys3;
 
-        public HC_6_4ViewModel(IPxiChassisService pxiChassisService)
+        public HC_6_4ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
         {
             _pxiChassisService = pxiChassisService;
+            _singleBoardTestContext = singleBoardTestContext;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
@@ -110,6 +114,36 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             MeasurePoint3Command = new DelegateCommand(async () => await OnMeasurePoint3Async(), () => CanMeasurePoint3);
 
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
+
+            LoadLastTestResultFromProject();
+        }
+
+        private void LoadLastTestResultFromProject()
+        {
+            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
+            if (testItemNode != null)
+            {
+                if (!string.IsNullOrWhiteSpace(testItemNode.LastTestTime))
+                {
+                    _lastTestTime = testItemNode.LastTestTime;
+                    RaisePropertyChanged(nameof(LastTestTime));
+                }
+                if (!string.IsNullOrWhiteSpace(testItemNode.LastTestResult))
+                {
+                    _lastTestResult = testItemNode.LastTestResult;
+                    RaisePropertyChanged(nameof(LastTestResult));
+                }
+            }
+        }
+
+        private void SaveTestResultToProject()
+        {
+            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
+            if (testItemNode != null)
+            {
+                testItemNode.LastTestTime = LastTestTime;
+                testItemNode.LastTestResult = LastTestResult;
+            }
         }
 
         public DelegateCommand ManualTestCommand { get; }
@@ -177,6 +211,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public bool CanMeasurePoint1 => IsManualTestRunning && CanMeasure && !_measured1;
         public bool CanMeasurePoint2 => IsManualTestRunning && CanMeasure && !_measured2;
         public bool CanMeasurePoint3 => IsManualTestRunning && CanMeasure && !_measured3;
+
+        /// <summary>
+        /// 整板串行自动测试入口。
+        /// 由外部(整板自动测试)调用，支持 await 等待完成，并通过 CancellationToken 实现“立即停止当前测量”。
+        /// 返回值仅为“合格/不合格”。
+        /// </summary>
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning)
+            {
+                await StopAutoTestAsync().ConfigureAwait(false);
+            }
+
+            if (IsManualTestRunning)
+            {
+                await StopManualTestAsync().ConfigureAwait(false);
+            }
+
+            _autoCts?.Cancel();
+            _autoCts?.Dispose();
+            _autoCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                return await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
 
         public string LastTestTime
         {
@@ -333,47 +399,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                await EnsurePowerAsync(_autoCts.Token).ConfigureAwait(false);
-                await EnsureMtx532Async(_autoCts.Token).ConfigureAwait(false);
-                await EnsureArincRxAsync(_autoCts.Token).ConfigureAwait(false);
-
-                var ok1 = await MeasurePointAllSystemsAsync("0.5V点", Point1VoltageV,
-                    setSys1: t => PressurePoint1Sys1Text = t,
-                    setSys2: t => PressurePoint1Sys2Text = t,
-                    setSys3: t => PressurePoint1Sys3Text = t,
-                    setV1: v => _p1Sys1 = v,
-                    setV2: v => _p1Sys2 = v,
-                    setV3: v => _p1Sys3 = v,
-                    _autoCts.Token).ConfigureAwait(false);
-
-                await Task.Delay(80, _autoCts.Token).ConfigureAwait(false);
-
-                var ok2 = await MeasurePointAllSystemsAsync("7.17V点", Point2VoltageV,
-                    setSys1: t => PressurePoint2Sys1Text = t,
-                    setSys2: t => PressurePoint2Sys2Text = t,
-                    setSys3: t => PressurePoint2Sys3Text = t,
-                    setV1: v => _p2Sys1 = v,
-                    setV2: v => _p2Sys2 = v,
-                    setV3: v => _p2Sys3 = v,
-                    _autoCts.Token).ConfigureAwait(false);
-
-                await Task.Delay(80, _autoCts.Token).ConfigureAwait(false);
-
-                var ok3 = await MeasurePointAllSystemsAsync("3.0V点", Point3VoltageV,
-                    setSys1: t => PressurePoint3Sys1Text = t,
-                    setSys2: t => PressurePoint3Sys2Text = t,
-                    setSys3: t => PressurePoint3Sys3Text = t,
-                    setV1: v => _p3Sys1 = v,
-                    setV2: v => _p3Sys2 = v,
-                    setV3: v => _p3Sys3 = v,
-                    _autoCts.Token).ConfigureAwait(false);
-
-                _measured1 = ok1;
-                _measured2 = ok2;
-                _measured3 = ok3;
-
-                await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
-                await StopAutoTestAsync().ConfigureAwait(false);
+                _ = await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -384,6 +410,85 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 Log($"自动测试异常: {ex.Message}");
                 await StopAutoTestAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
+
+        private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
+        {
+            IsAutoTestRunning = true;
+            CanMeasure = false;
+            _manualAborted = false;
+
+            _measured1 = false;
+            _measured2 = false;
+            _measured3 = false;
+
+            ResetPointDisplays();
+
+            Log("开始自动测试");
+
+            try
+            {
+                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+                await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
+                await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+
+                var ok1 = await MeasurePointAllSystemsAsync("0.5V点", Point1VoltageV,
+                    setSys1: t => PressurePoint1Sys1Text = t,
+                    setSys2: t => PressurePoint1Sys2Text = t,
+                    setSys3: t => PressurePoint1Sys3Text = t,
+                    setV1: v => _p1Sys1 = v,
+                    setV2: v => _p1Sys2 = v,
+                    setV3: v => _p1Sys3 = v,
+                    cancellationToken).ConfigureAwait(false);
+
+                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+
+                var ok2 = await MeasurePointAllSystemsAsync("7.17V点", Point2VoltageV,
+                    setSys1: t => PressurePoint2Sys1Text = t,
+                    setSys2: t => PressurePoint2Sys2Text = t,
+                    setSys3: t => PressurePoint2Sys3Text = t,
+                    setV1: v => _p2Sys1 = v,
+                    setV2: v => _p2Sys2 = v,
+                    setV3: v => _p2Sys3 = v,
+                    cancellationToken).ConfigureAwait(false);
+
+                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+
+                var ok3 = await MeasurePointAllSystemsAsync("3.0V点", Point3VoltageV,
+                    setSys1: t => PressurePoint3Sys1Text = t,
+                    setSys2: t => PressurePoint3Sys2Text = t,
+                    setSys3: t => PressurePoint3Sys3Text = t,
+                    setV1: v => _p3Sys1 = v,
+                    setV2: v => _p3Sys2 = v,
+                    setV3: v => _p3Sys3 = v,
+                    cancellationToken).ConfigureAwait(false);
+
+                _measured1 = ok1;
+                _measured2 = ok2;
+                _measured3 = ok3;
+
+                await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
+                await StopAutoTestAsync().ConfigureAwait(false);
+
+                return LastTestResult;
+            }
+            catch (OperationCanceledException)
+            {
+                Log("自动测试已停止");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"自动测试异常: {ex.Message}");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
             }
         }
 
@@ -614,18 +719,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             if (failures.Count == 0)
             {
-                LastTestResult = "PASS";
-                Log("自动判定: PASS (三档位三路压力均在范围内)");
+                LastTestResult = "合格";
+                Log("自动判定: 合格 (三档位三路压力均在范围内)");
             }
             else
             {
-                LastTestResult = "FAIL";
-                Log("自动判定: FAIL");
+                LastTestResult = "不合格";
+                Log("自动判定: 不合格");
                 foreach (var f in failures)
                 {
                     Log($"判据不满足: {f}");
                 }
             }
+
+            SaveTestResultToProject();
 
             if (IsManualTestRunning)
             {

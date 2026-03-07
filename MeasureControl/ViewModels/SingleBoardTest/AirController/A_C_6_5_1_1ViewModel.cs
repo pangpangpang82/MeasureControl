@@ -21,8 +21,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
 
-        private static readonly byte[] TestCommand8 = { 0x04, 0x01, 0x01, 0x02, 0xAA, 0xAA, 0xAA, 0xAA };
-        private static readonly byte[] TestData4 = { 0x7F, 0x00, 0xAA, 0x55 };
+        private static readonly byte[] AbA429Tx0TransmitCommand8 = { 0x04, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExpectedData4 = { 0x7F, 0x00, 0xAA, 0x55 };
+        private const byte Label50 = 0x50;
+        private const byte Label51 = 0x51;
 
         private readonly A_C_6_5_1_1Simulation _simulation = new A_C_6_5_1_1Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
@@ -482,43 +484,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     var token = CancellationToken.None;
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送测试命令：{FormatBytes(TestCommand8)}");
-                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, TestCommand8, msg => AddLog(msg), token);
+                    RxConfirmText = "--";
 
-                    var confirm = await _simulation.WaitBenchResponse8Async(
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_A429TX0_TRANSMIT：{FormatBytes(AbA429Tx0TransmitCommand8)}");
+                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbA429Tx0TransmitCommand8, msg => AddLog(msg), token);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待接收数据(LABEL0x{Label50:X2}/0x{Label51:X2})...");
+                    var data4 = await _simulation.WaitBenchData4Async(
                         TestRxChannel,
-                        b => b != null && b.SequenceEqual(TestCommand8),
-                        timeoutMs: 1000,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (confirm == null)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 未收到确认帧(8字节)");
-                        SetLastTestResult("FAIL");
-                        CurrentStepImage = CreateImageSource("/Resources/Logo/warning.png");
-                        return;
-                    }
-
-                    RxConfirmText = $"0x{FormatBytesHex(confirm)}";
-
-                    var data4 = await _simulation.WaitBenchResponse4Async(
-                        TestRxChannel,
-                        timeoutMs: 1000,
+                        Label50,
+                        Label51,
+                        timeoutMs: 1200,
                         log: msg => AddLog(msg),
                         token: token);
 
                     if (data4 == null)
                     {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 未收到数据帧(4字节)");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 接收数据超时");
                         SetLastTestResult("FAIL");
                         CurrentStepImage = CreateImageSource("/Resources/Logo/warning.png");
                         return;
                     }
 
-                    RxDataText = $"0x{FormatBytesHex(data4)}";
+                    RxDataText = $"{FormatBytesHex(data4)}";
 
-                    bool pass = data4.SequenceEqual(TestData4);
+                    bool pass = data4.SequenceEqual(ExpectedData4);
                     SetLastTestResult(pass ? "PASS" : "FAIL");
                     CurrentStepImage = CreateImageSource(pass ? "/Resources/Logo/over.png" : "/Resources/Logo/warning.png");
 
@@ -605,31 +595,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     await _simulation.ClearRxFifoAsync(TestRxChannel);
                     await Task.Delay(20, token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤2：发送测试命令");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤2：发送AB_A429TX0_TRANSMIT");
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
-                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, TestCommand8, msg => AddLog(msg), token);
+                    RxConfirmText = "--";
+                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbA429Tx0TransmitCommand8, msg => AddLog(msg), token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：等待确认帧(8字节)");
-                    var confirm = await _simulation.WaitBenchResponse8Async(
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：等待接收数据(LABEL50/51)");
+                    var data4 = await _simulation.WaitBenchData4Async(
                         TestRxChannel,
-                        b => b != null && b.SequenceEqual(TestCommand8),
-                        timeoutMs: 1200,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (confirm == null)
-                    {
-                        SetLastTestResult("FAIL");
-                        CurrentStepImage = CreateImageSource("/Resources/Logo/warning.png");
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试失败：确认帧超时");
-                        return;
-                    }
-
-                    RxConfirmText = $"0x{FormatBytesHex(confirm)}";
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤4：等待数据帧(4字节)");
-                    var data4 = await _simulation.WaitBenchResponse4Async(
-                        TestRxChannel,
+                        Label50,
+                        Label51,
                         timeoutMs: 1200,
                         log: msg => AddLog(msg),
                         token: token);
@@ -638,20 +613,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     {
                         SetLastTestResult("FAIL");
                         CurrentStepImage = CreateImageSource("/Resources/Logo/warning.png");
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试失败：数据帧超时");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试失败：接收数据超时");
                         return;
                     }
 
-                    RxDataText = $"0x{FormatBytesHex(data4)}";
+                    RxDataText = $"{FormatBytesHex(data4)}";
 
-                    bool pass = data4.SequenceEqual(TestData4);
+                    bool pass = data4.SequenceEqual(ExpectedData4);
                     SetLastTestResult(pass ? "PASS" : "FAIL");
                     CurrentStepImage = CreateImageSource(pass ? "/Resources/Logo/over.png" : "/Resources/Logo/warning.png");
 
                     await _simulation.ClearRxFifoAsync(TestRxChannel);
                     await Task.Delay(20, token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤5：退出ATP");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤4：退出ATP");
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, ExitAtpCommand8, msg => AddLog(msg), token);
 

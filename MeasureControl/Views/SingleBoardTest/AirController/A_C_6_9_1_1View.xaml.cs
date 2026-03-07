@@ -1,7 +1,9 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Media3D;
 using MeasureControl.ViewModels.SingleBoardTest.AirController;
 
 namespace MeasureControl.Views.SingleBoardTest.AirController
@@ -44,7 +46,7 @@ namespace MeasureControl.Views.SingleBoardTest.AirController
                     return target;
                 }
 
-                current = VisualTreeHelper.GetParent(current);
+                current = GetParent(current);
             }
 
             return null;
@@ -59,10 +61,30 @@ namespace MeasureControl.Views.SingleBoardTest.AirController
                     return true;
                 }
 
-                current = VisualTreeHelper.GetParent(current);
+                current = GetParent(current);
             }
 
             return false;
+        }
+
+        private static DependencyObject GetParent(DependencyObject current)
+        {
+            if (current is Visual || current is Visual3D)
+            {
+                return VisualTreeHelper.GetParent(current);
+            }
+
+            if (current is FrameworkContentElement frameworkContentElement)
+            {
+                return frameworkContentElement.Parent;
+            }
+
+            if (current is ContentElement contentElement)
+            {
+                return ContentOperations.GetParent(contentElement);
+            }
+
+            return LogicalTreeHelper.GetParent(current);
         }
     }
 }

@@ -322,6 +322,10 @@ namespace MeasureControl
 
             containerRegistry.Register<HC_6_5ViewModel>();
 
+            containerRegistry.Register<HC_6_6ViewModel>();
+
+            containerRegistry.Register<HC_6_7ViewModel>();
+
             containerRegistry.Register<HC_6_8ViewModel>();
 
             containerRegistry.Register<PowerImpedanceTestViewModel>();
@@ -343,6 +347,8 @@ namespace MeasureControl
 
 
             containerRegistry.Register<PowerToGroundImpedanceTestViewModel>();
+
+            containerRegistry.Register<A_C_8_1ViewModel>();
 
 
 

@@ -61,6 +61,11 @@ namespace MeasureControl.Simulations.R_6_8_6
         /// </summary>
         public Func<string> GetCurrentResistorGear { get; set; }
 
+        /// <summary>
+        /// 由 ViewModel 设置，用于仿真遥测时获取当前环境温度选择(10~50℃/其他)
+        /// </summary>
+        public Func<string> GetCurrentAmbientTemperatureSelection { get; set; }
+
         public void StopTelemetryOutput()
         {
             _telemetryEnabled = false;
@@ -698,20 +703,22 @@ namespace MeasureControl.Simulations.R_6_8_6
 
         private double GenerateSimulatedTemperature(string gear)
         {
-            var (min, max) = GetQualifiedTemperatureRange(gear);
+            string ambient = GetCurrentAmbientTemperatureSelection?.Invoke() ?? "10~50℃";
+            var (min, max) = GetQualifiedTemperatureRange(gear, ambient);
             lock (_rand)
             {
                 return min + _rand.NextDouble() * (max - min);
             }
         }
 
-        private static (double Min, double Max) GetQualifiedTemperatureRange(string gear)
+        private static (double Min, double Max) GetQualifiedTemperatureRange(string gear, string ambientSelection)
         {
+            bool isNormalAmbient = string.Equals(ambientSelection, "10~50℃", StringComparison.OrdinalIgnoreCase);
             return gear switch
             {
-                "1挡" => (-65.93, -64.07),
-                "2挡" => (24.75, 26.61),
-                "3挡" => (134.06, 135.94),
+                "1挡" => isNormalAmbient ? (-65.93, -64.07) : (-69.05, -60.95),
+                "2挡" => isNormalAmbient ? (24.75, 26.61) : (21.63, 29.73),
+                "3挡" => isNormalAmbient ? (134.06, 135.94) : (130.94, 139.06),
                 _ => (-65.93, -64.07)
             };
         }
