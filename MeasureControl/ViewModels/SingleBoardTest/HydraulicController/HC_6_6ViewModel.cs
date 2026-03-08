@@ -25,7 +25,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 1.0;
         private const int RxChannelIndex = 2;
-        private const int LvdtSlotIndex = 3;
+        private const int LvdtSlotIndex = 2;
         private const int MatrixSlotExcitationSignal = 8;
         private const int MatrixSlotExcitationCommon = 4;
         private const int ExcitationPlusOutputNode = 17;
