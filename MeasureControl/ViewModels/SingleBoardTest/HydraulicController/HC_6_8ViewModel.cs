@@ -8,10 +8,13 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using MeasureControl.Events;
 using MeasureControl.Models.Devices;
 using MeasureControl.Models.Devices.DeviceCategories;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
+using Prism.Events;
+using Prism.Ioc;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
@@ -29,8 +32,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
     public class HC_6_8ViewModel : BindableBase
     {
         // 电源配置（给被测板供电）
-        private const string PowerSupplyIpAddress = "192.168.1.15";
-        private const double InputVoltageV = 28.0;
+        private const string PowerSupply28VAddress = "192.168.1.15";
+        private const string AuxPowerSupplyIpAddress = "192.168.1.16";
+        private const string PowerSupplyAAddress = "192.168.1.16";
+        private const string PowerSupplyBAddress = "192.168.1.17";
+        private const double Input28VoltageV = 28.0;
+        private const double Input28CurrentA = 1.0;
+        private const double AuxPowerVoltageV = 24.0;
+        private const double AuxPowerCurrentA = 1.0;
+        private const double InputVoltageV = 5.0;
         private const double InputCurrentA = 1;
 
         // 万用表和矩阵开关配置
@@ -39,7 +49,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         // 矩阵开关槽位配置
         private const int MatrixSlotCommon = 4;       // 公共端槽位
-        private const int MatrixSlotPinRoute = 1;     // 针脚路由槽位
+        private const int MatrixSlotPinRoute = 8;     // 针脚路由槽位
 
         // ARINC429 发送配置
         private const int TxChannelIndex = 0; // 发送通道1 => index 0
@@ -48,12 +58,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         // ARINC429 指令参数（输出有效控制指令）
         private const byte LabelCmdDec = 53; // 65(oct)
         private const byte CmdSdi = 0;
+        private const byte SsmNormal = 0;
+
+        private static readonly int[] ControlledBitPositions = { 10, 11, 12, 13, 14, 15, 16 };
+        private static readonly int[] OvercurrentBitPositions = { 18, 19, 20, 21, 22, 23, 24 };
 
         // 阻抗判据
         private const double OpenPassThresholdOhm = 100_000.0;   // 开路阻抗阈值：>100kΩ 为合格
         private const double ClosePassThresholdOhm = 10.0;       // 通路阻抗阈值：<10Ω 为合格
+        private const int Relay485DoIndex = 29;
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _relayLock = new SemaphoreSlim(1, 1);
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
 
@@ -63,8 +79,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private CancellationTokenSource _autoCts;
 
         private IDmmApi _dmm;
-        private IPowerSupplyApi _power;
+        private IPowerSupplyApi _power28;
+        private IPowerSupplyApi _powerA;
+        private IPowerSupplyApi _powerB;
         private IArt4229Api _arinc;
+        private IJy7131Api _jy7131;
+        private bool _txOpened;
+        private bool _isRelay485On;
 
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
@@ -131,6 +152,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        private async Task CleanupRelayAsync()
+        {
+            try
+            {
+                await EnsureRelay485Async(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                if (_jy7131 != null)
+                {
+                    try { await _jy7131.StopAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _jy7131.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _jy7131.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+            }
+            finally
+            {
+                _jy7131 = null;
+                _isRelay485On = false;
+            }
+        }
+
         private void SaveTestResultToProject()
         {
             var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
@@ -138,6 +185,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 testItemNode.LastTestTime = PreviousTestTime;
                 testItemNode.LastTestResult = PreviousTestResult;
+
+                var eventAggregator = ContainerLocator.Container?.Resolve(typeof(IEventAggregator)) as IEventAggregator;
+                eventAggregator?.GetEvent<ProjectModifiedEvent>()?.Publish(new ProjectModifiedEventArgs
+                {
+                    ModificationType = "SingleBoardTestResult",
+                    Description = $"单板测试结果已更新: {TestItemName}"
+                });
             }
         }
 
@@ -286,7 +340,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 Log("万用表连接成功");
 
                 await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
-                Log("28V电源上电成功");
+                Log("28V、辅助24V与双路5V电源上电成功");
+
+                await EnsureRelay485Async(on: true, cancellationToken: _manualCts.Token).ConfigureAwait(false);
+                Log("DO29地参考已保持打开");
+
+                await SendSafeShutdownWordAsync(_manualCts.Token).ConfigureAwait(false);
+                Log("已下发安全关断指令，组件处于安全初始状态");
 
                 CanMeasure = true;
             }
@@ -374,7 +434,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 Log("万用表连接成功");
 
                 await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
-                Log("28V电源上电成功");
+                Log("28V、辅助24V与双路5V电源上电成功");
+
+                await EnsureRelay485Async(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                Log("DO29地参考已保持打开");
+
+                await SendSafeShutdownWordAsync(cancellationToken).ConfigureAwait(false);
+                Log("已下发安全关断指令，组件处于安全初始状态");
 
                 var okOpen = await MeasureOpenAsync(cancellationToken).ConfigureAwait(false);
                 if (!okOpen)
@@ -471,6 +537,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                Log("开路: 下发429开路指令（使能=1，过流=1）");
+                await SendOpenCircuitWordAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+
                 Log("开路: 开始测量针脚9~15对地阻抗");
 
                 for (int pin = 9; pin <= 15; pin++)
@@ -499,6 +569,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
+                try { await SendSafeShutdownWordAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 try { await DisconnectAllMatrixRoutesAsync().ConfigureAwait(false); } catch { }
                 _measureLock.Release();
             }
@@ -517,8 +588,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                Log("通路: 下发429开启输出有效指令");
-                await SendOutputEnableAsync(enable: true, cancellationToken).ConfigureAwait(false);
+                Log("通路: 下发429输出有效指令");
+                await SendOutputsValidAsync(cancellationToken).ConfigureAwait(false);
                 await Task.Delay(100, cancellationToken).ConfigureAwait(false);
 
                 Log("通路: 开始测量针脚9~15对地阻抗");
@@ -550,8 +621,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 try
                 {
-                    Log("通路: 下发429关闭输出有效指令");
-                    await SendOutputEnableAsync(enable: false, CancellationToken.None).ConfigureAwait(false);
+                    await SendSafeShutdownWordAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -576,11 +646,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             var matrix = MatrixControlService.Instance;
 
-            var okCommon = await matrix.ConnectNodesAsync("I4", "O0", MatrixSlotCommon, MatrixIpAddress).ConfigureAwait(false);
-            var outNode = $"O{pin - 9}";
+            var okCommon = await matrix.ConnectNodesAsync("I4", "O2", MatrixSlotCommon, MatrixIpAddress).ConfigureAwait(false);
+            var outNode = $"O{pin - 1}";
             var okPin = await matrix.ConnectNodesAsync("I1", outNode, MatrixSlotPinRoute, MatrixIpAddress).ConfigureAwait(false);
 
-            Log($"PIN{pin}: 矩阵连接 {(okCommon && okPin ? "成功" : "失败")} - I4-O0(slot{MatrixSlotCommon}), I1-{outNode}(slot{MatrixSlotPinRoute})");
+            Log($"PIN{pin}: 矩阵连接 {(okCommon && okPin ? "成功" : "失败")} - I4-O2(slot{MatrixSlotCommon}), I1-{outNode}(slot{MatrixSlotPinRoute})");
             if (!okCommon || !okPin)
             {
                 return (null, "--");
@@ -620,7 +690,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (reading.Value == null)
                 return "--";
 
-            return $"{reading.Value.Value:0.###} Ω";
+            var value = reading.Value.Value;
+            if (Math.Abs(value) >= 1000.0)
+                return $"{value / 1000.0:0.000} kΩ";
+
+            return $"{value:0.000} Ω";
         }
 
         private void SetOpenPinText(int pin, string text)
@@ -654,41 +728,46 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// <summary>
         /// 通过 ARINC429 发送"输出有效"控制指令
         /// </summary>
-        /// <param name="enable">true=开启输出，false=关闭输出</param>
-        private async Task SendOutputEnableAsync(bool enable, CancellationToken cancellationToken)
+        private async Task SendOpenCircuitWordAsync(CancellationToken cancellationToken)
         {
             await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
-
-            var data19 = enable ? BuildEnableData19() : 0u;
-            var word = _arinc.BuildRawWord(LabelCmdDec, CmdSdi, data19, ssm: 0, applyOddParity: true);
+            var word = _arinc.BuildRawWord(LabelCmdDec, CmdSdi, BuildCommandData19(true, true), ssm: SsmNormal, applyOddParity: true);
             await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// 构建"输出有效"指令的数据域（19-bit）
-        /// 按照协议要求设置特定位为 1，其余为 0
+        /// 通过 ARINC429 发送"全部输出有效"控制指令
         /// </summary>
-        private static uint BuildEnableData19()
+        private async Task SendOutputsValidAsync(CancellationToken cancellationToken)
+        {
+            await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
+            var word = _arinc.BuildRawWord(LabelCmdDec, CmdSdi, BuildCommandData19(true, false), ssm: SsmNormal, applyOddParity: true);
+            await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task SendSafeShutdownWordAsync(CancellationToken cancellationToken)
+        {
+            await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
+            var word = _arinc.BuildRawWord(LabelCmdDec, CmdSdi, BuildCommandData19(false, false), ssm: SsmNormal, applyOddParity: true);
+            await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static uint BuildCommandData19(bool enableBits, bool overcurrentBits)
         {
             uint data19 = 0;
 
-            // Mapping: bit10..28 => data19 bit0..18
-            data19 |= 1u << 0; // bit10 = 1
-            // bit11 = 0
+            if (enableBits)
+            {
+                foreach (var bitPosition in ControlledBitPositions)
+                    data19 |= 1u << (bitPosition - 10);
+            }
 
-            // bit12..16 = 1
-            for (int b = 2; b <= 6; b++)
-                data19 |= 1u << b;
+            if (overcurrentBits)
+            {
+                foreach (var bitPosition in OvercurrentBitPositions)
+                    data19 |= 1u << (bitPosition - 10);
+            }
 
-            // bit17 = 0
-            data19 |= 1u << 8; // bit18 = 1
-            // bit19 = 0
-
-            // bit20..24 = 1
-            for (int b = 10; b <= 14; b++)
-                data19 |= 1u << b;
-
-            // bit25..28 = 0
             return data19;
         }
 
@@ -711,6 +790,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await _arinc.ConnectAsync(cancellationToken).ConfigureAwait(false);
             }
 
+            if (_txOpened)
+                return;
+
             await _arinc.OpenTxAsync(TxChannelIndex, cancellationToken).ConfigureAwait(false);
             await _arinc.ConfigureTxAsync(
                 TxChannelIndex,
@@ -719,6 +801,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 parity: Art4229Parity.Odd,
                 wordFormat: Art4229WordFormat.Standard429,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
+            _txOpened = true;
         }
 
         /// <summary>
@@ -752,8 +835,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             var matrix = MatrixControlService.Instance;
 
-            _ = await matrix.DisconnectNodesAsync("I4", "O0", MatrixSlotCommon, MatrixIpAddress).ConfigureAwait(false);
-            for (int i = 0; i <= 6; i++)
+            _ = await matrix.DisconnectNodesAsync("I4", "O2", MatrixSlotCommon, MatrixIpAddress).ConfigureAwait(false);
+            for (int i = 8; i <= 14; i++)
             {
                 _ = await matrix.DisconnectNodesAsync("I1", $"O{i}", MatrixSlotPinRoute, MatrixIpAddress).ConfigureAwait(false);
             }
@@ -832,6 +915,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             Log("手动测试停止/结束，正在断开矩阵、万用表与429...");
 
+            try { await SendSafeShutdownWordAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+
             try { await DisconnectAllMatrixRoutesAsync().ConfigureAwait(false); } catch { }
 
             try
@@ -856,6 +941,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             try
             {
                 await CleanupPowerAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                await CleanupRelayAsync().ConfigureAwait(false);
             }
             catch
             {
@@ -880,6 +973,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             Log("自动测试停止/结束，正在断开矩阵、万用表与429...");
 
+            try { await SendSafeShutdownWordAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+
             try { await DisconnectAllMatrixRoutesAsync().ConfigureAwait(false); } catch { }
 
             try
@@ -909,18 +1004,150 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
+            try
+            {
+                await CleanupRelayAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+
             IsAutoTestRunning = false;
             Log("自动测试已结束");
         }
 
+        private async Task EnsureRelay485Async(bool on, CancellationToken cancellationToken)
+        {
+            await _relayLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (on)
+                {
+                    if (_isRelay485On)
+                    {
+                        return;
+                    }
+
+                    var device = FindFirstJy7131Device();
+                    if (device == null)
+                    {
+                        throw new InvalidOperationException("未找到PXIe-7131(JY7131)板卡，无法开启DO29地参考");
+                    }
+
+                    if (_jy7131 == null)
+                    {
+                        var slot = device is DigitalIODevice dio ? dio.SlotIndex : 0;
+                        _jy7131 = new Jy7131Api(device, slot);
+                    }
+
+                    if (!_jy7131.IsConnected)
+                    {
+                        await _jy7131.ConnectAsync(cancellationToken).ConfigureAwait(false);
+                    }
+
+                    if (!_jy7131.IsRunning)
+                    {
+                        await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
+                    }
+
+                    await _jy7131.WriteDoAsync($"DO{Relay485DoIndex}", true, cancellationToken).ConfigureAwait(false);
+                    Log($"7131 DO{Relay485DoIndex} 已置位");
+
+                    await _jy7131.SetRelayAsync(7, true, cancellationToken).ConfigureAwait(false);
+                    Log("485继电器板 K8（第8路）已开启");
+
+                    await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+
+                    _isRelay485On = true;
+                    Log($"DO{Relay485DoIndex}地参考保持开启: DO{Relay485DoIndex}=1, K8=ON");
+                }
+                else
+                {
+                    if (!_isRelay485On)
+                    {
+                        return;
+                    }
+
+                    if (_jy7131 != null)
+                    {
+                        try
+                        {
+                            await _jy7131.SetRelayAsync(7, false, cancellationToken).ConfigureAwait(false);
+                            Log("485继电器板 K8（第8路）已关闭");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"关闭继电器 K8 失败: {ex.Message}");
+                        }
+
+                        await _jy7131.WriteDoAsync($"DO{Relay485DoIndex}", false, cancellationToken).ConfigureAwait(false);
+                        Log($"7131 DO{Relay485DoIndex} 已复位");
+                    }
+
+                    _isRelay485On = false;
+                    Log($"DO{Relay485DoIndex}地参考已关闭: DO{Relay485DoIndex}=0, K8=OFF");
+                }
+            }
+            finally
+            {
+                _relayLock.Release();
+            }
+        }
+
+        private DeviceBase FindFirstJy7131Device()
+        {
+            var chassisList = _pxiChassisService?.GetAllChassis();
+            if (chassisList == null)
+            {
+                return null;
+            }
+
+            foreach (var chassis in chassisList)
+            {
+                var device = chassis?.Devices?.FirstOrDefault(d =>
+                    d is DigitalIODevice ||
+                    (d?.Model?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("离散量", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("数字量", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                if (device != null)
+                {
+                    return device;
+                }
+            }
+
+            return null;
+        }
+
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
         {
-            _power ??= new PowerSupplySocketApi();
-            await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
-            await _power.ApplyAsync(PowerSupplyChannel.CH1, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
-            await _power.ApplyAsync(PowerSupplyChannel.CH2, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, true, cancellationToken).ConfigureAwait(false);
+            _power28 ??= new PowerSupplySocketApi();
+            _powerA ??= new PowerSupplySocketApi();
+            _powerB ??= new PowerSupplySocketApi();
+
+            if (!_power28.IsConnected)
+            {
+                await _power28.ConnectAsync(PowerSupply28VAddress, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!_powerA.IsConnected)
+            {
+                await _powerA.ConnectAsync(AuxPowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!_powerB.IsConnected)
+            {
+                await _powerB.ConnectAsync(PowerSupplyBAddress, cancellationToken).ConfigureAwait(false);
+            }
+
+            await _power28.ApplyAsync(PowerSupplyChannel.CH1, Input28VoltageV, Input28CurrentA, cancellationToken).ConfigureAwait(false);
+            await _powerA.ApplyAsync(PowerSupplyChannel.CH1, AuxPowerVoltageV, AuxPowerCurrentA, cancellationToken).ConfigureAwait(false);
+            await _powerA.ApplyAsync(PowerSupplyChannel.CH3, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
+            await _powerB.ApplyAsync(PowerSupplyChannel.CH3, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
+            await _power28.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
+            await _powerA.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
+            await _powerA.SetOutputEnabledAsync(PowerSupplyChannel.CH3, true, cancellationToken).ConfigureAwait(false);
+            await _powerB.SetOutputEnabledAsync(PowerSupplyChannel.CH3, true, cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 
@@ -928,17 +1155,33 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             try
             {
-                if (_power != null)
+                if (_power28 != null)
                 {
-                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
+                    try { await _power28.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _power28.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _power28.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+
+                if (_powerA != null)
+                {
+                    try { await _powerA.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _powerA.SetOutputEnabledAsync(PowerSupplyChannel.CH3, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _powerA.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _powerA.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+
+                if (_powerB != null)
+                {
+                    try { await _powerB.SetOutputEnabledAsync(PowerSupplyChannel.CH3, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _powerB.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _powerB.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
             }
             finally
             {
-                _power = null;
+                _power28 = null;
+                _powerA = null;
+                _powerB = null;
             }
         }
 
@@ -948,7 +1191,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 if (_arinc != null)
                 {
-                    try { await _arinc.CloseTxAsync(TxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    if (_txOpened)
+                    {
+                        try { await _arinc.CloseTxAsync(TxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    }
                     try { await _arinc.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _arinc.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
@@ -959,6 +1205,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             finally
             {
                 _arinc = null;
+                _txOpened = false;
             }
         }
 
@@ -982,8 +1229,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             LastTestTime = "--";
             LastTestResult = "--";
-            PreviousTestTime = "--";
-            PreviousTestResult = "--";
         }
 
         private void Log(string message)

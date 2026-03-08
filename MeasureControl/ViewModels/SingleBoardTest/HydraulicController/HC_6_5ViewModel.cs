@@ -29,8 +29,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const bool EnableArincTxSimulation = true;
 
         private const string PressureUnit = "Psid";
-        private const int SamplesPerMeasure = 3;
-        private const int SampleTimeoutMs = 5000;
+        private const int SamplesPerMeasure = 1;
+        private const int SampleTimeoutMs = 3000;
         private const int AoSettleMs = 100;
         private const int Mtx532ReadyTimeoutMs = 6000;
         private const int Mtx532ReadyPollMs = 200;
@@ -63,7 +63,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             new DptChannelDefinition("A", "EDP", "EDP1", LabelDptEdpDec, 1),
             new DptChannelDefinition("A", "EMP12", "EMP1B", LabelDptEmpDec, 1),
-            new DptChannelDefinition("A", "EMP3", "EMP3A", LabelDptEmpDec, 3),
+            new DptChannelDefinition("A", "EMP3", "EMP3A", LabelDptEdpDec, 3),
             new DptChannelDefinition("A", "RF12", "RF1", LabelDptRfDec, 1),
             new DptChannelDefinition("A", "RF3SYS2", "RF3", LabelDptRfDec, 3),
             new DptChannelDefinition("A", "SYS1SYS3", "SYS1", LabelDptSysDec, 1),
@@ -410,7 +410,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log("开始手动测试");
             Log($"电源: CH1/CH2 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
             Log($"MTX532: AO4-AO9 六通道同档输出电流等效电压");
-            Log($"ARINC429: RX通道{RxChannelIndex + 1}, TX通道{TxChannelIndex + 1}, 码率 {ArincRate:0}bps, DPT数据 bit19-27 UBNR(9bit) LSB=1");
+            Log($"ARINC429: RX通道{RxChannelIndex + 1}, TX通道{TxChannelIndex + 1}, 码率 {ArincRate:0}bps, DPT按Label+SDI精确匹配, bit19-27 UBNR(9bit) LSB=1, SSM=0");
 
             try
             {
@@ -621,7 +621,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await Task.Delay(AoSettleMs, cancellationToken).ConfigureAwait(false);
                 _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, 4096, false, false, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(PostSwitchRxFlushMs, cancellationToken).ConfigureAwait(false);
-                Log($"{title}: 开始接收DPT数据 Label/SDI过滤，自动识别A/B组");
+                Log($"{title}: 开始接收DPT数据，按各自Label/SDI/SSM独立匹配");
 
                 var samples = new Dictionary<string, List<double>>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -633,7 +633,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     ["SYS1SYS3"] = new List<double>(SamplesPerMeasure),
                 };
 
-                string activeGroup = null;
                 var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
                 while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
                 {
@@ -645,18 +644,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         if (!_arinc.VerifyOddParity(w.Data429))
                             continue;
 
-                        _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out _);
+                        _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out var ssm);
                         var definition = ResolveChannel(label, wordSdi);
                         if (definition == null)
                             continue;
 
-                        if (activeGroup == null)
-                        {
-                            activeGroup = definition.Group;
-                            Log($"{title}: 已识别 {activeGroup} 组数据");
-                        }
-
-                        if (!string.Equals(activeGroup, definition.Group, StringComparison.OrdinalIgnoreCase))
+                        if (ssm != SsmNormal)
                             continue;
 
                         var value = DecodeValue(data19);
@@ -669,17 +662,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                         list.Add(value.Value);
                         var avg = list.Average();
-                        setTextByName(definition.SlotKey, $"{value.Value:0.000} {PressureUnit}");
+                        setTextByName(definition.SlotKey, $"{value.Value:0.0} {PressureUnit}");
                     }
 
                     if (samples.Values.All(l => l.Count >= SamplesPerMeasure))
                     {
                         foreach (var kv in samples)
                         {
-                            setTextByName(kv.Key, $"{kv.Value.Average():0.000} {PressureUnit}");
+                            setTextByName(kv.Key, $"{kv.Value.Average():0.0} {PressureUnit}");
                         }
 
-                        Log($"{title}: 完成{(string.IsNullOrWhiteSpace(activeGroup) ? string.Empty : $"，组别={activeGroup}")}");
+                        Log($"{title}: 完成");
                         return true;
                     }
 
@@ -687,15 +680,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 }
 
                 foreach (var key in samples.Keys)
-                    setTextByName(key, "超时");
+                {
+                    if (samples[key].Count >= SamplesPerMeasure)
+                        setTextByName(key, $"{samples[key].Average():0.0} {PressureUnit}");
+                    else
+                        setTextByName(key, "超时");
+                }
 
                 if (IsManualTestRunning)
                 {
-                    Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效DPT数据");
+                    var missing = string.Join(",", samples.Where(kv => kv.Value.Count < SamplesPerMeasure).Select(kv => kv.Key));
+                    Log($"{title}: 接收超时，以下通道未获取到{SamplesPerMeasure}帧有效DPT数据: {missing}");
                     Log($"{title}: 本次测量按超时结束处理，结果保留为--，不可重复点击");
                 }
                 else
-                    Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效DPT数据");
+                {
+                    var missing = string.Join(",", samples.Where(kv => kv.Value.Count < SamplesPerMeasure).Select(kv => kv.Key));
+                    Log($"{title}: 接收超时，以下通道未获取到{SamplesPerMeasure}帧有效DPT数据: {missing}");
+                }
 
                 return false;
             }
@@ -721,7 +723,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (value < 0 || value > 511)
                 return null;
 
-            return value;
+            return Math.Round(value, 1, MidpointRounding.AwayFromZero);
         }
 
         private async Task TryFinalizeAsync()
@@ -828,14 +830,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             var device = FindFirstMtx532Device();
             if (device == null)
-                throw new InvalidOperationException("未找到MTX532(模拟量输出)板卡");
+                throw new InvalidOperationException("未找到 MTX532 模拟量输出设备");
 
             var slot = device is PxiDeviceBase pxi ? pxi.SlotIndex : 7;
             _mtx532 = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 20000.0 }, slotNumber: slot);
             await _mtx532.ConnectAsync(cancellationToken).ConfigureAwait(false);
             await SetAo456789Async(0.0, cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
-
             await WaitForMtx532ReadyAsync(cancellationToken).ConfigureAwait(false);
             await _mtx532.StartOutputAsync(cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
@@ -1072,9 +1073,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task SendSimulatedWordAsync(byte label, byte sdi, double value, CancellationToken cancellationToken)
         {
+            value = QuantizeToStep(value, DataResolution);
             uint data19 = _arinc.EncodeUbnr(value, bitLength: DataBitLength, resolution: DataResolution, msbPosition: DataMsbPosition);
             var word = _arinc.BuildRawWord(label, sdi, data19, SsmNormal, applyOddParity: true);
             await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static double QuantizeToStep(double value, double step)
+        {
+            if (step <= 0)
+                return value;
+
+            return Math.Round(value / step, MidpointRounding.AwayFromZero) * step;
         }
 
         private double GetSimulatedPressureForCurrentGroup()
@@ -1108,7 +1118,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var dispatcher = Application.Current?.Dispatcher;
             if (dispatcher != null && !dispatcher.CheckAccess())
             {
-                dispatcher.Invoke(() => Logs.Add(line));
+                dispatcher.BeginInvoke(new Action(() => Logs.Add(line)));
                 return;
             }
 

@@ -161,12 +161,17 @@ namespace MeasureControl.Services.HardwareApis
                     try { await StopOutputAsync(cancellationToken).ConfigureAwait(false); } catch { }
                 }
 
+                await _ioLock.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    await _driver.DisconnectAsync().ConfigureAwait(false);
+                    if (_driver != null)
+                    {
+                        await _driver.DisconnectAsync().ConfigureAwait(false);
+                    }
                 }
                 finally
                 {
+                    _ioLock.Release();
                     _isOutputRunning = false;
                     _isOutputPrepared = false;
                     _driver = null;
@@ -499,6 +504,10 @@ namespace MeasureControl.Services.HardwareApis
             if (sampleRateHz <= 0)
                 return;
 
+            var driver = _driver;
+            if (driver == null || !driver.IsConnected)
+                return;
+
             for (int i = 1; i <= 32; i++)
             {
                 var ch = NormalizeAoChannel($"AO{i}");
@@ -506,7 +515,7 @@ namespace MeasureControl.Services.HardwareApis
                 {
                     ["SampleRate"] = sampleRateHz
                 };
-                await _driver.ConfigureChannelAsync(ch, dict).ConfigureAwait(false);
+                await driver.ConfigureChannelAsync(ch, dict).ConfigureAwait(false);
             }
         }
 
@@ -515,6 +524,10 @@ namespace MeasureControl.Services.HardwareApis
         /// </summary>
         private async Task ResetAllToZeroInternalAsync(bool disableAfterReset)
         {
+            var driver = _driver;
+            if (driver == null || !driver.IsConnected)
+                return;
+
             for (int i = 1; i <= 32; i++)
             {
                 var ch = NormalizeAoChannel($"AO{i}");
@@ -529,7 +542,7 @@ namespace MeasureControl.Services.HardwareApis
                     DutyCyclePercent = 50.0
                 };
                 var dict = BuildConfigureDict(cfg);
-                await _driver.ConfigureChannelAsync(ch, dict).ConfigureAwait(false);
+                await driver.ConfigureChannelAsync(ch, dict).ConfigureAwait(false);
             }
         }
 

@@ -885,7 +885,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (reading.Value == null)
                 return "--";
 
-            return $"{reading.Value.Value:0.###} Ω";
+            var value = reading.Value.Value;
+            if (Math.Abs(value) >= 1000.0)
+                return $"{value / 1000.0:0.000} kΩ";
+
+            return $"{value:0.000} Ω";
         }
 
         private async Task DisconnectAllMatrixRoutesAsync()

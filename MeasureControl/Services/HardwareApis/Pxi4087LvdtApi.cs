@@ -14,6 +14,16 @@ namespace MeasureControl.Services.HardwareApis
         public double Ratio { get; set; }
     }
 
+    public sealed class LvdtSimulationConfig
+    {
+        public bool UseInternalExcitation { get; set; }
+        public double ExcitationVoltage { get; set; } = 7.0;
+        public double ExcitationFrequency { get; set; } = 3200.0;
+        public double TransmissionRatio { get; set; } = 1.0;
+        public ushort PhaseDelay { get; set; }
+        public ushort AdcRangeIndex { get; set; } = 3;
+    }
+
     public interface IPxi4087LvdtApi : IAsyncDisposable
     {
         bool IsConnected { get; }
@@ -22,10 +32,13 @@ namespace MeasureControl.Services.HardwareApis
         Task DisconnectAsync(CancellationToken cancellationToken = default);
 
         Task ConfigureTestChannelAsync(int channel, bool useExternalExcitation = true, CancellationToken cancellationToken = default);
+        Task ConfigureSimulationChannelAsync(int channel, LvdtSimulationConfig config, CancellationToken cancellationToken = default);
+        Task SetVaVbAsync(int channel, double vaRms, double vbRms, CancellationToken cancellationToken = default);
+        Task ResetAsync(CancellationToken cancellationToken = default);
         Task StartAsync(int channel, CancellationToken cancellationToken = default);
         Task StopAsync(int channel, CancellationToken cancellationToken = default);
 
-        Task<LvdtReading> ReadOnceAsync(int channel, int settleMs = 300, int retryCount = 3, CancellationToken cancellationToken = default);
+        Task<LvdtReading> ReadOnceAsync(int channel, int settleMs = 300, int retryCount = 3, bool restartBeforeRead = true, CancellationToken cancellationToken = default);
     }
 
     public sealed class Pxi4087LvdtApi : IPxi4087LvdtApi
@@ -165,6 +178,98 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
+        public async Task ConfigureSimulationChannelAsync(int channel, LvdtSimulationConfig config, CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+
+            if (config == null)
+                throw new ArgumentNullException(nameof(config));
+
+            await _ioLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnsureConnected();
+
+                ushort chIndex = ToChIndex(channel);
+
+                int status = PXI4087Native.pxi4087_setMode(
+                    _handle,
+                    chIndex,
+                    (ushort)PXI4087Constants.pxi4087_Ch_Mode_Sim,
+                    (ushort)(config.UseInternalExcitation ? PXI4087Constants.pxi4087_Ch_Exc_Sour_Int : PXI4087Constants.pxi4087_Ch_Exc_Sour_Ext),
+                    0,
+                    0);
+                if (status != 0)
+                    throw new InvalidOperationException($"pxi4087_setMode(sim) failed: {status}");
+
+                if (config.UseInternalExcitation)
+                {
+                    status = PXI4087Native.pxi4087_setIntExcSig(_handle, chIndex, config.ExcitationVoltage, config.ExcitationFrequency);
+                    if (status != 0)
+                        throw new InvalidOperationException($"pxi4087_setIntExcSig failed: {status}");
+                }
+
+                status = PXI4087Native.pxi4087_setTransRatio(_handle, chIndex, config.TransmissionRatio);
+                if (status != 0)
+                    throw new InvalidOperationException($"pxi4087_setTransRatio failed: {status}");
+
+                status = PXI4087Native.pxi4087_setLvdtPhaseDelay(_handle, chIndex, config.PhaseDelay);
+                if (status != 0)
+                    throw new InvalidOperationException($"pxi4087_setLvdtPhaseDelay failed: {status}");
+
+                status = PXI4087Native.pxi4087_setLvdtAdcRange(_handle, chIndex, config.AdcRangeIndex);
+                if (status != 0)
+                    throw new InvalidOperationException($"pxi4087_setLvdtAdcRange failed: {status}");
+
+                status = PXI4087Native.pxi4087_setLvdtDataOutMode(_handle, chIndex, (ushort)PXI4087Constants.pxi4087_Lvdt_Data_Out_Fix);
+                if (status != 0)
+                    throw new InvalidOperationException($"pxi4087_setLvdtDataOutMode failed: {status}");
+            }
+            finally
+            {
+                _ioLock.Release();
+            }
+        }
+
+        public async Task SetVaVbAsync(int channel, double vaRms, double vbRms, CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+
+            await _ioLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnsureConnected();
+                ushort chIndex = ToChIndex(channel);
+
+                int status = PXI4087Native.pxi4087_setLvdtVaVb(_handle, chIndex, vaRms, vbRms);
+                if (status != 0)
+                    throw new InvalidOperationException($"pxi4087_setLvdtVaVb failed: {status}");
+            }
+            finally
+            {
+                _ioLock.Release();
+            }
+        }
+
+        public async Task ResetAsync(CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+
+            await _ioLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnsureConnected();
+
+                int status = PXI4087Native.pxi4087_reset(_handle);
+                if (status != 0)
+                    throw new InvalidOperationException($"pxi4087_reset failed: {status}");
+            }
+            finally
+            {
+                _ioLock.Release();
+            }
+        }
+
         public async Task StartAsync(int channel, CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
@@ -207,7 +312,7 @@ namespace MeasureControl.Services.HardwareApis
             }
         }
 
-        public async Task<LvdtReading> ReadOnceAsync(int channel, int settleMs = 300, int retryCount = 3, CancellationToken cancellationToken = default)
+        public async Task<LvdtReading> ReadOnceAsync(int channel, int settleMs = 300, int retryCount = 3, bool restartBeforeRead = true, CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
 
@@ -220,9 +325,13 @@ namespace MeasureControl.Services.HardwareApis
                 EnsureConnected();
                 ushort chIndex = ToChIndex(channel);
 
-                int status = PXI4087Native.pxi4087_lvdtStart(_handle, chIndex);
-                if (status != 0)
-                    throw new InvalidOperationException($"pxi4087_lvdtStart failed: {status}");
+                int status;
+                if (restartBeforeRead)
+                {
+                    status = PXI4087Native.pxi4087_lvdtStart(_handle, chIndex);
+                    if (status != 0)
+                        throw new InvalidOperationException($"pxi4087_lvdtStart failed: {status}");
+                }
 
                 if (settleMs > 0)
                     await Task.Delay(settleMs, cancellationToken).ConfigureAwait(false);

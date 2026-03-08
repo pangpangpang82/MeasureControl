@@ -3225,7 +3225,7 @@ namespace MeasureControl.ViewModels
                             "凌华 PXIe-3987",
                             "欧开 PXI-4087A",
                             "欧开 PXI-4087C",
-                            "盲板",
+                            "欧开 PXI-4087C",
                             "阿尔泰 PXI-7012",
                             "阿尔泰 PXI-7012",
                             "芒果树 MT-X532",
