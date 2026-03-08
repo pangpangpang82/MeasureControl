@@ -42,8 +42,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         // 温度数据定义与采样参数
         private const byte TempLabelDec = 125; // 175(oct)
-        private const int SamplesPerMeasure = 3;
-        private const int SampleTimeoutMs = 5000;
+        private const int SamplesPerMeasure = 1;
+        private const int SampleTimeoutMs = 3000;
         private const int ResistanceSettleMs = 400;
 
         // 三个测试点对应的“模拟电阻值”（由程控电阻箱输出到 PT500 模拟通道）
@@ -52,12 +52,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double R3_Ohm = 1155.4;
 
         // 三个测试点的温度判据范围（单位：℃）
-        private const double T1_Min = -66.6;
-        private const double T1_Max = -53.4;
-        private const double T2_Min = 193.4;
-        private const double T2_Max = 206.6;
-        private const double T3_Min = 32.4;
-        private const double T3_Max = 46.6;
+        private const double T1_Min = -66.60;
+        private const double T1_Max = -53.40;
+        private const double T2_Min = 193.40;
+        private const double T2_Max = 206.60;
+        private const double T3_Min = 32.40;
+        private const double T3_Max = 46.60;
 
         // 温度的 ARINC429 编码参数（BNR：有符号二进制数）
         private const int TempBnrBitLength = 9;
@@ -747,8 +747,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                                 var avgA = samplesA.Average();
                                 var avgB = samplesB.Average();
-                                setTextA($"{v.Value:0.000} ℃");
-                                setTextB($"{v.Value:0.000} ℃");
+                                setTextA($"{v.Value:0} ℃");
+                                setTextB($"{v.Value:0} ℃");
                             }
                             else if (matchedMode == "B")
                             {
@@ -756,13 +756,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                                 {
                                     samplesA.Add(v.Value);
                                     var avgA = samplesA.Average();
-                                    setTextA($"{v.Value:0.000} ℃");
+                                    setTextA($"{v.Value:0} ℃");
                                 }
                                 else if (wordSdi == TempChannelBRightSdi && samplesB.Count < SamplesPerMeasure)
                                 {
                                     samplesB.Add(v.Value);
                                     var avgB = samplesB.Average();
-                                    setTextB($"{v.Value:0.000} ℃");
+                                    setTextB($"{v.Value:0} ℃");
                                 }
                             }
 
@@ -776,13 +776,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                                 if (matchedMode == "A")
                                 {
-                                    setTextA($"{avgA:0.000} ℃");
-                                    setTextB($"{avgB:0.000} ℃");
+                                    setTextA($"{avgA:0} ℃");
+                                    setTextB($"{avgB:0} ℃");
                                 }
                                 else
                                 {
-                                    setTextA($"{avgA:0.000} ℃");
-                                    setTextB($"{avgB:0.000} ℃");
+                                    setTextA($"{avgA:0} ℃");
+                                    setTextB($"{avgB:0} ℃");
                                 }
 
                                 Log($"{title}: 完成，模式={matchedMode} 左框平均={avgA:0.###}℃ 右框平均={avgB:0.###}℃");
@@ -868,6 +868,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task SendSimulatedTempWordAsync(byte sdi, double value, CancellationToken cancellationToken)
         {
+            value = QuantizeToStep(value, TempResolution);
             uint data19 = _arinc.EncodeBnr(value, bitLength: TempBnrBitLength, resolution: TempResolution, msbPosition: TempMsbPosition);
             data19 &= ~0x3FFu;
 
@@ -910,7 +911,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private double? DecodeTemp(uint data19)
         {
-            return _arinc.DecodeBnr(data19, bitLength: TempBnrBitLength, resolution: TempResolution, msbPosition: TempMsbPosition);
+            var value = _arinc.DecodeBnr(data19, bitLength: TempBnrBitLength, resolution: TempResolution, msbPosition: TempMsbPosition);
+            return Math.Round(value, 0, MidpointRounding.AwayFromZero);
+        }
+
+        private static double QuantizeToStep(double value, double step)
+        {
+            if (step <= 0)
+                return value;
+
+            return Math.Round(value / step, MidpointRounding.AwayFromZero) * step;
         }
 
         /// <summary>
