@@ -623,14 +623,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                             cancellationToken: cancellationToken)
                         .ConfigureAwait(false);
 
+                    foreach (var w in words)
+                    {
+                        _arinc.ParseRawWord(w.Data429, out var lbl, out var sdi, out var data19, out var ssm);
+                        // 先不过滤，只看 label 匹配的 word 有哪些
+                        if (lbl == expectedLabel || lbl == _arinc.ReverseLabel(expectedLabel))
+                        {
+                            Log($"[DBG] label=0x{lbl:X2} sdi={sdi} ssm={ssm} data19=0x{data19:X5} " +
+                                $"bit0..8={(data19 & 0x1FFu)} bit18={(data19 >> 18) & 1}");
+                        }
+                    }
+
                     // 调试日志：确认收到数据后可删除
-                    Log($"{title}: 本次读到 {words.Count} 个字");
+                    //Log($"{title}: 本次读到 {words.Count} 个字");
 
                     foreach (var w in words)
                     {
                         // 调试日志：确认 label 匹配后可删除
                         _arinc.ParseRawWord(w.Data429, out var rawLabel, out _, out _, out _);
-                        Log($"{title}: label=0{Convert.ToString(rawLabel, 8)}(oct) expected=0{Convert.ToString(expectedLabel, 8)}(oct) raw=0x{w.Data429:X8}");
+                        //Log($"{title}: label=0{Convert.ToString(rawLabel, 8)}(oct) expected=0{Convert.ToString(expectedLabel, 8)}(oct) raw=0x{w.Data429:X8}");
 
                         // ① Label 过滤（含字节位序颠倒形式）
                         if (!IsExpectedLabel(w.Data429, expectedLabel))
@@ -672,7 +683,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         {
                             setValue(avg);
                             setText($"{avg:0.0} V");
-                            Log($"{title}: 完成，平均值={avg:0.0}V");
+                            //Log($"{title}: 完成，平均值={avg:0.0}V");
                             return true;
                         }
                     }

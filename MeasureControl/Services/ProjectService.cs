@@ -552,15 +552,15 @@ namespace MeasureControl.Services
                         GridColumn = 1,
                         Slots = new List<FixedSlotTemplate>
                         {
-                            new FixedSlotTemplate { Slot = "Slot1", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot2", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot3", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot4", Device = "空槽" },
+                            new FixedSlotTemplate { Slot = "Slot1", Device = "凌华 PXIe-3987" },
+                            new FixedSlotTemplate { Slot = "Slot2", Device = "阿尔泰 PXI-3022" },
+                            new FixedSlotTemplate { Slot = "Slot3", Device = "阿尔泰 PXI-3022" },
+                            new FixedSlotTemplate { Slot = "Slot4", Device = "阿尔泰 PXI-2601" },
                             new FixedSlotTemplate { Slot = "Slot5", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot6", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot7", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot8", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot9", Device = "空槽" }
+                            new FixedSlotTemplate { Slot = "Slot6", Device = "阿尔泰 PXI-2601" },
+                            new FixedSlotTemplate { Slot = "Slot7", Device = "阿尔泰 PXI-2601" },
+                            new FixedSlotTemplate { Slot = "Slot8", Device = "阿尔泰 PXI-2601" },
+                            new FixedSlotTemplate { Slot = "Slot9", Device = "阿尔泰 PXI-2601" }
                         }
                     }
                 }

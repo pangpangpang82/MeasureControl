@@ -3292,14 +3292,14 @@ namespace MeasureControl.ViewModels
                     var sequence = new List<string>
                         {
                             "凌华 PXIe-3987",
-                            "阿尔泰 PXI-2601",
-                            "阿尔泰 PXI-2601",
                             "欧开 PXI-3022",
+                            "欧开 PXI-3022",
+                            "欧开 PXI-2601",
                             "盲板",
                             "阿尔泰 PXI-2601",
                             "阿尔泰 PXI-2601",
                             "阿尔泰 PXI-2601",
-                            "欧开 PXI-3022"
+                            "阿尔泰 PXI-2601"
                         };
                     foreach (var name in sequence)
                     {
