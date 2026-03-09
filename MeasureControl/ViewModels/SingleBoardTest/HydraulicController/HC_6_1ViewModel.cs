@@ -38,7 +38,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int MatrixSlotCommon = 4;          // 公共端（地）
 
         // 485 继电器控制引脚（PXIe-7131 的 DO29）
-        private const int Relay485DoIndex = 29;
+        private const int RelayGroundDoIndex = 26;
+        private const int Relay485DoIndex = 28;
 
         // 测试通过阈值：绝缘电阻 ≥ 500Ω 为合格
         private const double PassThresholdOhm = 500.0;
@@ -169,22 +170,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     // 确保板卡已启动
                     if (!_jy7131.IsRunning)
                     {
+                        await _jy7131.SetOutputModeAsync(Jy7131OutputMode.Sinking, cancellationToken).ConfigureAwait(false);
                         await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
                     }
 
-                    // 先开启 7131 的 DO29
+                    await _jy7131.SetRelayAsync(6, true, cancellationToken).ConfigureAwait(false);
+                    Log($"485继电器板 第7路已开启");
+
+                    await _jy7131.SetRelayAsync(7, true, cancellationToken).ConfigureAwait(false);
+                    Log($"485继电器板 第8路已开启");
+
+                    await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", true, cancellationToken).ConfigureAwait(false);
+                    Log($"7131 DO{RelayGroundDoIndex} 已置位");
+
                     await _jy7131.WriteDoAsync($"DO{Relay485DoIndex}", true, cancellationToken).ConfigureAwait(false);
                     Log($"7131 DO{Relay485DoIndex} 已置位");
-
-                    // 再开启继电器板 K8（第8路，index=7）
-                    await _jy7131.SetRelayAsync(7, true, cancellationToken).ConfigureAwait(false);
-                    Log($"485继电器板 K8（第8路）已开启");
 
                     // 等待继电器吸合稳定
                     await Task.Delay(100, cancellationToken).ConfigureAwait(false);
 
                     _isRelay485On = true;
-                    Log($"485继电器K8开启完成: DO{Relay485DoIndex}=1, 继电器K8=ON");
+                    Log($"485初始化完成: 第7路=ON, 第8路=ON, DO{RelayGroundDoIndex}=1, DO{Relay485DoIndex}=1");
                 }
                 else
                 {
@@ -195,24 +201,49 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                     if (_jy7131 != null)
                     {
-                        // 先关闭继电器板 K8
                         try
                         {
-                            await _jy7131.SetRelayAsync(7, false, cancellationToken).ConfigureAwait(false);
-                            Log($"485继电器板 K8（第8路）已关闭");
+                            await _jy7131.WriteDoAsync($"DO{Relay485DoIndex}", false, cancellationToken).ConfigureAwait(false);
+                            Log($"7131 DO{Relay485DoIndex} 已复位");
                         }
                         catch (Exception ex)
                         {
-                            Log($"关闭继电器 K8 失败: {ex.Message}");
+                            Log($"复位7131 DO{Relay485DoIndex}失败: {ex.Message}");
                         }
 
-                        // 再关闭 DO29
-                        await _jy7131.WriteDoAsync($"DO{Relay485DoIndex}", false, cancellationToken).ConfigureAwait(false);
-                        Log($"7131 DO{Relay485DoIndex} 已复位");
+                        try
+                        {
+                            await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", false, cancellationToken).ConfigureAwait(false);
+                            Log($"7131 DO{RelayGroundDoIndex} 已复位");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"复位7131 DO{RelayGroundDoIndex}失败: {ex.Message}");
+                        }
+
+                        try
+                        {
+                            await _jy7131.SetRelayAsync(7, false, cancellationToken).ConfigureAwait(false);
+                            Log($"485继电器板 第8路已关闭");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"关闭继电器板 第8路失败: {ex.Message}");
+                        }
+
+                        try
+                        {
+                            await _jy7131.SetRelayAsync(6, false, cancellationToken).ConfigureAwait(false);
+                            Log($"485继电器板 第7路已关闭");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"关闭继电器板 第7路失败: {ex.Message}");
+                        }
                     }
 
                     _isRelay485On = false;
-                    Log($"485继电器K8关闭完成: DO{Relay485DoIndex}=0, 继电器K8=OFF");
+                    Log($"485关闭完成: DO{RelayGroundDoIndex}=0, DO{Relay485DoIndex}=0, 第7路=OFF, 第8路=OFF");
                 }
             }
             finally
@@ -404,6 +435,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 await EnsureAuxPowerAsync(cancellationToken).ConfigureAwait(false);
 
+                await EnsureRelay485Async(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+
                 _dmm ??= new DmmSocketApi();
                 await _dmm.ConnectAsync(DmmIpAddress, cancellationToken).ConfigureAwait(false);
                 Log("万用表连接成功");
@@ -543,11 +576,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 await EnsureAuxPowerAsync(_manualCts.Token).ConfigureAwait(false);
 
+                await EnsureRelay485Async(on: true, cancellationToken: _manualCts.Token).ConfigureAwait(false);
+
                 _dmm ??= new DmmSocketApi();
                 await _dmm.ConnectAsync(DmmIpAddress, _manualCts.Token).ConfigureAwait(false);
                 Log("万用表连接成功");
-
-                await EnsureRelay485Async(on: true, cancellationToken: _manualCts.Token).ConfigureAwait(false);
 
                 CanMeasure = true;
             }
@@ -583,6 +616,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
+                if (_dmm != null)
+                {
+                    await _dmm.DisconnectAsync().ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+            }
+
+            try
+            {
                 await EnsureRelay485Async(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
             }
             catch
@@ -599,10 +643,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                if (_dmm != null)
-                {
-                    await _dmm.DisconnectAsync().ConfigureAwait(false);
-                }
+                await CleanupJy7131Async().ConfigureAwait(false);
             }
             catch
             {
@@ -614,24 +655,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             catch
             {
-            }
-
-            try
-            {
-                if (_jy7131 != null)
-                {
-                    try { await _jy7131.StopAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _jy7131.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _jy7131.DisposeAsync().ConfigureAwait(false); } catch { }
-                }
-            }
-            catch
-            {
-            }
-            finally
-            {
-                _jy7131 = null;
-                _isRelay485On = false;
             }
 
             IsManualTestRunning = false;
@@ -652,14 +675,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                await DisconnectAllMatrixRoutesAsync().ConfigureAwait(false);
-            }
-            catch
-            {
-            }
-
-            try
-            {
                 if (_dmm != null)
                 {
                     await _dmm.DisconnectAsync().ConfigureAwait(false);
@@ -668,6 +683,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             catch
             {
             }
+
+            try
+            {
+                await EnsureRelay485Async(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                await DisconnectAllMatrixRoutesAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+
+            await CleanupJy7131Async().ConfigureAwait(false);
 
             try
             {
@@ -691,6 +724,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             await _auxPower.ApplyAsync(PowerSupplyChannel.CH1, AuxPowerVoltageV, AuxPowerCurrentA, cancellationToken).ConfigureAwait(false);
             await _auxPower.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(100, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task CleanupAuxPowerAsync()
@@ -707,6 +741,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             finally
             {
                 _auxPower = null;
+            }
+        }
+
+        private async Task CleanupJy7131Async()
+        {
+            try
+            {
+                if (_jy7131 != null)
+                {
+                    try { await _jy7131.StopAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _jy7131.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _jy7131.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                _jy7131 = null;
+                _isRelay485On = false;
             }
         }
 
@@ -801,6 +856,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                     return false;
                 }
+
+                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
 
                 // 使用万用表测量电阻（超时时间 8 秒）
                 DmmReading reading = null;
