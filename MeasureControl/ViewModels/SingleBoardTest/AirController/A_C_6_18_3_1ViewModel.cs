@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -304,6 +304,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：开始打开设备");
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                    }
+                    catch { }
+
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试已启动：可发送测试指令");
                 }
@@ -580,13 +589,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _matrixSwitchLock.WaitAsync(token);
             try
             {
-                bool ok1 = await MatrixControlService.Instance.ConnectNodesAsync("I1", "O1", MatrixSlotIndex, MatrixIpAddress);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路: I1->O1 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok1}");
+                var task3022 = MatrixControlService.Instance.ConnectNodesAsync("I0", "O53", 3, MatrixIpAddress, 50300);
+                var task2601 = MatrixControlService.Instance.ConnectNodesAsync("I4", "O11", MatrixSlotIndex, MatrixIpAddress);
 
-                bool ok2 = await MatrixControlService.Instance.ConnectNodesAsync("I2", "O2", MatrixSlotIndex, MatrixIpAddress);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路: I2->O2 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok2}");
+                var results = await Task.WhenAll(task3022, task2601);
+                bool ok3022 = results.Length > 0 && results[0];
+                bool ok2601 = results.Length > 1 && results[1];
 
-                return ok1 && ok2;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(3022): I0->O53 slot=3 ip={MatrixIpAddress} basePort=50300, ok={ok3022}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(2601): I4->O11 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok2601}");
+
+                bool ok = results.All(r => r);
+                if (ok)
+                    await Task.Delay(200, token);
+                return ok;
             }
             finally
             {
@@ -599,11 +615,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _matrixSwitchLock.WaitAsync(token);
             try
             {
-                bool ok1 = await MatrixControlService.Instance.DisconnectNodesAsync("I1", "O1", MatrixSlotIndex, MatrixIpAddress);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开: I1->O1 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok1}");
+                var task3022 = MatrixControlService.Instance.DisconnectNodesAsync("I0", "O53", 3, MatrixIpAddress, 50300);
+                var task2601 = MatrixControlService.Instance.DisconnectNodesAsync("I4", "O11", MatrixSlotIndex, MatrixIpAddress);
 
-                bool ok2 = await MatrixControlService.Instance.DisconnectNodesAsync("I2", "O2", MatrixSlotIndex, MatrixIpAddress);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开: I2->O2 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok2}");
+                var results = await Task.WhenAll(task3022, task2601);
+                bool ok3022 = results.Length > 0 && results[0];
+                bool ok2601 = results.Length > 1 && results[1];
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开(3022): I0->O53 slot=3 ip={MatrixIpAddress} basePort=50300, ok={ok3022}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开(2601): I4->O11 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok2601}");
             }
             catch (Exception ex)
             {
@@ -643,6 +663,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _autoTestCts = new CancellationTokenSource();
 
                     var token = _autoTestCts.Token;
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(token);
+                    }
+                    catch { }
 
                     _simulation.IsRealProduct = IsRealProduct;
                     _simulation.ArincRate = ArincRate;
