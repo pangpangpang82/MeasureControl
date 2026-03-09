@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using MeasureControl.Drivers;
 using MeasureControl.Events;
 using MeasureControl.Models.Devices;
 using MeasureControl.Models.Devices.DeviceCategories;
@@ -38,15 +39,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int RxChannelIndex = 2;
         private const double ArincRate = 100000.0;
 
-        // ---- 模拟产品开关（后续注释掉两处调用即可，无需改此常量）----
-        private const bool EnableArincTxSimulation = true;
-        // ---- END ----
-
-        // ARINC429 发送配置
-        private const int TxChannelIndex = 1;
-
         // 压力数据定义（Label=174(oct) 即十进制 124）
         private const byte PressLabelDec = 124; // 174(oct)
+        private const string TestItemName = "压力信号测试";
+        private const int PressureBitLength = 12;
 
         // 协议规定 SSM=0 为正常数据
         private const byte SsmNormal = 0;
@@ -64,13 +60,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double Point2VoltageV = 7.17;   // 点2: 7.17V
         private const double Point3VoltageV = 3.0;    // 点3: 3.0V
 
-        // 压力的 ARINC429 编码参数（12-bit 数据，位于 bit16-27）
-        private const int PressureBitLength = 12;
-        private const int PressureData19Shift = 5;    // 在 19-bit 数据域中的偏移
-        private const uint PressureMask = (1u << PressureBitLength) - 1u;
-
-        private readonly Random _random = new Random();
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _relayLock = new SemaphoreSlim(1, 1);
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
 
@@ -80,9 +71,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private IPowerSupplyApi _power;
         private IArt4229Api _arinc;
         private IMtx532Api _mtx532;
-        private bool _txOpened;
+        private Jy7131Api _jy7131;
+        private bool _isRelay485On;
 
-        private const string TestItemName = "压力传感器信号采集测试";
+        private const int Relay485ChannelIndex = 6;
+        private const int RelayGroundDoIndex = 26;
 
         private bool _measured1;
         private bool _measured2;
@@ -122,8 +115,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private double? _p3Sys3;
 
         private bool _canMeasure;
-
-
 
         public HC_6_4ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
         {
@@ -228,7 +219,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     RefreshMeasureCommands();
             }
         }
-
 
         public bool CanMeasurePoint1 => IsManualTestRunning && CanMeasure && !_measured1;
         public bool CanMeasurePoint2 => IsManualTestRunning && CanMeasure && !_measured2;
@@ -389,19 +379,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
-                await EnsureMtx532Async(_manualCts.Token).ConfigureAwait(false);
+                await EnsureRelay485Async(on: true, cancellationToken: _manualCts.Token).ConfigureAwait(false);
+                await EnsureGroundDoAsync(on: true, cancellationToken: _manualCts.Token).ConfigureAwait(false);
                 await EnsureArincRxAsync(_manualCts.Token).ConfigureAwait(false);
-
-                // ---- 模拟产品启动（后续注释掉此 if 块即可关闭模拟）----
-                if (EnableArincTxSimulation)
-                {
-                    await EnsureArincTxAsync(_manualCts.Token).ConfigureAwait(false);
-                    _ = SimulateProductContinuousTxAsync(_manualCts.Token);
-                    await Task.Delay(100, _manualCts.Token).ConfigureAwait(false);
-                    Log("模拟产品: 已启动压力数据持续发送");
-                }
-                // ---- 模拟产品启动 END ----
+                await EnsureMtx532Async(_manualCts.Token).ConfigureAwait(false);
+                await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
 
                 CanMeasure = true;
                 Log("手动测试初始化完成，可分别点击三档电压测量压力");
@@ -479,19 +461,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
-                await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
+                await EnsureRelay485Async(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await EnsureGroundDoAsync(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
                 await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
-
-                // ---- 模拟产品启动（后续注释掉此 if 块即可关闭模拟）----
-                if (EnableArincTxSimulation)
-                {
-                    await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
-                    _ = SimulateProductContinuousTxAsync(cancellationToken);
-                    await Task.Delay(100, cancellationToken).ConfigureAwait(false);
-                    Log("模拟产品: 已启动压力数据持续发送");
-                }
-                // ---- 模拟产品启动 END ----
+                await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
+                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
 
                 var ok1 = await MeasurePointAllSystemsAsync("0.5V点", Point1VoltageV,
                     setSys1: t => PressurePoint1Sys1Text = t,
@@ -635,6 +609,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
+                try
+                {
+                    if (_mtx532 != null && _mtx532.IsConnected)
+                    {
+                        await SetAo012Async(0.0, CancellationToken.None).ConfigureAwait(false);
+                        Log($"{title}: 测量结束，AO0/AO1/AO2已停止输出(0V)");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log($"{title}: 测量结束后停止AO输出失败: {ex.Message}");
+                }
+
                 _measureLock.Release();
             }
         }
@@ -813,7 +800,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log("手动测试停止/结束，正在关闭电源输出并停止429接收...");
+            Log("手动测试停止/结束，正在按反序断开28V、MT532、429、DO27、485继电器...");
             await CleanupIoAsync().ConfigureAwait(false);
             IsManualTestRunning = false;
             Log("手动测试已结束");
@@ -829,7 +816,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log("自动测试停止/结束，正在关闭电源输出并停止429接收...");
+            Log("自动测试停止/结束，正在按反序断开28V、MT532、429、DO27、485继电器...");
             await CleanupIoAsync().ConfigureAwait(false);
             IsAutoTestRunning = false;
             Log("自动测试已结束");
@@ -839,19 +826,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             try
             {
-                if (_arinc != null)
+                if (_power != null)
                 {
-                    try { await _arinc.StopRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _arinc.CloseRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
-
-                    if (_txOpened)
-                    {
-                        try { await _arinc.CloseTxAsync(TxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
-                        _txOpened = false;
-                    }
-
-                    try { await _arinc.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _arinc.DisposeAsync().ConfigureAwait(false); } catch { }
+                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
             }
             catch
@@ -859,8 +838,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
-                _arinc = null;
-                _txOpened = false;
+                _power = null;
             }
 
             try
@@ -883,11 +861,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                if (_power != null)
+                if (_arinc != null)
                 {
-                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
+                    try { await _arinc.StopRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _arinc.CloseRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _arinc.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _arinc.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
             }
             catch
@@ -895,7 +874,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
-                _power = null;
+                _arinc = null;
+            }
+
+            try
+            {
+                if (_jy7131 != null)
+                {
+                    try { await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _jy7131.SetRelayAsync(Relay485ChannelIndex, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _jy7131.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _jy7131.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                _jy7131 = null;
+                _isRelay485On = false;
             }
         }
 
@@ -949,6 +947,107 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await WaitForMtx532ReadyAsync(cancellationToken).ConfigureAwait(false);
             await _mtx532.StartOutputAsync(cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task EnsureRelay485Async(bool on, CancellationToken cancellationToken)
+        {
+            await _relayLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (on)
+                {
+                    if (_isRelay485On)
+                    {
+                        return;
+                    }
+
+                    var device = FindFirstJy7131Device();
+                    if (device == null)
+                    {
+                        throw new InvalidOperationException("未找到PXIe-7131(JY7131)板卡，无法开启485继电器第7路");
+                    }
+
+                    if (_jy7131 == null)
+                    {
+                        var slot = device is DigitalIODevice dio ? dio.SlotIndex : 0;
+                        _jy7131 = new Jy7131Api(device, slot);
+                    }
+
+                    if (!_jy7131.IsConnected)
+                    {
+                        await _jy7131.ConnectAsync(cancellationToken).ConfigureAwait(false);
+                    }
+
+                    if (!_jy7131.IsRunning)
+                    {
+                        await _jy7131.SetOutputModeAsync(Jy7131OutputMode.Sinking, cancellationToken).ConfigureAwait(false);
+                        await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
+                    }
+
+                    await _jy7131.SetRelayAsync(Relay485ChannelIndex, true, cancellationToken).ConfigureAwait(false);
+                    Log($"485继电器板 第{Relay485ChannelIndex + 1}路已闭合");
+
+                    await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+
+                    _isRelay485On = true;
+                    Log($"485继电器准备完成: 第{Relay485ChannelIndex + 1}路=ON");
+                }
+                else
+                {
+                    if (!_isRelay485On)
+                    {
+                        return;
+                    }
+
+                    if (_jy7131 != null)
+                    {
+                        try
+                        {
+                            await _jy7131.SetRelayAsync(Relay485ChannelIndex, false, cancellationToken).ConfigureAwait(false);
+                            Log($"485继电器板 第{Relay485ChannelIndex + 1}路已断开");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"关闭485继电器板 第{Relay485ChannelIndex + 1}路失败: {ex.Message}");
+                        }
+                    }
+
+                    _isRelay485On = false;
+                    Log($"485继电器已关闭: 第{Relay485ChannelIndex + 1}路=OFF");
+                }
+            }
+            finally
+            {
+                _relayLock.Release();
+            }
+        }
+
+        private async Task EnsureGroundDoAsync(bool on, CancellationToken cancellationToken)
+        {
+            var device = FindFirstJy7131Device();
+            if (device == null)
+            {
+                throw new InvalidOperationException("未找到PXIe-7131(JY7131)板卡，无法控制DO27");
+            }
+
+            if (_jy7131 == null)
+            {
+                var slot = device is DigitalIODevice dio ? dio.SlotIndex : 0;
+                _jy7131 = new Jy7131Api(device, slot);
+            }
+
+            if (!_jy7131.IsConnected)
+            {
+                await _jy7131.ConnectAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!_jy7131.IsRunning)
+            {
+                await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
         }
 
         private async Task WaitForMtx532ReadyAsync(CancellationToken cancellationToken)
@@ -1037,6 +1136,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return null;
         }
 
+        private DeviceBase FindFirstJy7131Device()
+        {
+            var chassisList = _pxiChassisService?.GetAllChassis();
+            if (chassisList == null)
+                return null;
+
+            foreach (var chassis in chassisList)
+            {
+                var device = chassis?.Devices?.FirstOrDefault(d =>
+                    d is DigitalIODevice ||
+                    (d?.Model?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("离散量", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("数字量", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                if (device != null)
+                    return device;
+            }
+
+            return null;
+        }
+
         private DeviceBase FindFirstMtx532Device()
         {
             var chassisList = _pxiChassisService?.GetAllChassis();
@@ -1054,137 +1174,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             return null;
-        }
-
-        // =====================================================================
-        // 模拟产品持续发送
-        // =====================================================================
-
-        /// <summary>
-        /// 模拟产品持续发送压力数据
-        /// 根据图片中的协议定义：
-        /// - Label=174(oct) 对应所有三个压力系统
-        /// - SYS1/SYS2/SYS3 分别对应 SDI=1/2/3
-        /// - 数据格式：12-bit UBNR，位于bit16-27，分辨率1，单位psia
-        /// - SSM=0（正常数据），奇校验
-        /// </summary>
-        private async Task SimulateProductContinuousTxAsync(CancellationToken cancellationToken)
-        {
-            Log("模拟产品: 开始持续发送压力数据 (SYS1/2/3)");
-            try
-            {
-                while (!cancellationToken.IsCancellationRequested)
-                {
-                    var aoVoltage = await GetCurrentAoVoltageAsync(cancellationToken).ConfigureAwait(false);
-                    var pressureValue = VoltageToPressure(aoVoltage);
-
-                    await SendSimulatedPressureWordAsync(sdi: 1, pressureValue: pressureValue, cancellationToken).ConfigureAwait(false);
-                    await Task.Delay(40, cancellationToken).ConfigureAwait(false);
-                    await SendSimulatedPressureWordAsync(sdi: 2, pressureValue: pressureValue, cancellationToken).ConfigureAwait(false);
-                    await Task.Delay(40, cancellationToken).ConfigureAwait(false);
-                    await SendSimulatedPressureWordAsync(sdi: 3, pressureValue: pressureValue, cancellationToken).ConfigureAwait(false);
-                    await Task.Delay(40, cancellationToken).ConfigureAwait(false);
-                }
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex) { Log($"模拟产品: 发送异常: {ex.Message}"); }
-            finally { Log("模拟产品: 持续发送已停止"); }
-        }
-
-        /// <summary>
-        /// 电压到压力的转换函数
-        /// 根据测试点的电压范围和对应的压力范围进行映射
-        /// </summary>
-        private double VoltageToPressure(double voltage)
-        {
-            if (Math.Abs(voltage - Point1VoltageV) < 0.1)
-                return NextRandomInRange(42.5 - 2.5, 42.5 + 2.5);
-            else if (Math.Abs(voltage - Point2VoltageV) < 0.1)
-                return NextRandomInRange(3957.5 - 10.0, 3957.5 + 10.0);
-            else if (Math.Abs(voltage - Point3VoltageV) < 0.1)
-                return NextRandomInRange(1499.5 - 12.0, 1499.5 + 12.0);
-            else
-                return 1499.5;
-        }
-
-        private async Task<double> GetCurrentAoVoltageAsync(CancellationToken cancellationToken)
-        {
-            if (_mtx532 == null || !_mtx532.IsConnected)
-                return 0.0;
-
-            try
-            {
-                return await _mtx532.GetLastOutputVoltageAsync("AO1", cancellationToken).ConfigureAwait(false);
-            }
-            catch
-            {
-                return 0.0;
-            }
-        }
-
-        /// <summary>
-        /// 构造并发送单个模拟压力字
-        /// 根据协议图片中的定义：
-        /// - Label: 174(oct) 
-        /// - SDI: 1/2/3 (对应SYS1/2/3)
-        /// - 数据: 12-bit UBNR，位于bit16-27，分辨率1，单位psia
-        /// - SSM=0，奇校验
-        /// </summary>
-        private async Task SendSimulatedPressureWordAsync(byte sdi, double pressureValue, CancellationToken cancellationToken)
-        {
-            pressureValue = QuantizeToStep(pressureValue, 1.0);
-            uint data19 = _arinc.EncodeUbnr(pressureValue, bitLength: PressureBitLength, resolution: 1.0, msbPosition: 27);
-
-            var word = _arinc.BuildRawWord(PressLabelDec, sdi: sdi, data19: data19, ssm: SsmNormal, applyOddParity: true);
-            await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
-        }
-
-        private static double QuantizeToStep(double value, double step)
-        {
-            if (step <= 0)
-                return value;
-
-            return Math.Round(value / step, MidpointRounding.AwayFromZero) * step;
-        }
-
-        private double NextRandomInRange(double min, double max)
-        {
-            lock (_random)
-            {
-                return min + _random.NextDouble() * (max - min);
-            }
-        }
-
-        /// <summary>
-        /// 确保ARINC429发送通道已初始化
-        /// </summary>
-        private async Task EnsureArincTxAsync(CancellationToken cancellationToken)
-        {
-            if (_arinc == null)
-            {
-                var device = FindFirstArincDevice();
-                if (device == null)
-                    throw new InvalidOperationException("未找到ART4227/ART4229(ARINC429)板卡，无法发送429数据");
-                _arinc = new Art4229Api(device, deviceIndex: 0);
-            }
-
-            if (!_arinc.IsConnected)
-            {
-                await _arinc.ConnectAsync(cancellationToken).ConfigureAwait(false);
-            }
-
-            if (!_txOpened)
-            {
-                await _arinc.OpenTxAsync(TxChannelIndex, cancellationToken).ConfigureAwait(false);
-                await _arinc.ConfigureTxAsync(
-                    TxChannelIndex,
-                    rate: ArincRate,
-                    mode: Art4229TxMode.Single,
-                    parity: Art4229Parity.Odd,
-                    wordFormat: Art4229WordFormat.Standard429,
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
-                _txOpened = true;
-            }
         }
 
         private void Log(string message)

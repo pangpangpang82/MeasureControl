@@ -965,6 +965,15 @@ namespace MeasureControl.Views.Common
                 {
                     token.ThrowIfCancellationRequested();
 
+                    try
+                    {
+                        var singleBoardTestContext = ContainerLocator.Container.Resolve<ISingleBoardTestContextService>();
+                        singleBoardTestContext?.Update(string.Empty, boardName, boardType);
+                    }
+                    catch
+                    {
+                    }
+
                     vm.StatusText = $"{steps[i].Name}（{i + 1}/{steps.Length}）";
                     vm.Progress = done;
 

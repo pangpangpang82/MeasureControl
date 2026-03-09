@@ -24,6 +24,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const string PowerSupplyIpAddress = "192.168.1.15";
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 1.0;
+        private const int Relay485ChannelIndex = 6;
+        private const int RelayGroundDoIndex = 26;
         private const int RxChannelIndex = 2;
         private const int LvdtSlotIndex = 2;
         private const int MatrixSlotExcitationSignal = 8;
@@ -31,7 +33,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int ExcitationPlusOutputNode = 17;
         private const int ExcitationMinusOutputNode = 18;
         private const int DmmFrequencyRangeIndex = 20;
-        private const bool EnableArinc429TxSimulation = false;
         private const double ArincRate = 100000.0;
         private const byte QtyLabelDec = 123;
         private const byte SsmNormal = 0;
@@ -42,8 +43,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int SampleTimeoutMs = 3000;
         private const int LvdtSettleMs = 250;
         private const int PostSwitchRxFlushMs = 120;
-        private const int ExcitationReadSettleMs = 250;
-        private const int ExcitationRestoreSettleMs = 120;
+        private const int ExcitationReadSettleMs = 80;
+        //private const int ExcitationRestoreSettleMs = 120;
         private const double ExcitationFreqMinHz = 3168.0;
         private const double ExcitationFreqMaxHz = 3232.0;
         private const double ExcitationVoltMinVrms = 5.0;
@@ -54,6 +55,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const string TestItemName = "油量传感器信号采集测试";
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _relayLock = new SemaphoreSlim(1, 1);
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
 
@@ -63,9 +65,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private IDmmApi _dmm;
         private IPowerSupplyApi _power;
         private IArt4229Api _arinc;
+        private IJy7131Api _jy7131;
         private IPxi4087LvdtApi _lvdt;
 
         private bool _historyLoaded;
+        private bool _isRelay485On;
         private bool _manualAborted;
         private bool _canMeasure;
         private bool _isManualTestRunning;
@@ -359,21 +363,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _manualCts = new CancellationTokenSource();
 
             Log("开始手动测试");
-            Log($"DMM: IP={DmmIpAddress}, 激励测量使用 ACV/FREQ, 频率档位={DmmFrequencyRangeIndex}");
-            Log($"矩阵: EXC1+=I1-O{ExcitationPlusOutputNode}(slot{MatrixSlotExcitationSignal}), EXC1-=I1-O{ExcitationMinusOutputNode}(slot{MatrixSlotExcitationSignal}), COM=I4-O2(slot{MatrixSlotExcitationCommon}), IP={MatrixIpAddress}");
-            Log($"电源: CH1 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
+            Log($"485继电器: 第{Relay485ChannelIndex + 1}路开启，7131 DO{RelayGroundDoIndex}=1");
+            Log($"7131: DO{RelayGroundDoIndex} 输出1");
             Log($"ARINC429: RX通道{RxChannelIndex + 1}, 码率 {ArincRate:0}bps, 油量Label=173(oct), SDI=1/2, SSM=0");
             Log($"LVDT: 固定使用PXI槽号 {LvdtSlotIndex}, CH1对应30/31与71/72/73, CH2对应33/34与75/76/77, 激励6Vrms/3200Hz");
+            Log($"电源: CH1 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
+            Log($"DMM: IP={DmmIpAddress}, 激励测量使用 ACV/FREQ, 频率档位={DmmFrequencyRangeIndex}");
+            Log($"矩阵: EXC1+=I1-O{ExcitationPlusOutputNode}(slot{MatrixSlotExcitationSignal}), EXC1-=I1-O{ExcitationMinusOutputNode}(slot{MatrixSlotExcitationSignal}), COM=I4-O2(slot{MatrixSlotExcitationCommon}), IP={MatrixIpAddress}");
 
             try
             {
-                await EnsureDmmAsync(_manualCts.Token).ConfigureAwait(false);
-                await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
-                await EnsureLvdtAsync(_manualCts.Token).ConfigureAwait(false);
+                await EnsureRelay485Async(true, _manualCts.Token).ConfigureAwait(false);
+                await EnsureGroundDoAsync(true, _manualCts.Token).ConfigureAwait(false);
                 await EnsureArincRxAsync(_manualCts.Token).ConfigureAwait(false);
+                await EnsureLvdtAsync(_manualCts.Token).ConfigureAwait(false);
+                await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
+                await EnsureDmmAsync(_manualCts.Token).ConfigureAwait(false);
                 await ApplyQuantityOutputsAsync(MidPoint.Target, _manualCts.Token).ConfigureAwait(false);
                 CanMeasure = true;
-                Log("手动测试初始化完成，可分别测量激励与三档油量（油量回传模式：真实产品429）");
+                Log("手动测试初始化完成，可分别测量激励与三档油量");
             }
             catch (Exception ex)
             {
@@ -425,10 +433,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
         {
-            await EnsureDmmAsync(cancellationToken).ConfigureAwait(false);
-            await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
-            await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
+            await EnsureRelay485Async(true, cancellationToken).ConfigureAwait(false);
+            await EnsureGroundDoAsync(true, cancellationToken).ConfigureAwait(false);
             await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+            await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
+            await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+            await EnsureDmmAsync(cancellationToken).ConfigureAwait(false);
 
             _passedExc1 = await MeasureExcitationAsync("针脚30/31", LvdtSys1Channel, (f, v) =>
             {
@@ -656,6 +666,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
+                try
+                {
+                    await StopQuantityOutputsAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                }
+
                 _measureLock.Release();
             }
         }
@@ -753,14 +771,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log("手动测试停止/结束，正在关闭电源、LVDT、429接收、DMM与矩阵...");
+            Log($"手动测试停止/结束，正在按反序断开28V、LVDT、429、DO{RelayGroundDoIndex}、485继电器、DMM与矩阵...");
             await RunCleanupExclusiveAsync(async () =>
             {
-                await DisconnectAllExcitationMatrixRoutesAsync().ConfigureAwait(false);
-                await CleanupDmmAsync().ConfigureAwait(false);
+                await CleanupPowerAsync().ConfigureAwait(false);
                 await CleanupLvdtAsync().ConfigureAwait(false);
                 await CleanupArincAsync().ConfigureAwait(false);
-                await CleanupPowerAsync().ConfigureAwait(false);
+                await EnsureGroundDoAsync(false, CancellationToken.None).ConfigureAwait(false);
+                await EnsureRelay485Async(false, CancellationToken.None).ConfigureAwait(false);
+                await CleanupJy7131Async().ConfigureAwait(false);
+                await CleanupDmmAsync().ConfigureAwait(false);
+                await DisconnectAllExcitationMatrixRoutesAsync().ConfigureAwait(false);
             }).ConfigureAwait(false);
             IsManualTestRunning = false;
             Log("手动测试已结束");
@@ -776,14 +797,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log("自动测试停止/结束，正在关闭电源、LVDT、429接收、DMM与矩阵...");
+            Log($"自动测试停止/结束，正在按反序断开28V、LVDT、429、DO{RelayGroundDoIndex}、485继电器、DMM与矩阵...");
             await RunCleanupExclusiveAsync(async () =>
             {
-                await DisconnectAllExcitationMatrixRoutesAsync().ConfigureAwait(false);
-                await CleanupDmmAsync().ConfigureAwait(false);
+                await CleanupPowerAsync().ConfigureAwait(false);
                 await CleanupLvdtAsync().ConfigureAwait(false);
                 await CleanupArincAsync().ConfigureAwait(false);
-                await CleanupPowerAsync().ConfigureAwait(false);
+                await EnsureGroundDoAsync(false, CancellationToken.None).ConfigureAwait(false);
+                await EnsureRelay485Async(false, CancellationToken.None).ConfigureAwait(false);
+                await CleanupJy7131Async().ConfigureAwait(false);
+                await CleanupDmmAsync().ConfigureAwait(false);
+                await DisconnectAllExcitationMatrixRoutesAsync().ConfigureAwait(false);
             }).ConfigureAwait(false);
             IsAutoTestRunning = false;
             Log("自动测试已结束");
@@ -792,7 +816,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
         {
             _power ??= new PowerSupplySocketApi();
-            await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
+            if (!_power.IsConnected)
+                await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
             await _power.ApplyAsync(PowerSupplyChannel.CH1, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
             await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
@@ -902,6 +927,117 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return null;
         }
 
+        private DeviceBase FindFirstJy7131Device()
+        {
+            var chassisList = _pxiChassisService?.GetAllChassis();
+            if (chassisList == null)
+                return null;
+
+            foreach (var chassis in chassisList)
+            {
+                var device = chassis?.Devices?.FirstOrDefault(d =>
+                    (d?.Model?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.Name?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.Model?.IndexOf("JY7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.Name?.IndexOf("JY7131", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                if (device != null)
+                    return device;
+            }
+
+            return null;
+        }
+
+        private async Task EnsureRelay485Async(bool on, CancellationToken cancellationToken)
+        {
+            await _relayLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (on)
+                {
+                    if (_isRelay485On)
+                        return;
+
+                    if (_jy7131 == null)
+                    {
+                        var device = FindFirstJy7131Device();
+                        if (device == null)
+                            throw new InvalidOperationException("未找到PXIe-7131(JY7131)板卡，无法开启485继电器");
+
+                        var slot = device is DigitalIODevice dio ? dio.SlotIndex : 0;
+                        _jy7131 = new Jy7131Api(device, slot);
+                    }
+
+                    if (!_jy7131.IsConnected)
+                        await _jy7131.ConnectAsync(cancellationToken).ConfigureAwait(false);
+
+                    if (!_jy7131.IsRunning)
+                    {
+                        await _jy7131.SetOutputModeAsync(Jy7131OutputMode.Sinking, cancellationToken).ConfigureAwait(false);
+                        await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
+                    }
+
+                    await _jy7131.SetRelayAsync(Relay485ChannelIndex, true, cancellationToken).ConfigureAwait(false);
+                    Log($"485继电器板 第{Relay485ChannelIndex + 1}路已开启");
+                    _isRelay485On = true;
+                }
+                else
+                {
+                    if (!_isRelay485On || _jy7131 == null)
+                        return;
+
+                    try
+                    {
+                        await _jy7131.SetRelayAsync(Relay485ChannelIndex, false, cancellationToken).ConfigureAwait(false);
+                        Log($"485继电器板 第{Relay485ChannelIndex + 1}路已关闭");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"关闭485继电器板 第{Relay485ChannelIndex + 1}路失败: {ex.Message}");
+                    }
+
+                    _isRelay485On = false;
+                }
+            }
+            finally
+            {
+                _relayLock.Release();
+            }
+        }
+
+        private async Task EnsureGroundDoAsync(bool on, CancellationToken cancellationToken)
+        {
+            await _relayLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (!on && _jy7131 == null)
+                    return;
+
+                if (_jy7131 == null)
+                {
+                    var device = FindFirstJy7131Device();
+                    if (device == null)
+                        throw new InvalidOperationException("未找到PXIe-7131(JY7131)板卡，无法控制DO27");
+
+                    var slot = device is DigitalIODevice dio ? dio.SlotIndex : 0;
+                    _jy7131 = new Jy7131Api(device, slot);
+                }
+
+                if (!_jy7131.IsConnected)
+                    await _jy7131.ConnectAsync(cancellationToken).ConfigureAwait(false);
+
+                if (!_jy7131.IsRunning)
+                    await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
+
+                await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
+                Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
+            }
+            finally
+            {
+                _relayLock.Release();
+            }
+        }
+
         private async Task RunCleanupExclusiveAsync(Func<Task> cleanupAsync)
         {
             await _measureLock.WaitAsync().ConfigureAwait(false);
@@ -925,6 +1061,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _power = null;
         }
 
+        private async Task CleanupJy7131Async()
+        {
+            try
+            {
+                if (_jy7131 != null)
+                {
+                    try { await _jy7131.StopAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _jy7131.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _jy7131.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+            }
+            finally
+            {
+                _jy7131 = null;
+                _isRelay485On = false;
+            }
+        }
+
         private async Task CleanupDmmAsync()
         {
             if (_dmm == null)
@@ -945,6 +1099,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             try { await _lvdt.ResetAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
             try { await _lvdt.DisposeAsync().ConfigureAwait(false); } catch { }
             _lvdt = null;
+        }
+
+        private async Task StopQuantityOutputsAsync()
+        {
+            if (_lvdt == null)
+                return;
+
+            try { await _lvdt.StopAsync(LvdtSys1Channel, CancellationToken.None).ConfigureAwait(false); } catch { }
+            try { await _lvdt.StopAsync(LvdtSys2Channel, CancellationToken.None).ConfigureAwait(false); } catch { }
         }
 
         private async Task CleanupArincAsync()
