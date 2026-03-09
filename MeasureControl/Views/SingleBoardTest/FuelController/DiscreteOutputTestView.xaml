@@ -304,7 +304,7 @@
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
                                                     <Border x:Name="border" Background="#f59e0b" CornerRadius="4" Padding="8,3">
-                                                        <TextBlock Text="电压输入" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+                                                        <TextBlock Text="接地信号" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
                                                     </Border>
                                                     <ControlTemplate.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">

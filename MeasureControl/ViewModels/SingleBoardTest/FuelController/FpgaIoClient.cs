@@ -322,8 +322,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 {
                     using var ackCts = CancellationTokenSource.CreateLinkedTokenSource(token);
                     ackCts.CancelAfter(100);
-                    var (cmd, _) = await ReadFrameAsync(ackCts.Token);
-                    System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] InitHi8435 应答: cmd=0x{cmd:X2}");
+                    //var (cmd, _) = await ReadFrameAsync(ackCts.Token);
+                    //System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] InitHi8435 应答: cmd=0x{cmd:X2}");
                 }
                 catch (OperationCanceledException) 
                 { 
