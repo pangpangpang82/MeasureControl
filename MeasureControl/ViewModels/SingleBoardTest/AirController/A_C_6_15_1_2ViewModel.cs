@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -25,8 +25,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] PhLowCommand8 = { 0x21, 0x03, 0x02, 0x02, 0x00, 0x00, 0x00, 0x00 };
 
         private const string MatrixIp = "192.168.1.3";
-        private const int MatrixHighSlotIndex = 4;
-        private const int MatrixLowSlotIndex = 6;
+        private const int MatrixHighSlotIndex = 9;
+        private const int MatrixLowSlotIndex = 4;
 
         private readonly A_C_6_15_1_2Simulation _simulation = new A_C_6_15_1_2Simulation();
 
@@ -253,6 +253,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                    }
+                    catch { }
+
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                 }
                 finally
@@ -313,6 +322,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts?.Dispose();
                 _autoTestCts = new CancellationTokenSource();
                 var token = _autoTestCts.Token;
+
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(token);
+                }
+                catch { }
 
                 try
                 {
@@ -589,68 +606,40 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             var svc = MatrixControlService.Instance;
 
-            if (isHigh)
-            {
-                if (_matrixHighRouted)
-                    return true;
-
-                try
-                {
-                    if (_matrixLowRouted)
-                    {
-                        _ = await svc.DisconnectNodesAsync("I2", "O1", MatrixLowSlotIndex, MatrixIp);
-                        _matrixLowRouted = false;
-                    }
-                }
-                catch
-                {
-                }
-
-                var ok = await svc.ConnectNodesAsync("I1", "O1", MatrixHighSlotIndex, MatrixIp);
-                _matrixHighRouted = ok;
-                _ = token;
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(PH高): I1->O1 slot={MatrixHighSlotIndex} ip={MatrixIp}, ok={ok}");
-                return ok;
-            }
-
-            if (_matrixLowRouted)
+            if (_matrixHighRouted && _matrixLowRouted)
                 return true;
 
-            try
+            var connectTasks = new[]
             {
-                if (_matrixHighRouted)
-                {
-                    _ = await svc.DisconnectNodesAsync("I1", "O1", MatrixHighSlotIndex, MatrixIp);
-                    _matrixHighRouted = false;
-                }
-            }
-            catch
-            {
-            }
+                svc.ConnectNodesAsync("I0", "O1", MatrixHighSlotIndex, MatrixIp),
+                svc.ConnectNodesAsync("I4", "O7", MatrixLowSlotIndex, MatrixIp)
+            };
 
-            var ok2 = await svc.ConnectNodesAsync("I2", "O1", MatrixLowSlotIndex, MatrixIp);
-            _matrixLowRouted = ok2;
+            var results = await Task.WhenAll(connectTasks);
+            var ok = results.All(r => r);
+            _matrixHighRouted = ok;
+            _matrixLowRouted = ok;
             _ = token;
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(PH低): I2->O1 slot={MatrixLowSlotIndex} ip={MatrixIp}, ok={ok2}");
-            return ok2;
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(PH{(isHigh ? "高" : "低")}): I0->O1 slot={MatrixHighSlotIndex} & I4->O7 slot={MatrixLowSlotIndex} ip={MatrixIp}, ok={ok}");
+            return ok;
         }
 
         private async Task DisconnectMatrixAsync(CancellationToken token)
         {
             var svc = MatrixControlService.Instance;
-            try
-            {
-                if (_matrixHighRouted)
-                    _ = await svc.DisconnectNodesAsync("I1", "O1", MatrixHighSlotIndex, MatrixIp);
-            }
-            catch
-            {
-            }
 
             try
             {
-                if (_matrixLowRouted)
-                    _ = await svc.DisconnectNodesAsync("I2", "O1", MatrixLowSlotIndex, MatrixIp);
+                if (_matrixHighRouted || _matrixLowRouted)
+                {
+                    var disconnectTasks = new[]
+                    {
+                        svc.DisconnectNodesAsync("I0", "O1", MatrixHighSlotIndex, MatrixIp),
+                        svc.DisconnectNodesAsync("I4", "O7", MatrixLowSlotIndex, MatrixIp)
+                    };
+
+                    _ = await Task.WhenAll(disconnectTasks);
+                }
             }
             catch
             {

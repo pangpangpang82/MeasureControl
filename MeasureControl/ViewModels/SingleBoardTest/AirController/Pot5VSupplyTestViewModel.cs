@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -74,8 +74,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _exitAtpTxChannel = "429_CH8";
         private string _exitAtpRxChannel = "429_CH9";
 
-        private string _dmmChannel = "Port1";
-
         private string _enterAtpRxDataText = "--";
         private string _dmmVoltageText = "--";
         private string _potSupRxDataText = "--";
@@ -90,6 +88,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             SendEnterAtpCommand = new DelegateCommand(OnSendEnterAtp, CanSendEnterAtp);
             SendSupplyCommand = new DelegateCommand(OnSendSupply, CanSendSupply);
+            MeasureVoltageCommand = new DelegateCommand(OnMeasureVoltage, CanMeasureVoltage);
             SendExitAtpCommand = new DelegateCommand(OnSendExitAtp, CanSendExitAtp);
         }
 
@@ -107,6 +106,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public DelegateCommand SendEnterAtpCommand { get; }
         public DelegateCommand SendSupplyCommand { get; }
+        public DelegateCommand MeasureVoltageCommand { get; }
         public DelegateCommand SendExitAtpCommand { get; }
 
         public bool IsBusy
@@ -142,7 +142,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     if (value)
                     {
-                        TrySwitchMatrixForSelectedDmmChannel();
+                        // fixed matrix only
                     }
                     else
                     {
@@ -236,18 +236,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             set => SetProperty(ref _exitAtpRxChannel, value);
         }
 
-        public string DmmChannel
-        {
-            get => _dmmChannel;
-            set
-            {
-                if (SetProperty(ref _dmmChannel, value))
-                {
-                    TrySwitchMatrixForSelectedDmmChannel();
-                }
-            }
-        }
-
         public string EnterAtpRxDataText
         {
             get => _enterAtpRxDataText;
@@ -327,6 +315,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _opCts = new CancellationTokenSource();
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动(仿真模式)：开始打开设备");
+
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                }
+                catch { }
 
                 _simulation.SimProductRxChannelIndex = 4;
                 _simulation.SimProductTxChannelIndex = 5;
@@ -426,10 +422,63 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 SendEnterAtpCommand?.RaiseCanExecuteChanged();
                 SendSupplyCommand?.RaiseCanExecuteChanged();
+                MeasureVoltageCommand?.RaiseCanExecuteChanged();
                 SendExitAtpCommand?.RaiseCanExecuteChanged();
             }
             catch
             {
+            }
+        }
+
+        private bool CanMeasureVoltage()
+        {
+            if (IsBusy) return false;
+            if (!IsManualTestRunning && !IsAutoTestRunning) return false;
+            return true;
+        }
+
+        private void OnMeasureVoltage()
+        {
+            _ = MeasureVoltageOnceAsync();
+        }
+
+        private async Task MeasureVoltageOnceAsync()
+        {
+            if (!MeasureVoltageCommand.CanExecute())
+                return;
+
+            try
+            {
+                IsBusy = true;
+                var token = _opCts?.Token ?? CancellationToken.None;
+
+                await EnsureFixedMatrixConnectedAsync(msg => AddLog(msg), token);
+
+                await EnsureDmmConnectedAsync(token);
+                var raw = await QueryDmmStringAsync(":MEAS:VOLT:DC?", token).ConfigureAwait(false);
+                raw = raw?.Trim();
+
+                if (TryParseVoltageReading(raw, out var v))
+                {
+                    _latestDmmVoltage = v;
+                    DmmVoltageText = $"{v:0.000} V";
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 万用表测量: {v:0.000} V");
+                }
+                else
+                {
+                    _latestDmmVoltage = null;
+                    DmmVoltageText = "--";
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 万用表测量无有效值: {raw}");
+                }
+            }
+            catch (Exception ex)
+            {
+                DmmVoltageText = $"回采失败: {ex.Message}";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 万用表测量异常: {ex.Message}");
+            }
+            finally
+            {
+                IsBusy = false;
             }
         }
 
@@ -631,24 +680,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 IsBusy = false;
             }
-        }
-
-        private void TrySwitchMatrixForSelectedDmmChannel()
-        {
-            if (!OutputEnabled)
-                return;
-
-            var token = _opCts?.Token ?? CancellationToken.None;
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await SwitchMatrixForSelectedDmmChannelAsync(msg => AddLog(msg), token);
-                }
-                catch
-                {
-                }
-            });
         }
 
         private void StartPotSupListeningIfNeeded()
@@ -1093,9 +1124,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (_fixedMatrixConnected)
                     return;
 
-                bool ok1 = await MatrixControlService.Instance.ConnectNodesAsync("I4", "O6", 4, "192.168.1.3");
-                _fixedMatrixConnected = ok1;
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(固定): I4->O6 slot=4 ip=192.168.1.3, ok={ok1}");
+                var task1 = MatrixControlService.Instance.ConnectNodesAsync("I1", "O15", 6, "192.168.1.3");
+                var task2 = MatrixControlService.Instance.ConnectNodesAsync("I4", "O2", 4, "192.168.1.3");
+
+                var results = await Task.WhenAll(task1, task2);
+                bool ok1 = results.Length > 0 && results[0];
+                bool ok2 = results.Length > 1 && results[1];
+
+                _fixedMatrixConnected = results.All(r => r);
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(固定): I1->O15 slot=6 ip=192.168.1.3, ok={ok1}");
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(固定): I4->O2 slot=4 ip=192.168.1.3, ok={ok2}");
             }
             finally
             {
@@ -1103,19 +1141,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private async Task SwitchMatrixForSelectedDmmChannelAsync(Action<string> log, CancellationToken token)
+        private Task SwitchMatrixForSelectedDmmChannelAsync(Action<string> log, CancellationToken token)
         {
-            await _matrixSwitchLock.WaitAsync(token);
-            try
-            {
-                string outNode = string.Equals(DmmChannel, "Port2", StringComparison.OrdinalIgnoreCase) ? "O31" : "O30";
-                bool ok = await MatrixControlService.Instance.ConnectNodesAsync("I3", outNode, 7, "192.168.1.3");
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路: I3->{outNode} slot=7 ip=192.168.1.3, ok={ok}");
-            }
-            finally
-            {
-                _matrixSwitchLock.Release();
-            }
+            return EnsureFixedMatrixConnectedAsync(log, token);
         }
 
         private async Task DisconnectMatrixAsync(Action<string> log, CancellationToken token)
@@ -1123,14 +1151,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _matrixSwitchLock.WaitAsync(token);
             try
             {
-                bool ok1 = await MatrixControlService.Instance.DisconnectNodesAsync("I4", "O6", 4, "192.168.1.3");
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开(固定): I4->O6 slot=4 ip=192.168.1.3, ok={ok1}");
+                var task1 = MatrixControlService.Instance.DisconnectNodesAsync("I1", "O15", 6, "192.168.1.3");
+                var task2 = MatrixControlService.Instance.DisconnectNodesAsync("I4", "O2", 4, "192.168.1.3");
 
-                bool ok2 = await MatrixControlService.Instance.DisconnectNodesAsync("I3", "O30", 7, "192.168.1.3");
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开: I3->O30 slot=7 ip=192.168.1.3, ok={ok2}");
+                var results = await Task.WhenAll(task1, task2);
+                bool ok1 = results.Length > 0 && results[0];
+                bool ok2 = results.Length > 1 && results[1];
 
-                bool ok3 = await MatrixControlService.Instance.DisconnectNodesAsync("I3", "O31", 7, "192.168.1.3");
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开: I3->O31 slot=7 ip=192.168.1.3, ok={ok3}");
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开(固定): I1->O15 slot=6 ip=192.168.1.3, ok={ok1}");
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开(固定): I4->O2 slot=4 ip=192.168.1.3, ok={ok2}");
 
                 _fixedMatrixConnected = false;
             }

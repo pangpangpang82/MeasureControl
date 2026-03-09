@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -62,7 +62,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private string _freqHzText = "--";
         private string _dutyPctText = "--";
-        private string _scopeVppText = "--";
 
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
@@ -160,12 +159,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _dutyPctText, value);
         }
 
-        public string ScopeVppText
-        {
-            get => _scopeVppText;
-            private set => SetProperty(ref _scopeVppText, value);
-        }
-
         public string LastTestTime
         {
             get => _lastTestTime;
@@ -237,6 +230,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                    }
+                    catch { }
+
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                 }
                 finally
@@ -299,6 +301,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts?.Dispose();
                 _autoTestCts = new CancellationTokenSource();
                 var token = _autoTestCts.Token;
+
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(token);
+                }
+                catch { }
 
                 try
                 {
@@ -531,10 +541,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     FreqHzText = FormatNum(m.FreqHz);
                     DutyPctText = FormatNum(m.DutyPct);
-                    ScopeVppText = FormatNum(m.Vpp);
                 });
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 测量完成：F={FormatNum(m.FreqHz)} Hz, DUTY={FormatNum(m.DutyPct)} %, VPP={FormatNum(m.Vpp)} V");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测量完成：F={FormatNum(m.FreqHz)} Hz, DUTY={FormatNum(m.DutyPct)} %");
             }
             catch (Exception ex)
             {
@@ -566,7 +575,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     FreqHzText = FormatNum(m.FreqHz);
                     DutyPctText = FormatNum(m.DutyPct);
-                    ScopeVppText = FormatNum(m.Vpp);
                 });
 
                 if (!m.FreqHz.HasValue)
@@ -615,7 +623,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             public double? FreqHz { get; set; }
             public double? DutyPct { get; set; }
-            public double? Vpp { get; set; }
         }
 
         private async Task<Measurement> MeasureRawCoreAsync(CancellationToken token)
@@ -630,8 +637,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await EnsureInstrumentsConnectedAsync(token);
             await Task.Delay(200, token);
 
-            var vpp = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VPP", token);
-
             var freq = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? FREQuency", token);
             var pw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? PWIDth", token);
             var nw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? NWIDth", token);
@@ -640,8 +645,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return new Measurement
             {
                 FreqHz = freq,
-                DutyPct = dutyPct,
-                Vpp = vpp
+                DutyPct = dutyPct
             };
         }
 
@@ -649,7 +653,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             FreqHzText = "--";
             DutyPctText = "--";
-            ScopeVppText = "--";
         }
 
         private async Task EnsureInstrumentsConnectedAsync(CancellationToken token)
@@ -680,9 +683,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             var svc = MatrixControlService.Instance;
 
-            var okScope = await svc.ConnectNodesAsync("I2", "O3", 6, "192.168.1.3");
+            var operations = new (string inNode, string outNode, int slot, string ip)[]
+            {
+                ("I1", "O5", 9, "192.168.1.3"),
+                ("I0", "O8", 4, "192.168.1.3")
+            };
 
-            _matrixRouted = okScope;
+            var connectTasks = operations
+                .Select(op => svc.ConnectNodesAsync(op.inNode, op.outNode, op.slot, op.ip))
+                .ToArray();
+
+            var results = await Task.WhenAll(connectTasks);
+            _matrixRouted = results.All(r => r);
             _ = token;
             return _matrixRouted;
         }
@@ -706,7 +718,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     if (_matrixRouted)
                     {
                         var svc = MatrixControlService.Instance;
-                        _ = await svc.DisconnectNodesAsync("I2", "O3", 6, "192.168.1.3");
+
+                        var operations = new (string inNode, string outNode, int slot, string ip)[]
+                        {
+                            ("I1", "O5", 9, "192.168.1.3"),
+                            ("I0", "O8", 4, "192.168.1.3")
+                        };
+
+                        var disconnectTasks = operations
+                            .Select(op => svc.DisconnectNodesAsync(op.inNode, op.outNode, op.slot, op.ip))
+                            .ToArray();
+
+                        _ = await Task.WhenAll(disconnectTasks);
                     }
                 }
                 catch
