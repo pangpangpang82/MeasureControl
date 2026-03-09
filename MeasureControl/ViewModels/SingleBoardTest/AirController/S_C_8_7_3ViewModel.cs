@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 using Prism.Ioc;
 using Prism.Mvvm;
 using System;
@@ -347,6 +347,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     SyncChannels();
                     ResetDisplayState();
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                    }
+                    catch { }
 
                     _simulation.IsRealProduct = false;
                     _simulation.ArincRate = 100000.0;
@@ -730,6 +738,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _autoTestCts?.Dispose();
                     _autoTestCts = new CancellationTokenSource();
                     var token = _autoTestCts.Token;
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(token);
+                    }
+                    catch { }
 
                     _simulation.IsRealProduct = false;
                     _simulation.ArincRate = 100000.0;

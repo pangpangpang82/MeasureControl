@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -259,6 +259,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：打开ARINC429 (EnterATP TX={ToSimChannel(EnterAtpTxChannelDisplay)}, RX={ToSimChannel(EnterAtpRxChannelDisplay)})");
 
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                }
+                catch { }
+
                 _simulation.SimProductRxChannelIndex = 4;
                 _simulation.SimProductTxChannelIndex = 5;
                 _simulation.ArincRate = 100000.0;
@@ -333,6 +341,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoCts?.Dispose();
                 _autoCts = new CancellationTokenSource();
                 var token = _autoCts.Token;
+
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(token);
+                }
+                catch { }
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试开始");
 
