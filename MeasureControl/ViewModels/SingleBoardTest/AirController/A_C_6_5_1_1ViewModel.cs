@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -16,6 +16,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public sealed class A_C_6_5_1_1ViewModel : BindableBase, IDisposable
     {
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
@@ -61,8 +64,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public A_C_6_5_1_1ViewModel()
         {
-            _testTxChannel = "429_CH0";
-            _testRxChannel = "429_CH1";
+            _testTxChannel = FixedTxChannel;
+            _testRxChannel = FixedRxChannel;
 
             _enterAtpTxChannel = _testTxChannel;
             _enterAtpRxChannel = _testRxChannel;
@@ -100,37 +103,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string TestTxChannel
         {
             get => _testTxChannel;
-            set => SetProperty(ref _testTxChannel, value);
         }
 
         public string TestRxChannel
         {
             get => _testRxChannel;
-            set => SetProperty(ref _testRxChannel, value);
         }
 
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
         }
 
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
         }
 
         public double ArincRate
@@ -413,6 +410,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：开始打开设备");
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                    }
+                    catch { }
+
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试已启动：可发送测试指令");
                 }
@@ -558,6 +564,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _autoTestCts = new CancellationTokenSource();
 
                     var token = _autoTestCts.Token;
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(token);
+                    }
+                    catch { }
 
                     _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
                     _simulation.ArincRate = ArincRate;
