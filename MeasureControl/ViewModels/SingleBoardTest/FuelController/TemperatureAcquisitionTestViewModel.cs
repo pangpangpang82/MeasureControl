@@ -535,6 +535,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 await _fpga.ConnectAsync(token);
                 _fpgaConnected = true;
                 AddLog("FPGA TCP连接成功");
+
+                // 启动异步接收功能
+                _fpga.StartAsyncReceive(AddLog);
             }
             catch (Exception ex)
             {
@@ -573,6 +576,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             // 断开FPGA
             if (_fpga != null)
             {
+                try { _fpga.StopAsyncReceive(); } catch { }
                 try { _fpga.Disconnect(); } catch { }
                 _fpga = null;
                 _fpgaConnected = false;
@@ -720,8 +724,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// 协议：发送命令0x07（无数据），FPGA返回1个单精度浮点数（小端，单位℃）。
         /// 帧格式：帧头(AA 55) + 长度(02) + 命令(07) + 数据(00) → 应答：帧头(AA 55) + 长度(05) + 命令(07) + float32
         /// 
-        /// 使用同步读取模式：直接调用 FpgaIoClient.ReadDs18B20TemperatureAsync 方法，
-        /// 该方法会发送命令并等待响应，自动跳过非07命令的帧。
+        /// 使用异步接收模式：发送命令后等待2-3秒，从缓存中查找07命令的响应。
+        /// 这样可以避免06命令（状态消息）的干扰。
         /// </summary>
         private async Task<double> ReadDs18B20ViaMioAsync(CancellationToken token)
         {
@@ -730,12 +734,39 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 _fpga ??= new FpgaIoClient();
                 await _fpga.ConnectAsync(token);
                 _fpgaConnected = true;
+                _fpga.StartAsyncReceive(AddLog);
             }
 
-            // 使用同步读取方法，直接发送命令并等待响应
-            AddLog("发送温度采集命令并等待响应...");
-            float tempF = await _fpga.ReadDs18B20TemperatureAsync(token);
-            AddLog($"收到温度响应: {tempF:F2}℃");
+            // 记录发送时间，用于筛选发送后收到的响应
+            var sendTime = DateTime.UtcNow;
+
+            // 发送温度采集命令: AA 55 02 07 00
+            AddLog("发送温度采集命令: AA 55 02 07 00");
+            await _fpga.SendTemperatureCommandAsync(token);
+
+            // 等待2-3秒，让异步接收任务收集响应
+            AddLog("等待FPGA响应（2.5秒）...");
+            await Task.Delay(2500, token);
+
+            // 从缓存中查找命令为07的响应（发送时间之后收到的）
+            var frames = _fpga.GetReceivedFramesByCommandAfter(0x07, sendTime);
+            if (frames == null || frames.Count == 0)
+            {
+                // 没有找到命令07的响应，弹窗报错
+                throw new InvalidOperationException("未收到FPGA温度采集响应（命令07），请检查FPGA连接状态");
+            }
+
+            // 取最新的一帧
+            var latestFrame = frames.Last();
+            AddLog($"收到温度响应: {latestFrame.RawHex}");
+
+            // 解析温度数据（单精度浮点数，小端模式）
+            if (latestFrame.Payload == null || latestFrame.Payload.Length < 4)
+            {
+                throw new InvalidOperationException($"温度数据长度不足: {latestFrame.Payload?.Length ?? 0} bytes，期望 4 bytes");
+            }
+
+            float tempF = BitConverter.ToSingle(latestFrame.Payload, 0);
 
             return (double)tempF;
         }
