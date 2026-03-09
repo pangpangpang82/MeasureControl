@@ -408,7 +408,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                     // IO11=MUX1(bit0)=1: 外部通信模式，MUX2=0
                     // MUX1=1 → RS422信号路由到J1外部接口
-                    await _fpga.WriteGpioAsync(0x00000001u, token);
+                    //await _fpga.WriteGpioAsync(0x00000001u, token);
                     AddLog("[FPGA] MUX1=1已设置（RS422外部通信模式）");
                 }
                 catch (Exception ex)

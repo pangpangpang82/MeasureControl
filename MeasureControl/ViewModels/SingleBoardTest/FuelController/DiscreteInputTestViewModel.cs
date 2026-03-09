@@ -746,7 +746,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     {
                         await _jy7131Api.ConnectAsync(token);
                         AddLog("7131板卡连接成功");
-                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.PushPull, token);
+                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
                         await _jy7131Api.StartAsync(token);
                         AddLog("7131板卡已启动");
                     }

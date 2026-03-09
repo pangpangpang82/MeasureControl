@@ -105,6 +105,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private string _overallResult = "--";
         private string _lastTestTime = "--";
 
+        private bool testReset = true;
+
         public DiscreteOutputTestViewModel(
             ISingleBoardTestContextService singleBoardTestContext,
             ProjectService projectService,
@@ -128,7 +130,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             StepCCommand = new DelegateCommand(async () => await RunStepCAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
             PowerOnCommand = new DelegateCommand(async () => await PowerOnForStepCAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized && !IsPowerOn);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
-            ToggleRelayCommand = new DelegateCommand(async () => await ToggleRelayAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            //ToggleRelayCommand = new DelegateCommand(async () => await ToggleRelayAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            ToggleRelayCommand = new DelegateCommand(async () => await ToggleRelayAsync(), () => testReset == true);
             SetGroundedSignalCommand = new DelegateCommand(async () => await SetGroundedSignalAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
             SetOpenSignalCommand = new DelegateCommand(async () => await SetOpenSignalAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
             // J6-J13接地测试单点测量命令
@@ -564,7 +567,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         {
                             await _jy7131Api.ConnectAsync(token);
                             AddLog("7131板卡连接成功");
-                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.PushPull, token);
+                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
                             await _jy7131Api.StartAsync(token);
                             AddLog("7131板卡已启动");
                         }
@@ -617,29 +620,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     AddLog($"继电器供电上电异常: {ex.Message}");
                 }
 
-                // 步骤4：激活继电器（DO15高电平 + 485继电器第4路），隔离产品与试验台
+                // 步骤4：激活继电器（DO15高电平），隔离产品与试验台
                 AddLog("正在激活继电器（DO15高电平），隔离产品...");
                 try
                 {
                     if (_jy7131Api != null && _jy7131Api.IsConnected)
                     {
-                        await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token);
+                        //await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token);
                         IsRelayActivated = true;
-                        await Task.Delay(200, token);
+                        await Task.Delay(500, token);
                         AddLog("DO15输出完成，继电器线圈得电");
-
-                        // 打开485继电器第4路（index=3，从0开始计数），配合DO15完成产品隔离
-                        AddLog("正在打开485继电器第4路...");
-                        try
-                        {
-                            await _jy7131Api.SetRelayAsync(3, true, token);
-                            AddLog("485继电器第4路已打开");
-                        }
-                        catch (Exception ex)
-                        {
-                            AddLog($"485继电器操作失败: {ex.Message}");
-                        }
-
                         AddLog("继电器已激活，产品已隔离（下电状态）");
                     }
                     else
@@ -675,7 +665,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
-                // 步骤1：复位继电器（DO15低电平 + 485继电器第4路关闭），恢复产品连接
+                // 步骤1：复位继电器（DO15低电平），恢复产品连接
                 if (IsRelayActivated && _jy7131Api != null && _jy7131Api.IsConnected)
                 {
                     try
@@ -683,19 +673,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         AddLog("正在复位继电器（DO15低电平）...");
                         await _jy7131Api.WriteDoAsync(RelayControlChannel, false, token);
                         AddLog("DO15输出完成，继电器线圈失电");
-
-                        // 关闭485继电器第4路（index=3，从0开始计数），配合DO15恢复产品连接
-                        AddLog("正在关闭485继电器第4路...");
-                        try
-                        {
-                            await _jy7131Api.SetRelayAsync(3, false, token);
-                            AddLog("485继电器第4路已关闭");
-                        }
-                        catch (Exception ex)
-                        {
-                            AddLog($"485继电器操作失败: {ex.Message}");
-                        }
-
                         IsRelayActivated = false;
                         AddLog("继电器已复位");
                     }
@@ -780,12 +757,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 await ApplyPowerDownAsync(token);
 
                 // 使用7131板卡输出DO1-DO14接地信号（高电平=接地）
-                // SetDoOutputAsync内部会自动设置PushPull模式并启动板卡
+                // SetDoOutputAsync内部会自动设置sinking模式并启动板卡
                 AddLog("步骤a: 设置DO1-DO14输出接地信号...");
                 await SetDoOutputAsync(true, token); // true = 接地
 
                 // 等待信号稳定
-                await Task.Delay(200, token);
+                await Task.Delay(500, token);
 
                 // 测量J6-J13各点阻抗
                 AddLog("步骤a: 测量J6-J13对地阻抗...");
@@ -838,7 +815,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 await SetDoOutputAsync(false, token); // false = 开路
 
                 // 等待信号稳定
-                await Task.Delay(200, token);
+                await Task.Delay(500, token);
 
                 // 测量J6-J13各点阻抗
                 AddLog("步骤b: 测量J6-J13开路阻抗...");
@@ -982,9 +959,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 try
                 {
                     AddLog("正在激活继电器（DO15高电平），隔离产品...");
-                    await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token);
+                    await _jy7131Api.WriteDoAsync(RelayControlChannel, false, token);
                     IsRelayActivated = true;
-                    await Task.Delay(200, token);
+                    await Task.Delay(500, token);
                     AddLog("继电器已激活，产品已隔离（下电）");
                 }
                 catch (Exception ex)
@@ -1028,9 +1005,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 try
                 {
                     AddLog("正在复位继电器（DO15低电平），恢复产品连接...");
-                    await _jy7131Api.WriteDoAsync(RelayControlChannel, false, token);
+                    await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token);
                     IsRelayActivated = false;
-                    await Task.Delay(200, token);
+                    await Task.Delay(500, token);
                     AddLog("继电器已复位，产品已连接");
                 }
                 catch (Exception ex)
@@ -1286,13 +1263,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
-                if (_isRelayActivated)
+                if (IsRelayActivated)
                 {
                     if (_jy7131Api?.IsConnected == true)
                     {
                         if (!_jy7131Api.IsRunning)
                         {
-                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.PushPull, _opCts.Token);
+                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, _opCts.Token);
                             await _jy7131Api.StartAsync(_opCts.Token);
                         }
 
@@ -1308,20 +1285,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         {
                             AddLog($"DO写回读取失败: {ex.Message}");
                         }
-
-                        // 关闭485继电器第4路
-                        try
-                        {
-                            await _jy7131Api.SetRelayAsync(3, false, _opCts.Token);
-                            AddLog("485继电器第4路已关闭");
-                        }
-                        catch (Exception ex)
-                        {
-                            AddLog($"485继电器操作失败: {ex.Message}");
-                        }
                     }
-                    _isRelayActivated = false;
                     IsRelayActivated = false;
+                    await Task.Delay(100);
                     AddLog("继电器已复位");
                 }
                 else
@@ -1330,7 +1296,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     {
                         if (!_jy7131Api.IsRunning)
                         {
-                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.PushPull, _opCts.Token);
+                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, _opCts.Token);
                             await _jy7131Api.StartAsync(_opCts.Token);
                         }
 
@@ -1346,25 +1312,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         {
                             AddLog($"DO写回读取失败: {ex.Message}");
                         }
-
-                        // 打开485继电器第4路
-                        try
-                        {
-                            await _jy7131Api.SetRelayAsync(3, true, _opCts.Token);
-                            AddLog("485继电器第4路已打开");
-                        }
-                        catch (Exception ex)
-                        {
-                            AddLog($"485继电器操作失败: {ex.Message}");
-                        }
                     }
-                    _isRelayActivated = true;
                     IsRelayActivated = true;
+                    await Task.Delay(100);
                     AddLog("继电器已激活");
                 }
             }
             catch (Exception ex) { AddLog($"继电器异常: {ex.Message}"); }
             finally { IsBusy = false; }
+
+            return;
         }
 
         private async Task SetGroundedSignalAsync()
