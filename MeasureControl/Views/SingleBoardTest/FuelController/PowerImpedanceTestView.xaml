@@ -273,7 +273,7 @@
                                     <ColumnDefinition Width="100"/>
                                     <ColumnDefinition Width="90"/>
                                 </Grid.ColumnDefinitions>
-                                
+
                                 <TextBlock Grid.Row="0" Grid.Column="0" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="序号" Margin="5"/>
                                 <TextBlock Grid.Row="0" Grid.Column="1" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="测试项目" Margin="5"/>
                                 <TextBlock Grid.Row="0" Grid.Column="2" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="测量值(Ω)" Margin="5"/>
@@ -528,15 +528,6 @@
                                     </Button.Style>
                                 </Button>
                             </Grid>
-                        </Border>
-                        
-                        <!-- 判据说明 -->
-                        <Border Margin="0,5,0,0" Background="#f0fdf4" BorderBrush="#22c55e" BorderThickness="1" CornerRadius="6" Padding="6">
-                            <StackPanel>
-                                <TextBlock FontWeight="Bold" Foreground="#166534" Text="测试判据："/>
-                                <TextBlock Margin="0,5,0,0" Foreground="#166534" Text="• 阻抗值 > 500Ω 为 PASS"/>
-                                <TextBlock Margin="0,2,0,0" Foreground="#166534" Text="• 阻抗值 ≤ 500Ω 为 FAIL"/>
-                            </StackPanel>
                         </Border>
                     </StackPanel>
                     

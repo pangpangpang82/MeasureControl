@@ -23,7 +23,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
     /// 2) 开路测试：不发送指令，测量 Pin9-15 对地阻抗（应为高阻，>100kΩ）。
     /// 3) 通路测试：通过 ARINC429 发送"输出有效"指令（Label=65oct），
     ///    再测量 Pin9-15 对地阻抗（应为低阻，<10Ω）。
-    /// 4) 所有针脚都满足判据则"PASS"。
+    /// 4) 所有针脚都满足判据则“合格”。
     /// </summary>
     public class HC_6_8ViewModel : BindableBase
     {
@@ -54,6 +54,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly IPxiChassisService _pxiChassisService;
+        private readonly ISingleBoardTestContextService _singleBoardTestContext;
+
+        private const string TestItemName = "离散量输出测试";
 
         private CancellationTokenSource _manualCts;
         private CancellationTokenSource _autoCts;
@@ -94,15 +97,46 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private readonly Dictionary<int, double?> _openValuesByPin = new Dictionary<int, double?>();
         private readonly Dictionary<int, double?> _closeValuesByPin = new Dictionary<int, double?>();
 
-        public HC_6_8ViewModel(IPxiChassisService pxiChassisService)
+        public HC_6_8ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
         {
             _pxiChassisService = pxiChassisService;
+            _singleBoardTestContext = singleBoardTestContext;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
             MeasureOpenCommand = new DelegateCommand(async () => await OnMeasureOpenAsync(), () => CanMeasureOpen);
             MeasureCloseCommand = new DelegateCommand(async () => await OnMeasureCloseAsync(), () => CanMeasureClose);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
+
+            LoadLastTestResultFromProject();
+        }
+
+        private void LoadLastTestResultFromProject()
+        {
+            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
+            if (testItemNode != null)
+            {
+                if (!string.IsNullOrWhiteSpace(testItemNode.LastTestTime))
+                {
+                    _lastTestTime = testItemNode.LastTestTime;
+                    RaisePropertyChanged(nameof(LastTestTime));
+                }
+                if (!string.IsNullOrWhiteSpace(testItemNode.LastTestResult))
+                {
+                    _lastTestResult = testItemNode.LastTestResult;
+                    RaisePropertyChanged(nameof(LastTestResult));
+                }
+            }
+        }
+
+        private void SaveTestResultToProject()
+        {
+            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
+            if (testItemNode != null)
+            {
+                testItemNode.LastTestTime = LastTestTime;
+                testItemNode.LastTestResult = LastTestResult;
+            }
         }
 
         public DelegateCommand ManualTestCommand { get; }
@@ -151,6 +185,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         public bool CanMeasureOpen => IsManualTestRunning && CanMeasure && !_measuredOpen;
         public bool CanMeasureClose => IsManualTestRunning && CanMeasure && _measuredOpen && !_measuredClose;
+
+        /// <summary>
+        /// 整板串行自动测试入口。
+        /// 由外部(整板自动测试)调用，支持 await 等待完成，并通过 CancellationToken 实现“立即停止当前测量”。
+        /// 返回值仅为“合格/不合格”。
+        /// </summary>
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning)
+            {
+                await StopAutoTestAsync().ConfigureAwait(false);
+            }
+
+            if (IsManualTestRunning)
+            {
+                await StopManualTestAsync().ConfigureAwait(false);
+            }
+
+            _autoCts?.Cancel();
+            _autoCts?.Dispose();
+            _autoCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                return await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
 
         public string LastTestTime { get => _lastTestTime; private set => SetProperty(ref _lastTestTime, value); }
         public string LastTestResult { get => _lastTestResult; private set => SetProperty(ref _lastTestResult, value); }
@@ -227,7 +293,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         /// <summary>
         /// 自动测试流程
-        /// 自动依次执行开路测试和通路测试，所有针脚都满足判据则"PASS"。
+        /// 自动依次执行开路测试和通路测试，所有针脚都满足判据则“合格”。
         /// </summary>
         private async Task OnAutoTestAsync()
         {
@@ -261,33 +327,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                _dmm ??= new DmmSocketApi();
-                await _dmm.ConnectAsync(DmmIpAddress, _autoCts.Token).ConfigureAwait(false);
-                Log("万用表连接成功");
-
-                await EnsurePowerAsync(_autoCts.Token).ConfigureAwait(false);
-                Log("28V电源上电成功");
-
-                var okOpen = await MeasureOpenAsync(_autoCts.Token).ConfigureAwait(false);
-                if (!okOpen)
-                {
-                    await StopAutoTestAsync().ConfigureAwait(false);
-                    return;
-                }
-
-                await Task.Delay(100, _autoCts.Token).ConfigureAwait(false);
-
-                var okClose = await MeasureCloseAsync(_autoCts.Token).ConfigureAwait(false);
-                if (!okClose)
-                {
-                    await StopAutoTestAsync().ConfigureAwait(false);
-                    return;
-                }
-
-                _measuredOpen = true;
-                _measuredClose = true;
-                await TryFinalizeAsync().ConfigureAwait(false);
-                await StopAutoTestAsync().ConfigureAwait(false);
+                _ = await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -298,6 +338,72 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 Log($"自动测试异常: {ex.Message}");
                 await StopAutoTestAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
+
+        private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
+        {
+            IsAutoTestRunning = true;
+            CanMeasure = false;
+            _manualAborted = false;
+            _measuredOpen = false;
+            _measuredClose = false;
+
+            ResetAllDisplays();
+            _openValuesByPin.Clear();
+            _closeValuesByPin.Clear();
+
+            Log("开始自动测试");
+            Log($"判据: 开路>={OpenPassThresholdOhm:0}Ω, 通路<={ClosePassThresholdOhm:0}Ω");
+
+            try
+            {
+                _dmm ??= new DmmSocketApi();
+                await _dmm.ConnectAsync(DmmIpAddress, cancellationToken).ConfigureAwait(false);
+                Log("万用表连接成功");
+
+                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+                Log("28V电源上电成功");
+
+                var okOpen = await MeasureOpenAsync(cancellationToken).ConfigureAwait(false);
+                if (!okOpen)
+                {
+                    await StopAutoTestAsync().ConfigureAwait(false);
+                    return "不合格";
+                }
+
+                await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+
+                var okClose = await MeasureCloseAsync(cancellationToken).ConfigureAwait(false);
+                if (!okClose)
+                {
+                    await StopAutoTestAsync().ConfigureAwait(false);
+                    return "不合格";
+                }
+
+                _measuredOpen = true;
+                _measuredClose = true;
+                await TryFinalizeAsync().ConfigureAwait(false);
+                await StopAutoTestAsync().ConfigureAwait(false);
+
+                return LastTestResult;
+            }
+            catch (OperationCanceledException)
+            {
+                Log("自动测试已停止");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"自动测试异常: {ex.Message}");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
             }
         }
 
@@ -468,7 +574,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var outNode = $"O{pin - 9}";
             var okPin = await matrix.ConnectNodesAsync("I1", outNode, MatrixSlotPinRoute, MatrixIpAddress).ConfigureAwait(false);
 
-            Log($"PIN{pin}: 矩阵连接 {(okCommon && okPin ? "OK" : "FAIL")} - I4-O0(slot{MatrixSlotCommon}), I1-{outNode}(slot{MatrixSlotPinRoute})");
+            Log($"PIN{pin}: 矩阵连接 {(okCommon && okPin ? "成功" : "失败")} - I4-O0(slot{MatrixSlotCommon}), I1-{outNode}(slot{MatrixSlotPinRoute})");
             if (!okCommon || !okPin)
             {
                 return (null, "--");
@@ -677,6 +783,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             PreviousTestResult = LastTestResult;
             LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             LastTestResult = pass ? "合格" : "不合格";
+
+            SaveTestResultToProject();
             Log($"最终结果: {LastTestResult}");
 
             if (IsManualTestRunning)
