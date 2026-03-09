@@ -15,6 +15,17 @@ using MeasureControl.Events;
 using Prism.Ioc;
 using Prism.Events;
 using MeasureControl.ViewModels.Common;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+using MeasureControl.Models.Devices;
+using MeasureControl.ViewModels.SingleBoardTest;
+using MeasureControl.ViewModels.SingleBoardTest.HydraulicController;
+using MeasureControl.Views.Dialogs;
+using MeasureControl.ViewModels.Dialogs;
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace MeasureControl.Views.Common
 {
@@ -28,7 +39,24 @@ namespace MeasureControl.Views.Common
         private readonly MainWindowViewModel _viewModel;
         private readonly IEventAggregator _eventAggregator;
 
+        private CancellationTokenSource _singleBoardAutoTestCts;
+        private string _singleBoardAutoTestReportPath;
+
         #endregion
+
+        private static bool IsSingleBoardTestTaskNode(ProjectItem projectItem)
+        {
+            if (projectItem == null)
+            {
+                return false;
+            }
+
+            var v = (projectItem.Tag ?? projectItem.Name)?.Trim();
+            return string.Equals(v, "空气单板", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(v, "液压单板", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(v, "惰化单板", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(v, "加放油单板", StringComparison.OrdinalIgnoreCase);
+        }
 
         #region Constructor
 
@@ -460,9 +488,19 @@ namespace MeasureControl.Views.Common
             {
                 if (_viewModel?.IsFixedDemoMode == true)
                 {
-                    treeViewItem.ContextMenu = null;
-                    e.Handled = true;
-                    return;
+                    var parentTreeViewItem = FindParent<TreeViewItem>(treeViewItem);
+                    var parentProjectItem = parentTreeViewItem?.DataContext as ProjectItem;
+                    var isUnderTestTasksFolder = parentProjectItem != null
+                        && (string.Equals(parentProjectItem.Type, "test_tasks", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(parentProjectItem.Name, "测试任务", StringComparison.OrdinalIgnoreCase));
+
+                    // Demo 模式下：只放开“测试任务”文件夹下的单板节点右键菜单，其它节点一律禁用
+                    if (!(IsSingleBoardTestTaskNode(projectItem) && isUnderTestTasksFolder))
+                    {
+                        treeViewItem.ContextMenu = null;
+                        e.Handled = true;
+                        return;
+                    }
                 }
 
                 // 检查鼠标点击位置是否在当前 TreeViewItem 的范围内（不包括子节点）
@@ -544,37 +582,67 @@ namespace MeasureControl.Views.Common
                     contextMenu.Items.Add(createTestTaskMenuItem);
                 }
                 // 为测试任务节点显示右键菜单
-                else if (projectItem.Type == "test_task")
+                else if (projectItem.Type == "test_task" || IsSingleBoardTestTaskNode(projectItem))
                 {
-                    // 重命名菜单项
-                    var renameMenuItem = new MenuItem { Header = "重命名" };
-                    
-                    // 应用自定义菜单项样式
-                    if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle)
+                    // 单板测试任务节点：增加“启动测试”（整板自动测试）
+                    // 目前仅液压单板实现整板自动测试，其他单板进入页面后会提示未实现。
+                    var boardType = (projectItem.Tag ?? projectItem.Name)?.Trim();
+                    if (string.Equals(boardType, "空气单板", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(boardType, "惰化单板", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(boardType, "加放油单板", StringComparison.OrdinalIgnoreCase))
                     {
-                        renameMenuItem.Style = menuItemStyle;
+                        var startTestMenuItem = new MenuItem { Header = "启动测试" };
+                        if (this.Resources["CustomMenuItemStyle"] is Style startStyle)
+                        {
+                            startTestMenuItem.Style = startStyle;
+                        }
+
+                        startTestMenuItem.Click += (s, args) =>
+                        {
+                            _ = StartSingleBoardAutoTestAsync(projectItem);
+                        };
+
+                        contextMenu.Items.Add(startTestMenuItem);
                     }
-                    
-                    renameMenuItem.Click += (s, args) => 
+
+                    // 单板节点右键菜单仅显示“启动测试”
+                    if (IsSingleBoardTestTaskNode(projectItem))
                     {
-                        _viewModel?.RenameTestTaskCommand?.Execute(projectItem);
-                    };
-                    contextMenu.Items.Add(renameMenuItem);
-                    
-                    // 删除菜单项
-                    var deleteMenuItem = new MenuItem { Header = "删除" };
-                    
-                    // 应用自定义菜单项样式
-                    if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle2)
-                    {
-                        deleteMenuItem.Style = menuItemStyle2;
+                        // 跳过重命名/删除等操作
                     }
-                    
-                    deleteMenuItem.Click += (s, args) => 
+                    else
                     {
-                        _viewModel?.DeleteTestTaskCommand?.Execute(projectItem);
-                    };
-                    contextMenu.Items.Add(deleteMenuItem);
+                        // 重命名菜单项
+                        var renameMenuItem = new MenuItem { Header = "重命名" };
+                        
+                        // 应用自定义菜单项样式
+                        if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle)
+                        {
+                            renameMenuItem.Style = menuItemStyle;
+                        }
+                        
+                        renameMenuItem.Click += (s, args) => 
+                        {
+                            _viewModel?.RenameTestTaskCommand?.Execute(projectItem);
+                        };
+                        contextMenu.Items.Add(renameMenuItem);
+                        
+                        // 删除菜单项
+                        var deleteMenuItem = new MenuItem { Header = "删除" };
+                        
+                        // 应用自定义菜单项样式
+                        if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle2)
+                        {
+                            deleteMenuItem.Style = menuItemStyle2;
+                        }
+                        
+                        deleteMenuItem.Click += (s, args) => 
+                        {
+                            _viewModel?.DeleteTestTaskCommand?.Execute(projectItem);
+                        };
+                        contextMenu.Items.Add(deleteMenuItem);
+                    }
                 }
                 // 为通道配置节点显示右键菜单
                 else if (projectItem.Type == "channel_config")
@@ -764,6 +832,302 @@ namespace MeasureControl.Views.Common
         }
 
         #endregion
+
+        private async Task StartSingleBoardAutoTestAsync(ProjectItem projectItem)
+        {
+            if (projectItem == null)
+            {
+                return;
+            }
+
+            if (_singleBoardAutoTestCts != null)
+            {
+                ReMessageBox.Show("已有整板自动测试正在运行", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var boardType = projectItem.Tag;
+            var boardName = projectItem.Name;
+            if (string.IsNullOrWhiteSpace(boardType))
+            {
+                boardType = boardName;
+            }
+
+            // 框架：四个单板类型分支，液压已实现，其它留给同事补齐
+            (string Name, Func<CancellationToken, Task<string>> Run)[] steps = boardType switch
+            {
+                "液压单板" => BuildHydraulicSteps(),
+                "空气单板" => BuildAirSteps(),
+                "惰化单板" => BuildInertingSteps(),
+                "加放油单板" => BuildFuelSteps(),
+                _ => null
+            };
+
+            if (steps == null)
+            {
+                ReMessageBox.Show($"未知单板类型: {boardType}", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (steps.Length == 0)
+            {
+                ReMessageBox.Show($"{boardType}整板自动测试未实现", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            await RunSingleBoardStepsAsync(boardName, boardType, steps).ConfigureAwait(true);
+        }
+
+        private async Task RunSingleBoardStepsAsync(
+            string boardName,
+            string boardType,
+            (string Name, Func<CancellationToken, Task<string>> Run)[] steps)
+        {
+            _singleBoardAutoTestCts = new CancellationTokenSource();
+            var token = _singleBoardAutoTestCts.Token;
+
+            TestProgressDialog dialog = null;
+            TestProgressDialogViewModel vm = null;
+            EventHandler ownerStateChangedHandler = null;
+            EventHandler ownerActivatedHandler = null;
+            EventHandler ownerDeactivatedHandler = null;
+
+            var originalIsEnabled = IsEnabled;
+
+            try
+            {
+                PrepareSingleBoardReport(boardName);
+                AppendSingleBoardReportLine($"START | {boardName} | {boardType}");
+
+                // 整板自动测试期间禁用主窗口操作
+                IsEnabled = false;
+
+                vm = new TestProgressDialogViewModel
+                {
+                    HeaderText = boardName,
+                    StatusText = "准备开始...",
+                    Progress = 0,
+                    Total = steps.Length,
+                    ConfirmStopOnClose = true
+                };
+                vm.RequestCancel = () =>
+                {
+                    try { _singleBoardAutoTestCts?.Cancel(); } catch { }
+                };
+
+                dialog = new TestProgressDialog
+                {
+                    DataContext = vm,
+                    Owner = this,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Topmost = true
+                };
+
+                ownerStateChangedHandler = (_, __) =>
+                {
+                    if (dialog == null || dialog.Owner == null)
+                    {
+                        return;
+                    }
+
+                    dialog.Topmost = dialog.Owner.WindowState != WindowState.Minimized;
+                };
+                ownerActivatedHandler = (_, __) =>
+                {
+                    if (dialog == null || dialog.Owner == null)
+                    {
+                        return;
+                    }
+
+                    if (dialog.Owner.WindowState != WindowState.Minimized)
+                    {
+                        dialog.Topmost = true;
+                    }
+                };
+                ownerDeactivatedHandler = (_, __) =>
+                {
+                    if (dialog == null)
+                    {
+                        return;
+                    }
+
+                    dialog.Topmost = false;
+                };
+
+                StateChanged += ownerStateChangedHandler;
+                Activated += ownerActivatedHandler;
+                Deactivated += ownerDeactivatedHandler;
+
+                dialog.Show();
+
+                int done = 0;
+                for (int i = 0; i < steps.Length; i++)
+                {
+                    token.ThrowIfCancellationRequested();
+
+                    vm.StatusText = $"{steps[i].Name}（{i + 1}/{steps.Length}）";
+                    vm.Progress = done;
+
+                    string result;
+                    try
+                    {
+                        result = await steps[i].Run(token).ConfigureAwait(true);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        AppendSingleBoardReportLine($"CANCEL | {steps[i].Name}");
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        AppendSingleBoardReportLine($"EXCEPTION | {steps[i].Name} | {ex.GetType().Name} | {ex.Message}");
+                        vm.IsFailed = true;
+                        vm.ConfirmStopOnClose = false;
+                        ReMessageBox.Show($"{steps[i].Name}异常: {ex.Message}", "测试异常", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    AppendSingleBoardReportLine($"STEP | {steps[i].Name} | {NormalizeResult(result)}");
+
+                    done++;
+                    vm.Progress = done;
+
+                    if (!IsPass(result))
+                    {
+                        vm.IsFailed = true;
+                        vm.ConfirmStopOnClose = false;
+                        AppendSingleBoardReportLine($"STOP | FAIL_AT={steps[i].Name}");
+                        ReMessageBox.Show($"{steps[i].Name}不合格，整板自动测试终止。", "测试终止", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                }
+
+                AppendSingleBoardReportLine("END | PASS");
+                vm.IsCompleted = true;
+                vm.ConfirmStopOnClose = false;
+                vm.Progress = steps.Length;
+                vm.StatusText = "完成";
+            }
+            catch (OperationCanceledException)
+            {
+                AppendSingleBoardReportLine("END | CANCELED");
+                if (vm != null)
+                {
+                    vm.IsFailed = true;
+                    vm.ConfirmStopOnClose = false;
+                }
+            }
+            finally
+            {
+                try
+                {
+                    if (ownerStateChangedHandler != null)
+                    {
+                        StateChanged -= ownerStateChangedHandler;
+                    }
+                    if (ownerActivatedHandler != null)
+                    {
+                        Activated -= ownerActivatedHandler;
+                    }
+                    if (ownerDeactivatedHandler != null)
+                    {
+                        Deactivated -= ownerDeactivatedHandler;
+                    }
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    dialog?.Close();
+                }
+                catch
+                {
+                }
+
+                // 恢复主窗口操作
+                IsEnabled = originalIsEnabled;
+
+                _singleBoardAutoTestCts?.Dispose();
+                _singleBoardAutoTestCts = null;
+            }
+        }
+
+        private static (string Name, Func<CancellationToken, Task<string>> Run)[] BuildHydraulicSteps()
+        {
+            var vm61 = ContainerLocator.Container.Resolve<HC_6_1ViewModel>();
+            var vm62 = ContainerLocator.Container.Resolve<HC_6_2ViewModel>();
+            var vm63 = ContainerLocator.Container.Resolve<HC_6_3ViewModel>();
+            var vm64 = ContainerLocator.Container.Resolve<HC_6_4ViewModel>();
+            var vm65 = ContainerLocator.Container.Resolve<HC_6_5ViewModel>();
+            var vm66 = ContainerLocator.Container.Resolve<HC_6_6ViewModel>();
+            var vm67 = ContainerLocator.Container.Resolve<HC_6_7ViewModel>();
+            var vm68 = ContainerLocator.Container.Resolve<HC_6_8ViewModel>();
+
+            return new (string Name, Func<CancellationToken, Task<string>> Run)[]
+            {
+                ("电源阻抗测试", ct => vm61.RunOnceAsync(ct)),
+                ("二次电源测试", ct => vm62.RunOnceAsync(ct)),
+                ("温度采集测试", ct => vm63.RunOnceAsync(ct)),
+                ("压力传感器信号采集测试", ct => vm64.RunOnceAsync(ct)),
+                ("压差传感器信号采集测试", ct => vm65.RunOnceAsync(ct)),
+                ("油量传感器信号采集测试", ct => vm66.RunOnceAsync(ct)),
+                ("离散量采集测试", ct => vm67.RunOnceAsync(ct)),
+                ("离散量输出测试", ct => vm68.RunOnceAsync(ct)),
+            };
+        }
+
+        private static (string Name, Func<CancellationToken, Task<string>> Run)[] BuildAirSteps()
+        {
+            return Array.Empty<(string Name, Func<CancellationToken, Task<string>> Run)>();
+        }
+
+        private static (string Name, Func<CancellationToken, Task<string>> Run)[] BuildInertingSteps()
+        {
+            return Array.Empty<(string Name, Func<CancellationToken, Task<string>> Run)>();
+        }
+
+        private static (string Name, Func<CancellationToken, Task<string>> Run)[] BuildFuelSteps()
+        {
+            return Array.Empty<(string Name, Func<CancellationToken, Task<string>> Run)>();
+        }
+
+        private void PrepareSingleBoardReport(string boardName)
+        {
+            var baseDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "project");
+            Directory.CreateDirectory(baseDir);
+            var fileName = $"{boardName}_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+            _singleBoardAutoTestReportPath = System.IO.Path.Combine(baseDir, fileName);
+        }
+
+        private void AppendSingleBoardReportLine(string message)
+        {
+            if (string.IsNullOrWhiteSpace(_singleBoardAutoTestReportPath))
+            {
+                return;
+            }
+
+            var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} | {message}";
+            try
+            {
+                File.AppendAllText(_singleBoardAutoTestReportPath, line + Environment.NewLine);
+            }
+            catch
+            {
+            }
+        }
+
+        private static bool IsPass(string result)
+        {
+            return string.Equals(result?.Trim(), "合格", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string NormalizeResult(string result)
+        {
+            var r = result?.Trim();
+            return string.IsNullOrEmpty(r) ? "未知" : r;
+        }
 
         #region Window Event Handlers
 

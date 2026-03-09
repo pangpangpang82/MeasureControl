@@ -42,8 +42,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private IDmmApi _dmm;
 
         private readonly IPxiChassisService _pxiChassisService;
+        private readonly ISingleBoardTestContextService _singleBoardTestContext;
         private IJy7131Api _jy7131;
         private bool _isRelay485On;
+
+        private const string TestItemName = "电源阻抗测试";
 
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
@@ -65,14 +68,46 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _previousTestTime = "--";
         private string _previousTestResult = "--";
 
-        public HC_6_1ViewModel(IPxiChassisService pxiChassisService)
+        public HC_6_1ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
         {
             _pxiChassisService = pxiChassisService;
+            _singleBoardTestContext = singleBoardTestContext;
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
             Measure14Command = new DelegateCommand(async () => await OnMeasure14Async(), () => CanMeasure14);
             Measure182Command = new DelegateCommand(async () => await OnMeasure182Async(), () => CanMeasure182);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
+
+            LoadLastTestResultFromProject();
+        }
+
+        private void LoadLastTestResultFromProject()
+        {
+            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
+            if (testItemNode != null)
+            {
+                if (!string.IsNullOrWhiteSpace(testItemNode.LastTestTime))
+                {
+                    _lastTestTime = testItemNode.LastTestTime;
+                    RaisePropertyChanged(nameof(LastTestTime));
+                }
+
+                if (!string.IsNullOrWhiteSpace(testItemNode.LastTestResult))
+                {
+                    _lastTestResult = testItemNode.LastTestResult;
+                    RaisePropertyChanged(nameof(LastTestResult));
+                }
+            }
+        }
+
+        private void SaveTestResultToProject()
+        {
+            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
+            if (testItemNode != null)
+            {
+                testItemNode.LastTestTime = LastTestTime;
+                testItemNode.LastTestResult = LastTestResult;
+            }
         }
 
         /// <summary>
@@ -246,6 +281,33 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public bool CanMeasure14 => IsManualTestRunning && CanMeasure && !_measured14;
         public bool CanMeasure182 => IsManualTestRunning && CanMeasure && !_measured182;
 
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning)
+            {
+                await StopAutoTestAsync().ConfigureAwait(false);
+            }
+
+            if (IsManualTestRunning)
+            {
+                await StopManualTestAsync().ConfigureAwait(false);
+            }
+
+            _autoCts?.Cancel();
+            _autoCts?.Dispose();
+            _autoCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                return await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
+
         /// <summary>
         /// 自动测试流程
         /// 自动依次测量两个通道的电阻并判断结果
@@ -282,31 +344,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                _dmm ??= new DmmSocketApi();
-                await _dmm.ConnectAsync(DmmIpAddress, _autoCts.Token).ConfigureAwait(false);
-                Log("万用表连接成功");
-
-                // 自动完成两路测量（测完矩阵立刻断开，逻辑已在 MeasureResistanceAsync 的 finally 中处理）
-                await MeasureResistanceAsync(
-                        name: "通道1(1-4)",
-                        connect1: ("I1", "O8", MatrixSlotResistanceCh1),
-                        connect2: ("I4", "O2", MatrixSlotCommon),
-                        afterSetText: (v, text) => { _resistance14 = v; Resistance14Text = text; },
-                        cancellationToken: _autoCts.Token)
-                    .ConfigureAwait(false);
-
-                // 给继电器/采样一点间隔，避免读数抖动
-                await Task.Delay(120, _autoCts.Token).ConfigureAwait(false);
-
-                await MeasureResistanceAsync(
-                        name: "通道2(1-82)",
-                        connect1: ("I1", "O9", MatrixSlotResistanceCh2),
-                        connect2: ("I4", "O2", MatrixSlotCommon),
-                        afterSetText: (v, text) => { _resistance182 = v; Resistance182Text = text; },
-                        cancellationToken: _autoCts.Token)
-                    .ConfigureAwait(false);
-
-                await FinalizeIfBothMeasuredAsync(stopAfterFinalize: true, isAutoMode: true).ConfigureAwait(false);
+                _ = await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -317,6 +355,84 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 Log($"自动测试异常: {ex.Message}");
                 await StopAutoTestAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
+
+        private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
+        {
+            IsAutoTestRunning = true;
+            CanMeasure = false;
+
+            _resistance14 = null;
+            _resistance182 = null;
+            Resistance14Text = "--";
+            Resistance182Text = "--";
+
+            Log("开始自动测试");
+            Log($"判据: R14>{PassThresholdOhm:0}Ω && R182>{PassThresholdOhm:0}Ω");
+            Log($"连接万用表 {DmmIpAddress} ...");
+
+            try
+            {
+                _dmm ??= new DmmSocketApi();
+                await _dmm.ConnectAsync(DmmIpAddress, cancellationToken).ConfigureAwait(false);
+                Log("万用表连接成功");
+
+                var ok14 = await MeasureResistanceAsync(
+                        name: "通道1(1-4)",
+                        connect1: ("I1", "O8", MatrixSlotResistanceCh1),
+                        connect2: ("I4", "O2", MatrixSlotCommon),
+                        afterSetText: (v, text) => { _resistance14 = v; Resistance14Text = text; },
+                        cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (!ok14)
+                {
+                    Log("通道1(1-4): 测量失败");
+                    await StopAutoTestAsync().ConfigureAwait(false);
+                    return "不合格";
+                }
+
+                await Task.Delay(120, cancellationToken).ConfigureAwait(false);
+
+                var ok182 = await MeasureResistanceAsync(
+                        name: "通道2(1-82)",
+                        connect1: ("I1", "O9", MatrixSlotResistanceCh2),
+                        connect2: ("I4", "O2", MatrixSlotCommon),
+                        afterSetText: (v, text) => { _resistance182 = v; Resistance182Text = text; },
+                        cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (!ok182)
+                {
+                    Log("通道2(1-82): 测量失败");
+                    await StopAutoTestAsync().ConfigureAwait(false);
+                    return "不合格";
+                }
+
+                var pass14 = _resistance14 > PassThresholdOhm;
+                var pass182 = _resistance182 > PassThresholdOhm;
+                var pass = pass14 && pass182;
+
+                await FinalizeIfBothMeasuredAsync(stopAfterFinalize: true, isAutoMode: true).ConfigureAwait(false);
+                return pass ? "合格" : "不合格";
+            }
+            catch (OperationCanceledException)
+            {
+                Log("自动测试已停止");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"自动测试异常: {ex.Message}");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
             }
         }
 
@@ -600,7 +716,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                 var ok1 = await matrix.ConnectNodesAsync(connect1.In, connect1.Out, connect1.Slot, MatrixIpAddress).ConfigureAwait(false);
                 var ok2 = await matrix.ConnectNodesAsync(connect2.In, connect2.Out, connect2.Slot, MatrixIpAddress).ConfigureAwait(false);
-                Log($"{name}: 矩阵连接 {(ok1 && ok2 ? "OK" : "FAIL")} - {connect1.In}-{connect1.Out}(slot{connect1.Slot}), {connect2.In}-{connect2.Out}(slot{connect2.Slot})");
+                Log($"{name}: 矩阵连接 {(ok1 && ok2 ? "成功" : "失败")} - {connect1.In}-{connect1.Out}(slot{connect1.Slot}), {connect2.In}-{connect2.Out}(slot{connect2.Slot})");
                 if (!ok1 || !ok2)
                 {
                     afterSetText(null, "--");
@@ -735,14 +851,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var pass = pass14 && pass182;
 
             Log($"判据: R14>{PassThresholdOhm:0}Ω && R182>{PassThresholdOhm:0}Ω");
-            Log($"R14={Resistance14Text} => {(pass14 ? "OK" : "NG")}");
-            Log($"R182={Resistance182Text} => {(pass182 ? "OK" : "NG")}");
+            Log($"R14={Resistance14Text} => {(pass14 ? "合格" : "不合格")}");
+            Log($"R182={Resistance182Text} => {(pass182 ? "合格" : "不合格")}");
 
             PreviousTestTime = LastTestTime;
             PreviousTestResult = LastTestResult;
             LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             LastTestResult = pass ? "合格" : "不合格";
             Log($"最终结果: {LastTestResult}");
+
+            SaveTestResultToProject();
 
             if (!stopAfterFinalize)
             {
