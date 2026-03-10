@@ -610,7 +610,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!_jy7131.IsConnected)
                 await _jy7131.ConnectAsync(cancellationToken).ConfigureAwait(false);
 
-            await _jy7131.SetOutputModeAsync(Jy7131OutputMode.PushPull, cancellationToken).ConfigureAwait(false);
+            await _jy7131.SetOutputModeAsync(Jy7131OutputMode.Sinking, cancellationToken).ConfigureAwait(false);
 
             if (!_jy7131.IsRunning)
             {
@@ -622,14 +622,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task ApplyGroundingAsync(CancellationToken cancellationToken)
         {
             uint mask = 0;
-            for (var doIndex = 1; doIndex <= 25; doIndex++)
+            for (var doIndex = 1; doIndex <= 27; doIndex++)
                 mask |= (1u << doIndex);
-            mask |= (1u << 27);
 
             await _jy7131.WriteDoBitmaskAsync(mask, cancellationToken).ConfigureAwait(false);
 
             await Task.Delay(RelaySettleDelayMs, cancellationToken).ConfigureAwait(false);
-            Log("已完成7131输出配置: DO1~25=1, DO26=0, DO27=1");
+            Log("已完成7131输出配置: DO1~25=1, DO26=1, DO27=1");
         }
 
         private async Task EnsureArincRxAsync(CancellationToken cancellationToken)
