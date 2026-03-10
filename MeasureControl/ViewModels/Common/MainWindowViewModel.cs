@@ -1519,6 +1519,10 @@ namespace MeasureControl.ViewModels.Common
         {
             TestProgressDialog progressDialog = null;
             var progressVm = new TestProgressDialogViewModel();
+            Window ownerWindow = null;
+            EventHandler ownerStateChangedHandler = null;
+            EventHandler ownerActivatedHandler = null;
+            EventHandler ownerDeactivatedHandler = null;
             try
             {
                 // 设置运行状态
@@ -1538,12 +1542,54 @@ namespace MeasureControl.ViewModels.Common
                 UpdateTestTaskHighlighting();
 
                 // 显示配置进度弹窗
+                ownerWindow = Application.Current?.MainWindow;
                 progressDialog = new TestProgressDialog
                 {
-                    Owner = Application.Current?.MainWindow,
+                    Owner = ownerWindow,
                     DataContext = progressVm
                 };
                 progressVm.HeaderText = "配置中";
+
+                if (ownerWindow != null)
+                {
+                    progressDialog.Topmost = ownerWindow.WindowState != WindowState.Minimized;
+
+                    ownerStateChangedHandler = (_, __) =>
+                    {
+                        if (progressDialog == null || ownerWindow == null)
+                        {
+                            return;
+                        }
+
+                        progressDialog.Topmost = ownerWindow.WindowState != WindowState.Minimized;
+                    };
+                    ownerActivatedHandler = (_, __) =>
+                    {
+                        if (progressDialog == null || ownerWindow == null)
+                        {
+                            return;
+                        }
+
+                        if (ownerWindow.WindowState != WindowState.Minimized)
+                        {
+                            progressDialog.Topmost = true;
+                        }
+                    };
+                    ownerDeactivatedHandler = (_, __) =>
+                    {
+                        if (progressDialog == null)
+                        {
+                            return;
+                        }
+
+                        progressDialog.Topmost = false;
+                    };
+
+                    ownerWindow.StateChanged += ownerStateChangedHandler;
+                    ownerWindow.Activated += ownerActivatedHandler;
+                    ownerWindow.Deactivated += ownerDeactivatedHandler;
+                }
+
                 progressDialog.Show();
 
                 // 获取实际的设备对象并启动
@@ -1590,6 +1636,28 @@ namespace MeasureControl.ViewModels.Common
                 // 完成或失败后关闭进度窗口
                 if (progressDialog != null)
                 {
+                    try
+                    {
+                        if (ownerWindow != null)
+                        {
+                            if (ownerStateChangedHandler != null)
+                            {
+                                ownerWindow.StateChanged -= ownerStateChangedHandler;
+                            }
+                            if (ownerActivatedHandler != null)
+                            {
+                                ownerWindow.Activated -= ownerActivatedHandler;
+                            }
+                            if (ownerDeactivatedHandler != null)
+                            {
+                                ownerWindow.Deactivated -= ownerDeactivatedHandler;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                    }
+
                     progressDialog.Close();
                 }
             }

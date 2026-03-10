@@ -1,4 +1,4 @@
-using MeasureControl.Services.HardwareApis;
+﻿using MeasureControl.Services.HardwareApis;
 using MeasureControl.Simulations.PT500;
 using Prism.Commands;
 using Prism.Mvvm;
@@ -287,6 +287,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 LastTestResult = "--";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：开始打开设备");
 
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                }
+                catch { }
+
                 await EnsurePowerSupplyConnectedAsync(CancellationToken.None);
                 await _arinc.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
@@ -355,6 +363,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts?.Dispose();
                 _autoTestCts = new CancellationTokenSource();
                 var token = _autoTestCts.Token;
+
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(token);
+                }
+                catch { }
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动");
                 await RunAutoTestAsync(token);

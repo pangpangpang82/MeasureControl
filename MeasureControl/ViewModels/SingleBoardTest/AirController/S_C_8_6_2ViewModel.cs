@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.Generic;
@@ -334,6 +334,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 LastTestResult = "--";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：开始打开设备");
 
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                }
+                catch { }
+
                 _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
                 _simulation.GetCurrentResistorGear = () => ResistorGear;
                 _simulation.GetCurrentAmbientTemperatureSelection = () => AmbientTemperatureSelection;
@@ -401,6 +409,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts?.Dispose();
                 _autoTestCts = new CancellationTokenSource();
                 var token = _autoTestCts.Token;
+
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(token);
+                }
+                catch { }
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动");
                 await RunAutoTestAsync(token);
@@ -972,22 +988,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 var targetOhm = GetTargetResistanceOhm(ResistorGear);
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：接入电阻，档位={ResistorGear}，目标={targetOhm.ToString("F2", CultureInfo.InvariantCulture)}Ω");
 
-                var relayOk = await _resistorDriver.SetRelayStateAsync("RO0", true, false);
+                var relayOk = await _resistorDriver.SetRelayStateAsync("RO1", true, false);
                 if (!relayOk)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012设置RO0继电器失败(通路闭合/短路断开)");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012设置RO1继电器失败(通路闭合/短路断开)");
                     return;
                 }
 
-                var writeOk = await _resistorDriver.WriteChannelAsync("RO0", targetOhm);
+                var writeOk = await _resistorDriver.WriteChannelAsync("RO1", targetOhm);
                 if (!writeOk)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012写入RO0失败");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012写入RO1失败");
                     return;
                 }
 
                 await Task.Delay(50);
-                var readBack = await _resistorDriver.ReadChannelAsync("RO0");
+                var readBack = await _resistorDriver.ReadChannelAsync("RO1");
                 MeasuredResistanceValueText = $"{readBack.ToString("F5", CultureInfo.InvariantCulture)}Ω";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡读回电阻：{MeasuredResistanceValueText}");
             }

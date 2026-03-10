@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -777,6 +777,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _opCts = new CancellationTokenSource();
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动(仿真模式)：开始打开设备");
 
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                }
+                catch { }
+
                 // 仿真模式：固定占用产品侧通道
                 _simulation.SimProductRxChannelIndex = 4;
                 _simulation.SimProductTxChannelIndex = 5;
@@ -885,6 +893,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _opCts?.Cancel();
                 _opCts?.Dispose();
                 _opCts = new CancellationTokenSource();
+
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(_opCts.Token);
+                }
+                catch { }
 
                 // 自动测试使用固定通道：TX=429_CH0, RX=429_CH1
                 const string autoTxChannel = "429_CH0";

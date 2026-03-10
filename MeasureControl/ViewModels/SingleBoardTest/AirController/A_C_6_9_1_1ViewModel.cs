@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 
 using Prism.Mvvm;
 
@@ -58,7 +58,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-        private const string AoChannel = "AO1";
+        private const string AoChannel = "AO5";
 
 
 
@@ -336,7 +336,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     var token = CancellationToken.None;
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 设置档位{gearIndex}：AO1={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 设置档位{gearIndex}：AO5={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
 
 
 
@@ -1754,6 +1754,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：打开ARINC429");
 
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                    }
+                    catch { }
+
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试已启动");
@@ -2026,6 +2034,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     var token = _autoTestCts.Token;
 
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(token);
+                    }
+                    catch { }
+
 
 
                     _simulation.IsRealProduct = false;
@@ -2276,7 +2292,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：设置AO1={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：设置AO5={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
 
             var okVoltage = await OutputVoltageAsync(voltageV, token);
 
@@ -2448,7 +2464,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动档位{gearIndex}：设置AO1={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动档位{gearIndex}：设置AO5={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
 
                     var okVoltage = await OutputVoltageAsync(voltageV, token);
 
