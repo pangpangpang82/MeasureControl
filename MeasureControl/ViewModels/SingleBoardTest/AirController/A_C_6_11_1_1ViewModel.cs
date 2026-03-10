@@ -51,8 +51,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _exitAtpRxDataText;
 
         private string _angleTestTxChannel;
-        private string _angleTestRxChannel;
-        private string _angleTestRxDataText;
 
         private string _angleTelemetryRxChannel;
         private string _angleTelemetryValueText;
@@ -86,8 +84,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _exitAtpRxChannel = null;
 
             _angleTestTxChannel = null;
-            _angleTestRxChannel = null;
-            _angleTestRxDataText = "--";
 
             _angleTelemetryRxChannel = null;
 
@@ -190,18 +186,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _angleTestTxChannel;
             set => SetProperty(ref _angleTestTxChannel, value);
-        }
-
-        public string AngleTestRxChannel
-        {
-            get => _angleTestRxChannel;
-            set => SetProperty(ref _angleTestRxChannel, value);
-        }
-
-        public string AngleTestRxDataText
-        {
-            get => _angleTestRxDataText;
-            private set => SetProperty(ref _angleTestRxDataText, value);
         }
 
         public string AngleTelemetryRxChannel
@@ -361,7 +345,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     AngleTelemetryRxDataText = "--";
                     EnterAtpRxDataText = "--";
                     ExitAtpRxDataText = "--";
-                    AngleTestRxDataText = "--";
                     IsInAtp = false;
                     LastTestTime = "--";
                     LastTestResult = "--";
@@ -580,16 +563,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
                 try
                 {
-                    AngleTestRxDataText = "--";
-
                     var token = CancellationToken.None;
-                    await _simulation.ClearRxFifoAsync(AngleTestRxChannel);
-                    await Task.Delay(20, token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_OFVTRV_ANGLE：TX={AngleTestTxChannel}, RX={AngleTestRxChannel}, Data={FormatData(AbOfvtrvAngle8)}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_OFVTRV_ANGLE：TX={AngleTestTxChannel}, Data={FormatData(AbOfvtrvAngle8)}");
                     await _simulation.SendBenchCommandOnlyAsync(AngleTestTxChannel, AbOfvtrvAngle8, msg => AddLog(msg), token);
-
-                    AngleTestRxDataText = "已发送";
                 }
                 finally
                 {
@@ -1019,7 +996,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private void EnsureManualArincChannels()
         {
             var tx = FirstNonEmpty(EnterAtpTxChannel, ExitAtpTxChannel, AngleTestTxChannel, TestTxChannel);
-            var rx = FirstNonEmpty(EnterAtpRxChannel, ExitAtpRxChannel, AngleTestRxChannel, AngleTelemetryRxChannel, TestRxChannel);
+            var rx = FirstNonEmpty(EnterAtpRxChannel, ExitAtpRxChannel, AngleTelemetryRxChannel, TestRxChannel);
 
             tx ??= "CH0";
             rx ??= "CH1";
@@ -1033,7 +1010,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             ExitAtpRxChannel ??= rx;
 
             AngleTestTxChannel ??= tx;
-            AngleTestRxChannel ??= rx;
             AngleTelemetryRxChannel ??= rx;
         }
 
