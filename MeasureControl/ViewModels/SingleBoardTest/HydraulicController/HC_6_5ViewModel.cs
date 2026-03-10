@@ -737,7 +737,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private bool IsExpectedLabel(byte label, byte expected)
         {
-            return label == expected || label == _arinc.ReverseLabel(expected);
+            return _arinc.ReverseLabel(label) == expected;
         }
 
         private double? DecodeValue(uint data19)

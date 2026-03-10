@@ -583,7 +583,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private bool IsExpectedLabel(byte label, byte expected)
         {
-            return label == expected || (_arinc != null && label == _arinc.ReverseLabel(expected));
+            return _arinc != null && _arinc.ReverseLabel(label) == expected;
         }
 
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)

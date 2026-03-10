@@ -70,6 +70,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int Relay485ChannelIndex = 6;
         private const byte TempChannel112To114Sdi = 2;
         private const byte TempChannel116To118Sdi = 3;
+        private const byte TempSsmNormal = 3;
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _relayLock = new SemaphoreSlim(1, 1);
@@ -737,14 +738,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     {
                         foreach (var w in words)
                         {
-                            // 奇偶校验不通过的数据直接丢弃
-                            if (!_arinc.VerifyOddParity(w.Data429))
-                                continue;
-
-                            _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out _);
+                            _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out var ssm);
 
                             // 只处理温度 Label（175(oct)）
                             if (!IsExpectedLabel(label))
+                                continue;
+
+                            if (ssm != TempSsmNormal)
                                 continue;
 
                             var v = DecodeTemp(data19);
@@ -837,7 +837,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private bool IsExpectedLabel(byte label)
         {
-            return label == TempLabelDec || label == _arinc.ReverseLabel(TempLabelDec);
+            return _arinc.ReverseLabel(label) == TempLabelDec;
         }
 
         /// <summary>
@@ -1200,7 +1200,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (device == null)
                 throw new InvalidOperationException("未找到ACTS6010(程控电阻)板卡");
 
-            _res = new ACTS6010Driver(device, logicalId: 0);
+            _res = new ACTS6010Driver(device, logicalId: 1);
             var ok = await _res.ConnectAsync().ConfigureAwait(false);
             if (!ok)
                 throw new InvalidOperationException("ACTS6010连接失败");

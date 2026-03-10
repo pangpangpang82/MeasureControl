@@ -596,7 +596,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                Log($"{title}: 设置AO输出 AO0/AO1/AO2={aoVoltage:0.###}V");
+                var halfVoltage = aoVoltage / 2.0;
+                Log($"{title}: 设置差分AO输出 SYS1(AO0={halfVoltage:0.###}V,AO1={-halfVoltage:0.###}V) SYS2(AO2={halfVoltage:0.###}V,AO3={-halfVoltage:0.###}V) SYS3(AO4={halfVoltage:0.###}V,AO5={-halfVoltage:0.###}V)");
                 await SetAo012Async(aoVoltage, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(AoSettleMs, cancellationToken).ConfigureAwait(false);
                 _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -615,7 +616,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     if (_mtx532 != null && _mtx532.IsConnected)
                     {
                         await SetAo012Async(0.0, CancellationToken.None).ConfigureAwait(false);
-                        Log($"{title}: 测量结束，AO0/AO1/AO2已停止输出(0V)");
+                        Log($"{title}: 测量结束，AO0~AO5差分输出已停止(0V)");
                     }
                 }
                 catch (Exception ex)
@@ -699,7 +700,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private bool IsExpectedLabel(byte label)
         {
-            return label == PressLabelDec || label == _arinc.ReverseLabel(PressLabelDec);
+            return _arinc.ReverseLabel(label) == PressLabelDec;
         }
 
         private double DecodePressure(uint data19)
@@ -942,7 +943,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var slot = device is PxiDeviceBase pxi ? pxi.SlotIndex : 7;
             _mtx532 = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 20000.0 }, slotNumber: slot);
 
-            await _mtx532.ConnectAsync(cancellationToken).ConfigureAwait(false);
+            await _mtx532.ConnectAsync(cancellationToken, new[] { "AO0", "AO1", "AO2", "AO3", "AO4", "AO5" }).ConfigureAwait(false);
             await SetAo012Async(0.0, cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
             await WaitForMtx532ReadyAsync(cancellationToken).ConfigureAwait(false);
@@ -1113,12 +1114,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (_mtx532 == null || !_mtx532.IsConnected)
                 throw new InvalidOperationException("MTX532未连接");
 
-            // Note: Mtx532Api NormalizeAoChannel expects AO1..AO32 and maps to AO0..AO31.
+            var halfVoltage = voltageV / 2.0;
             await _mtx532.WriteOnceDcAsync(new Dictionary<string, double>
             {
-                ["AO1"] = voltageV,
-                ["AO2"] = voltageV,
-                ["AO3"] = voltageV
+                ["AO0"] = halfVoltage,
+                ["AO1"] = -halfVoltage,
+                ["AO2"] = halfVoltage,
+                ["AO3"] = -halfVoltage,
+                ["AO4"] = halfVoltage,
+                ["AO5"] = -halfVoltage
             }, cancellationToken).ConfigureAwait(false);
         }
 

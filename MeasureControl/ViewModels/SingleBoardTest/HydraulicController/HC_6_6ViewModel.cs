@@ -863,7 +863,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private bool IsExpectedLabel(byte label)
         {
-            return label == QtyLabelDec;
+            return _arinc.ReverseLabel(label) == QtyLabelDec;
         }
 
         private double? DecodeQuantity(uint data19)

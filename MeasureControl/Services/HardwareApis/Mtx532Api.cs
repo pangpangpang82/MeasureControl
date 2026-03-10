@@ -54,7 +54,7 @@ namespace MeasureControl.Services.HardwareApis
         bool IsOutputRunning { get; }  // 是否正在输出
         bool IsOutputPrepared { get; } // 是否已完成输出前置配置，可尝试开始输出
 
-        Task ConnectAsync(CancellationToken cancellationToken = default);  // 连接到板卡
+        Task ConnectAsync(CancellationToken cancellationToken = default, IEnumerable<string> enabledAoChannels = null);  // 连接到板卡
         Task DisconnectAsync(CancellationToken cancellationToken = default);  // 断开板卡连接
 
         Task SetSampleRateAsync(double sampleRateHz, CancellationToken cancellationToken = default);
@@ -76,7 +76,7 @@ namespace MeasureControl.Services.HardwareApis
 
     /// <summary>
     /// MTX532 模拟量输出板卡实现类
-    /// 通道命名：AO1-AO32（外部）对应 AO0-AO31（内部驱动）
+    /// 通道命名：AO0-AO31
     /// </summary>
     public sealed class Mtx532Api : IMtx532Api
     {
@@ -108,7 +108,7 @@ namespace MeasureControl.Services.HardwareApis
         /// <summary>
         /// 连接到 MTX532 模拟量输出板卡
         /// </summary>
-        public async Task ConnectAsync(CancellationToken cancellationToken = default)
+        public async Task ConnectAsync(CancellationToken cancellationToken = default, IEnumerable<string> enabledAoChannels = null)
         {
             await _lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -117,6 +117,7 @@ namespace MeasureControl.Services.HardwareApis
                     return;
 
                 _driver = new MTX532Driver(_device, suppressNativeDialogs: _options.SuppressNativeDialogs, slotNumberOverride: _slotNumber);
+                _driver.SetEnabledChannels(enabledAoChannels);
                 var ok = await _driver.ConnectAsync().ConfigureAwait(false);
                 if (!ok)
                     throw new InvalidOperationException("MTX532 connect returned false");
@@ -508,7 +509,7 @@ namespace MeasureControl.Services.HardwareApis
             if (driver == null || !driver.IsConnected)
                 return;
 
-            for (int i = 1; i <= 32; i++)
+            for (int i = 0; i < 32; i++)
             {
                 var ch = NormalizeAoChannel($"AO{i}");
                 var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -528,7 +529,7 @@ namespace MeasureControl.Services.HardwareApis
             if (driver == null || !driver.IsConnected)
                 return;
 
-            for (int i = 1; i <= 32; i++)
+            for (int i = 0; i < 32; i++)
             {
                 var ch = NormalizeAoChannel($"AO{i}");
                 var cfg = new Mtx532ChannelConfig
@@ -547,7 +548,7 @@ namespace MeasureControl.Services.HardwareApis
         }
 
         /// <summary>
-        /// 将外部通道名（AO1-AO32）转换为内部驱动通道名（AO0-AO31）
+        /// 将通道名标准化为 AO0-AO31
         /// </summary>
         private static string NormalizeAoChannel(string channel)
         {
@@ -562,10 +563,10 @@ namespace MeasureControl.Services.HardwareApis
             if (!int.TryParse(num, NumberStyles.Integer, CultureInfo.InvariantCulture, out var idx))
                 throw new ArgumentException("Invalid AO channel index", nameof(channel));
 
-            if (idx < 1 || idx > 32)
-                throw new ArgumentOutOfRangeException(nameof(channel), "AO channel index must be 1..32");
+            if (idx < 0 || idx > 31)
+                throw new ArgumentOutOfRangeException(nameof(channel), "AO channel index must be 0..31");
 
-            return $"AO{idx - 1}";
+            return $"AO{idx}";
         }
 
         public async ValueTask DisposeAsync()

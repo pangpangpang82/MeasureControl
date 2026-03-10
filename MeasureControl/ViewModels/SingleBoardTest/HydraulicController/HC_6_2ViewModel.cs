@@ -682,17 +682,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private bool IsExpectedLabel(uint rawWord, byte expected)
         {
             _arinc.ParseRawWord(rawWord, out var label, out _, out _, out _);
-            if (label == expected || label == _arinc.ReverseLabel(expected))
+            var normalizedLabel = _arinc.ReverseLabel(label);
+            if (normalizedLabel == expected)
                 return true;
 
             if (expected == Label15V)
-                return label == Label15VAlternateDec || label == _arinc.ReverseLabel(Label15VAlternateDec);
+                return normalizedLabel == Label15VAlternateDec;
 
             if (expected == LabelM15V)
-                return label == LabelM15VAlternateDec || label == _arinc.ReverseLabel(LabelM15VAlternateDec);
+                return normalizedLabel == LabelM15VAlternateDec;
 
             if (expected == Label5V)
-                return label == Label5VAlternateDec || label == _arinc.ReverseLabel(Label5VAlternateDec);
+                return normalizedLabel == Label5VAlternateDec;
 
             return false;
         }
