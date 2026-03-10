@@ -47,7 +47,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _enterAtpRxDataText;
         private string _exitAtpRxDataText;
 
-        private string _rxConfirmText;
         private string _rxDataText;
         private string _lastTestTime;
         private string _lastTestResult;
@@ -72,7 +71,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _exitAtpTxChannel = _testTxChannel;
             _exitAtpRxChannel = _testRxChannel;
 
-            RxConfirmText = "--";
             RxDataText = "--";
             EnterAtpRxDataText = "--";
             ExitAtpRxDataText = "--";
@@ -134,12 +132,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _arincRate;
             set => SetProperty(ref _arincRate, value);
-        }
-
-        public string RxConfirmText
-        {
-            get => _rxConfirmText;
-            private set => SetProperty(ref _rxConfirmText, value);
         }
 
         public string RxDataText
@@ -395,7 +387,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 try
                 {
                     IsManualTestRunning = true;
-                    RxConfirmText = "--";
                     RxDataText = "--";
                     EnterAtpRxDataText = "--";
                     ExitAtpRxDataText = "--";
@@ -481,8 +472,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     var token = CancellationToken.None;
 
-                    RxConfirmText = "--";
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_A429TX0_TRANSMIT：{FormatBytes(AbA429Tx0TransmitCommand8)}");
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbA429Tx0TransmitCommand8, msg => AddLog(msg), token);
 
@@ -542,7 +531,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 try
                 {
                     IsAutoTestRunning = true;
-                    RxConfirmText = "--";
                     RxDataText = "--";
                     EnterAtpRxDataText = "--";
                     ExitAtpRxDataText = "--";
@@ -594,7 +582,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤2：发送AB_A429TX0_TRANSMIT");
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
-                    RxConfirmText = "--";
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbA429Tx0TransmitCommand8, msg => AddLog(msg), token);
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：等待接收数据(LABEL50/51)");

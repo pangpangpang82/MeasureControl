@@ -51,8 +51,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _exitAtpRxDataText;
 
         private string _fingerTestTxChannel;
-        private string _fingerTestRxChannel;
-        private string _fingerTestRxDataText;
 
         private string _fingerTelemetryRxChannel;
         private string _fingerTelemetryValueText;
@@ -86,8 +84,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _exitAtpRxChannel = null;
 
             _fingerTestTxChannel = null;
-            _fingerTestRxChannel = null;
-            _fingerTestRxDataText = "--";
 
             _fingerTelemetryRxChannel = null;
 
@@ -228,18 +224,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             set => SetProperty(ref _fingerTestTxChannel, value);
         }
 
-        public string FingerTestRxChannel
-        {
-            get => _fingerTestRxChannel;
-            set => SetProperty(ref _fingerTestRxChannel, value);
-        }
-
-        public string FingerTestRxDataText
-        {
-            get => _fingerTestRxDataText;
-            private set => SetProperty(ref _fingerTestRxDataText, value);
-        }
-
         public string FingerTelemetryRxChannel
         {
             get => _fingerTelemetryRxChannel;
@@ -357,7 +341,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     FingerTelemetryValueText = "--";
                     FingerTelemetryRxDataText = "--";
-                    FingerTestRxDataText = "--";
                     EnterAtpRxDataText = "--";
                     ExitAtpRxDataText = "--";
                     IsInAtp = false;
@@ -572,16 +555,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
                 try
                 {
-                    FingerTestRxDataText = "--";
-
                     var token = CancellationToken.None;
-                    await _simulation.ClearRxFifoAsync(FingerTestRxChannel);
-                    await Task.Delay(20, token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_OFVTRV_FINGER：TX={FingerTestTxChannel}, RX={FingerTestRxChannel}, Data={FormatData(AbOfvtrvFinger8)}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_OFVTRV_FINGER：TX={FingerTestTxChannel}, Data={FormatData(AbOfvtrvFinger8)}");
                     await _simulation.SendBenchCommandOnlyAsync(FingerTestTxChannel, AbOfvtrvFinger8, msg => AddLog(msg), token);
-
-                    FingerTestRxDataText = "已发送";
                 }
                 finally
                 {
@@ -1015,7 +992,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private void EnsureManualArincChannels()
         {
             var tx = FirstNonEmpty(EnterAtpTxChannel, ExitAtpTxChannel, FingerTestTxChannel, TestTxChannel);
-            var rx = FirstNonEmpty(EnterAtpRxChannel, ExitAtpRxChannel, FingerTestRxChannel, FingerTelemetryRxChannel, TestRxChannel);
+            var rx = FirstNonEmpty(EnterAtpRxChannel, ExitAtpRxChannel, FingerTelemetryRxChannel, TestRxChannel);
 
             tx ??= "CH0";
             rx ??= "CH1";
@@ -1029,7 +1006,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             ExitAtpRxChannel ??= rx;
 
             FingerTestTxChannel ??= tx;
-            FingerTestRxChannel ??= rx;
             FingerTelemetryRxChannel ??= rx;
         }
 
