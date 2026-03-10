@@ -57,12 +57,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
                         { "8.3.2 S安全通道ARINC429接收通道1测试", () => new S_C_8_3_2View() },
                         { "8.3.3 S安全通道ARINC429接收通道2测试", () => new S_C_8_3_3View() },
+                        { "8.10.1 S通道OFV/TRV直流电机驱动模块速度控制测试", () => new S_C_8_10_1View() },
+                        { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
                         { "6.2.1A控制通道供电测试", () => new AirSimpleSequenceView("6.2.1A控制通道供电测试") },
+                        { "5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
                         { "6.3 5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
+                        { "A控制通道功率板供电测试", () => new PowerBoardSupplyTestView("A", "A控制通道功率板供电测试") },
                         { "7.2.1A控制通道功率板供电测试", () => new PowerBoardSupplyTestView("A", "7.2.1A控制通道功率板供电测试") },
+                        { "B控制通道功率板供电测试", () => new PowerBoardSupplyTestView("B", "B控制通道功率板供电测试") },
                         { "7.2.2B控制通道功率板供电测试", () => new PowerBoardSupplyTestView("B", "7.2.2B控制通道功率板供电测试") },
+                        { "CAN发送测试", () => new CanCommTestView() },
                         { "6.6.1CAN发送测试", () => new CanCommTestView() },
+                        { "CAN接收测试", () => new CanReceiveTestView() },
                         { "6.6.2CAN接收测试", () => new CanReceiveTestView() },
+                        { "安全板CAN测试", () => new AirSimpleSequenceView("安全板CAN测试") },
                         { "8.5.1安全通道CAN发送测试", () => new S_C_8_5_1View() },
                         { "8.5.2安全通道CAN接收测试", () => new S_C_8_5_2View() },
                         { "8.6.1 S安全通道WAITS1传感器测试", () => new S_C_8_6_1View() },
@@ -79,6 +87,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "6.10.1控制通道BMPS压力传感器测试", () => new A_C_6_10_1_1View() },
                         { "6.10.2A控制通道BPS传感器测试", () => new A_C_6_10_2_1View() },
                         { "6.10.3控制通道WAIPSI1传感器测试", () => new A_C_6_10_3_1View() },
+                        { "6.10.4控制通道WAIPSI2传感器测试", () => new A_C_6_10_4_1View() },
                         { "6.10.5控制通道PDPS传感器测试", () => new A_C_6_10_5_1View() },
                         { "6.10.6A控制通道PIFS传感器测试", () => new A_C_6_10_6_1View() },
                         { "6.13.1控制通道压力传感器采集测试", () => new A_C_6_13_1_1View() },
@@ -186,6 +195,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "8.7.1S安全通道FWD_AVENTS1传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t b) 每挡发送S_FWDAVENTS_MEA01(15 02 01 01 00 00 00 00)，接收温度遥测(15 02 01 02 .. .. .. ..)；\r\n\t c) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
                         { "8.7.2S安全通道FWD_AVENTS2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t b) 每挡发送S_FWDAVENTS_MEA02(15 02 02 01 00 00 00 00)，接收温度遥测(15 02 02 02 .. .. .. ..)；\r\n\t c) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
                         { "8.7.3S安全通道AFT_AVENTS传感器测试", "\t a) 测试J55、J56；\r\n\t b) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t c) 每挡发送S_AFTAVENTS_MEA(15 02 03 01 00 00 00 00)，接收温度遥测(15 02 03 02 .. .. .. ..)；\r\n\t d) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                        { "6.10.4控制通道WAIPSI2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：0.25V、5.00V、9.75V；\r\n\t b) 每挡发送压力测试指令(07 03 04 01 00 00 00 00)，接收压力遥测(07 03 04 02 .. .. .. ..)；\r\n\t c) 1挡压力范围[-3.7473, -1.5305]psia，2挡[46.3916, 48.6084]psia，3挡[96.5305, 98.7473]psia。" },
                     }
                 }
             };
@@ -378,6 +388,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.10.1控制通道BMPS压力传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.2A控制通道BPS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.3控制通道WAIPSI1传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.10.4控制通道WAIPSI2传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.5控制通道PDPS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.6A控制通道PIFS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.13.1控制通道压力传感器采集测试"));
@@ -405,6 +416,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("8.3.1 S安全通道ARINC429发送通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.2 S安全通道ARINC429接收通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.3 S安全通道ARINC429接收通道2测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.10.1 S通道OFV/TRV直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.14.1控制通道GND/OC离散输入通道输入测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.1.1GND/OC型离散输出通道3输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.1.2GND/OC型100mA离散输出通道2输出测试"));

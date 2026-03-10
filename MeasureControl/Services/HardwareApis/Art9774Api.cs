@@ -47,7 +47,8 @@ namespace MeasureControl.Services.HardwareApis
         public AiAcquisitionMode Mode { get; set; } = AiAcquisitionMode.Continuous;
         public double SampleRateHz { get; set; } = 10000.0;
         public int SamplesPerChannel { get; set; } = 1000;
-        public string DeviceName { get; set; } = "Dev3";
+        public string DeviceName { get; set; } = "Dev3"; // 加放油
+        //public string DeviceName { get; set; } = "Dev1" // 液压
         public int TerminalConfig { get; set; } = ArtDAQ_Val_Cfg_Default;
     }
 
@@ -139,7 +140,7 @@ namespace MeasureControl.Services.HardwareApis
                     return;
 
                 var deviceName = _options?.DeviceName;
-                _driver = new Art9774Driver(_device, deviceNameOverride: deviceName);
+                _driver = new Art9774Driver(_device);
                 _driver.SamplesAvailable += OnDriverSamplesAvailable;
                 _driver.AcquisitionStatusChanged += OnDriverAcquisitionStatusChanged;
 
@@ -498,6 +499,19 @@ namespace MeasureControl.Services.HardwareApis
 
         private void OnDriverSamplesAvailable(Dictionary<string, double[]> internalSamples)
         {
+            // 更新驱动内部的通道值缓存，使 GetLastValueAsync 能读取到最新值
+            if (internalSamples != null && _driver != null)
+            {
+                foreach (var kvp in internalSamples)
+                {
+                    if (kvp.Value != null && kvp.Value.Length > 0)
+                    {
+                        // 取最后一个采样值作为当前值
+                        _driver.SetChannelValue(kvp.Key, kvp.Value[kvp.Value.Length - 1]);
+                    }
+                }
+            }
+
             var handler = SamplesAvailable;
             if (handler == null)
                 return;

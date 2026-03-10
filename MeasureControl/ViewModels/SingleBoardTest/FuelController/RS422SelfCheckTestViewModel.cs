@@ -374,6 +374,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     _fpgaConnected = true;
                     AddLog("FPGA连接成功");
 
+                    // 启动异步接收功能
+                    _fpga.StartAsyncReceive(AddLog);
+
                     // 6.8 RS422自检测功能测试要求：
                     // 1. IO11=MUX1(bit0)=0, IO12=MUX2(bit1)=0 → RS422内部自检回环模式
                     // 2. CRM_PIN2和CRM_PIN12置为0（根据测试规范）
@@ -406,6 +409,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 if (_fpga != null)
                 {
+                    try { _fpga.StopAsyncReceive(); } catch { }
                     try { _fpga.Disconnect(); } catch { }
                     _fpga = null;
                     _fpgaConnected = false;

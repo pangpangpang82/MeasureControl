@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Import disabled by automation: Costura.Fody props removed to avoid MSBuild compatibility issues during CI/local edits -->
   <!-- <Import Project="..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props" Condition="Exists('..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props')" /> -->
@@ -247,6 +247,7 @@
     <Compile Include="Views\Login.xaml.cs"><DependentUpon>Login.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_1_1View.xaml.cs"><DependentUpon>A_C_6_10_1_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_2_1View.xaml.cs"><DependentUpon>A_C_6_10_2_1View.xaml</DependentUpon></Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_4_1View.xaml.cs"><DependentUpon>A_C_6_10_4_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_7_1View.xaml.cs"><DependentUpon>A_C_6_10_7_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_11_1_1View.xaml.cs"><DependentUpon>A_C_6_11_1_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_12_1_1View.xaml.cs"><DependentUpon>A_C_6_12_1_1View.xaml</DependentUpon></Compile>
@@ -308,6 +309,7 @@
     <Compile Include="Views\SingleBoardTest\AirController\RS422Control422ReceiveTestView.xaml.cs"><DependentUpon>RS422Control422ReceiveTestView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\RS422Control422TransmitTestView.xaml.cs"><DependentUpon>RS422Control422TransmitTestView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_6_13_2_1View.xaml.cs"><DependentUpon>S_C_6_13_2_1View.xaml</DependentUpon></Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_10_1View.xaml.cs"><DependentUpon>S_C_8_10_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_1View.xaml.cs"><DependentUpon>S_C_8_3_1View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_2View.xaml.cs"><DependentUpon>S_C_8_3_2View.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_3View.xaml.cs"><DependentUpon>S_C_8_3_3View.xaml</DependentUpon></Compile>
@@ -384,8 +386,8 @@
     <Compile Include="Models\**\*.cs" />
     <Compile Include="Services\**\*.cs" />
     <Compile Include="Simulations\**\*.cs" />
-    <Compile Include="MatrixSwitchDemo.cs" />
     <Compile Include="Demos\**\*.cs" />
+    <Compile Include="MatrixSwitchDemo.cs" />
     <Compile Include="ViewModels\LoginViewModel.cs" />
     <Compile Include="ViewModels\ICloseGuard.cs" />
     <Compile Include="ViewModels\Common\BaseViewModel.cs" />

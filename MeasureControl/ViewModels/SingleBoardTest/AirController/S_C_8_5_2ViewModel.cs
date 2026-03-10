@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -250,11 +250,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     LastTestTime = "--";
                     LastTestResult = "--";
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.SimProductRxChannelIndex = 4;
+                    _simulation.SimProductTxChannelIndex = 5;
                     _simulation.ArincRate = ArincRate;
-                    _simulation.SimProductArincRate = ArincRate;
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：TX={TestTxChannel}, RX={TestRxChannel}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：打开ARINC429");
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                    }
+                    catch { }
+
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动完成");
                 }
@@ -343,6 +352,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts?.Dispose();
                 _autoTestCts = new CancellationTokenSource();
                 var token = _autoTestCts.Token;
+
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(token);
+                }
+                catch { }
 
                 try
                 {

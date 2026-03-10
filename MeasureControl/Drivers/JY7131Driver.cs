@@ -45,8 +45,8 @@ namespace MeasureControl.Drivers
         private readonly Dictionary<string, ChannelConfig> _channelConfigs = new Dictionary<string, ChannelConfig>();
 
         //外部电源控制（ASCII，需填写实际串口/命令）
-        private const string PowerControlComPort = "COM24"; // 实际电源串口 第一套
-        //private const string PowerControlComPort = "COM11"; // 实际电源串口 第二套
+        private const string PowerControlComPort = "COM24"; // 实际电源串口 加放油
+        //private const string PowerControlComPort = "COM21"; // 实际电源串口 液压
         //private const string PowerControlComPort = "COM9"; // 实际电源串口 第三套
         private const string PowerSetOutputOnBody = "w12=1,";    // 开启输出
         private const string PowerSetOutputOffBody = "w12=0,";  // 关闭输出
@@ -240,52 +240,110 @@ namespace MeasureControl.Drivers
         #region IDeviceDriver 实现
 
         /// <summary>
-        /// 连接设备
+        /// 连接设备（带重试机制）
         /// </summary>
         public async Task<bool> ConnectAsync()
         {
+            const int maxRetries = 2;
+            const int retryDelayMs = 500;
+            Exception lastException = null;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            {
+                try
+                {
+                    Debug.WriteLine($"[JY7131Driver] 正在连接设备 {DeviceName}, 插槽号: {_slotNumber}, 尝试 {attempt}/{maxRetries}");
+
+                    // 确保先清理旧资源
+                    CleanupTasks();
+                    await Task.Delay(50);
+
+                    // 创建 DI Task
+                    _diTask = new JY7131DITask(_slotNumber);
+                    // 添加所有 4 个端口
+                    for (int port = 0; port < 4; port++)
+                    {
+                        _diTask.AddChannel(port);
+                    }
+
+                    // 创建 DO Task
+                    _doTask = new JY7131DOTask(_slotNumber);
+                    // 添加所有 4 个端口（使用推挽输出模式）
+                    for (int port = 0; port < 4; port++)
+                    {
+                        _doTask.AddChannel(port, DOTerminal.Push_Pull);
+                    }
+
+                    // 增加稳定延时
+                    await Task.Delay(200);
+
+                    _isConnected = true;
+                    Debug.WriteLine($"[JY7131Driver] 设备连接成功");
+
+                    //// 打开板卡时
+                    //TrySendPowerCommand(PowerSetVoltageCommand);
+                    //TrySendPowerCommand(PowerSetOutputOnCommand);
+                    return true;
+                }
+                catch (JYDriverException ex)
+                {
+                    Debug.WriteLine($"[JY7131Driver] 连接失败 (尝试 {attempt}/{maxRetries}): {ex.Message}");
+                    lastException = ex;
+                    _isConnected = false;
+                    CleanupTasks();
+
+                    if (attempt < maxRetries)
+                    {
+                        Debug.WriteLine($"[JY7131Driver] 等待 {retryDelayMs}ms 后重试...");
+                        await Task.Delay(retryDelayMs);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[JY7131Driver] 连接失败 (尝试 {attempt}/{maxRetries}): {ex.Message}");
+                    lastException = ex;
+                    _isConnected = false;
+                    CleanupTasks();
+
+                    if (attempt < maxRetries)
+                    {
+                        Debug.WriteLine($"[JY7131Driver] 等待 {retryDelayMs}ms 后重试...");
+                        await Task.Delay(retryDelayMs);
+                    }
+                }
+            }
+
+            // 所有重试都失败
+            Debug.WriteLine($"[JY7131Driver] 连接失败，已重试 {maxRetries} 次");
+            throw lastException ?? new InvalidOperationException("JY7131 连接失败");
+        }
+
+        /// <summary>
+        /// 清理 DI/DO Task 资源
+        /// </summary>
+        private void CleanupTasks()
+        {
             try
             {
-                Debug.WriteLine($"[JY7131Driver] 正在连接设备 {DeviceName}, 插槽号: {_slotNumber}");
-
-                // 创建 DI Task
-                _diTask = new JY7131DITask(_slotNumber);
-                // 添加所有 4 个端口
-                for (int port = 0; port < 4; port++)
+                if (_diTask != null)
                 {
-                    _diTask.AddChannel(port);
+                    try { _diTask.Stop(); } catch { }
+                    try { _diTask.Channels.Clear(); } catch { }
+                    _diTask = null;
                 }
+            }
+            catch { }
 
-                // 创建 DO Task
-                _doTask = new JY7131DOTask(_slotNumber);
-                // 添加所有 4 个端口（使用推挽输出模式）
-                for (int port = 0; port < 4; port++)
+            try
+            {
+                if (_doTask != null)
                 {
-                    _doTask.AddChannel(port, DOTerminal.Push_Pull);
+                    try { _doTask.Stop(); } catch { }
+                    try { _doTask.Channels.Clear(); } catch { }
+                    _doTask = null;
                 }
-
-                await Task.Delay(100);
-
-                _isConnected = true;
-                Debug.WriteLine($"[JY7131Driver] 设备连接成功");
-
-                //// 打开板卡时
-                //TrySendPowerCommand(PowerSetVoltageCommand);
-                //TrySendPowerCommand(PowerSetOutputOnCommand);
-                return true;
             }
-            catch (JYDriverException ex)
-            {
-                Debug.WriteLine($"[JY7131Driver] 连接失败: {ex.Message}");
-                _isConnected = false;
-                throw; // 向上抛出异常，让调用者处理并显示 MessageBox
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[JY7131Driver] 连接失败: {ex.Message}");
-                _isConnected = false;
-                throw; // 向上抛出异常
-            }
+            catch { }
         }
 
         /// <summary>

@@ -16,7 +16,6 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="0.8*" />
                 <RowDefinition Height="6*" />
-                <RowDefinition Height="1.2*" />
             </Grid.RowDefinitions>
 
             <Border
@@ -162,7 +161,7 @@
 
             <Border
                 Grid.Row="1"
-                Margin="8,4,8,4"
+                Margin="8,4,8,10"
                 Background="White"
                 BorderBrush="#D9D9D9"
                 BorderThickness="1.5"
@@ -187,23 +186,24 @@
                         Text="测试步骤" />
 
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="10,5,10,5">
+                        <StackPanel Margin="10,0,10,5">
 
-                            <Border Margin="0,10,0,0" Background="#fef3c7" BorderBrush="#f59e0b" BorderThickness="1" CornerRadius="6" Padding="6">
+                            <Border Margin="0,5,0,0" Background="#fef3c7" BorderBrush="#f59e0b" BorderThickness="1" CornerRadius="5" Padding="5">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="前置条件：" FontWeight="Bold" VerticalAlignment="Center" Foreground="#92400e"/>
-                                    <TextBlock Grid.Column="1" Text="手动测试需先点击'手动测试'进入运行状态，再执行步骤a/b/c。" VerticalAlignment="Center" Foreground="#92400e" Margin="5,0" TextWrapping="Wrap"/>
+                                    <TextBlock Grid.Column="1" Text="组件下电，通过动作继电器将产品与试验台隔离（a/b步骤）" VerticalAlignment="Center" Foreground="#92400e" Margin="5,0" TextWrapping="Wrap"/>
                                     <Border Grid.Column="2" CornerRadius="4" Padding="8,3" Margin="5,0">
                                         <Border.Style>
                                             <Style TargetType="Border">
                                                 <Setter Property="Background" Value="#fecaca"/>
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsPowerOn}" Value="True">
+                                                    <DataTrigger Binding="{Binding IsPowerOn}" Value="False">
                                                         <Setter Property="Background" Value="#bbf7d0"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
@@ -214,7 +214,7 @@
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Foreground" Value="#dc2626"/>
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsPowerOn}" Value="True">
+                                                        <DataTrigger Binding="{Binding IsPowerOn}" Value="False">
                                                             <Setter Property="Foreground" Value="#16a34a"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
@@ -222,6 +222,38 @@
                                             </TextBlock.Style>
                                         </TextBlock>
                                     </Border>
+                                    <!-- 继电器激活/复位按钮 -->
+                                    <Button Grid.Column="3" Command="{Binding ToggleRelayCommand}" Height="28" Margin="5,0,0,0">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Content" Value="激活"/>
+                                                <Setter Property="Background" Value="#f59e0b"/>
+                                                <Setter Property="Foreground" Value="White"/>
+                                                <Setter Property="BorderThickness" Value="0"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="12,3">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsRelayActivated}" Value="True">
+                                                        <Setter Property="Content" Value="复位"/>
+                                                        <Setter Property="Background" Value="#6b7280"/>
+                                                    </DataTrigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#d97706"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter Property="Background" Value="#9ca3af"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
                                 </Grid>
                             </Border>
 
@@ -233,9 +265,10 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="a) 接地测试" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="组件下电，DO输出接地开信号，测对地阻抗应&lt;10Ω" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap"/>
+                                        <TextBlock Grid.Column="1" Text="给接地信号[0-2V]，测J6-J13对地阻抗应&lt;10Ω" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap"/>
                                         <Border Grid.Column="2" CornerRadius="4" Margin="10,0" Padding="10,3">
                                             <Border.Style>
                                                 <Style TargetType="Border">
@@ -266,11 +299,29 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Border>
-                                        <Button Grid.Column="3" Command="{Binding StepACommand}" Height="26" Width="80">
+                                        <!-- 接地信号按钮 -->
+                                        <Button Grid.Column="3" Command="{Binding SetGroundedSignalCommand}" Height="26" Width="70" Margin="0,0,5,0">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
-                                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4" Padding="10,3">
-                                                        <TextBlock Text="接地测试" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+                                                    <Border x:Name="border" Background="#f59e0b" CornerRadius="4" Padding="8,3">
+                                                        <TextBlock Text="接地信号" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="border" Property="Background" Value="#d97706"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsEnabled" Value="False">
+                                                            <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                        <Button Grid.Column="4" Command="{Binding StepACommand}" Height="26" Width="70">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4" Padding="8,3">
+                                                        <TextBlock Text="全部测量" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
                                                     </Border>
                                                     <ControlTemplate.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
@@ -284,20 +335,221 @@
                                             </Button.Template>
                                         </Button>
                                     </Grid>
-                                    <Grid Margin="0,10,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="测量值(Ω):" FontWeight="Bold" Margin="0,2"/>
-                                        <Border Grid.Column="1" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="10,2" Padding="10,3">
-                                            <TextBlock Text="{Binding ImpedanceGrounded}" FontFamily="Consolas" HorizontalAlignment="Center"/>
-                                        </Border>
-                                    </Grid>
+                                    <!-- J6-J13测量表格 -->
+                                    <Border Margin="0,8,0,0" Background="White" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="4" Padding="5">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <!-- J6 -->
+                                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="2">
+                                                <TextBlock Text="J6" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceJ6, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureJ6Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                            <!-- J7 -->
+                                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="2">
+                                                <TextBlock Text="J7" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceJ7, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureJ7Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                            <!-- J8 -->
+                                            <StackPanel Grid.Row="0" Grid.Column="2" Margin="2">
+                                                <TextBlock Text="J8" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceJ8, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureJ8Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                            <!-- J9 -->
+                                            <StackPanel Grid.Row="0" Grid.Column="3" Margin="2">
+                                                <TextBlock Text="J9" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceJ9, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureJ9Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                            <!-- J10 -->
+                                            <StackPanel Grid.Row="0" Grid.Column="4" Margin="2">
+                                                <TextBlock Text="J10" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceJ10, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureJ10Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                            <!-- J11 -->
+                                            <StackPanel Grid.Row="0" Grid.Column="5" Margin="2">
+                                                <TextBlock Text="J11" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceJ11, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureJ11Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                            <!-- J12 -->
+                                            <StackPanel Grid.Row="0" Grid.Column="6" Margin="2">
+                                                <TextBlock Text="J12" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceJ12, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureJ12Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                            <!-- J13 -->
+                                            <StackPanel Grid.Row="0" Grid.Column="7" Margin="2">
+                                                <TextBlock Text="J13" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceJ13, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureJ13Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
                                 </StackPanel>
                             </Border>
 
-                            <Border Margin="0,10,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <Border Margin="0,5,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="10">
                                 <StackPanel>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -305,9 +557,10 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="b) 开路测试" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="组件下电，DO输出开路，测对地阻抗应>100kΩ" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap"/>
+                                        <TextBlock Grid.Column="1" Text="置开路，测J6-J13对地阻抗应>100kΩ" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap"/>
                                         <Border Grid.Column="2" CornerRadius="4" Margin="10,0" Padding="10,3">
                                             <Border.Style>
                                                 <Style TargetType="Border">
@@ -338,11 +591,29 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Border>
-                                        <Button Grid.Column="3" Command="{Binding StepBCommand}" Height="26" Width="80">
+                                        <!-- 开路信号按钮 -->
+                                        <Button Grid.Column="3" Command="{Binding SetOpenSignalCommand}" Height="26" Width="70" Margin="0,0,5,0">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
-                                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4" Padding="10,3">
-                                                        <TextBlock Text="开路测试" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+                                                    <Border x:Name="border" Background="#f59e0b" CornerRadius="4" Padding="8,3">
+                                                        <TextBlock Text="开路信号" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="border" Property="Background" Value="#d97706"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsEnabled" Value="False">
+                                                            <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                        <Button Grid.Column="4" Command="{Binding StepBCommand}" Height="26" Width="70">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4" Padding="8,3">
+                                                        <TextBlock Text="全部测量" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
                                                     </Border>
                                                     <ControlTemplate.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
@@ -356,25 +627,223 @@
                                             </Button.Template>
                                         </Button>
                                     </Grid>
-                                    <Grid Margin="0,10,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="测量值(Ω):" FontWeight="Bold" Margin="0,2"/>
-                                        <Border Grid.Column="1" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="10,2" Padding="10,3">
-                                            <TextBlock Text="{Binding ImpedanceOpen}" FontFamily="Consolas" HorizontalAlignment="Center"/>
-                                        </Border>
-                                    </Grid>
+                                    <!-- J6-J13开路测量表格 -->
+                                    <Border Margin="0,8,0,0" Background="White" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="4" Padding="5">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <!-- J6 -->
+                                            <StackPanel Grid.Column="0" Margin="2">
+                                                <TextBlock Text="J6" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceOpenJ6, StringFormat={}{0:F0}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureOpenJ6Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                            <!-- J7 -->
+                                            <StackPanel Grid.Column="1" Margin="2">
+                                                <TextBlock Text="J7" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceOpenJ7, StringFormat={}{0:F0}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureOpenJ7Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                            <!-- J8 -->
+                                            <StackPanel Grid.Column="2" Margin="2">
+                                                <TextBlock Text="J8" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceOpenJ8, StringFormat={}{0:F0}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureOpenJ8Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                            <!-- J9 -->
+                                            <StackPanel Grid.Column="3" Margin="2">
+                                                <TextBlock Text="J9" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceOpenJ9, StringFormat={}{0:F0}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureOpenJ9Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                            <!-- J10 -->
+                                            <StackPanel Grid.Column="4" Margin="2">
+                                                <TextBlock Text="J10" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceOpenJ10, StringFormat={}{0:F0}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureOpenJ10Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                            <!-- J11 -->
+                                            <StackPanel Grid.Column="5" Margin="2">
+                                                <TextBlock Text="J11" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceOpenJ11, StringFormat={}{0:F0}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureOpenJ11Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                            <!-- J12 -->
+                                            <StackPanel Grid.Column="6" Margin="2">
+                                                <TextBlock Text="J12" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceOpenJ12, StringFormat={}{0:F0}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureOpenJ12Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                            <!-- J13 -->
+                                            <StackPanel Grid.Column="7" Margin="2">
+                                                <TextBlock Text="J13" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
+                                                <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
+                                                    <TextBlock Text="{Binding ImpedanceOpenJ13, StringFormat={}{0:F0}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                </Border>
+                                                <Button Command="{Binding MeasureOpenJ13Command}" Height="20" Margin="0,2">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="测量" Foreground="White" HorizontalAlignment="Center" FontSize="10"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
                                 </StackPanel>
                             </Border>
 
-                            <Border Margin="0,10,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <Border Margin="0,5,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="10">
                                 <StackPanel>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
@@ -410,7 +879,25 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Border>
-                                        <Button Grid.Column="3" Command="{Binding StepCCommand}" Height="26" Width="80">
+                                        <!-- 上电按钮 -->
+                                        <Button Grid.Column="3" Command="{Binding PowerOnCommand}" Height="26" Width="60" Margin="0,0,5,0">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="border" Background="#22c55e" CornerRadius="4" Padding="8,3">
+                                                        <TextBlock Text="上电" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="border" Property="Background" Value="#16a34a"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsEnabled" Value="False">
+                                                            <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                        <Button Grid.Column="4" Command="{Binding StepCCommand}" Height="26" Width="80">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
                                                     <Border x:Name="border" Background="#3b82f6" CornerRadius="4" Padding="10,3">
@@ -438,15 +925,6 @@
                                             <TextBlock Text="{Binding J14Voltage}" FontFamily="Consolas" HorizontalAlignment="Center"/>
                                         </Border>
                                     </Grid>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Margin="0,10,0,0" Background="#f0fdf4" BorderBrush="#22c55e" BorderThickness="1" CornerRadius="6" Padding="6">
-                                <StackPanel>
-                                    <TextBlock FontWeight="Bold" Foreground="#166534" Text="测试判据："/>
-                                    <TextBlock Margin="0,5,0,0" Foreground="#166534" Text="• a) 接地：对地阻抗&lt;10Ω"/>
-                                    <TextBlock Margin="0,2,0,0" Foreground="#166534" Text="• b) 开路：对地阻抗>100kΩ"/>
-                                    <TextBlock Margin="0,2,0,0" Foreground="#166534" Text="• c) 电压：J14电压≥16V"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -554,24 +1032,6 @@
                         <TextBlock Text="{Binding LastTestTime}" FontSize="14" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Grid>
-            </Border>
-
-            <Border
-                Grid.Row="2"
-                Margin="8,4,8,8"
-                Background="White"
-                BorderBrush="#D9D9D9"
-                BorderThickness="1.5"
-                CornerRadius="8">
-                <StackPanel Orientation="Horizontal" Margin="10,5">
-                    <TextBlock Text="测试说明：" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" />
-                    <TextBlock
-                        Margin="10,0,0,0"
-                        FontSize="14"
-                        Foreground="#666"
-                        TextWrapping="Wrap"
-                        Text="a) 组件下电，DO输出接地开信号，测对地阻抗应&lt;10Ω；b) 组件下电，DO输出开路，测对地阻抗应>100kΩ；c) 组件28V供电，测J14电压应≥16V。" />
-                </StackPanel>
             </Border>
         </Grid>
     </Grid>

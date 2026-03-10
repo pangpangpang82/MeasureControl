@@ -26,6 +26,8 @@ using MeasureControl.ViewModels.SingleBoardTest.HydraulicController;
 
 using MeasureControl.ViewModels.SingleBoardTest.FuelController;
 
+using MeasureControl.Demos;
+
 using MeasureControl.Services.HardwareApis;
 
 using MeasureControl.Views;
@@ -140,7 +142,7 @@ namespace MeasureControl
 
                     System.Threading.Tasks.Task.Run(() =>
 
-                        MeasureControl.Demos.FpgaTcpClientNetworkAssistantDemo.Run(ip, port, readReply, readWindowMs))
+                        FpgaTcpClientNetworkAssistantDemo.Run(ip, port, readReply, readWindowMs))
 
                         .GetAwaiter().GetResult();
 
@@ -319,6 +321,10 @@ namespace MeasureControl
             containerRegistry.Register<HC_6_4ViewModel>();
 
             containerRegistry.Register<HC_6_5ViewModel>();
+
+            containerRegistry.Register<HC_6_6ViewModel>();
+
+            containerRegistry.Register<HC_6_7ViewModel>();
 
             containerRegistry.Register<HC_6_8ViewModel>();
 
