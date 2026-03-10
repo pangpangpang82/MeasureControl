@@ -2320,32 +2320,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            var confirm = await _simulation.WaitBenchResponse8Async(
-
-                TestRxChannel,
-
-                b => b != null && b.SequenceEqual(AbBmpsPressure8),
-
-                timeoutMs: 1200,
-
-                log: msg => AddLog(msg),
-
-                token: token);
-
-
-
-            if (confirm == null)
-
-            {
-
-                failures.Add($"档位{gearIndex}确认帧超时");
-
-                return;
-
-            }
-
-
-
             AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：等待压力遥测(07 03 01 02)");
 
             var tel = await _simulation.WaitPressureTelemetryAsync(TestRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: token);
