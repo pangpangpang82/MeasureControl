@@ -25,6 +25,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 1.0;
         private const int Relay485ChannelIndex = 6;
+        private const int RelayAuxDoIndex = 25;
         private const int RelayGroundDoIndex = 26;
         private const int RxChannelIndex = 2;
         private const int LvdtSlotIndex = 2;
@@ -1005,6 +1006,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        private async Task WriteInitDosAsync(bool on, CancellationToken cancellationToken)
+        {
+            await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
+
+            await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
+        }
+
         private async Task EnsureGroundDoAsync(bool on, CancellationToken cancellationToken)
         {
             await _relayLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -1017,7 +1027,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     var device = FindFirstJy7131Device();
                     if (device == null)
-                        throw new InvalidOperationException("未找到PXIe-7131(JY7131)板卡，无法控制DO27");
+                        throw new InvalidOperationException("未找到PXIe-7131(JY7131)板卡，无法控制DO25/DO26");
 
                     var slot = device is DigitalIODevice dio ? dio.SlotIndex : 0;
                     _jy7131 = new Jy7131Api(device, slot);
@@ -1027,10 +1037,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     await _jy7131.ConnectAsync(cancellationToken).ConfigureAwait(false);
 
                 if (!_jy7131.IsRunning)
+                {
+                    await _jy7131.SetOutputModeAsync(Jy7131OutputMode.Sinking, cancellationToken).ConfigureAwait(false);
                     await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
+                }
 
-                await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
-                Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
+                await WriteInitDosAsync(on, cancellationToken).ConfigureAwait(false);
             }
             finally
             {

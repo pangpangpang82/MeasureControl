@@ -39,7 +39,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int RxChannelIndex = 2;
         private const double ArincRate = 100000.0;
 
-        private const int RelayGroundDoIndex = 27;
+        private const int RelayAuxDoIndex = 25;
+        private const int RelayGroundDoIndex = 26;
         private const int Relay485ChannelIndex = 6;
 
         // ARINC429 标签（Label）定义
@@ -820,13 +821,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     await _jy7131.SetRelayAsync(Relay485ChannelIndex, true, cancellationToken).ConfigureAwait(false);
                     Log($"485继电器板 第{Relay485ChannelIndex + 1}路已闭合");
 
-                    await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", true, cancellationToken).ConfigureAwait(false);
-                    Log($"7131 DO{RelayGroundDoIndex} 已置位");
+                    await WriteInitDosAsync(true, cancellationToken).ConfigureAwait(false);
 
                     await Task.Delay(100, cancellationToken).ConfigureAwait(false);
 
                     _isRelay485On = true;
-                    Log($"485继电器准备完成: 第{Relay485ChannelIndex + 1}路=ON, DO{RelayGroundDoIndex}=1");
+                    Log($"485继电器准备完成: 第{Relay485ChannelIndex + 1}路=ON, DO{RelayAuxDoIndex}=1, DO{RelayGroundDoIndex}=1");
                 }
                 else
                 {
@@ -839,12 +839,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     {
                         try
                         {
-                            await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", false, cancellationToken).ConfigureAwait(false);
-                            Log($"7131 DO{RelayGroundDoIndex} 已复位");
+                            await WriteInitDosAsync(false, cancellationToken).ConfigureAwait(false);
                         }
                         catch (Exception ex)
                         {
-                            Log($"复位7131 DO{RelayGroundDoIndex}失败: {ex.Message}");
+                            Log($"复位7131 DO{RelayAuxDoIndex}/DO{RelayGroundDoIndex}失败: {ex.Message}");
                         }
 
                         try
@@ -859,13 +858,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     }
 
                     _isRelay485On = false;
-                    Log($"485继电器已关闭: DO{RelayGroundDoIndex}=0, 第{Relay485ChannelIndex + 1}路=OFF");
+                    Log($"485继电器已关闭: DO{RelayAuxDoIndex}=0, DO{RelayGroundDoIndex}=0, 第{Relay485ChannelIndex + 1}路=OFF");
                 }
             }
             finally
             {
                 _relayLock.Release();
             }
+        }
+
+        private async Task WriteInitDosAsync(bool on, CancellationToken cancellationToken)
+        {
+            await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
+
+            await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
         }
 
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)

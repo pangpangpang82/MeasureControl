@@ -27,6 +27,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double ArincRate = 100000.0;
 
         private const int Relay485ChannelIndex = 6;
+        private const int RelayAuxDoIndex = 25;
         private const int RelayGroundDoIndex = 26;
 
         private const string PressureUnit = "Psid";
@@ -1037,15 +1038,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     await _jy7131.ConnectAsync(cancellationToken).ConfigureAwait(false);
 
                 if (!_jy7131.IsRunning)
+                {
+                    await _jy7131.SetOutputModeAsync(Jy7131OutputMode.Sinking, cancellationToken).ConfigureAwait(false);
                     await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
+                }
 
-                await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
-                Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
+                await WriteInitDosAsync(on, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
                 _relayLock.Release();
             }
+        }
+
+        private async Task WriteInitDosAsync(bool on, CancellationToken cancellationToken)
+        {
+            await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
+
+            await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
         }
 
         private async Task CleanupJy7131Async()

@@ -38,7 +38,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int MatrixSlotCommon = 4;          // 公共端（地）
 
         // 485 继电器控制引脚（PXIe-7131 的 DO29）
-        private const int RelayGroundDoIndex = 26;
+        //private const int RelayGroundDoIndex = 26;
         private const int Relay485DoIndex = 28;
 
         // 测试通过阈值：绝缘电阻 ≥ 500Ω 为合格
@@ -174,14 +174,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
                     }
 
-                    await _jy7131.SetRelayAsync(6, true, cancellationToken).ConfigureAwait(false);
-                    Log($"485继电器板 第7路已开启");
+                    //await _jy7131.SetRelayAsync(6, true, cancellationToken).ConfigureAwait(false);
+                    //Log($"485继电器板 第7路已开启");
 
                     await _jy7131.SetRelayAsync(7, true, cancellationToken).ConfigureAwait(false);
                     Log($"485继电器板 第8路已开启");
 
-                    await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", true, cancellationToken).ConfigureAwait(false);
-                    Log($"7131 DO{RelayGroundDoIndex} 已置位");
+                    //await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", true, cancellationToken).ConfigureAwait(false);
+                    //Log($"7131 DO{RelayGroundDoIndex} 已置位");
 
                     await _jy7131.WriteDoAsync($"DO{Relay485DoIndex}", true, cancellationToken).ConfigureAwait(false);
                     Log($"7131 DO{Relay485DoIndex} 已置位");
@@ -190,7 +190,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     await Task.Delay(100, cancellationToken).ConfigureAwait(false);
 
                     _isRelay485On = true;
-                    Log($"485初始化完成: 第7路=ON, 第8路=ON, DO{RelayGroundDoIndex}=1, DO{Relay485DoIndex}=1");
+                    //Log($"485初始化完成: 第7路=ON, 第8路=ON, DO{RelayGroundDoIndex}=1, DO{Relay485DoIndex}=1");
                 }
                 else
                 {
@@ -211,15 +211,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                             Log($"复位7131 DO{Relay485DoIndex}失败: {ex.Message}");
                         }
 
-                        try
-                        {
-                            await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", false, cancellationToken).ConfigureAwait(false);
-                            Log($"7131 DO{RelayGroundDoIndex} 已复位");
-                        }
-                        catch (Exception ex)
-                        {
-                            Log($"复位7131 DO{RelayGroundDoIndex}失败: {ex.Message}");
-                        }
+                        //try
+                        //{
+                        //    await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", false, cancellationToken).ConfigureAwait(false);
+                        //    Log($"7131 DO{RelayGroundDoIndex} 已复位");
+                        //}
+                        //catch (Exception ex)
+                        //{
+                        //    Log($"复位7131 DO{RelayGroundDoIndex}失败: {ex.Message}");
+                        //}
 
                         try
                         {
@@ -231,19 +231,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                             Log($"关闭继电器板 第8路失败: {ex.Message}");
                         }
 
-                        try
-                        {
-                            await _jy7131.SetRelayAsync(6, false, cancellationToken).ConfigureAwait(false);
-                            Log($"485继电器板 第7路已关闭");
-                        }
-                        catch (Exception ex)
-                        {
-                            Log($"关闭继电器板 第7路失败: {ex.Message}");
-                        }
+                        //try
+                        //{
+                        //    await _jy7131.SetRelayAsync(6, false, cancellationToken).ConfigureAwait(false);
+                        //    Log($"485继电器板 第7路已关闭");
+                        //}
+                        //catch (Exception ex)
+                        //{
+                        //    Log($"关闭继电器板 第7路失败: {ex.Message}");
+                        //}
                     }
 
                     _isRelay485On = false;
-                    Log($"485关闭完成: DO{RelayGroundDoIndex}=0, DO{Relay485DoIndex}=0, 第7路=OFF, 第8路=OFF");
+                    //Log($"485关闭完成: DO{RelayGroundDoIndex}=0, DO{Relay485DoIndex}=0, 第7路=OFF, 第8路=OFF");
                 }
             }
             finally
