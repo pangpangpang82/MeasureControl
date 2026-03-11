@@ -620,41 +620,41 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     AddLog($"继电器供电上电异常: {ex.Message}");
                 }
 
-                // 步骤4：激活继电器（DO15高电平 + 485继电器第4路），隔离产品与试验台
-                AddLog("正在激活继电器（DO15高电平），隔离产品...");
-                try
-                {
-                    if (_jy7131Api != null && _jy7131Api.IsConnected)
-                    {
-                        await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token);
-                        IsRelayActivated = true;
-                        await Task.Delay(500, token);
-                        AddLog("DO15输出完成，继电器线圈得电");
+                //// 步骤4：激活继电器（DO15高电平 + 485继电器第4路），隔离产品与试验台
+                //AddLog("正在激活继电器（DO15高电平），隔离产品...");
+                //try
+                //{
+                //    if (_jy7131Api != null && _jy7131Api.IsConnected)
+                //    {
+                //        await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token);
+                //        IsRelayActivated = true;
+                //        await Task.Delay(500, token);
+                //        AddLog("DO15输出完成，继电器线圈得电");
 
-                        // 打开485继电器第4路（index=3，从0开始计数），配合DO15完成产品隔离
-                        AddLog("正在打开485继电器第4路...");
-                        try
-                        {
-                            await _jy7131Api.SetRelayAsync(3, true, token);
-                            AddLog("485继电器第4路已打开");
-                        }
-                        catch (Exception ex)
-                        {
-                            AddLog($"485继电器操作失败: {ex.Message}");
-                        }
+                //        // 打开485继电器第4路（index=3，从0开始计数），配合DO15完成产品隔离
+                //        AddLog("正在打开485继电器第4路...");
+                //        try
+                //        {
+                //            await _jy7131Api.SetRelayAsync(3, true, token);
+                //            AddLog("485继电器第4路已打开");
+                //        }
+                //        catch (Exception ex)
+                //        {
+                //            AddLog($"485继电器操作失败: {ex.Message}");
+                //        }
 
-                        AddLog("继电器已激活，产品已隔离（下电状态）");
-                    }
-                    else
-                    {
-                        await _simulation.ApplyComponentDownStateAsync(AddLog, token);
-                        IsRelayActivated = true;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"继电器激活异常: {ex.Message}");
-                }
+                //        AddLog("继电器已激活，产品已隔离（下电状态）");
+                //    }
+                //    else
+                //    {
+                //        await _simulation.ApplyComponentDownStateAsync(AddLog, token);
+                //        IsRelayActivated = true;
+                //    }
+                //}
+                //catch (Exception ex)
+                //{
+                //    AddLog($"继电器激活异常: {ex.Message}");
+                //}
 
                 // 步骤5：配置矩阵开关
                 try
@@ -1492,10 +1492,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             if (grounded)
             {
-                if (idx == 0) ImpedanceJ6 = v; else if (idx == 1) ImpedanceJ7 = v;
-                else if (idx == 2) ImpedanceJ8 = v; else if (idx == 3) ImpedanceJ9 = v;
-                else if (idx == 4) ImpedanceJ10 = v; else if (idx == 5) ImpedanceJ11 = v;
-                else if (idx == 6) ImpedanceJ12 = v; else if (idx == 7) ImpedanceJ13 = v;
+                double w = v - 5;           //减去回路阻抗
+                if (idx == 0) ImpedanceJ6 = w; else if (idx == 1) ImpedanceJ7 = w;
+                else if (idx == 2) ImpedanceJ8 = w; else if (idx == 3) ImpedanceJ9 = w;
+                else if (idx == 4) ImpedanceJ10 = w; else if (idx == 5) ImpedanceJ11 = w;
+                else if (idx == 6) ImpedanceJ12 = w; else if (idx == 7) ImpedanceJ13 = w;
             }
             else
             {
