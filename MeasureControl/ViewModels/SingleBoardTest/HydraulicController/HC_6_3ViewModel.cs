@@ -953,6 +953,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 if (_res != null)
                 {
+                    try { await SetResistanceOpenCircuitAsync(true, CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _res.DisconnectAsync().ConfigureAwait(false); } catch { }
                 }
             }
@@ -1205,6 +1206,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!ok)
                 throw new InvalidOperationException("ACTS6010连接失败");
 
+            await SetResistanceOpenCircuitAsync(false, cancellationToken).ConfigureAwait(false);
             await SetResistanceAsync(0.0, cancellationToken).ConfigureAwait(false);
         }
 
@@ -1222,6 +1224,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var ok1 = await _res.WriteChannelAsync("RO1", resistanceOhm).ConfigureAwait(false);
             if (!(ok0 && ok1))
                 throw new InvalidOperationException("设置ACTS6010阻值失败");
+        }
+
+        private async Task SetResistanceOpenCircuitAsync(bool openCircuit, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (_res == null || !_res.IsConnected)
+                throw new InvalidOperationException("ACTS6010未连接");
+
+            var pathRelayClosed = !openCircuit;
+            var shortCircuitClosed = false;
+
+            var ok0 = await _res.SetRelayStateAsync("RO0", pathRelayClosed, shortCircuitClosed).ConfigureAwait(false);
+            var ok1 = await _res.SetRelayStateAsync("RO1", pathRelayClosed, shortCircuitClosed).ConfigureAwait(false);
+            if (!(ok0 && ok1))
+                throw new InvalidOperationException(openCircuit ? "恢复ACTS6010断路状态失败" : "取消ACTS6010断路状态失败");
+
+            Log(openCircuit
+                ? "程控电阻 RO0/RO1 已恢复断路状态"
+                : "程控电阻 RO0/RO1 已取消断路状态");
         }
 
         /// <summary>
