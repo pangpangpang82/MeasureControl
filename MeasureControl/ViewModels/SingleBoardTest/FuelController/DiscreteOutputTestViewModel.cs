@@ -684,7 +684,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     try
                     {
                         AddLog("正在复位继电器（DO15低电平）...");
-                        await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token);
+                        await _jy7131Api.WriteDoAsync(RelayControlChannel, false, token);
+                        await Task.Delay(500);
                         AddLog("DO15输出完成，继电器线圈失电");
 
                         // 关闭485继电器第4路（index=3，从0开始计数），配合DO15恢复产品连接
@@ -695,6 +696,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                             await _jy7131Api.SetRelayAsync(1, false, token);
                             await _jy7131Api.SetRelayAsync(2, false, token);
                             await _jy7131Api.SetRelayAsync(3, false, token);
+                            await Task.Delay(500);
                             AddLog("485继电器前4路已关闭");
                         }
                         catch (Exception ex)
@@ -753,7 +755,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
 
                 //下电
-                await ApplyPowerDownAsync(token);
+                await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
+                AddLog($"组件下电");
 
                 _hardwareInitialized = false;
             }
@@ -1131,6 +1134,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         await _jy7131Api.SetRelayAsync(1, grounded, token);
                         await _jy7131Api.SetRelayAsync(2, grounded, token);
                         await _jy7131Api.SetRelayAsync(3, grounded, token);
+                        await Task.Delay(500);
                         AddLog($"485 继电器前 4 路已{(grounded ? "打开" : "关闭")}");
                     }
                     catch (Exception ex)
@@ -1428,6 +1432,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         // 2. 再输出 DO15 激活隔离继电器
                         AddLog("正在输出 DO15 激活隔离继电器...");
                         await _jy7131Api.WriteDoAsync(RelayControlChannel, true, _opCts.Token);
+                        await Task.Delay(500);
                         try
                         {
                             var mask = await _jy7131Api.ReadDoBitmaskAsync(_opCts.Token);
@@ -1439,7 +1444,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         {
                             AddLog($"DO写回读取失败: {ex.Message}");
                         }
-                        await Task.Delay(200);
                     }
                     IsRelayActivated = true;
                     await Task.Delay(100);

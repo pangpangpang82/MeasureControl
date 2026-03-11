@@ -88,12 +88,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 _client = client;
                 _stream = _client.GetStream();
-
-                // 首次连接成功时发送初始化命令0x04
-                if (FpgaInitRequired)
-                {
-                    await SendInitCommandAsync(token);
-                }
             }
             catch
             {
@@ -195,6 +189,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 await _stream.WriteAsync(frame, 0, frame.Length, token);
                 await _stream.FlushAsync(token);
                 System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] 发送温度采集命令: {BitConverter.ToString(frame).Replace("-", " ")}");
+            }
+            finally
+            {
+                _lock.Release();
+            }
+        }
+
+        public async Task InitHi8435AfterConnectAsync(CancellationToken token = default)
+        {
+            await Task.Delay(500, token);
+            await InitHi8435Async(token);
+        }
+
+        public async Task WriteGpioOutputOnlyAsync(uint ioMask, CancellationToken token = default)
+        {
+            await _lock.WaitAsync(token);
+            try
+            {
+                await EnsureConnectedAsync(token);
+                var frame = BuildFrame(0x00, BitConverter.GetBytes(ioMask));
+                await _stream.WriteAsync(frame, 0, frame.Length, token);
+                await _stream.FlushAsync(token);
             }
             finally
             {
