@@ -90,25 +90,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private string _controllerPressureTestTxChannel;
 
-        private string _controllerPressureTestRxChannel;
-
-        private string _controllerPressureTestRxDataText;
-
-
-
         private string _pressureTelemetryRxChannel;
 
-
-
         private string _enterAtpTxChannel;
-
-        private string _enterAtpRxChannel;
 
         private string _exitAtpTxChannel;
 
         private string _exitAtpRxChannel;
 
 
+
+        private string _enterAtpRxChannel;
 
         private string _enterAtpRxDataText;
 
@@ -188,31 +180,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         {
 
-            _testTxChannel = "CH0";
-
-            _testRxChannel = "CH1";
-
-
-
-            _controllerPressureTestTxChannel = null;
-
-            _controllerPressureTestRxChannel = null;
-
-            _controllerPressureTestRxDataText = "--";
-
-
-
-            _pressureTelemetryRxChannel = null;
-
-
-
-            _enterAtpTxChannel = null;
-
-            _enterAtpRxChannel = null;
-
-            _exitAtpTxChannel = null;
-
-            _exitAtpRxChannel = null;
 
 
 
@@ -614,30 +581,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-        public string ControllerPressureTestRxChannel
-
-        {
-
-            get => _controllerPressureTestRxChannel;
-
-            set => SetProperty(ref _controllerPressureTestRxChannel, value);
-
-        }
-
-
-
-        public string ControllerPressureTestRxDataText
-
-        {
-
-            get => _controllerPressureTestRxDataText;
-
-            private set => SetProperty(ref _controllerPressureTestRxDataText, value);
-
-        }
-
-
-
         public string PressureTelemetryRxChannel
 
         {
@@ -1014,53 +957,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 {
 
-                    ControllerPressureTestRxDataText = "--";
-
-
-
                     var token = CancellationToken.None;
 
-                    await _simulation.ClearRxFifoAsync(ControllerPressureTestRxChannel);
-
-                    await Task.Delay(20, token);
-
-
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_CABVENTS_Temperature：TX={ControllerPressureTestTxChannel}, RX={ControllerPressureTestRxChannel}, Data={FormatData(AbCabVentsTemperature8)}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_CABVENTS_Temperature：TX={ControllerPressureTestTxChannel}, Data={FormatData(AbCabVentsTemperature8)}");
 
                     await _simulation.SendBenchCommandOnlyAsync(ControllerPressureTestTxChannel, AbCabVentsTemperature8, msg => AddLog(msg), token);
-
-
-
-                    var confirm = await _simulation.WaitBenchResponse8Async(
-
-                        ControllerPressureTestRxChannel,
-
-                        b => b != null && b.SequenceEqual(AbCabVentsTemperature8),
-
-                        timeoutMs: 1200,
-
-                        log: msg => AddLog(msg),
-
-                        token: token);
-
-
-
-                    if (confirm == null)
-
-                    {
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试确认帧超时");
-
-                        SetLastTestResult("FAIL");
-
-                        return;
-
-                    }
-
-
-
-                    ControllerPressureTestRxDataText = "0x" + FormatData(confirm);
 
                 }
 
@@ -1522,7 +1423,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             var tx = FirstNonEmpty(EnterAtpTxChannel, ExitAtpTxChannel, ControllerPressureTestTxChannel, TestTxChannel);
 
-            var rx = FirstNonEmpty(EnterAtpRxChannel, ExitAtpRxChannel, ControllerPressureTestRxChannel, PressureTelemetryRxChannel, TestRxChannel);
+            var rx = FirstNonEmpty(EnterAtpRxChannel, ExitAtpRxChannel, PressureTelemetryRxChannel, TestRxChannel);
 
 
 
@@ -1549,8 +1450,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
             ControllerPressureTestTxChannel ??= tx;
-
-            ControllerPressureTestRxChannel ??= rx;
 
             PressureTelemetryRxChannel ??= rx;
 
@@ -2406,32 +2305,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            var confirm = await _simulation.WaitBenchResponse8Async(
-
-                TestRxChannel,
-
-                b => b != null && b.SequenceEqual(AbCabVentsTemperature8),
-
-                timeoutMs: 1200,
-
-                log: msg => AddLog(msg),
-
-                token: token);
-
-
-
-            if (confirm == null)
-
-            {
-
-                failures.Add($"档位{gearIndex}确认帧超时");
-
-                return;
-
-            }
-
-
-
             AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：等待温度遥测(07 02 02 02)");
 
             var tel = await _simulation.WaitPressureTelemetryAsync(TestRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: token);
@@ -2568,43 +2441,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-                    await _simulation.ClearRxFifoAsync(ControllerPressureTestRxChannel);
-
-                    await Task.Delay(20);
-
-
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_CABVENTS_Temperature：TX={ControllerPressureTestTxChannel}");
 
                     await _simulation.SendBenchCommandOnlyAsync(ControllerPressureTestTxChannel, AbCabVentsTemperature8, msg => AddLog(msg), token);
-
-
-
-                    var confirm = await _simulation.WaitBenchResponse8Async(
-
-                        ControllerPressureTestRxChannel,
-
-                        b => b != null && b.SequenceEqual(AbCabVentsTemperature8),
-
-                        timeoutMs: 1200,
-
-                        log: msg => AddLog(msg),
-
-                        token: token);
-
-
-
-                    if (confirm == null)
-
-                    {
-
-                        SetLastTestResult("FAIL");
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 确认帧超时");
-
-                        return;
-
-                    }
 
 
 
