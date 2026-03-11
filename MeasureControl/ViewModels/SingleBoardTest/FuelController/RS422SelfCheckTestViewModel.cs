@@ -48,6 +48,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isPowerOn;
         private string _powerStatus = "未上电";
 
+        private bool _rs422LoopModeEnabled;
+        private bool _rs422LoopModeInitialized;
+
         private string _stepAResult = "--";
         private string _stepBResult = "--";
 
@@ -385,9 +388,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         AddLog($"HI8435初始化失败: {ex.Message}");
                     }
 
-                    // 启动异步接收功能
-                    _fpga.StartAsyncReceive(AddLog);
-
                     // 6.8 RS422自检测功能测试要求：
                     // 1. IO11=MUX1(bit0)=0, IO12=MUX2(bit1)=0 → RS422内部自检回环模式
                     // 2. CRM_PIN2和CRM_PIN12置为0（根据测试规范）
@@ -395,9 +395,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     // MUX1=0(bit0), MUX2=0(bit1) → 内部回环
                     // CRM_PIN2对应某个IO位，CRM_PIN12对应某个IO位（需要置0）
                     // 根据协议，发送0x00000000即可将所有输出置低
-                    await _fpga.WriteGpioAsync(0x00000000u, token);
+                    //关闭422回环模式
+                    await EnsureRs422LoopModeAsync(false, token);
                     AddLog("[FPGA] GPIO输出已置低（MUX1=0, MUX2=0, CRM_PIN2=0, CRM_PIN12=0）");
                     AddLog("[FPGA] RS422内部自检回环模式已启用");
+
+                    // 启动异步接收功能
+                    _fpga.StartAsyncReceive(AddLog);
                 }
                 catch (Exception ex)
                 {
@@ -421,9 +425,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 if (_fpga != null)
                 {
                     try { _fpga.StopAsyncReceive(); } catch { }
+                    await Task.Delay(50, CancellationToken.None);
                     try { _fpga.Disconnect(); } catch { }
                     _fpga = null;
                     _fpgaConnected = false;
+                    _rs422LoopModeEnabled = false;
+                    _rs422LoopModeInitialized = false;
                 }
 
                 try { await _componentPowerStateApi.ApplyComponentDownStateAsync(token); } catch { }
@@ -462,7 +469,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
             Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
         }
+        private async Task EnsureRs422LoopModeAsync(bool enable, CancellationToken token)
+        {
+            if (!_fpgaConnected || _fpga == null)
+                return;
 
+            if (_rs422LoopModeInitialized && _rs422LoopModeEnabled == enable)
+                return;
+
+            await _fpga.WriteGpioOutputOnlyAsync(0x00000000u, token);
+            _rs422LoopModeEnabled = enable;
+            _rs422LoopModeInitialized = true;
+            AddLog(enable
+                ? "[FPGA] 已设置 IO11(MUX1)=1、IO12(MUX2)=1（开启RS422回环模式）"
+                : "[FPGA] 已设置 IO11(MUX1)=0、IO12(MUX2)=0（关闭RS422回环模式）");
+
+            await Task.Delay(50, token);
+        }
         private async Task RunStepAAsync(CancellationToken token)
         {
             // 6.8 RS422自检测功能测试 - 步骤a

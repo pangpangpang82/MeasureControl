@@ -479,28 +479,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         try { _fpga.StopAsyncReceive(); } catch { }
                         await Task.Delay(50, CancellationToken.None);
 
-                        using var timeoutCts = new CancellationTokenSource(300);
-                        CancellationTokenSource linkedCts = null;
-                        CancellationToken sendToken;
-                        if (token.CanBeCanceled && token.IsCancellationRequested)
-                        {
-                            sendToken = timeoutCts.Token;
-                        }
-                        else
-                        {
-                            linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
-                            sendToken = linkedCts.Token;
-                        }
-
-                        try
-                        {
-                            await _fpga.WriteGpioAsync(0x00000000u, sendToken);
-                            AddLog("[FPGA] 已设置 IO11(MUX1)=0、IO12(MUX2)=0（关闭RS422外部通信模式）");
-                        }
-                        finally
-                        {
-                            try { linkedCts?.Dispose(); } catch { }
-                        }
+                        //关闭422回环模式
+                        await EnsureRs422LoopModeAsync(false, token);
                     }
                     catch (Exception ex)
                     {
@@ -573,7 +553,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             if (_rs422LoopModeInitialized && _rs422LoopModeEnabled == enable)
                 return;
 
-            uint mask = enable ? 0x03000000u : 0x00000000u;                         //大端模式
+            uint mask = enable ? 0x00000003u : 0x00000000u;                         //小端模式
             await _fpga.WriteGpioOutputOnlyAsync(mask, token);
             _rs422LoopModeEnabled = enable;
             _rs422LoopModeInitialized = true;
