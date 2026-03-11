@@ -146,18 +146,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        public string ControllerPressureTestRxChannel
-        {
-            get => TestCommandRxChannel;
-            set
-            {
-                TestCommandRxChannel = value;
-                RaisePropertyChanged(nameof(ControllerPressureTestRxChannel));
-            }
-        }
-
-        public string ControllerPressureTestRxDataText => TestCommandRxDataText;
-
         public string PressureTelemetryRxChannel
         {
             get => TelemetryRxChannel;
@@ -179,10 +167,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             get => _testCommandRxDataText;
             private set
             {
-                if (SetProperty(ref _testCommandRxDataText, value))
-                {
-                    RaisePropertyChanged(nameof(ControllerPressureTestRxDataText));
-                }
+                SetProperty(ref _testCommandRxDataText, value);
             }
         }
 
@@ -611,27 +596,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
                 try
                 {
-                    await _simulation.ClearRxFifoAsync(ControllerPressureTestRxChannel);
-                    await Task.Delay(20);
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送S_AFTAVENTS_MEA：TX={ControllerPressureTestTxChannel}, RX={ControllerPressureTestRxChannel}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送S_AFTAVENTS_MEA：TX={ControllerPressureTestTxChannel}");
                     await _simulation.SendBenchCommandOnlyAsync(ControllerPressureTestTxChannel, SAftAventsMea038, msg => AddLog(msg), CancellationToken.None);
-
-                    var confirm = await _simulation.WaitBenchResponse8Async(
-                        ControllerPressureTestRxChannel,
-                        b => b != null && b.SequenceEqual(SAftAventsMea038),
-                        timeoutMs: 1200,
-                        log: msg => AddLog(msg),
-                        token: CancellationToken.None);
-
-                    if (confirm == null)
-                    {
-                        SetLastTestResult("FAIL");
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 指令确认帧超时");
-                        return;
-                    }
-
-                    TestCommandRxDataText = "0x" + FormatData(confirm);
 
                     var tel = await _simulation.WaitTelemetryAsync(PressureTelemetryRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: CancellationToken.None);
                     if (tel == null)
