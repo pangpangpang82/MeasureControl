@@ -45,12 +45,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int PressureBitLength = 12;
 
         // 协议规定 SSM=0 为正常数据
-        private const byte SsmNormal = 0;
+        private const byte SsmNormal = 3;
 
         // 采样参数
         private const int SamplesPerMeasure = 1;      // 每路采集 3 帧取平均
         private const int SampleTimeoutMs = 3000;     // 采样超时 5 秒
-        private const int AoSettleMs = 100;            // 模拟量输出稳定等待时间
+        private const int AoSettleMs = 500;            // 模拟量输出稳定等待时间
         private const int Mtx532ReadyTimeoutMs = 6000;
         private const int Mtx532ReadyPollMs = 200;
         private const int PostSwitchRxFlushMs = 120;
@@ -604,7 +604,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await Task.Delay(PostSwitchRxFlushMs, cancellationToken).ConfigureAwait(false);
 
                 var ok1 = await MeasureSingleSystemAsync($"{title}-SYS1", sdi: 1, setSys1, setV1, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
                 var ok2 = await MeasureSingleSystemAsync($"{title}-SYS2", sdi: 2, setSys2, setV2, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
                 var ok3 = await MeasureSingleSystemAsync($"{title}-SYS3", sdi: 3, setSys3, setV3, cancellationToken).ConfigureAwait(false);
 
                 return ok1 && ok2 && ok3;
@@ -649,8 +651,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     foreach (var w in words)
                     {
-                        if (!_arinc.VerifyOddParity(w.Data429))
-                            continue;
+                        //if (!_arinc.VerifyOddParity(w.Data429))
+                        //    continue;
 
                         _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out var ssm);
 
@@ -1114,15 +1116,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (_mtx532 == null || !_mtx532.IsConnected)
                 throw new InvalidOperationException("MTX532未连接");
 
-            var halfVoltage = voltageV / 2.0;
+            //var halfVoltage = voltageV / 2.0;
+            var halfVoltage = voltageV;
             await _mtx532.WriteOnceDcAsync(new Dictionary<string, double>
             {
                 ["AO0"] = halfVoltage,
-                ["AO1"] = -halfVoltage,
+                //["AO1"] = -halfVoltage,
+                ["AO1"] = 0.0,
                 ["AO2"] = halfVoltage,
-                ["AO3"] = -halfVoltage,
+                //["AO3"] = -halfVoltage,
+                ["AO3"] = 0.0,
                 ["AO4"] = halfVoltage,
-                ["AO5"] = -halfVoltage
+                //["AO5"] = -halfVoltage
+                ["AO5"] = 0.0,
+
             }, cancellationToken).ConfigureAwait(false);
         }
 

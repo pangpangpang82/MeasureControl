@@ -734,6 +734,7 @@
     <Compile Include="ViewModels\Hardware\PxiChassisViewModel.cs" />
     <Compile Include="ViewModels\ICloseGuard.cs" />
     <Compile Include="ViewModels\LoginViewModel.cs" />
+   <Compile Include="ViewModels\SingleBoardTest\BoardTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc100mADiscreteOutputCh1TestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc100mADiscreteOutputCh2TestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc400mADiscreteOutputTestViewModel.cs" />
@@ -805,7 +806,6 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_7_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_7_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_7_3ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\BoardTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\DiscreteInputTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\DiscreteOutputTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\LowVoltageAlarmTestViewModel.cs" />

@@ -46,7 +46,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         // 矩阵开关槽位配置
         private const int MatrixSlotCommon = 4;       // 公共端槽位
-        private const int MatrixSlotPinRoute = 8;     // 针脚路由槽位
+        private const int MatrixSlotPinRoute = 6;     // 针脚路由槽位
 
         // ARINC429 发送配置
         private const int TxChannelIndex = 0; // 发送通道1 => index 0
@@ -652,7 +652,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var matrix = MatrixControlService.Instance;
 
             var okCommon = await matrix.ConnectNodesAsync("I4", "O2", MatrixSlotCommon, MatrixIpAddress).ConfigureAwait(false);
-            var outNode = $"O{pin - 1}";
+            var outNode = $"O{pin + 1}";
             var okPin = await matrix.ConnectNodesAsync("I1", outNode, MatrixSlotPinRoute, MatrixIpAddress).ConfigureAwait(false);
 
             Log($"PIN{pin}: 矩阵连接 {(okCommon && okPin ? "成功" : "失败")} - I4-O2(slot{MatrixSlotCommon}), I1-{outNode}(slot{MatrixSlotPinRoute})");

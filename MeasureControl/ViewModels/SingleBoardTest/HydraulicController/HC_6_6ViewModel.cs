@@ -29,20 +29,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int RelayGroundDoIndex = 26;
         private const int RxChannelIndex = 2;
         private const int LvdtSlotIndex = 2;
-        private const int MatrixSlotExcitationSignal = 8;
+        private const int MatrixSlotExcitationSignal = 6;
         private const int MatrixSlotExcitationCommon = 4;
         private const int ExcitationPlusOutputNode = 17;
         private const int ExcitationMinusOutputNode = 18;
         private const int DmmFrequencyRangeIndex = 20;
         private const double ArincRate = 100000.0;
         private const byte QtyLabelDec = 123;
-        private const byte SsmNormal = 0;
+        private const byte SsmNormal = 3;
         private const int QtyBitLength = 8;
         private const int QtyMsbPosition = 27;
         private const double QtyResolution = 1.0;
         private const int SamplesPerMeasure = 1;
-        private const int SampleTimeoutMs = 3000;
-        private const int LvdtSettleMs = 250;
+        private const int SampleTimeoutMs = 5000;
+        private const int LvdtSettleMs = 500;
         private const int PostSwitchRxFlushMs = 120;
         private const int ExcitationReadSettleMs = 80;
         //private const int ExcitationRestoreSettleMs = 120;
@@ -380,7 +380,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureLvdtAsync(_manualCts.Token).ConfigureAwait(false);
                 await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
                 await EnsureDmmAsync(_manualCts.Token).ConfigureAwait(false);
-                await ApplyQuantityOutputsAsync(MidPoint.Target, _manualCts.Token).ConfigureAwait(false);
+                await ApplyQuantityOutputsAsync(0.0, _manualCts.Token).ConfigureAwait(false);
                 CanMeasure = true;
                 Log("手动测试初始化完成，可分别测量激励与三档油量");
             }
@@ -455,24 +455,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }, cancellationToken).ConfigureAwait(false);
             _measuredExc2 = true;
 
-            _passedLow = await MeasureQuantityPointAsync(LowPoint, (s1, s2) =>
+            _passedLow = await MeasureQuantityPointAsync(LowPoint, (sdi, text) =>
             {
-                PointLowSys1Text = s1;
-                PointLowSys2Text = s2;
+                if (sdi == 2)
+                    PointLowSys1Text = text;
+                else if (sdi == 3)
+                    PointLowSys2Text = text;
             }, cancellationToken).ConfigureAwait(false);
             _measuredLow = true;
 
-            _passedMid = await MeasureQuantityPointAsync(MidPoint, (s1, s2) =>
+            _passedMid = await MeasureQuantityPointAsync(MidPoint, (sdi, text) =>
             {
-                PointMidSys1Text = s1;
-                PointMidSys2Text = s2;
+                if (sdi == 2)
+                    PointMidSys1Text = text;
+                else if (sdi == 3)
+                    PointMidSys2Text = text;
             }, cancellationToken).ConfigureAwait(false);
             _measuredMid = true;
 
-            _passedHigh = await MeasureQuantityPointAsync(HighPoint, (s1, s2) =>
+            _passedHigh = await MeasureQuantityPointAsync(HighPoint, (sdi, text) =>
             {
-                PointHighSys1Text = s1;
-                PointHighSys2Text = s2;
+                if (sdi == 2)
+                    PointHighSys1Text = text;
+                else if (sdi == 3)
+                    PointHighSys2Text = text;
             }, cancellationToken).ConfigureAwait(false);
             _measuredHigh = true;
 
@@ -510,10 +516,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task OnMeasureLowPointAsync()
         {
             var token = _manualCts?.Token ?? CancellationToken.None;
-            _passedLow = await MeasureQuantityPointAsync(LowPoint, (s1, s2) =>
+            _passedLow = await MeasureQuantityPointAsync(LowPoint, (sdi, text) =>
             {
-                PointLowSys1Text = s1;
-                PointLowSys2Text = s2;
+                if (sdi == 2)
+                    PointLowSys1Text = text;
+                else if (sdi == 3)
+                    PointLowSys2Text = text;
             }, token).ConfigureAwait(false);
             _measuredLow = true;
             RefreshMeasureCommands();
@@ -523,10 +531,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task OnMeasureMidPointAsync()
         {
             var token = _manualCts?.Token ?? CancellationToken.None;
-            _passedMid = await MeasureQuantityPointAsync(MidPoint, (s1, s2) =>
+            _passedMid = await MeasureQuantityPointAsync(MidPoint, (sdi, text) =>
             {
-                PointMidSys1Text = s1;
-                PointMidSys2Text = s2;
+                if (sdi == 2)
+                    PointMidSys1Text = text;
+                else if (sdi == 3)
+                    PointMidSys2Text = text;
             }, token).ConfigureAwait(false);
             _measuredMid = true;
             RefreshMeasureCommands();
@@ -536,10 +546,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task OnMeasureHighPointAsync()
         {
             var token = _manualCts?.Token ?? CancellationToken.None;
-            _passedHigh = await MeasureQuantityPointAsync(HighPoint, (s1, s2) =>
+            _passedHigh = await MeasureQuantityPointAsync(HighPoint, (sdi, text) =>
             {
-                PointHighSys1Text = s1;
-                PointHighSys2Text = s2;
+                if (sdi == 2)
+                    PointHighSys1Text = text;
+                else if (sdi == 3)
+                    PointHighSys2Text = text;
             }, token).ConfigureAwait(false);
             _measuredHigh = true;
             RefreshMeasureCommands();
@@ -594,7 +606,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        private async Task<bool> MeasureQuantityPointAsync(QuantityPoint point, Action<string, string> setTexts, CancellationToken cancellationToken)
+        private async Task<bool> MeasureQuantityPointAsync(QuantityPoint point, Action<byte, string> setText, CancellationToken cancellationToken)
         {
             if (!(IsAutoTestRunning || (IsManualTestRunning && CanMeasure)))
             {
@@ -612,36 +624,78 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                 var samples = new Dictionary<byte, List<double>>
                 {
-                    [1] = new List<double>(SamplesPerMeasure),
-                    [2] = new List<double>(SamplesPerMeasure)
+                    [2] = new List<double>(SamplesPerMeasure),
+                    [3] = new List<double>(SamplesPerMeasure)
                 };
 
                 Log($"{point.Name}: 已设置LVDT输出，目标油量={point.Target:0.###}%");
 
                 var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
+                var assignedText = new HashSet<byte>();
                 while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
                 {
                     var words = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 512, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken)
                         .ConfigureAwait(false);
 
+                    if (words != null && words.Count > 0)
+                        Log($"{point.Name}: 本轮收到 {words.Count} 条429字");
+
                     foreach (var w in words)
                     {
-                        if (!_arinc.VerifyOddParity(w.Data429))
+                        var parityOk = _arinc.VerifyOddParity(w.Data429);
+                        if (!parityOk)
+                        {
+                            Log($"{point.Name}: 丢弃429字 Raw=0x{w.Data429:X8}, 原因=奇校验失败");
                             continue;
+                        }
 
                         _arinc.ParseRawWord(w.Data429, out var label, out var sdi, out var data19, out var ssm);
-                        if (!IsExpectedLabel(label) || ssm != SsmNormal || (sdi != 1 && sdi != 2))
+                        Log($"{point.Name}: 429解析 Raw=0x{w.Data429:X8}, Label={label}, SDI={sdi}, SSM={ssm}, Data19=0x{data19:X5}");
+
+                        if (!IsExpectedLabel(label))
+                        {
+                            Log($"{point.Name}: 丢弃429字 Raw=0x{w.Data429:X8}, 原因=Label不匹配");
                             continue;
+                        }
+
+                        if (ssm != SsmNormal)
+                        {
+                            Log($"{point.Name}: 丢弃429字 Raw=0x{w.Data429:X8}, 原因=SSM={ssm} 不等于期望值 {SsmNormal}");
+                            continue;
+                        }
+
+                        if (sdi != 2 && sdi != 3)
+                        {
+                            Log($"{point.Name}: 丢弃429字 Raw=0x{w.Data429:X8}, 原因=SDI={sdi} 不在期望范围[2,3]");
+                            continue;
+                        }
 
                         var value = DecodeQuantity(data19);
                         if (!value.HasValue)
+                        {
+                            Log($"{point.Name}: 丢弃429字 Raw=0x{w.Data429:X8}, 原因=数据解码失败");
                             continue;
+                        }
+
+                        Log($"{point.Name}: 命中目标429字 SDI={sdi}, 解码油量={value.Value:0.###}%");
 
                         var list = samples[sdi];
                         if (list.Count >= SamplesPerMeasure)
+                        {
+                            Log($"{point.Name}: SDI={sdi} 已满足样本数 {SamplesPerMeasure}，忽略后续数据");
                             continue;
+                        }
 
                         list.Add(value.Value);
+                        Log($"{point.Name}: SDI={sdi} 已采样 {list.Count}/{SamplesPerMeasure}");
+
+                        if (list.Count >= SamplesPerMeasure && !assignedText.Contains(sdi))
+                        {
+                            var avg = list.Average();
+                            setText(sdi, $"{avg:0} %");
+                            assignedText.Add(sdi);
+                            Log($"{point.Name}: SYS{(sdi == 2 ? 1 : 2)} 已收到 {avg:0}%");
+                        }
                     }
 
                     if (samples.Values.All(x => x.Count >= SamplesPerMeasure))
@@ -650,16 +704,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     await Task.Delay(10, cancellationToken).ConfigureAwait(false);
                 }
 
-                if (samples[1].Count < SamplesPerMeasure || samples[2].Count < SamplesPerMeasure)
+                if (samples[2].Count < SamplesPerMeasure || samples[3].Count < SamplesPerMeasure)
                 {
-                    setTexts(samples[1].Count > 0 ? $"{samples[1].Average():0} %" : "超时", samples[2].Count > 0 ? $"{samples[2].Average():0} %" : "超时");
+                    if (samples[2].Count < SamplesPerMeasure)
+                        setText(2, "超时");
+
+                    if (samples[3].Count < SamplesPerMeasure)
+                        setText(3, "超时");
+
                     Log($"{point.Name}: 接收油量429数据超时");
                     return false;
                 }
 
-                var avg1 = samples[1].Average();
-                var avg2 = samples[2].Average();
-                setTexts($"{avg1:0} %", $"{avg2:0} %");
+                var avg1 = samples[2].Average();
+                var avg2 = samples[3].Average();
 
                 var pass = IsQuantityInRange(avg1, point) && IsQuantityInRange(avg2, point);
                 Log($"{point.Name}: SYS1={avg1:0}%, SYS2={avg2:0}%, 判定范围=[{point.Min:0.###},{point.Max:0.###}]%, 结果={(pass ? "合格" : "不合格")}");
@@ -887,7 +945,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var boundedQuantity = Math.Max(0.0, Math.Min(100.0, quantityPercent));
             var diff = (boundedQuantity / 100.0 - 0.5) * SimulationSumVrms;
             var s1 = (SimulationSumVrms + diff) / 2.0;
-            var s2 = (SimulationSumVrms - diff) / 2.0;
+            var s2 = (SimulationSumVrms - diff) / 2.0; //1.8 4.2  2.4 3.6 1.755 4.47
+
             return (s1, s2);
         }
 
