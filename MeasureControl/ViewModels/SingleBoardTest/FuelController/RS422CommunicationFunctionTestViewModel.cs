@@ -51,6 +51,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isPowerOn;
         private string _powerStatus = "未上电";
 
+        private bool _rs422LoopModeEnabled;
+        private bool _rs422LoopModeInitialized;
+
         private string _stepAResult = "--";
         private string _stepBResult = "--";
         private string _stepCResult = "--";
@@ -403,13 +406,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     _fpgaConnected = true;
                     AddLog("FPGA连接成功");
 
+                    try
+                    {
+                        AddLog("正在初始化HI8435...");
+                        await _fpga.InitHi8435AfterConnectAsync(token);
+                        AddLog("HI8435初始化完成");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"HI8435初始化失败: {ex.Message}");
+                    }
+
+                    //开启422回环模式
+                    await EnsureRs422LoopModeAsync(true, token);
+
                     // 启动异步接收功能
                     _fpga.StartAsyncReceive(AddLog);
-
-                    // IO11=MUX1(bit0)=1: 外部通信模式，MUX2=0
-                    // MUX1=1 → RS422信号路由到J1外部接口
-                    //await _fpga.WriteGpioAsync(0x00000001u, token);
-                    AddLog("[FPGA] MUX1=1已设置（RS422外部通信模式）");
                 }
                 catch (Exception ex)
                 {
@@ -462,10 +474,44 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 if (_fpga != null)
                 {
-                    try { _fpga.StopAsyncReceive(); } catch { }
+                    try
+                    {
+                        try { _fpga.StopAsyncReceive(); } catch { }
+                        await Task.Delay(50, CancellationToken.None);
+
+                        using var timeoutCts = new CancellationTokenSource(300);
+                        CancellationTokenSource linkedCts = null;
+                        CancellationToken sendToken;
+                        if (token.CanBeCanceled && token.IsCancellationRequested)
+                        {
+                            sendToken = timeoutCts.Token;
+                        }
+                        else
+                        {
+                            linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
+                            sendToken = linkedCts.Token;
+                        }
+
+                        try
+                        {
+                            await _fpga.WriteGpioAsync(0x00000000u, sendToken);
+                            AddLog("[FPGA] 已设置 IO11(MUX1)=0、IO12(MUX2)=0（关闭RS422外部通信模式）");
+                        }
+                        finally
+                        {
+                            try { linkedCts?.Dispose(); } catch { }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"[FPGA] 关闭MUX失败: {ex.Message}");
+                    }
+
                     try { _fpga.Disconnect(); } catch { }
                     _fpga = null;
                     _fpgaConnected = false;
+                    _rs422LoopModeEnabled = false;
+                    _rs422LoopModeInitialized = false;
                 }
 
                 // 关闭422串口
@@ -519,6 +565,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
         }
 
+        private async Task EnsureRs422LoopModeAsync(bool enable, CancellationToken token)
+        {
+            if (!_fpgaConnected || _fpga == null)
+                return;
+
+            if (_rs422LoopModeInitialized && _rs422LoopModeEnabled == enable)
+                return;
+
+            uint mask = enable ? 0x03000000u : 0x00000000u;                         //大端模式
+            await _fpga.WriteGpioOutputOnlyAsync(mask, token);
+            _rs422LoopModeEnabled = enable;
+            _rs422LoopModeInitialized = true;
+            AddLog(enable
+                ? "[FPGA] 已设置 IO11(MUX1)=1、IO12(MUX2)=1（开启RS422回环模式）"
+                : "[FPGA] 已设置 IO11(MUX1)=0、IO12(MUX2)=0（关闭RS422回环模式）");
+
+            await Task.Delay(50, token);
+        }
+
         private async Task RunStepAAsync(CancellationToken token)
         {
             // 步骤a: 验证产品的接收功能（通道1）
@@ -530,7 +595,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 try
                 {
                     AddLog("步骤a: 通道1收发测试（验证产品接收功能）");
-                    
                     // 清空串口接收缓存
                     _serial1.ClearReceivedData();
                     var sendTime = DateTime.UtcNow;
@@ -576,7 +640,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 try
                 {
                     AddLog("步骤b: 通道2收发测试（验证产品接收功能）");
-                    
                     // 清空串口接收缓存
                     _serial2.ClearReceivedData();
                     var sendTime = DateTime.UtcNow;
@@ -622,7 +685,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 try
                 {
                     AddLog("步骤c: 通道1回环测试（验证产品发送功能）");
-                    
                     // 清空FPGA异步接收缓存
                     _fpga.ClearReceivedFrames();
                     var sendTime = DateTime.UtcNow;
@@ -686,7 +748,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 try
                 {
                     AddLog("步骤d: 通道2回环测试（验证产品发送功能）");
-                    
                     // 清空FPGA异步接收缓存
                     _fpga.ClearReceivedFrames();
                     var sendTime = DateTime.UtcNow;

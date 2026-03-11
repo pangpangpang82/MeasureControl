@@ -374,6 +374,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     _fpgaConnected = true;
                     AddLog("FPGA连接成功");
 
+                    try
+                    {
+                        AddLog("正在初始化HI8435...");
+                        await _fpga.InitHi8435AfterConnectAsync(token);
+                        AddLog("HI8435初始化完成");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"HI8435初始化失败: {ex.Message}");
+                    }
+
                     // 启动异步接收功能
                     _fpga.StartAsyncReceive(AddLog);
 
