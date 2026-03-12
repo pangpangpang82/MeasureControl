@@ -636,7 +636,7 @@
 
                             ItemsSource="{StaticResource Arinc429Channels}"
 
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
 
                             SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
 
@@ -776,7 +776,7 @@
 
                             ItemsSource="{StaticResource Arinc429Channels}"
 
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
 
                             SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
 
@@ -1016,7 +1016,7 @@
 
                             ItemsSource="{StaticResource Arinc429Channels}"
 
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
 
                             SelectedItem="{Binding ControllerPressureTestTxChannel, Mode=TwoWay}" />
 
@@ -1170,7 +1170,7 @@
 
                         ItemsSource="{StaticResource Arinc429Channels}"
 
-                        IsEnabled="{Binding CanEditStepControls}"
+                        IsEnabled="False"
 
                         SelectedItem="{Binding PressureTelemetryRxChannel, Mode=TwoWay}" />
 
@@ -1280,7 +1280,7 @@
 
                             ItemsSource="{StaticResource Arinc429Channels}"
 
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
 
                             SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
 
@@ -1420,7 +1420,7 @@
 
                             ItemsSource="{StaticResource Arinc429Channels}"
 
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
 
                             SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}" />
 

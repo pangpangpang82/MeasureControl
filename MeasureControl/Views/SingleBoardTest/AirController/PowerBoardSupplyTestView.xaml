@@ -275,6 +275,7 @@
                                 HorizontalAlignment="Left"
                                 FontSize="12"
                                 ItemsSource="{StaticResource Arinc429Channels}"
+                                IsEnabled="False"
                                 SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
                             <Border
                                 Width="180"
@@ -311,6 +312,7 @@
                                 HorizontalAlignment="Left"
                                 FontSize="12"
                                 ItemsSource="{StaticResource Arinc429Channels}"
+                                IsEnabled="False"
                                 SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
                             <Border
                                 Width="180"
@@ -341,6 +343,7 @@
                             HorizontalAlignment="Left"
                             FontSize="12"
                             ItemsSource="{StaticResource Arinc429Channels}"
+                            IsEnabled="False"
                             SelectedItem="{Binding CommandTxChannel, Mode=TwoWay}" />
                         <Border
                             Width="180"
@@ -403,6 +406,7 @@
                             HorizontalAlignment="Left"
                             FontSize="12"
                             ItemsSource="{StaticResource Arinc429Channels}"
+                            IsEnabled="False"
                             SelectedItem="{Binding TelemetryRxChannel, Mode=TwoWay}" />
                         <Border
                             Width="140"
@@ -448,6 +452,7 @@
                                 HorizontalAlignment="Left"
                                 FontSize="12"
                                 ItemsSource="{StaticResource Arinc429Channels}"
+                                IsEnabled="False"
                                 SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
                             <Border
                                 Width="180"
@@ -484,6 +489,7 @@
                                 HorizontalAlignment="Left"
                                 FontSize="12"
                                 ItemsSource="{StaticResource Arinc429Channels}"
+                                IsEnabled="False"
                                 SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}" />
                             <Border
                                 Width="180"

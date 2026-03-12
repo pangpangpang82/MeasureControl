@@ -180,6 +180,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         {
 
+            _testTxChannel = "CH0";
+
+            _testRxChannel = "CH2";
+
+            _controllerPressureTestTxChannel = _testTxChannel;
+
+            _pressureTelemetryRxChannel = _testRxChannel;
+
+            _enterAtpTxChannel = _testTxChannel;
+
+            _enterAtpRxChannel = _testRxChannel;
+
+            _exitAtpTxChannel = _testTxChannel;
+
+            _exitAtpRxChannel = _testRxChannel;
+
 
 
 
@@ -1429,7 +1445,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             tx ??= "CH0";
 
-            rx ??= "CH1";
+            rx ??= "CH2";
 
 
 
@@ -1440,14 +1456,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
             EnterAtpTxChannel ??= tx;
-
             EnterAtpRxChannel ??= rx;
 
             ExitAtpTxChannel ??= tx;
 
             ExitAtpRxChannel ??= rx;
-
-
 
             ControllerPressureTestTxChannel ??= tx;
 

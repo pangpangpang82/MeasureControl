@@ -45,7 +45,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private CancellationTokenSource _autoTestCts;
 
         private string _testTxChannel = "CH0";
-        private string _testRxChannel = "CH1";
+        private string _testRxChannel = "CH2";
 
         private string _oscilloscopeIpAddress = "192.168.1.18";
         private string _frequencyCounterIpAddress = "192.168.1.14";

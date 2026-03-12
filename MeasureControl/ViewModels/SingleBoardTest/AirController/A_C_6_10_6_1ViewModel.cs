@@ -92,16 +92,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public A_C_6_10_6_1ViewModel()
         {
             _testTxChannel = "CH0";
-            _testRxChannel = "CH1";
+            _testRxChannel = "CH2";
 
-            _controllerPressureTestTxChannel = null;
+            _controllerPressureTestTxChannel = _testTxChannel;
 
-            _pressureTelemetryRxChannel = null;
+            _pressureTelemetryRxChannel = _testRxChannel;
 
-            _enterAtpTxChannel = null;
-            _enterAtpRxChannel = null;
-            _exitAtpTxChannel = null;
-            _exitAtpRxChannel = null;
+            _enterAtpTxChannel = _testTxChannel;
+            _enterAtpRxChannel = _testRxChannel;
+            _exitAtpTxChannel = _testTxChannel;
+            _exitAtpRxChannel = _testRxChannel;
 
             VoltageSetValueText = "--";
             PressureTelemetryValueText = "--";
@@ -512,7 +512,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             var rx = FirstNonEmpty(EnterAtpRxChannel, ExitAtpRxChannel, PressureTelemetryRxChannel, TestRxChannel);
 
             tx ??= "CH0";
-            rx ??= "CH1";
+            rx ??= "CH2";
 
             TestTxChannel = tx;
             TestRxChannel = rx;

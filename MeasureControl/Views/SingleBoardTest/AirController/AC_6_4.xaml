@@ -287,6 +287,7 @@
                                 FontSize="12"
                                 ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                                 ItemsSource="{StaticResource Arinc429Channels}"
+                                IsEnabled="False"
                                 SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}"
                                 SelectionChanged="ComboBox_SelectionChanged">
                                 <ComboBox.Style>
@@ -370,6 +371,7 @@
                                 FontSize="12"
                                 ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                                 ItemsSource="{StaticResource Arinc429Channels}"
+                                IsEnabled="False"
                                 SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}">
                                 <ComboBox.Style>
                                     <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
@@ -421,6 +423,7 @@
                             FontSize="12"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
+                            IsEnabled="False"
                             SelectedItem="{Binding SetVoltageTxChannel, Mode=TwoWay}">
                             <ComboBox.Style>
                                 <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
@@ -568,6 +571,7 @@
                             FontSize="12"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
+                            IsEnabled="False"
                             SelectedItem="{Binding TelemetryRxChannel, Mode=TwoWay}">
                             <ComboBox.Style>
                                 <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
@@ -636,6 +640,7 @@
                                 FontSize="12"
                                 ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                                 ItemsSource="{StaticResource Arinc429Channels}"
+                                IsEnabled="False"
                                 SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}">
                                 <ComboBox.Style>
                                     <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
@@ -719,6 +724,7 @@
                                 FontSize="12"
                                 ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                                 ItemsSource="{StaticResource Arinc429Channels}"
+                                IsEnabled="False"
                                 SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}">
                                 <ComboBox.Style>
                                     <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">

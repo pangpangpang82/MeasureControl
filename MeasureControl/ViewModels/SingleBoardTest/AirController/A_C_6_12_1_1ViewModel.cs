@@ -76,7 +76,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public A_C_6_12_1_1ViewModel()
         {
             _testTxChannel = "CH0";
-            _testRxChannel = "CH1";
+            _testRxChannel = "CH2";
 
             _enterAtpTxChannel = null;
             _enterAtpRxChannel = null;
@@ -1012,7 +1012,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             var rx = FirstNonEmpty(EnterAtpRxChannel, ExitAtpRxChannel, FingerTelemetryRxChannel, TestRxChannel);
 
             tx ??= "CH0";
-            rx ??= "CH1";
+            rx ??= "CH2";
 
             TestTxChannel = tx;
             TestRxChannel = rx;

@@ -47,7 +47,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private NetworkStream _scopeTcpStream;
 
         private string _testTxChannel = "CH0";
-        private string _testRxChannel = "CH1";
+        private string _testRxChannel = "CH2";
         private double _arincRate = 100000.0;
 
         private string _oscilloscopeIpAddress = "192.168.1.18";
