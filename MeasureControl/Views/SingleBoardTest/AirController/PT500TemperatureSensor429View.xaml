@@ -319,7 +319,7 @@
                             FontSize="12"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
                             SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
 
                         <Border
@@ -389,7 +389,7 @@
                             FontSize="12"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
                             SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
 
                         <Border
@@ -522,7 +522,7 @@
                             FontSize="12"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
                             SelectedItem="{Binding ControllerTemperatureTestTxChannel, Mode=TwoWay}" />
 
                         <Border
@@ -592,7 +592,7 @@
                             FontSize="12"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
                             SelectedItem="{Binding ControllerTemperatureTestRxChannel, Mode=TwoWay}" />
 
                         <Border
@@ -629,7 +629,7 @@
                         FontSize="12"
                         ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                         ItemsSource="{StaticResource Arinc429Channels}"
-                        IsEnabled="{Binding CanEditStepControls}"
+                        IsEnabled="False"
                         SelectedItem="{Binding TemperatureTelemetryRxChannel, Mode=TwoWay}" />
 
                     <Border
@@ -722,7 +722,7 @@
                             FontSize="12"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
                             SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
 
                         <Border
@@ -792,7 +792,7 @@
                             FontSize="12"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
                             SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}" />
 
                         <Border

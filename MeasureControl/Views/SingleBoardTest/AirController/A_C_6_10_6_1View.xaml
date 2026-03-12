@@ -309,7 +309,7 @@
                             FontSize="12"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
                             SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
 
                         <Border
@@ -379,7 +379,7 @@
                             FontSize="12"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
                             SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
 
                         <Border
@@ -501,7 +501,7 @@
                             FontSize="12"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
                             SelectedItem="{Binding ControllerPressureTestTxChannel, Mode=TwoWay}" />
 
                         <Border
@@ -578,7 +578,7 @@
                         FontSize="12"
                         ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                         ItemsSource="{StaticResource Arinc429Channels}"
-                        IsEnabled="{Binding CanEditStepControls}"
+                        IsEnabled="False"
                         SelectedItem="{Binding PressureTelemetryRxChannel, Mode=TwoWay}" />
 
                     <Border
@@ -633,7 +633,7 @@
                             FontSize="12"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
                             SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
 
                         <Border
@@ -703,7 +703,7 @@
                             FontSize="12"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
                             SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}" />
 
                         <Border

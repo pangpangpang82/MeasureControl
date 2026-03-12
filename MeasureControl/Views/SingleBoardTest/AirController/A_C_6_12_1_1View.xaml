@@ -578,7 +578,7 @@
 
                             ItemsSource="{StaticResource Arinc429Channels}"
 
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
 
                             SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
 
@@ -718,7 +718,7 @@
 
                             ItemsSource="{StaticResource Arinc429Channels}"
 
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
 
                             SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
 
@@ -958,7 +958,7 @@
 
                             ItemsSource="{StaticResource Arinc429Channels}"
 
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
 
                             SelectedItem="{Binding FingerTestTxChannel, Mode=TwoWay}" />
 
@@ -1112,7 +1112,7 @@
 
                         ItemsSource="{StaticResource Arinc429Channels}"
 
-                        IsEnabled="{Binding CanEditStepControls}"
+                        IsEnabled="False"
 
                         SelectedItem="{Binding FingerTelemetryRxChannel, Mode=TwoWay}" />
 
@@ -1298,7 +1298,7 @@
 
                             ItemsSource="{StaticResource Arinc429Channels}"
 
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
 
                             SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
 
@@ -1438,7 +1438,7 @@
 
                             ItemsSource="{StaticResource Arinc429Channels}"
 
-                            IsEnabled="{Binding CanEditStepControls}"
+                            IsEnabled="False"
 
                             SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}" />
 

@@ -84,7 +84,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public A_C_6_18_1_1ViewModel()
         {
             _testTxChannel = "429_CH0";
-            _testRxChannel = "429_CH1";
+            _testRxChannel = "429_CH2";
 
             _enterAtpTxChannel = _testTxChannel;
             _enterAtpRxChannel = _testRxChannel;

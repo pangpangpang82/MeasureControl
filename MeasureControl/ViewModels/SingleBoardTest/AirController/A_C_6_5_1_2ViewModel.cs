@@ -17,10 +17,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public sealed class A_C_6_5_1_2ViewModel : BindableBase, IDisposable
     {
-        private const string FixedATxChannel = "429_CH3";
-        private const string FixedARxChannel = "429_CH1";
-        private const string FixedBTxChannel = "429_CH2";
-        private const string FixedBRxChannel = "429_CH0";
+        private const string FixedATxChannel = "429_CH0";
+        private const string FixedARxChannel = "429_CH2";
+        private const string FixedBTxChannel = "429_CH0";
+        private const string FixedBRxChannel = "429_CH2";
 
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
