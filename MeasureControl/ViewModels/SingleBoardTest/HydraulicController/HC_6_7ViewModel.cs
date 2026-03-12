@@ -44,6 +44,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100
         };
 
+        private static readonly int[] ReportPins =
+        {
+            49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+            89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100
+        };
+
         private static readonly int[] RelayIndicesToEnable = { 0, 1, 2, 3, 4, 5, 6 };
 
         private static readonly IReadOnlyList<FrameDefinition> SignalFrames = new[]
@@ -223,6 +229,34 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public string Pin98Text => GetPinText(98);
         public string Pin99Text => GetPinText(99);
         public string Pin100Text => GetPinText(100);
+
+        public bool IsPin49Pass => IsPinPass(49);
+        public bool IsPin50Pass => IsPinPass(50);
+        public bool IsPin51Pass => IsPinPass(51);
+        public bool IsPin52Pass => IsPinPass(52);
+        public bool IsPin53Pass => IsPinPass(53);
+        public bool IsPin54Pass => IsPinPass(54);
+        public bool IsPin55Pass => IsPinPass(55);
+        public bool IsPin56Pass => IsPinPass(56);
+        public bool IsPin57Pass => IsPinPass(57);
+        public bool IsPin58Pass => IsPinPass(58);
+        public bool IsPin59Pass => IsPinPass(59);
+        public bool IsPin60Pass => IsPinPass(60);
+        public bool IsPin61Pass => IsPinPass(61);
+        public bool IsPin62Pass => IsPinPass(62);
+        public bool IsPin63Pass => IsPinPass(63);
+        public bool IsPin89Pass => IsPinPass(89);
+        public bool IsPin90Pass => IsPinPass(90);
+        public bool IsPin91Pass => IsPinPass(91);
+        public bool IsPin92Pass => IsPinPass(92);
+        public bool IsPin93Pass => IsPinPass(93);
+        public bool IsPin94Pass => IsPinPass(94);
+        public bool IsPin95Pass => IsPinPass(95);
+        public bool IsPin96Pass => IsPinPass(96);
+        public bool IsPin97Pass => IsPinPass(97);
+        public bool IsPin98Pass => IsPinPass(98);
+        public bool IsPin99Pass => IsPinPass(99);
+        public bool IsPin100Pass => IsPinPass(100);
 
         public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
         {
@@ -454,6 +488,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (_manualAborted || !_measured14)
                 return;
 
+            success = success && AreAllPinsPassing();
             var resultText = success ? "合格" : "不合格";
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
@@ -571,9 +606,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 _pinTexts[pair.Key] = pair.Value;
                 RaisePropertyChanged($"Pin{pair.Key}Text");
+                RaisePropertyChanged($"IsPin{pair.Key}Pass");
             }
 
             DetectedChannelText = "已接收";
+        }
+
+        private bool AreAllPinsPassing()
+        {
+            return ReportPins.All(IsPinPass);
+        }
+
+        private bool IsPinPass(int pin)
+        {
+            return string.Equals(GetPinText(pin), "1", StringComparison.OrdinalIgnoreCase);
         }
 
         private void ApplyPbitSpecialLogic(byte label, byte sdi, uint data19, Dictionary<int, string> values)

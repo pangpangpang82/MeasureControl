@@ -2259,7 +2259,15 @@ namespace MeasureControl.ViewModels
                 if (existingCalibration.DataContext is ViewModels.TestTask.ConfigTabel.DataCalibrationViewModel existingViewModel)
                 {
                     existingViewModel.SetProjectContext(_projectService?.CurrentProjectRoot);
-                    if (device is AnalogAcquisitionDevice existingAnalogAcquisitionDevice)
+                    if (string.Equals(channelType, "LVDT_VAVB", StringComparison.OrdinalIgnoreCase))
+                    {
+                        existingViewModel.ApplyExplicitSignalContext(device?.Id, new[]
+                        {
+                            "CH0_VA", "CH0_VB", "CH1_VA", "CH1_VB", "CH2_VA", "CH2_VB", "CH3_VA", "CH3_VB",
+                            "CH4_VA", "CH4_VB", "CH5_VA", "CH5_VB", "CH6_VA", "CH6_VB", "CH7_VA", "CH7_VB"
+                        }, "LVDT_VAVB");
+                    }
+                    else if (device is AnalogAcquisitionDevice existingAnalogAcquisitionDevice)
                     {
                         existingViewModel.ApplyAnalogInputContext(device.Id, existingAnalogAcquisitionDevice.ChannelCount);
                     }
@@ -2280,7 +2288,15 @@ namespace MeasureControl.ViewModels
             }
             // 注入当前项目的标定数据（避免错过 ProjectOpened 时发布的 CalibrationRecordsLoadEvent）
             viewModel.SetProjectContext(_projectService?.CurrentProjectRoot);
-            if (device is AnalogAcquisitionDevice analogAcquisitionDevice)
+            if (string.Equals(channelType, "LVDT_VAVB", StringComparison.OrdinalIgnoreCase))
+            {
+                viewModel.ApplyExplicitSignalContext(device?.Id, new[]
+                {
+                    "CH0_VA", "CH0_VB", "CH1_VA", "CH1_VB", "CH2_VA", "CH2_VB", "CH3_VA", "CH3_VB",
+                    "CH4_VA", "CH4_VB", "CH5_VA", "CH5_VB", "CH6_VA", "CH6_VB", "CH7_VA", "CH7_VB"
+                }, "LVDT_VAVB");
+            }
+            else if (device is AnalogAcquisitionDevice analogAcquisitionDevice)
             {
                 viewModel.ApplyAnalogInputContext(device.Id, analogAcquisitionDevice.ChannelCount);
             }

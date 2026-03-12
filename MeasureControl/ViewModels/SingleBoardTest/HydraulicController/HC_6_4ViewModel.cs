@@ -345,6 +345,42 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _p3Sys3Text, value);
         }
 
+        public double? PressurePoint1Sys1Value => _p1Sys1;
+
+        public double? PressurePoint1Sys2Value => _p1Sys2;
+
+        public double? PressurePoint1Sys3Value => _p1Sys3;
+
+        public double? PressurePoint2Sys1Value => _p2Sys1;
+
+        public double? PressurePoint2Sys2Value => _p2Sys2;
+
+        public double? PressurePoint2Sys3Value => _p2Sys3;
+
+        public double? PressurePoint3Sys1Value => _p3Sys1;
+
+        public double? PressurePoint3Sys2Value => _p3Sys2;
+
+        public double? PressurePoint3Sys3Value => _p3Sys3;
+
+        public bool IsPressurePoint1Sys1Pass => IsPressureWithinRange(_p1Sys1, 0.0, 85.0);
+
+        public bool IsPressurePoint1Sys2Pass => IsPressureWithinRange(_p1Sys2, 0.0, 85.0);
+
+        public bool IsPressurePoint1Sys3Pass => IsPressureWithinRange(_p1Sys3, 0.0, 85.0);
+
+        public bool IsPressurePoint2Sys1Pass => IsPressureWithinRange(_p2Sys1, 3915.0, 4000.0);
+
+        public bool IsPressurePoint2Sys2Pass => IsPressureWithinRange(_p2Sys2, 3915.0, 4000.0);
+
+        public bool IsPressurePoint2Sys3Pass => IsPressureWithinRange(_p2Sys3, 3915.0, 4000.0);
+
+        public bool IsPressurePoint3Sys1Pass => IsPressureWithinRange(_p3Sys1, 1414.0, 1585.0);
+
+        public bool IsPressurePoint3Sys2Pass => IsPressureWithinRange(_p3Sys2, 1414.0, 1585.0);
+
+        public bool IsPressurePoint3Sys3Pass => IsPressureWithinRange(_p3Sys3, 1414.0, 1585.0);
+
         private async Task OnManualTestAsync()
         {
             if (IsManualTestRunning)
@@ -709,6 +745,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             var value = _arinc.DecodeUbnr(data19, bitLength: PressureBitLength, resolution: 1.0, msbPosition: 27);
             return Math.Round(value, 1, MidpointRounding.AwayFromZero);
+        }
+
+        private static bool IsPressureWithinRange(double? value, double min, double max)
+        {
+            return value.HasValue && value.Value >= min && value.Value <= max;
         }
 
         private async Task TryFinalizeIfAllMeasuredAsync()

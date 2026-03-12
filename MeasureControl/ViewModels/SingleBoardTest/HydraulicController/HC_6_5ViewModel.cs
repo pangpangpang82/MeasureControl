@@ -315,6 +315,48 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public string DptSys210mAText { get => _dptSys210mAText; private set => SetProperty(ref _dptSys210mAText, value); }
         public string DptSys310mAText { get => _dptSys310mAText; private set => SetProperty(ref _dptSys310mAText, value); }
 
+        public double? DptEdp24mAValue => ParseMeasurementValue(DptEdp24mAText);
+        public double? DptEmp2B4mAValue => ParseMeasurementValue(DptEmp2B4mAText);
+        public double? DptEmp3B4mAValue => ParseMeasurementValue(DptEmp3B4mAText);
+        public double? DptSys14mAValue => ParseMeasurementValue(DptSys14mAText);
+        public double? DptSys24mAValue => ParseMeasurementValue(DptSys24mAText);
+        public double? DptSys34mAValue => ParseMeasurementValue(DptSys34mAText);
+
+        public double? DptEdp2A20mAValue => ParseMeasurementValue(DptEdp2A20mAText);
+        public double? DptEmp2B20mAValue => ParseMeasurementValue(DptEmp2B20mAText);
+        public double? DptEmp3B20mAValue => ParseMeasurementValue(DptEmp3B20mAText);
+        public double? DptSys120mAValue => ParseMeasurementValue(DptSys120mAText);
+        public double? DptSys220mAValue => ParseMeasurementValue(DptSys220mAText);
+        public double? DptSys320mAValue => ParseMeasurementValue(DptSys320mAText);
+
+        public double? DptEdp2A10mAValue => ParseMeasurementValue(DptEdp2A10mAText);
+        public double? DptEmp2B10mAValue => ParseMeasurementValue(DptEmp2B10mAText);
+        public double? DptEmp3B10mAValue => ParseMeasurementValue(DptEmp3B10mAText);
+        public double? DptSys110mAValue => ParseMeasurementValue(DptSys110mAText);
+        public double? DptSys210mAValue => ParseMeasurementValue(DptSys210mAText);
+        public double? DptSys310mAValue => ParseMeasurementValue(DptSys310mAText);
+
+        public bool IsDptEdp24mAPass => IsWithinRange(DptEdp24mAValue ?? double.MinValue, Range4mAMin, Range4mAMax) && DptEdp24mAValue.HasValue;
+        public bool IsDptEmp2B4mAPass => IsWithinRange(DptEmp2B4mAValue ?? double.MinValue, Range4mAMin, Range4mAMax) && DptEmp2B4mAValue.HasValue;
+        public bool IsDptEmp3B4mAPass => IsWithinRange(DptEmp3B4mAValue ?? double.MinValue, Range4mAMin, Range4mAMax) && DptEmp3B4mAValue.HasValue;
+        public bool IsDptSys14mAPass => IsWithinRange(DptSys14mAValue ?? double.MinValue, Range4mAMin, Range4mAMax) && DptSys14mAValue.HasValue;
+        public bool IsDptSys24mAPass => IsWithinRange(DptSys24mAValue ?? double.MinValue, Range4mAMin, Range4mAMax) && DptSys24mAValue.HasValue;
+        public bool IsDptSys34mAPass => IsWithinRange(DptSys34mAValue ?? double.MinValue, Range4mAMin, Range4mAMax) && DptSys34mAValue.HasValue;
+
+        public bool IsDptEdp2A20mAPass => IsWithinRange(DptEdp2A20mAValue ?? double.MinValue, Range20mAMin, Range20mAMax) && DptEdp2A20mAValue.HasValue;
+        public bool IsDptEmp2B20mAPass => IsWithinRange(DptEmp2B20mAValue ?? double.MinValue, Range20mAMin, Range20mAMax) && DptEmp2B20mAValue.HasValue;
+        public bool IsDptEmp3B20mAPass => IsWithinRange(DptEmp3B20mAValue ?? double.MinValue, Range20mAMin, Range20mAMax) && DptEmp3B20mAValue.HasValue;
+        public bool IsDptSys120mAPass => IsWithinRange(DptSys120mAValue ?? double.MinValue, Range20mAMin, Range20mAMax) && DptSys120mAValue.HasValue;
+        public bool IsDptSys220mAPass => IsWithinRange(DptSys220mAValue ?? double.MinValue, Range20mAMin, Range20mAMax) && DptSys220mAValue.HasValue;
+        public bool IsDptSys320mAPass => IsWithinRange(DptSys320mAValue ?? double.MinValue, Range20mAMin, Range20mAMax) && DptSys320mAValue.HasValue;
+
+        public bool IsDptEdp2A10mAPass => IsWithinRange(DptEdp2A10mAValue ?? double.MinValue, Range10mAMin, Range10mAMax) && DptEdp2A10mAValue.HasValue;
+        public bool IsDptEmp2B10mAPass => IsWithinRange(DptEmp2B10mAValue ?? double.MinValue, Range10mAMin, Range10mAMax) && DptEmp2B10mAValue.HasValue;
+        public bool IsDptEmp3B10mAPass => IsWithinRange(DptEmp3B10mAValue ?? double.MinValue, Range10mAMin, Range10mAMax) && DptEmp3B10mAValue.HasValue;
+        public bool IsDptSys110mAPass => IsWithinRange(DptSys110mAValue ?? double.MinValue, Range10mAMin, Range10mAMax) && DptSys110mAValue.HasValue;
+        public bool IsDptSys210mAPass => IsWithinRange(DptSys210mAValue ?? double.MinValue, Range10mAMin, Range10mAMax) && DptSys210mAValue.HasValue;
+        public bool IsDptSys310mAPass => IsWithinRange(DptSys310mAValue ?? double.MinValue, Range10mAMin, Range10mAMax) && DptSys310mAValue.HasValue;
+
         public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
         {
             if (IsAutoTestRunning)
@@ -793,6 +835,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private static bool IsWithinRange(double value, double min, double max)
         {
             return value >= min && value <= max;
+        }
+
+        private static double? ParseMeasurementValue(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return null;
+
+            var trimmed = text.Trim();
+            if (string.Equals(trimmed, "--", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(trimmed, "超时", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var firstToken = trimmed.Split(' ')[0];
+            if (double.TryParse(firstToken, out var value))
+                return value;
+
+            return null;
         }
 
         private async Task TryFinalizeAsync()

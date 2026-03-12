@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using MeasureControl.Events;
+using MeasureControl.Models;
 using MeasureControl.Models.Devices;
 using MeasureControl.Models.Devices.DeviceCategories;
 using MeasureControl.Services;
@@ -55,6 +56,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int LvdtSys1Channel = 1;
         private const int LvdtSys2Channel = 2;
         private const string TestItemName = "油量传感器信号采集测试";
+        private const string LvdtVaSuffix = "_VA";
+        private const string LvdtVbSuffix = "_VB";
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _relayLock = new SemaphoreSlim(1, 1);
@@ -226,6 +229,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _pin3031FreqText, value);
         }
 
+        public bool IsPin3031Pass => _passedExc1;
+
         public string Pin3031VoltText
         {
             get => _pin3031VoltText;
@@ -237,6 +242,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             get => _pin3334FreqText;
             private set => SetProperty(ref _pin3334FreqText, value);
         }
+
+        public bool IsPin3334Pass => _passedExc2;
 
         public string Pin3334VoltText
         {
@@ -250,11 +257,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _pointLowSys1Text, value);
         }
 
+        public bool IsPointLowSys1Pass => TryParsePercent(_pointLowSys1Text, out var value) && IsQuantityInRange(value, LowPoint);
+
         public string PointLowSys2Text
         {
             get => _pointLowSys2Text;
             private set => SetProperty(ref _pointLowSys2Text, value);
         }
+
+        public bool IsPointLowSys2Pass => TryParsePercent(_pointLowSys2Text, out var value) && IsQuantityInRange(value, LowPoint);
 
         public string PointMidSys1Text
         {
@@ -262,11 +273,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _pointMidSys1Text, value);
         }
 
+        public bool IsPointMidSys1Pass => TryParsePercent(_pointMidSys1Text, out var value) && IsQuantityInRange(value, MidPoint);
+
         public string PointMidSys2Text
         {
             get => _pointMidSys2Text;
             private set => SetProperty(ref _pointMidSys2Text, value);
         }
+
+        public bool IsPointMidSys2Pass => TryParsePercent(_pointMidSys2Text, out var value) && IsQuantityInRange(value, MidPoint);
 
         public string PointHighSys1Text
         {
@@ -274,11 +289,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _pointHighSys1Text, value);
         }
 
+        public bool IsPointHighSys1Pass => TryParsePercent(_pointHighSys1Text, out var value) && IsQuantityInRange(value, HighPoint);
+
         public string PointHighSys2Text
         {
             get => _pointHighSys2Text;
             private set => SetProperty(ref _pointHighSys2Text, value);
         }
+
+        public bool IsPointHighSys2Pass => TryParsePercent(_pointHighSys2Text, out var value) && IsQuantityInRange(value, HighPoint);
 
         public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
         {
@@ -729,6 +748,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return value >= point.Min && value <= point.Max;
         }
 
+        private static bool TryParsePercent(string text, out double value)
+        {
+            value = 0;
+            if (string.IsNullOrWhiteSpace(text) || string.Equals(text.Trim(), "--", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var normalized = text.Trim().Replace("%", string.Empty);
+            return double.TryParse(normalized, out value);
+        }
+
         private async Task ApplyQuantityOutputsAsync(double quantityPercent, CancellationToken cancellationToken)
         {
             var (s1, s2) = CalculateSecondaryVoltages(quantityPercent);
@@ -890,6 +921,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await _lvdt.ConnectAsync(LvdtSlotIndex, cancellationToken).ConfigureAwait(false);
             }
 
+            await ConfigureLvdtOutputCalibrationAsync(LvdtSys1Channel, cancellationToken).ConfigureAwait(false);
+            await ConfigureLvdtOutputCalibrationAsync(LvdtSys2Channel, cancellationToken).ConfigureAwait(false);
+
             var config = CreateSimulationConfig();
 
             await _lvdt.ConfigureSimulationChannelAsync(LvdtSys1Channel, config, cancellationToken).ConfigureAwait(false);
@@ -920,6 +954,83 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private bool IsExpectedLabel(byte label)
         {
             return _arinc.ReverseLabel(label) == QtyLabelDec;
+        }
+
+        private async Task ConfigureLvdtOutputCalibrationAsync(int channel, CancellationToken cancellationToken)
+        {
+            var calibration = ResolveLvdtOutputCalibration(channel);
+            if (calibration == null)
+            {
+                await _lvdt.ClearOutputCalibrationAsync(channel, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            await _lvdt.ConfigureOutputCalibrationAsync(channel, calibration, cancellationToken).ConfigureAwait(false);
+        }
+
+        private LvdtOutputCalibration ResolveLvdtOutputCalibration(int channel)
+        {
+            var device = FindFirstLvdtDevice();
+            if (device == null)
+                return null;
+
+            var records = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName)?.CalibrationRecords;
+            if (records == null || records.Count == 0)
+                return null;
+
+            var vaRecord = TryGetCalibrationRecord(records, device.Id, $"CH{channel}{LvdtVaSuffix}");
+            var vbRecord = TryGetCalibrationRecord(records, device.Id, $"CH{channel}{LvdtVbSuffix}");
+            if (vaRecord == null && vbRecord == null)
+                return null;
+
+            return new LvdtOutputCalibration
+            {
+                VaSlope = vaRecord?.Slope ?? 1.0,
+                VaIntercept = vaRecord?.Intercept ?? 0.0,
+                IsVaCalibrated = vaRecord?.IsCalibrated ?? false,
+                VbSlope = vbRecord?.Slope ?? 1.0,
+                VbIntercept = vbRecord?.Intercept ?? 0.0,
+                IsVbCalibrated = vbRecord?.IsCalibrated ?? false
+            };
+        }
+
+        private static ChannelCalibrationRecord TryGetCalibrationRecord(Dictionary<string, ChannelCalibrationRecord> records, string deviceId, string signalAddress)
+        {
+            if (records == null || string.IsNullOrWhiteSpace(signalAddress))
+                return null;
+
+            if (!string.IsNullOrWhiteSpace(deviceId))
+            {
+                var scopedKey = $"{deviceId}/{signalAddress}";
+                if (records.TryGetValue(scopedKey, out var scopedRecord))
+                    return scopedRecord;
+            }
+
+            if (records.TryGetValue(signalAddress, out var record))
+                return record;
+
+            return null;
+        }
+
+        private DeviceBase FindFirstLvdtDevice()
+        {
+            var chassisList = _pxiChassisService?.GetAllChassis();
+            if (chassisList == null)
+                return null;
+
+            foreach (var chassis in chassisList)
+            {
+                var device = chassis?.Devices?.FirstOrDefault(d =>
+                    (d?.Model?.IndexOf("4087", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.Model?.IndexOf("LVDT", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.Name?.IndexOf("4087", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.Name?.IndexOf("LVDT", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                if (device != null)
+                    return device;
+            }
+
+            return null;
         }
 
         private double? DecodeQuantity(uint data19)

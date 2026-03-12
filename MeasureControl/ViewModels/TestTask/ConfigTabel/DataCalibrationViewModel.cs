@@ -29,6 +29,7 @@ namespace MeasureControl.ViewModels.TestTask.ConfigTabel
         private int _aiChannelCount = 32;
         private string _channelPrefix = "AI";
         private string _currentContextKey;
+        private List<string> _explicitChannelAddresses;
 
         private string _currentDeviceId;
         private Dictionary<string, ChannelCalibrationRecord> _projectCalibrationRecords = new Dictionary<string, ChannelCalibrationRecord>(StringComparer.OrdinalIgnoreCase);
@@ -141,10 +142,37 @@ namespace MeasureControl.ViewModels.TestTask.ConfigTabel
             RefreshRecordsForCurrentDevice();
         }
 
+        public void ApplyExplicitSignalContext(string deviceId, IEnumerable<string> channelAddresses, string contextKey)
+        {
+            SetCurrentDevice(deviceId);
+            _explicitChannelAddresses = channelAddresses?
+                .Where(address => !string.IsNullOrWhiteSpace(address))
+                .Select(address => address.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList() ?? new List<string>();
+
+            var key = $"{_currentDeviceId}|CUSTOM|{contextKey}|{string.Join("|", _explicitChannelAddresses)}";
+            if (string.Equals(_currentContextKey, key, StringComparison.OrdinalIgnoreCase))
+            {
+                RefreshRecordsForCurrentDevice();
+                return;
+            }
+
+            _currentContextKey = key;
+
+            InitializeFixedAnalogChannels();
+            EnsureCalibrationRecordsForAvailableChannels();
+            ResetUiToDefaults();
+            LoadCurrentChannelData();
+            RefreshRecordsForCurrentDevice();
+        }
+
         private void ApplyChannelContextInternal()
         {
             // 标定界面仅通过板卡“标定”按钮打开，通道上下文由调用方注入。
             // 为避免不同板卡类型扩展时产生多次初始化/闪烁，这里统一延迟到 Apply*Context 才初始化通道列表与默认记录。
+
+            _explicitChannelAddresses = null;
 
             var key = $"{_currentDeviceId}|{_channelPrefix}|{_aiChannelCount}";
             if (string.Equals(_currentContextKey, key, StringComparison.OrdinalIgnoreCase))
@@ -246,7 +274,6 @@ namespace MeasureControl.ViewModels.TestTask.ConfigTabel
             ResetUiToDefaults();
             LoadCurrentChannelData();
         }
-
 
         private void InitializeViewModel()
         {
@@ -450,7 +477,6 @@ namespace MeasureControl.ViewModels.TestTask.ConfigTabel
             set => SetProperty(ref _yAxisTicks, value);
         }
 
-
         /// <summary>
         /// 标定数据存储目录
         /// </summary>
@@ -476,7 +502,7 @@ namespace MeasureControl.ViewModels.TestTask.ConfigTabel
         {
             get => _availableChannelAddresses;
             set => SetProperty(ref _availableChannelAddresses, value);
-            }
+        }
 
         /// <summary>
         /// 当前选择的通道地址
@@ -537,15 +563,22 @@ namespace MeasureControl.ViewModels.TestTask.ConfigTabel
         private void InitializeFixedAnalogChannels()
         {
             var addresses = new List<string>();
-            var count = _aiChannelCount > 0 ? _aiChannelCount : 32;
-            for (int i = 0; i < count; i++)
+            if (_explicitChannelAddresses != null && _explicitChannelAddresses.Count > 0)
             {
-                addresses.Add($"{_channelPrefix}{i}");
+                addresses.AddRange(_explicitChannelAddresses);
+            }
+            else
+            {
+                var count = _aiChannelCount > 0 ? _aiChannelCount : 32;
+                for (int i = 0; i < count; i++)
+                {
+                    addresses.Add($"{_channelPrefix}{i}");
+                }
             }
             AvailableChannelAddresses = new ObservableCollection<string>(addresses);
 
             // 设置默认选择AI0
-            if (string.IsNullOrEmpty(SelectedChannelAddress) && AvailableChannelAddresses.Count > 0)
+            if ((string.IsNullOrEmpty(SelectedChannelAddress) || !AvailableChannelAddresses.Contains(SelectedChannelAddress)) && AvailableChannelAddresses.Count > 0)
             {
                 SelectedChannelAddress = AvailableChannelAddresses[0];
             }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MeasureControl.Helpers.OKAIPXIDevice;
@@ -24,6 +25,16 @@ namespace MeasureControl.Services.HardwareApis
         public ushort AdcRangeIndex { get; set; } = 3;
     }
 
+    public sealed class LvdtOutputCalibration
+    {
+        public double VaSlope { get; set; } = 1.0;
+        public double VaIntercept { get; set; }
+        public bool IsVaCalibrated { get; set; }
+        public double VbSlope { get; set; } = 1.0;
+        public double VbIntercept { get; set; }
+        public bool IsVbCalibrated { get; set; }
+    }
+
     public interface IPxi4087LvdtApi : IAsyncDisposable
     {
         bool IsConnected { get; }
@@ -31,6 +42,8 @@ namespace MeasureControl.Services.HardwareApis
         Task ConnectAsync(int slotIndex = 1, CancellationToken cancellationToken = default);
         Task DisconnectAsync(CancellationToken cancellationToken = default);
 
+        Task ConfigureOutputCalibrationAsync(int channel, LvdtOutputCalibration calibration, CancellationToken cancellationToken = default);
+        Task ClearOutputCalibrationAsync(int channel, CancellationToken cancellationToken = default);
         Task ConfigureTestChannelAsync(int channel, bool useExternalExcitation = true, CancellationToken cancellationToken = default);
         Task ConfigureSimulationChannelAsync(int channel, LvdtSimulationConfig config, CancellationToken cancellationToken = default);
         Task SetVaVbAsync(int channel, double vaRms, double vbRms, CancellationToken cancellationToken = default);
@@ -45,6 +58,7 @@ namespace MeasureControl.Services.HardwareApis
     {
         private readonly SemaphoreSlim _lifecycleLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _ioLock = new SemaphoreSlim(1, 1);
+        private readonly Dictionary<int, LvdtOutputCalibration> _outputCalibrations = new Dictionary<int, LvdtOutputCalibration>();
 
         private UIntPtr _handle = UIntPtr.Zero;
         private int _slotIndex = 1;
@@ -150,6 +164,49 @@ namespace MeasureControl.Services.HardwareApis
             _ioLock.Dispose();
         }
 
+        public async Task ConfigureOutputCalibrationAsync(int channel, LvdtOutputCalibration calibration, CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+
+            if (calibration == null)
+                throw new ArgumentNullException(nameof(calibration));
+
+            await _ioLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                ValidateChannel(channel);
+                _outputCalibrations[channel] = new LvdtOutputCalibration
+                {
+                    VaSlope = calibration.VaSlope,
+                    VaIntercept = calibration.VaIntercept,
+                    IsVaCalibrated = calibration.IsVaCalibrated,
+                    VbSlope = calibration.VbSlope,
+                    VbIntercept = calibration.VbIntercept,
+                    IsVbCalibrated = calibration.IsVbCalibrated
+                };
+            }
+            finally
+            {
+                _ioLock.Release();
+            }
+        }
+
+        public async Task ClearOutputCalibrationAsync(int channel, CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+
+            await _ioLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                ValidateChannel(channel);
+                _outputCalibrations.Remove(channel);
+            }
+            finally
+            {
+                _ioLock.Release();
+            }
+        }
+
         public async Task ConfigureTestChannelAsync(int channel, bool useExternalExcitation = true, CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
@@ -241,7 +298,9 @@ namespace MeasureControl.Services.HardwareApis
                 EnsureConnected();
                 ushort chIndex = ToChIndex(channel);
 
-                int status = PXI4087Native.pxi4087_setLvdtVaVb(_handle, chIndex, vaRms, vbRms);
+                var (calibratedVa, calibratedVb) = ApplyOutputCalibration(channel, vaRms, vbRms);
+
+                int status = PXI4087Native.pxi4087_setLvdtVaVb(_handle, chIndex, calibratedVa, calibratedVb);
                 if (status != 0)
                     throw new InvalidOperationException($"pxi4087_setLvdtVaVb failed: {status}");
             }
@@ -391,10 +450,25 @@ namespace MeasureControl.Services.HardwareApis
                 throw new InvalidOperationException("PXI4087 is not connected");
         }
 
-        private static ushort ToChIndex(int channel)
+        private (double vaRms, double vbRms) ApplyOutputCalibration(int channel, double vaRms, double vbRms)
+        {
+            if (!_outputCalibrations.TryGetValue(channel, out var calibration) || calibration == null)
+                return (vaRms, vbRms);
+
+            var calibratedVa = calibration.IsVaCalibrated ? vaRms * calibration.VaSlope + calibration.VaIntercept : vaRms;
+            var calibratedVb = calibration.IsVbCalibrated ? vbRms * calibration.VbSlope + calibration.VbIntercept : vbRms;
+            return (calibratedVa, calibratedVb);
+        }
+
+        private static void ValidateChannel(int channel)
         {
             if (channel < 1 || channel > 8)
                 throw new ArgumentOutOfRangeException(nameof(channel), "channel must be 1..8");
+        }
+
+        private static ushort ToChIndex(int channel)
+        {
+            ValidateChannel(channel);
 
             return (ushort)(channel - 1);
         }
