@@ -31,13 +31,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public R_6_8_7ViewModel()
         {
-            _enterAtpTxChannel = "429_CH0";
-            _enterAtpRxChannel = "429_CH1";
-            _controllerTemperatureTestTxChannel = "429_CH0";
-            _controllerTemperatureTestRxChannel = "429_CH1";
-            _temperatureTelemetryRxChannel = "429_CH1";
-            _exitAtpTxChannel = "429_CH0";
-            _exitAtpRxChannel = "429_CH1";
+            _enterAtpTxChannel = "CH0";
+            _enterAtpRxChannel = "CH2";
+            _controllerTemperatureTestTxChannel = "CH0";
+            _controllerTemperatureTestRxChannel = "CH2";
+            _temperatureTelemetryRxChannel = "CH2";
+            _exitAtpTxChannel = "CH0";
+            _exitAtpRxChannel = "CH2";
 
             _enterAtpRxDataText = "--";
             _controllerTemperatureTestRxDataText = "--";

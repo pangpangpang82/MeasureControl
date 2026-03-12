@@ -66,11 +66,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public PowerBoardSupplyTestViewModel()
         {
             _enterAtpTxChannel = "429_CH0";
-            _enterAtpRxChannel = "429_CH1";
-            _commandTxChannel = "429_CH2";
-            _telemetryRxChannel = "429_CH4";
-            _exitAtpTxChannel = "429_CH5";
-            _exitAtpRxChannel = "429_CH6";
+            _enterAtpRxChannel = "429_CH2";
+            _commandTxChannel = "429_CH0";
+            _telemetryRxChannel = "429_CH2";
+            _exitAtpTxChannel = "429_CH0";
+            _exitAtpRxChannel = "429_CH2";
             _dmmChannel = "Port1";
 
             DmmVoltageText = "--";

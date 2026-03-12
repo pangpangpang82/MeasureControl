@@ -285,6 +285,7 @@
                                 <ComboBox.Style>
                                     <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
                                         <Setter Property="Opacity" Value="1" />
+                                        <Setter Property="IsEnabled" Value="False" />
                                     </Style>
                                 </ComboBox.Style>
                             </ComboBox>
@@ -364,6 +365,7 @@
                                 <ComboBox.Style>
                                     <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
                                         <Setter Property="Opacity" Value="1" />
+                                        <Setter Property="IsEnabled" Value="False" />
                                     </Style>
                                 </ComboBox.Style>
                             </ComboBox>
@@ -410,6 +412,7 @@
                                 <ComboBox.Style>
                                     <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
                                         <Setter Property="Opacity" Value="1" />
+                                        <Setter Property="IsEnabled" Value="False" />
                                     </Style>
                                 </ComboBox.Style>
                             </ComboBox>
