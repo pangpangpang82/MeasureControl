@@ -1,4 +1,4 @@
-﻿using Prism.Commands;
+using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -10,17 +10,15 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using MeasureControl.Helpers;
-using MeasureControl.Simulations.A_C_6_5_1_2;
+using MeasureControl.Simulations.A_C_6_5_2_5;
 using MeasureControl.Simulations.Common;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
-    public sealed class A_C_6_5_1_2ViewModel : BindableBase, IDisposable
+    public sealed class A_C_6_5_2_5ViewModel : BindableBase, IDisposable
     {
-        private const string FixedATxChannel = "429_CH3";
-        private const string FixedARxChannel = "429_CH1";
-        private const string FixedBTxChannel = "429_CH2";
-        private const string FixedBRxChannel = "429_CH0";
+        private const string FixedTxChannel = "429_CH6";
+        private const string FixedRxChannel = "429_CH2";
 
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
@@ -31,7 +29,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] B_ReceiveCommand8 = { 0x04, 0x01, 0x02, 0x03, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] TestData4 = { 0x7F, 0x00, 0xAA, 0x55 };
 
-        private readonly A_C_6_5_1_2Simulation _simulation = new A_C_6_5_1_2Simulation();
+        private readonly A_C_6_5_2_5Simulation _simulation = new A_C_6_5_2_5Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
@@ -66,12 +64,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private double _arincRate = 100000.0;
 
-        public A_C_6_5_1_2ViewModel()
+        public A_C_6_5_2_5ViewModel()
         {
-            _aTxChannel = FixedATxChannel;
-            _aRxChannel = FixedARxChannel;
-            _bTxChannel = FixedBTxChannel;
-            _bRxChannel = FixedBRxChannel;
+            _aTxChannel = FixedTxChannel;
+            _aRxChannel = FixedRxChannel;
+            _bTxChannel = FixedTxChannel;
+            _bRxChannel = FixedRxChannel;
 
             _enterAtpTxChannel = ATxChannel;
             _enterAtpRxChannel = ARxChannel;
@@ -307,7 +305,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                             throw new InvalidOperationException(mapError);
                     }
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：打开通道 A(TX={ATxChannel},RX={ARxChannel}) B(TX={BTxChannel},RX={BRxChannel})");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：打开通道 TX={ATxChannel},RX={ARxChannel}");
 
                     try
                     {
@@ -317,7 +315,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
                     catch { }
 
-                    await _simulation.StartAsync(ATxChannel, ARxChannel, BTxChannel, BRxChannel, msg => AddLog(msg));
+                    await _simulation.StartAsync(ATxChannel, ARxChannel, msg => AddLog(msg));
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动完成");
                 }
@@ -375,13 +373,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             if (!IsManualTestRunning || IsBusy)
                 return;
-
-            if (!string.Equals(EnterAtpTxChannel, ATxChannel, StringComparison.OrdinalIgnoreCase) ||
-                !string.Equals(EnterAtpRxChannel, ARxChannel, StringComparison.OrdinalIgnoreCase))
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP使用A通道：TX={ATxChannel}, RX={ARxChannel}");
-                return;
-            }
 
             await _arincOpLock.WaitAsync();
             try
@@ -461,7 +452,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
 
                     var data4 = resp8.Take(4).ToArray();
-
                     ARxDataText = $"0x{FormatBytesHex(data4)}";
                     AddLog($"[{DateTime.Now:HH:mm:ss}] A通道收到测试数据");
                 }
@@ -511,7 +501,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
 
                     var data4 = resp8.Take(4).ToArray();
-
                     BRxDataText = $"0x{FormatBytesHex(data4)}";
                     AddLog($"[{DateTime.Now:HH:mm:ss}] B通道收到回传数据");
                 }
@@ -535,13 +524,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             if (!IsManualTestRunning || IsBusy)
                 return;
-
-            if (!string.Equals(ExitAtpTxChannel, ATxChannel, StringComparison.OrdinalIgnoreCase) ||
-                !string.Equals(ExitAtpRxChannel, ARxChannel, StringComparison.OrdinalIgnoreCase))
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP使用A通道：TX={ATxChannel}, RX={ARxChannel}");
-                return;
-            }
 
             await _arincOpLock.WaitAsync();
             try
@@ -602,6 +584,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
+        private async Task StopAutoTestAsync()
+        {
+            await _autoTestLock.WaitAsync();
+            try
+            {
+                _autoTestCts?.Cancel();
+            }
+            finally
+            {
+                _autoTestLock.Release();
+            }
+        }
+
         private async Task RunAutoTestAsync()
         {
             await _autoTestLock.WaitAsync();
@@ -649,7 +644,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");
 
-                    await _simulation.StartAsync(ATxChannel, ARxChannel, BTxChannel, BRxChannel, msg => AddLog(msg));
+                    await _simulation.StartAsync(ATxChannel, ARxChannel, msg => AddLog(msg));
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤1：进入ATP");
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
@@ -680,7 +675,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     await Task.Delay(20, token);
                     await _simulation.SendBenchCommandOnlyAsync(ATxChannel, A_TransmitCommand8, msg => AddLog(msg), token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待接收4包数据(LABEL=0x09/0x0A/0x0B/0x0C)...");
                     var aResp8 = await _simulation.WaitBenchResponse8Async(ARxChannel, isExpected: null, timeoutMs: 1200, log: msg => AddLog(msg), token: token);
                     if (aResp8 == null || aResp8.Length != 8)
                     {
@@ -699,7 +693,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     await Task.Delay(20, token);
                     await _simulation.SendBenchCommandOnlyAsync(BTxChannel, B_ReceiveCommand8, msg => AddLog(msg), token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待接收4包数据(LABEL=0x09/0x0A/0x0B/0x0C)...");
                     var bResp8 = await _simulation.WaitBenchResponse8Async(BRxChannel, isExpected: null, timeoutMs: 1200, log: msg => AddLog(msg), token: token);
                     if (bResp8 == null || bResp8.Length != 8)
                     {
@@ -765,25 +758,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private async Task StopAutoTestAsync()
-        {
-            await _autoTestLock.WaitAsync();
-            try
-            {
-                try
-                {
-                    _autoTestCts?.Cancel();
-                }
-                catch
-                {
-                }
-            }
-            finally
-            {
-                _autoTestLock.Release();
-            }
-        }
-
         private void SetLastTestResult(string result)
         {
             var now = DateTime.Now;
@@ -799,30 +773,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             error = null;
 
-            int aTx = ARINC429SimulationBase.ParseChannelIndex(ATxChannel);
-            int aRx = ARINC429SimulationBase.ParseChannelIndex(ARxChannel);
-            int bTx = ARINC429SimulationBase.ParseChannelIndex(BTxChannel);
-            int bRx = ARINC429SimulationBase.ParseChannelIndex(BRxChannel);
+            int tx = ARINC429SimulationBase.ParseChannelIndex(ATxChannel);
+            int rx = ARINC429SimulationBase.ParseChannelIndex(ARxChannel);
 
-            if (aTx < 0 || aRx < 0 || bTx < 0 || bRx < 0)
+            if (tx < 0 || rx < 0)
             {
                 error = "通道索引无效";
                 return false;
             }
 
-            // 约定：产品侧通道 = bench通道 + 4（与6.5.1.1一致：benchTX0->simRX4, benchRX1<-simTX5）
-            // 为避免越界，bench通道最大只能到 11。
-            int maxBench = Math.Max(Math.Max(aTx, aRx), Math.Max(bTx, bRx));
+            int maxBench = Math.Max(tx, rx);
             if (maxBench > 11)
             {
                 error = "当前仿真映射规则要求 bench 通道索引 <= 11（因为产品侧使用 bench+4）";
                 return false;
             }
 
-            _simulation.SimProductRxChannelIndex = aTx + 4;
-            _simulation.SimProductTxChannelIndex = aRx + 4;
-            _simulation.SimProduct2RxChannelIndex = bTx + 4;
-            _simulation.SimProduct2TxChannelIndex = bRx + 4;
+            _simulation.SimProductRxChannelIndex = tx + 4;
+            _simulation.SimProductTxChannelIndex = rx + 4;
             return true;
         }
 

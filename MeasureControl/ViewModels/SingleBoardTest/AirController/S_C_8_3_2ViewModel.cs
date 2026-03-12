@@ -419,7 +419,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送测试信息：{FormatBytes(TestData4)}");
 
-                    await _simulation.SendBenchData4Async(TestTxChannel, TestData4, msg => AddLog(msg), CancellationToken.None);
+                    await _simulation.SendBenchWord32Async(TestTxChannel, 0x01010101, msg => AddLog(msg), CancellationToken.None);
                 }
                 finally
                 {
@@ -629,7 +629,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤2：发送测试信息01010101");
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
-                    await _simulation.SendBenchData4Async(TestTxChannel, TestData4, msg => AddLog(msg), token);
+                    await _simulation.SendBenchWord32Async(TestTxChannel, 0x01010101, msg => AddLog(msg), token);
                     await Task.Delay(30, token);
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：发送S_ARINC429_IN01并等待回传");
