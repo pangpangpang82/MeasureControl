@@ -44,7 +44,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         // 测试通过阈值：绝缘电阻 ≥ 500Ω 为合格
         private const double PassThresholdOhm = 500.0;
 
-        private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
+        private const string DmmTriggerDelayCommand= "TRIG:DEL 0.01";
+
+		private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _relayLock = new SemaphoreSlim(1, 1);
         private CancellationTokenSource _manualCts;
         private CancellationTokenSource _autoCts;
@@ -186,6 +188,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     await _jy7131.WriteDoAsync($"DO{Relay485DoIndex}", true, cancellationToken).ConfigureAwait(false);
                     Log($"7131 DO{Relay485DoIndex} 已置位");
 
+                    await _jy7131.WriteDoAsync($"DO{29}", true, cancellationToken).ConfigureAwait(false);
+                    Log($"7131 DO{29} 已置位");
+
                     // 等待继电器吸合稳定
                     await Task.Delay(100, cancellationToken).ConfigureAwait(false);
 
@@ -205,6 +210,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         {
                             await _jy7131.WriteDoAsync($"DO{Relay485DoIndex}", false, cancellationToken).ConfigureAwait(false);
                             Log($"7131 DO{Relay485DoIndex} 已复位");
+                            await _jy7131.WriteDoAsync($"DO{29}", false, cancellationToken).ConfigureAwait(false);
+                            Log($"7131 DO{29} 已复位");
                         }
                         catch (Exception ex)
                         {
@@ -439,6 +446,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                 _dmm ??= new DmmSocketApi();
                 await _dmm.ConnectAsync(DmmIpAddress, cancellationToken).ConfigureAwait(false);
+                await ConfigureDmmAsync(cancellationToken).ConfigureAwait(false);
                 Log("万用表连接成功");
 
                 var ok14 = await MeasureResistanceAsync(
@@ -580,6 +588,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                 _dmm ??= new DmmSocketApi();
                 await _dmm.ConnectAsync(DmmIpAddress, _manualCts.Token).ConfigureAwait(false);
+                await ConfigureDmmAsync(_manualCts.Token).ConfigureAwait(false);
                 Log("万用表连接成功");
 
                 CanMeasure = true;
@@ -943,10 +952,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return "--";
 
             var value = reading.Value.Value;
+            if (Math.Abs(value) >= 1_000_000.0)
+                return $"{value / 1_000_000.0:0.000} MΩ";
+
             if (Math.Abs(value) >= 1000.0)
                 return $"{value / 1000.0:0.000} kΩ";
 
             return $"{value:0.000} Ω";
+        }
+
+        private async Task ConfigureDmmAsync(CancellationToken cancellationToken)
+        {
+            if (_dmm == null)
+                return;
+
+            await _dmm.SendAsync(DmmTriggerDelayCommand, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task DisconnectAllMatrixRoutesAsync()

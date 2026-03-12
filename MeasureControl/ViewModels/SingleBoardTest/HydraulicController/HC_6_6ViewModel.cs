@@ -25,7 +25,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 1.0;
         private const int Relay485ChannelIndex = 6;
-        private const int RelayAuxDoIndex = 25;
+        //private const int RelayAuxDoIndex = 25;
         private const int RelayGroundDoIndex = 26;
         private const int RxChannelIndex = 2;
         private const int LvdtSlotIndex = 2;
@@ -42,10 +42,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double QtyResolution = 1.0;
         private const int SamplesPerMeasure = 1;
         private const int SampleTimeoutMs = 5000;
-        private const int LvdtSettleMs = 500;
-        private const int PostSwitchRxFlushMs = 120;
+        private const int LvdtSettleMs = 400;
+        private const int PostSwitchRxFlushMs = 80;
         private const int ExcitationReadSettleMs = 80;
         //private const int ExcitationRestoreSettleMs = 120;
+        private const string DmmTriggerDelayCommand= "TRIG:DEL 0.01";
         private const double ExcitationFreqMinHz = 3168.0;
         private const double ExcitationFreqMaxHz = 3232.0;
         private const double ExcitationVoltMinVrms = 5.0;
@@ -642,52 +643,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                     foreach (var w in words)
                     {
-                        var parityOk = _arinc.VerifyOddParity(w.Data429);
-                        if (!parityOk)
-                        {
-                            Log($"{point.Name}: 丢弃429字 Raw=0x{w.Data429:X8}, 原因=奇校验失败");
-                            continue;
-                        }
-
                         _arinc.ParseRawWord(w.Data429, out var label, out var sdi, out var data19, out var ssm);
-                        Log($"{point.Name}: 429解析 Raw=0x{w.Data429:X8}, Label={label}, SDI={sdi}, SSM={ssm}, Data19=0x{data19:X5}");
 
                         if (!IsExpectedLabel(label))
                         {
-                            Log($"{point.Name}: 丢弃429字 Raw=0x{w.Data429:X8}, 原因=Label不匹配");
                             continue;
                         }
 
                         if (ssm != SsmNormal)
                         {
-                            Log($"{point.Name}: 丢弃429字 Raw=0x{w.Data429:X8}, 原因=SSM={ssm} 不等于期望值 {SsmNormal}");
                             continue;
                         }
 
                         if (sdi != 2 && sdi != 3)
                         {
-                            Log($"{point.Name}: 丢弃429字 Raw=0x{w.Data429:X8}, 原因=SDI={sdi} 不在期望范围[2,3]");
                             continue;
                         }
 
                         var value = DecodeQuantity(data19);
                         if (!value.HasValue)
                         {
-                            Log($"{point.Name}: 丢弃429字 Raw=0x{w.Data429:X8}, 原因=数据解码失败");
                             continue;
                         }
 
-                        Log($"{point.Name}: 命中目标429字 SDI={sdi}, 解码油量={value.Value:0.###}%");
 
                         var list = samples[sdi];
                         if (list.Count >= SamplesPerMeasure)
                         {
-                            Log($"{point.Name}: SDI={sdi} 已满足样本数 {SamplesPerMeasure}，忽略后续数据");
                             continue;
                         }
 
                         list.Add(value.Value);
-                        Log($"{point.Name}: SDI={sdi} 已采样 {list.Count}/{SamplesPerMeasure}");
+                        
 
                         if (list.Count >= SamplesPerMeasure && !assignedText.Contains(sdi))
                         {
@@ -787,7 +774,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             _dmm ??= new DmmSocketApi();
             if (!_dmm.IsConnected)
+            {
                 await _dmm.ConnectAsync(DmmIpAddress, cancellationToken).ConfigureAwait(false);
+                await ConfigureDmmAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ConfigureDmmAsync(CancellationToken cancellationToken)
+        {
+            if (_dmm == null)
+                return;
+
+            await _dmm.SendAsync(DmmTriggerDelayCommand, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task TryFinalizeAsync()
@@ -1067,8 +1065,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task WriteInitDosAsync(bool on, CancellationToken cancellationToken)
         {
-            await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
-            Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
+            //await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            //Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
 
             await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
             Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");

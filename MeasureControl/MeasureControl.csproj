@@ -734,7 +734,7 @@
     <Compile Include="ViewModels\Hardware\PxiChassisViewModel.cs" />
     <Compile Include="ViewModels\ICloseGuard.cs" />
     <Compile Include="ViewModels\LoginViewModel.cs" />
-   <Compile Include="ViewModels\SingleBoardTest\BoardTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\BoardTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc100mADiscreteOutputCh1TestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc100mADiscreteOutputCh2TestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc400mADiscreteOutputTestViewModel.cs" />
@@ -982,6 +982,7 @@
     <None Include="Resources\Manuals\9-PXI-7012.pdf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="Views\SingleBoardTest\HydraulicController\液压控制器转接板原理图.pdf" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

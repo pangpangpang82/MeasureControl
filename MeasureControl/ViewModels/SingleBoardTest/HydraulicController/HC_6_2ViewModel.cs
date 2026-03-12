@@ -37,11 +37,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         // ARINC429 配置
         private const int RxChannelIndex = 2;
+        private const int TxChannelIndex = 0;
         private const double ArincRate = 100000.0;
+        private const int AtpRequestPeriodMs = 100;
+        private const int PowerStabilizeDelayMs = 300;
 
-        private const int RelayAuxDoIndex = 25;
+        //private const int RelayAuxDoIndex = 25;
+        private const int RelayAtpDoIndex = 14;
         private const int RelayGroundDoIndex = 26;
         private const int Relay485ChannelIndex = 6;
+        private const int Relay485AtpChannelIndex = 3;
 
         // ARINC429 标签（Label）定义
         // C# 无八进制字面量，改用十六进制等价值以保持与协议文档一一对应：
@@ -54,9 +59,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const byte Label15VAlternateDec = 60;
         private const byte LabelM15VAlternateDec = 61;
         private const byte Label5VAlternateDec = 62;
+        private const byte AtpLabelDec = 16; // 十进制
+
 
         // 协议规定 SSM=3 为正常数据
         private const byte SsmNormal = 3;
+        private const byte AtpSsmNormal = 0;
+        private const bool UseReversedAtpLabel = true;
 
         // 采样配置
         private const int SamplesPerMeasure = 1;
@@ -81,7 +90,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private IPowerSupplyApi _power;
         private IArt4229Api _arinc;
         private IJy7131Api _jy7131;
+        private CancellationTokenSource _atpRequestLoopCts;
         private bool _isRelay485On;
+        private bool _txOpened;
 
         private const string TestItemName = "二次电源测试";
 
@@ -314,14 +325,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             Log("开始手动测试");
             Log($"电源配置: CH1 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
-            Log($"ARINC429接收: 通道{RxChannelIndex + 1}, 码率 {ArincRate:0}bps");
-            Log($"协议标签: 15V=060(oct), -15V=061(oct), 5V=062(oct)，SSM=3为正常数据");
+            Log($"ARINC429接收: 通道{RxChannelIndex + 1}, 发送: 通道{TxChannelIndex + 1}, 码率 {ArincRate:0}bps");
+            Log($"协议标签: 15V=060(oct), -15V=061(oct), 5V=062(oct)，SSM=3为正常数据；ATP请求Label=20(oct)，100ms周期发送");
 
             try
             {
                 await EnsureRelay485Async(true, _manualCts.Token).ConfigureAwait(false);
                 await EnsureArincRxAsync(_manualCts.Token).ConfigureAwait(false);
                 await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
+                await StartAtpRequestAsync(_manualCts.Token).ConfigureAwait(false);
 
                 CanMeasure = true;
                 Log("手动测试初始化完成，可开始分别测量 5V/15V/-15V");
@@ -439,13 +451,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             Log("开始自动测试");
             Log($"判据: 5V[{Min5V:0.###},{Max5V:0.###}]  15V[{Min15V:0.###},{Max15V:0.###}]  -15V[{MinM15V:0.###},{MaxM15V:0.###}]");
-            Log($"协议标签: 15V=060(oct), -15V=061(oct), 5V=062(oct)，SSM=3为正常数据");
+            Log($"协议标签: 15V=060(oct), -15V=061(oct), 5V=062(oct)，SSM=3为正常数据；ATP请求Label=20(oct)，100ms周期发送");
 
             try
             {
                 await EnsureRelay485Async(true, cancellationToken).ConfigureAwait(false);
                 await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
                 await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+                await StartAtpRequestAsync(cancellationToken).ConfigureAwait(false);
 
                 // 测量 5V
                 await MeasureVoltageFrom429Async(
@@ -549,8 +562,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     foreach (var w in words)
                     {
                         _arinc.ParseRawWord(w.Data429, out var lbl, out var sdi, out var data19, out var ssm);
-                        Log($"[DBG] label=0x{lbl:X2} sdi={sdi} ssm={ssm} data19=0x{data19:X5} " +
-                                $"bit0..8={(data19 & 0x1FFu)} bit18={(data19 >> 18) & 1}");
                         //// 先不过滤，只看 label 匹配的 word 有哪些
                         //if (lbl == expectedLabel || lbl == _arinc.ReverseLabel(expectedLabel))
                         //{
@@ -566,15 +577,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     {
                         // 调试日志：确认 label 匹配后可删除
                         _arinc.ParseRawWord(w.Data429, out var rawLabel, out _, out _, out _);
-                        //Log($"{title}: label=0{Convert.ToString(rawLabel, 8)}(oct) expected=0{Convert.ToString(expectedLabel, 8)}(oct) raw=0x{w.Data429:X8}");
 
                         // ① Label 过滤（含字节位序颠倒形式）
                         if (!IsExpectedLabel(w.Data429, expectedLabel))
                             continue;
-
-                        //// ② 奇偶校验
-                        //if (!_arinc.VerifyOddParity(w.Data429))
-                        //    continue;
 
                         // ③ 解析 sdi / data19 / ssm
                         _arinc.ParseRawWord(w.Data429, out _, out var sdi, out var data19, out var ssm);
@@ -587,13 +593,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         if (ssm != SsmNormal)
                             continue;
 
-                        // ⑥ bit10-19 协议定义未使用，必须为 0
-                        if ((data19 & 0x3FFu) != 0)
-                            continue;
+                        //// ⑥ bit10-19 协议定义未使用，必须为 0
+                        //if ((data19 & 0x3FFu) != 0)
+                        //    continue;
 
-                        // ⑦ UBNR 通道（15V / 5V）bit28（data19 bit18）协议定义未使用，必须为 0
-                        if (!isBnrChannel && (data19 & (1u << 18)) != 0)
-                            continue;
+                        //// ⑦ UBNR 通道（15V / 5V）bit28（data19 bit18）协议定义未使用，必须为 0
+                        //if (!isBnrChannel && (data19 & (1u << 18)) != 0)
+                        //    continue;
 
                         // ⑧ 解码
                         var v = decode(data19);
@@ -819,6 +825,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
                     }
 
+                    await _jy7131.SetRelayAsync(Relay485AtpChannelIndex, true, cancellationToken).ConfigureAwait(false);
+                    Log($"485继电器板 第{Relay485AtpChannelIndex + 1}路已闭合");
+
                     await _jy7131.SetRelayAsync(Relay485ChannelIndex, true, cancellationToken).ConfigureAwait(false);
                     Log($"485继电器板 第{Relay485ChannelIndex + 1}路已闭合");
 
@@ -827,7 +836,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     await Task.Delay(100, cancellationToken).ConfigureAwait(false);
 
                     _isRelay485On = true;
-                    Log($"485继电器准备完成: 第{Relay485ChannelIndex + 1}路=ON, DO{RelayAuxDoIndex}=1, DO{RelayGroundDoIndex}=1");
+                    Log($"485继电器准备完成: 第{Relay485AtpChannelIndex + 1}路=ON, 第{Relay485ChannelIndex + 1}路=ON, DO{RelayAtpDoIndex}=1, DO{RelayGroundDoIndex}=1");
                 }
                 else
                 {
@@ -844,7 +853,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         }
                         catch (Exception ex)
                         {
-                            Log($"复位7131 DO{RelayAuxDoIndex}/DO{RelayGroundDoIndex}失败: {ex.Message}");
+                            Log($"复位7131 DO{RelayGroundDoIndex}失败: {ex.Message}");
                         }
 
                         try
@@ -856,10 +865,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         {
                             Log($"关闭485继电器板 第{Relay485ChannelIndex + 1}路失败: {ex.Message}");
                         }
+
+                        try
+                        {
+                            await _jy7131.SetRelayAsync(Relay485AtpChannelIndex, false, cancellationToken).ConfigureAwait(false);
+                            Log($"485继电器板 第{Relay485AtpChannelIndex + 1}路已断开");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"关闭485继电器板 第{Relay485AtpChannelIndex + 1}路失败: {ex.Message}");
+                        }
                     }
 
                     _isRelay485On = false;
-                    Log($"485继电器已关闭: DO{RelayAuxDoIndex}=0, DO{RelayGroundDoIndex}=0, 第{Relay485ChannelIndex + 1}路=OFF");
+                    Log($"485继电器已关闭: DO{RelayAtpDoIndex}=0, DO{RelayGroundDoIndex}=0, 第{Relay485AtpChannelIndex + 1}路=OFF, 第{Relay485ChannelIndex + 1}路=OFF");
                 }
             }
             finally
@@ -870,8 +889,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task WriteInitDosAsync(bool on, CancellationToken cancellationToken)
         {
-            await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
-            Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
+            await _jy7131.WriteDoAsync($"DO{RelayAtpDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            Log($"7131 DO{RelayAtpDoIndex} 已{(on ? "置位" : "复位")}");
+
+            //await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            //Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
 
             await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
             Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
@@ -883,7 +905,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
             await _power.ApplyAsync(PowerSupplyChannel.CH1, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
             await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(PowerStabilizeDelayMs, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task EnsureArincRxAsync(CancellationToken cancellationToken)
@@ -914,8 +936,107 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
+        private async Task EnsureArincTxAsync(CancellationToken cancellationToken)
+        {
+            if (_arinc == null)
+            {
+                var device = FindFirstArincDevice();
+                if (device == null)
+                    throw new InvalidOperationException("未找到ART4227/ART4229(ARINC429)板卡，无法发送ATP请求");
+
+                _arinc = new Art4229Api(device, deviceIndex: 0);
+            }
+
+            if (!_arinc.IsConnected)
+                await _arinc.ConnectAsync(cancellationToken).ConfigureAwait(false);
+
+            if (_txOpened)
+                return;
+
+            await _arinc.OpenTxAsync(TxChannelIndex, cancellationToken).ConfigureAwait(false);
+            await _arinc.ConfigureTxAsync(TxChannelIndex, ArincRate, Art4229TxMode.Single, Art4229Parity.Odd, Art4229WordFormat.Standard429, cancellationToken).ConfigureAwait(false);
+            _txOpened = true;
+        }
+
+        private async Task StartAtpRequestAsync(CancellationToken cancellationToken)
+        {
+            await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
+
+            _atpRequestLoopCts?.Cancel();
+            _atpRequestLoopCts?.Dispose();
+            _atpRequestLoopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    while (!_atpRequestLoopCts.IsCancellationRequested)
+                    {
+                        await SendAtpRequestSingleAsync(true, _atpRequestLoopCts.Token).ConfigureAwait(false);
+                        await Task.Delay(AtpRequestPeriodMs, _atpRequestLoopCts.Token).ConfigureAwait(false);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            }, _atpRequestLoopCts.Token);
+
+            
+            Log("已启动ATP请求周期发送(100ms)");
+        }
+
+        private async Task StopAtpRequestAsync(bool sendRelease, CancellationToken cancellationToken)
+        {
+            try { _atpRequestLoopCts?.Cancel(); } catch { }
+
+            if (sendRelease && _arinc != null)
+            {
+                try
+                {
+                    await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
+                    await SendAtpRequestSingleAsync(false, cancellationToken).ConfigureAwait(false);
+                    Log("已发送ATP退出请求");
+                }
+                catch (Exception ex)
+                {
+                    Log($"发送ATP退出请求失败: {ex.Message}");
+                }
+            }
+
+            try { _atpRequestLoopCts?.Dispose(); } catch { }
+            _atpRequestLoopCts = null;
+        }
+
+        private async Task SendAtpRequestSingleAsync(bool requestAtp, CancellationToken cancellationToken)
+        {
+            await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
+
+            uint data19 = requestAtp ? 0x1u : 0x0u;
+            var label = GetAtpLabelForTx();
+            var word = _arinc.BuildRawWord(label, 0, data19, AtpSsmNormal, true);
+            Log($"ATP：{requestAtp},raw=0x{word:X8}");
+            await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
+        }
+
+        private byte GetAtpLabelForTx()
+        {
+            if (_arinc == null)
+                return AtpLabelDec;
+
+            if (UseReversedAtpLabel)
+            {
+                var label = _arinc.ReverseLabel(AtpLabelDec);
+                //var label = AtpLabelDec;
+                return label;
+            }
+
+            return AtpLabelDec;
+        }
+
         private async Task CleanupIoAsync()
         {
+            await StopAtpRequestAsync(true, CancellationToken.None).ConfigureAwait(false);
+
             try
             {
                 if (_power != null)
@@ -934,6 +1055,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     try { await _arinc.StopRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _arinc.CloseRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    if (_txOpened)
+                    {
+                        try { await _arinc.CloseTxAsync(TxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                        _txOpened = false;
+                    }
                     try { await _arinc.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _arinc.DisposeAsync().ConfigureAwait(false); } catch { }
                 }

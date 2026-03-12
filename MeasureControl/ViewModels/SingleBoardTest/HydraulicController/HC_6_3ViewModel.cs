@@ -65,7 +65,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int TempMsbPosition = 28;
 
         // 同一温度 Label 下，用 SDI 区分两路温度系统
-        private const int RelayAuxDoIndex = 25;
+        //private const int RelayAuxDoIndex = 25;
         private const int RelayGroundDoIndex = 26;
         private const int Relay485ChannelIndex = 6;
         private const byte TempChannel112To114Sdi = 2;
@@ -753,6 +753,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                             if (wordSdi == TempChannel112To114Sdi)
                             {
+                                Log($"{Convert.ToString(w.Data429, 2)}");
                                 if (samplesA.Count < SamplesPerMeasure)
                                     samplesA.Add(v.Value);
                                 setTextA($"{v.Value:0} ℃");
@@ -1138,8 +1139,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task WriteInitDosAsync(bool on, CancellationToken cancellationToken)
         {
-            await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
-            Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
+            //await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            //Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
 
             await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
             Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
