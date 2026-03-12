@@ -323,6 +323,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _temp3BText, value);
         }
 
+        public double? Temp1Value => _temp1;
+
+        public double? Temp2Value => _temp2;
+
+        public double? Temp3Value => _temp3;
+
+        public double? Temp1BValue => _temp1B;
+
+        public double? Temp2BValue => _temp2B;
+
+        public double? Temp3BValue => _temp3B;
+
+        public bool IsTemp1Pass => _temp1 != null && _temp1 >= T1_Min && _temp1 <= T1_Max;
+
+        public bool IsTemp1BPass => _temp1B != null && _temp1B >= T1_Min && _temp1B <= T1_Max;
+
+        public bool IsTemp2Pass => _temp2 != null && _temp2 >= T2_Min && _temp2 <= T2_Max;
+
+        public bool IsTemp2BPass => _temp2B != null && _temp2B >= T2_Min && _temp2B <= T2_Max;
+
+        public bool IsTemp3Pass => _temp3 != null && _temp3 >= T3_Min && _temp3 <= T3_Max;
+
+        public bool IsTemp3BPass => _temp3B != null && _temp3B >= T3_Min && _temp3B <= T3_Max;
+
         public string LastTestTime
         {
             get

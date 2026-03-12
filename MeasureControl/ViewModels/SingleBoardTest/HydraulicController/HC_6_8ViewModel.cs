@@ -301,6 +301,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public string ClosePin14Text { get => _closePin14Text; private set => SetProperty(ref _closePin14Text, value); }
         public string ClosePin15Text { get => _closePin15Text; private set => SetProperty(ref _closePin15Text, value); }
 
+        public bool IsOpenPin9Pass => IsOpenPinPass(9);
+        public bool IsOpenPin10Pass => IsOpenPinPass(10);
+        public bool IsOpenPin11Pass => IsOpenPinPass(11);
+        public bool IsOpenPin12Pass => IsOpenPinPass(12);
+        public bool IsOpenPin13Pass => IsOpenPinPass(13);
+        public bool IsOpenPin14Pass => IsOpenPinPass(14);
+        public bool IsOpenPin15Pass => IsOpenPinPass(15);
+
+        public bool IsClosePin9Pass => IsClosePinPass(9);
+        public bool IsClosePin10Pass => IsClosePinPass(10);
+        public bool IsClosePin11Pass => IsClosePinPass(11);
+        public bool IsClosePin12Pass => IsClosePinPass(12);
+        public bool IsClosePin13Pass => IsClosePinPass(13);
+        public bool IsClosePin14Pass => IsClosePinPass(14);
+        public bool IsClosePin15Pass => IsClosePinPass(15);
+
         /// <summary>
         /// 手动测试流程
         /// 进入手动模式后，先初始化万用表和电源，
@@ -768,6 +784,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 case 14: OpenPin14Text = text; break;
                 case 15: OpenPin15Text = text; break;
             }
+
+            RaisePropertyChanged($"IsOpenPin{pin}Pass");
         }
 
         private void SetClosePinText(int pin, string text)
@@ -782,18 +800,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 case 14: ClosePin14Text = text; break;
                 case 15: ClosePin15Text = text; break;
             }
+
+            RaisePropertyChanged($"IsClosePin{pin}Pass");
+        }
+
+        private bool IsOpenPinPass(int pin)
+        {
+            return _openValuesByPin.TryGetValue(pin, out var value) && value.HasValue && value.Value >= OpenPassThresholdOhm;
+        }
+
+        private bool IsClosePinPass(int pin)
+        {
+            return _closeValuesByPin.TryGetValue(pin, out var value) && value.HasValue && value.Value <= ClosePassThresholdOhm;
         }
 
         /// <summary>
         /// 通过 ARINC429 发送"输出有效"控制指令
         /// </summary>
-        private async Task SendOpenCircuitWordAsync(CancellationToken cancellationToken)
-        {
-            await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
-            var label = GetCommandLabelForTx();
-            var word = _arinc.BuildRawWord(label, CmdSdi, BuildCommandData19(true, true), ssm: SsmNormal, applyOddParity: true);
-            await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
-        }
+        // private async Task SendOpenCircuitWordAsync(CancellationToken cancellationToken)
+        // {
+        //     await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
+        //     var label = GetCommandLabelForTx();
+        //     var word = _arinc.BuildRawWord(label, CmdSdi, BuildCommandData19(true, true), ssm: SsmNormal, applyOddParity: true);
+        //     await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
+        // }
 
         /// <summary>
         /// 通过 ARINC429 发送"全部输出有效"控制指令

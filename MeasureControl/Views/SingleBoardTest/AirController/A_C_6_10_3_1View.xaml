@@ -115,8 +115,7 @@
     <Grid
         x:Name="RootGrid"
         Background="White"
-        Focusable="True"
-        PreviewMouseDown="RootGrid_PreviewMouseDown">
+        Focusable="True">
 
         <Grid.RowDefinitions>
 

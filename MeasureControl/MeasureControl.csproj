@@ -218,6 +218,7 @@
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\Common\ColumnFirstUniformGrid.cs" />
     <Compile Include="Views\Common\FloatingWindow.xaml.cs">
       <DependentUpon>FloatingWindow.xaml</DependentUpon>
     </Compile>
@@ -287,6 +288,7 @@
     <Compile Include="Views\Dialogs\TestStartDialog.xaml.cs">
       <DependentUpon>TestStartDialog.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\Hardware\ChassisConnectionCanvas.cs" />
     <Compile Include="Views\Hardware\DeviceInfoPanel.xaml.cs">
       <DependentUpon>DeviceInfoPanel.xaml</DependentUpon>
     </Compile>
@@ -304,6 +306,15 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_2_1View.xaml.cs">
       <DependentUpon>A_C_6_10_2_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_3_1View.xaml.cs">
+      <DependentUpon>A_C_6_10_3_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_5_1View.xaml.cs">
+      <DependentUpon>A_C_6_10_5_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_6_1View.xaml.cs">
+      <DependentUpon>A_C_6_10_6_1View.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_7_1View.xaml.cs">
       <DependentUpon>A_C_6_10_7_1View.xaml</DependentUpon>
@@ -395,6 +406,9 @@
     <Compile Include="Views\SingleBoardTest\AirController\A28vOc100mADiscreteOutputCh2TestView.xaml.cs">
       <DependentUpon>A28vOc100mADiscreteOutputCh2TestView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh1TestView.cs" />
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh2TestView.cs" />
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh3TestView.cs" />
     <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputTestView.xaml.cs">
       <DependentUpon>A28vOc400mADiscreteOutputTestView.xaml</DependentUpon>
     </Compile>
@@ -511,6 +525,15 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_6_2View.xaml.cs">
       <DependentUpon>S_C_8_6_2View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_7_1View.xaml.cs">
+      <DependentUpon>S_C_8_7_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml.cs">
+      <DependentUpon>S_C_8_7_2View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_7_3View.xaml.cs">
+      <DependentUpon>S_C_8_7_3View.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\BoardTest.xaml.cs">
       <DependentUpon>BoardTest.xaml</DependentUpon>
@@ -857,7 +880,6 @@
     <Compile Include="ViewModels\TestTask\TestContent\ReportConfigTableViewModel.cs" />
     <Compile Include="ViewModels\TestTask\TestContent\TestInterfaceViewModel.cs" />
     <Compile Include="ViewModels\TestTask\TestContent\TestSequenceViewModel.cs" />
-    <Compile Include="Views\**\*.cs" />
     <Compile Remove="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml.cs" />
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml.cs">
       <DependentUpon>S_C_8_7_2View.xaml</DependentUpon>
@@ -982,7 +1004,6 @@
     <None Include="Resources\Manuals\9-PXI-7012.pdf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="Views\SingleBoardTest\HydraulicController\液压控制器转接板原理图.pdf" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

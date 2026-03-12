@@ -252,6 +252,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _voltageM15VText, value);
         }
 
+        public double? Voltage5VValue => _voltage5V;
+
+        public double? Voltage15VValue => _voltage15V;
+
+        public double? VoltageM15VValue => _voltageM15V;
+
+        public bool IsVoltage5VPass => _voltage5V != null && _voltage5V >= Min5V && _voltage5V <= Max5V;
+
+        public bool IsVoltage15VPass => _voltage15V != null && _voltage15V >= Min15V && _voltage15V <= Max15V;
+
+        public bool IsVoltageM15VPass => _voltageM15V != null && _voltageM15V >= MinM15V && _voltageM15V <= MaxM15V;
+
         public string LastTestTime
         {
             get => _lastTestTime;

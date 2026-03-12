@@ -24,6 +24,8 @@ using MeasureControl.Views.Dialogs;
 using MeasureControl.ViewModels.Dialogs;
 using System;
 using System.IO;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -41,6 +43,7 @@ namespace MeasureControl.Views.Common
 
         private CancellationTokenSource _singleBoardAutoTestCts;
         private string _singleBoardAutoTestReportPath;
+        private string _singleBoardAutoTestExcelReportPath;
 
         #endregion
 
@@ -1012,6 +1015,7 @@ namespace MeasureControl.Views.Common
                 }
 
                 AppendSingleBoardReportLine("END | PASS");
+                TryGenerateSingleBoardExcelReport(boardName, boardType);
                 vm.IsCompleted = true;
                 vm.ConfirmStopOnClose = false;
                 vm.Progress = steps.Length;
@@ -1104,27 +1108,477 @@ namespace MeasureControl.Views.Common
 
         private void PrepareSingleBoardReport(string boardName)
         {
-            var baseDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "project");
-            Directory.CreateDirectory(baseDir);
-            var fileName = $"{boardName}_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
-            _singleBoardAutoTestReportPath = System.IO.Path.Combine(baseDir, fileName);
+            _singleBoardAutoTestReportPath = null;
+            _singleBoardAutoTestExcelReportPath = null;
         }
 
-        private void AppendSingleBoardReportLine(string message)
+        private void TryGenerateSingleBoardExcelReport(string boardName, string boardType)
         {
-            if (string.IsNullOrWhiteSpace(_singleBoardAutoTestReportPath))
+            if (!string.Equals(boardType?.Trim(), "液压单板", StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
 
-            var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} | {message}";
             try
             {
-                File.AppendAllText(_singleBoardAutoTestReportPath, line + Environment.NewLine);
+                var templatePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Projects", "液压测试报表模板.xlsx");
+                if (!File.Exists(templatePath))
+                {
+                    AppendSingleBoardReportLine($"REPORT | TEMPLATE_NOT_FOUND | {templatePath}");
+                    return;
+                }
+
+                var baseDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "project");
+                Directory.CreateDirectory(baseDir);
+
+                var reportPath = System.IO.Path.Combine(baseDir, $"{boardName}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+                File.Copy(templatePath, reportPath, true);
+                FillHydraulicBoardExcelReport(reportPath);
+                _singleBoardAutoTestExcelReportPath = reportPath;
+                AppendSingleBoardReportLine($"REPORT | EXCEL_CREATED | {reportPath}");
+            }
+            catch (Exception ex)
+            {
+                AppendSingleBoardReportLine($"REPORT | EXCEL_CREATE_FAILED | {ex.GetType().Name} | {ex.Message}");
+            }
+        }
+
+        private void FillHydraulicBoardExcelReport(string reportPath)
+        {
+            var vm62 = ContainerLocator.Container.Resolve<HC_6_2ViewModel>();
+            var vm63 = ContainerLocator.Container.Resolve<HC_6_3ViewModel>();
+            var vm64 = ContainerLocator.Container.Resolve<HC_6_4ViewModel>();
+            var vm65 = ContainerLocator.Container.Resolve<HC_6_5ViewModel>();
+            var vm66 = ContainerLocator.Container.Resolve<HC_6_6ViewModel>();
+            var vm67 = ContainerLocator.Container.Resolve<HC_6_7ViewModel>();
+            var vm68 = ContainerLocator.Container.Resolve<HC_6_8ViewModel>();
+            if (vm62 == null && vm63 == null && vm64 == null && vm65 == null && vm66 == null && vm67 == null && vm68 == null)
+            {
+                return;
+            }
+
+            Type excelType = null;
+            object excelApp = null;
+            object workbooks = null;
+            object workbook = null;
+            object sheet = null;
+            object cells = null;
+            object range = null;
+
+            try
+            {
+                excelType = Type.GetTypeFromProgID("Excel.Application");
+                if (excelType == null)
+                {
+                    throw new InvalidOperationException("未检测到 Excel COM 组件，无法写入报表模板。");
+                }
+
+                excelApp = Activator.CreateInstance(excelType);
+                excelType.InvokeMember("Visible", BindingFlags.SetProperty, null, excelApp, new object[] { false });
+                excelType.InvokeMember("DisplayAlerts", BindingFlags.SetProperty, null, excelApp, new object[] { false });
+
+                workbooks = excelType.InvokeMember("Workbooks", BindingFlags.GetProperty, null, excelApp, null);
+                workbook = workbooks.GetType().InvokeMember("Open", BindingFlags.InvokeMethod, null, workbooks, new object[] { reportPath });
+                sheet = workbook.GetType().InvokeMember("Worksheets", BindingFlags.GetProperty, null, workbook, null);
+                sheet = sheet.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, sheet, new object[] { 1 });
+                cells = sheet.GetType().InvokeMember("Cells", BindingFlags.GetProperty, null, sheet, null);
+
+                if (vm62 != null)
+                {
+                    SetExcelCellValue(cells, 5, 5, FormatNullableNumber(vm62.Voltage5VValue));
+                    SetExcelCellValue(cells, 6, 5, FormatNullableNumber(vm62.Voltage15VValue));
+                    SetExcelCellValue(cells, 7, 5, FormatNullableNumber(vm62.VoltageM15VValue));
+
+                    SetExcelCellValue(cells, 5, 6, vm62.IsVoltage5VPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 6, 6, vm62.IsVoltage15VPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 7, 6, vm62.IsVoltageM15VPass ? "合格" : "不合格");
+
+                    SetExcelCellFontColor(cells, 5, 6, vm62.IsVoltage5VPass ? null : 255);
+                    SetExcelCellFontColor(cells, 6, 6, vm62.IsVoltage15VPass ? null : 255);
+                    SetExcelCellFontColor(cells, 7, 6, vm62.IsVoltageM15VPass ? null : 255);
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G5:G7" });
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm62.CurrentTestResult });
+                    SetRangeFontColor(range, string.Equals(vm62.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (vm63 != null)
+                {
+                    SetExcelCellValue(cells, 8, 5, FormatNullableNumber(vm63.Temp1Value));
+                    SetExcelCellValue(cells, 9, 5, FormatNullableNumber(vm63.Temp1BValue));
+                    SetExcelCellValue(cells, 10, 5, FormatNullableNumber(vm63.Temp2Value));
+                    SetExcelCellValue(cells, 11, 5, FormatNullableNumber(vm63.Temp2BValue));
+                    SetExcelCellValue(cells, 12, 5, FormatNullableNumber(vm63.Temp3Value));
+                    SetExcelCellValue(cells, 13, 5, FormatNullableNumber(vm63.Temp3BValue));
+
+                    SetExcelCellValue(cells, 8, 6, vm63.IsTemp1Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 9, 6, vm63.IsTemp1BPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 10, 6, vm63.IsTemp2Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 11, 6, vm63.IsTemp2BPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 12, 6, vm63.IsTemp3Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 13, 6, vm63.IsTemp3BPass ? "合格" : "不合格");
+
+                    SetExcelCellFontColor(cells, 8, 6, vm63.IsTemp1Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 9, 6, vm63.IsTemp1BPass ? null : 255);
+                    SetExcelCellFontColor(cells, 10, 6, vm63.IsTemp2Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 11, 6, vm63.IsTemp2BPass ? null : 255);
+                    SetExcelCellFontColor(cells, 12, 6, vm63.IsTemp3Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 13, 6, vm63.IsTemp3BPass ? null : 255);
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G8:G13" });
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm63.CurrentTestResult });
+                    SetRangeFontColor(range, string.Equals(vm63.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (vm64 != null)
+                {
+                    SetExcelCellValue(cells, 14, 5, FormatNullableNumber(vm64.PressurePoint1Sys1Value));
+                    SetExcelCellValue(cells, 15, 5, FormatNullableNumber(vm64.PressurePoint1Sys2Value));
+                    SetExcelCellValue(cells, 16, 5, FormatNullableNumber(vm64.PressurePoint1Sys3Value));
+                    SetExcelCellValue(cells, 17, 5, FormatNullableNumber(vm64.PressurePoint2Sys1Value));
+                    SetExcelCellValue(cells, 18, 5, FormatNullableNumber(vm64.PressurePoint2Sys2Value));
+                    SetExcelCellValue(cells, 19, 5, FormatNullableNumber(vm64.PressurePoint2Sys3Value));
+                    SetExcelCellValue(cells, 20, 5, FormatNullableNumber(vm64.PressurePoint3Sys1Value));
+                    SetExcelCellValue(cells, 21, 5, FormatNullableNumber(vm64.PressurePoint3Sys2Value));
+                    SetExcelCellValue(cells, 22, 5, FormatNullableNumber(vm64.PressurePoint3Sys3Value));
+
+                    SetExcelCellValue(cells, 14, 6, vm64.IsPressurePoint1Sys1Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 15, 6, vm64.IsPressurePoint1Sys2Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 16, 6, vm64.IsPressurePoint1Sys3Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 17, 6, vm64.IsPressurePoint2Sys1Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 18, 6, vm64.IsPressurePoint2Sys2Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 19, 6, vm64.IsPressurePoint2Sys3Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 20, 6, vm64.IsPressurePoint3Sys1Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 21, 6, vm64.IsPressurePoint3Sys2Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 22, 6, vm64.IsPressurePoint3Sys3Pass ? "合格" : "不合格");
+
+                    SetExcelCellFontColor(cells, 14, 6, vm64.IsPressurePoint1Sys1Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 15, 6, vm64.IsPressurePoint1Sys2Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 16, 6, vm64.IsPressurePoint1Sys3Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 17, 6, vm64.IsPressurePoint2Sys1Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 18, 6, vm64.IsPressurePoint2Sys2Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 19, 6, vm64.IsPressurePoint2Sys3Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 20, 6, vm64.IsPressurePoint3Sys1Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 21, 6, vm64.IsPressurePoint3Sys2Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 22, 6, vm64.IsPressurePoint3Sys3Pass ? null : 255);
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G14:G22" });
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm64.CurrentTestResult });
+                    SetRangeFontColor(range, string.Equals(vm64.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (vm65 != null)
+                {
+                    SetExcelCellValue(cells, 23, 5, FormatNullableNumber(vm65.DptEdp24mAValue));
+                    SetExcelCellValue(cells, 24, 5, FormatNullableNumber(vm65.DptEmp2B4mAValue));
+                    SetExcelCellValue(cells, 25, 5, FormatNullableNumber(vm65.DptEmp3B4mAValue));
+                    SetExcelCellValue(cells, 26, 5, FormatNullableNumber(vm65.DptSys14mAValue));
+                    SetExcelCellValue(cells, 27, 5, FormatNullableNumber(vm65.DptSys24mAValue));
+                    SetExcelCellValue(cells, 28, 5, FormatNullableNumber(vm65.DptSys34mAValue));
+
+                    SetExcelCellValue(cells, 29, 5, FormatNullableNumber(vm65.DptEdp2A20mAValue));
+                    SetExcelCellValue(cells, 30, 5, FormatNullableNumber(vm65.DptEmp2B20mAValue));
+                    SetExcelCellValue(cells, 31, 5, FormatNullableNumber(vm65.DptEmp3B20mAValue));
+                    SetExcelCellValue(cells, 32, 5, FormatNullableNumber(vm65.DptSys120mAValue));
+                    SetExcelCellValue(cells, 33, 5, FormatNullableNumber(vm65.DptSys220mAValue));
+                    SetExcelCellValue(cells, 34, 5, FormatNullableNumber(vm65.DptSys320mAValue));
+
+                    SetExcelCellValue(cells, 35, 5, FormatNullableNumber(vm65.DptEdp2A10mAValue));
+                    SetExcelCellValue(cells, 36, 5, FormatNullableNumber(vm65.DptEmp2B10mAValue));
+                    SetExcelCellValue(cells, 37, 5, FormatNullableNumber(vm65.DptEmp3B10mAValue));
+                    SetExcelCellValue(cells, 38, 5, FormatNullableNumber(vm65.DptSys110mAValue));
+                    SetExcelCellValue(cells, 39, 5, FormatNullableNumber(vm65.DptSys210mAValue));
+                    SetExcelCellValue(cells, 40, 5, FormatNullableNumber(vm65.DptSys310mAValue));
+
+                    SetExcelCellValue(cells, 23, 6, vm65.IsDptEdp24mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 24, 6, vm65.IsDptEmp2B4mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 25, 6, vm65.IsDptEmp3B4mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 26, 6, vm65.IsDptSys14mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 27, 6, vm65.IsDptSys24mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 28, 6, vm65.IsDptSys34mAPass ? "合格" : "不合格");
+
+                    SetExcelCellValue(cells, 29, 6, vm65.IsDptEdp2A20mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 30, 6, vm65.IsDptEmp2B20mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 31, 6, vm65.IsDptEmp3B20mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 32, 6, vm65.IsDptSys120mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 33, 6, vm65.IsDptSys220mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 34, 6, vm65.IsDptSys320mAPass ? "合格" : "不合格");
+
+                    SetExcelCellValue(cells, 35, 6, vm65.IsDptEdp2A10mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 36, 6, vm65.IsDptEmp2B10mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 37, 6, vm65.IsDptEmp3B10mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 38, 6, vm65.IsDptSys110mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 39, 6, vm65.IsDptSys210mAPass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 40, 6, vm65.IsDptSys310mAPass ? "合格" : "不合格");
+
+                    SetExcelCellFontColor(cells, 23, 6, vm65.IsDptEdp24mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 24, 6, vm65.IsDptEmp2B4mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 25, 6, vm65.IsDptEmp3B4mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 26, 6, vm65.IsDptSys14mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 27, 6, vm65.IsDptSys24mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 28, 6, vm65.IsDptSys34mAPass ? null : 255);
+
+                    SetExcelCellFontColor(cells, 29, 6, vm65.IsDptEdp2A20mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 30, 6, vm65.IsDptEmp2B20mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 31, 6, vm65.IsDptEmp3B20mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 32, 6, vm65.IsDptSys120mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 33, 6, vm65.IsDptSys220mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 34, 6, vm65.IsDptSys320mAPass ? null : 255);
+
+                    SetExcelCellFontColor(cells, 35, 6, vm65.IsDptEdp2A10mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 36, 6, vm65.IsDptEmp2B10mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 37, 6, vm65.IsDptEmp3B10mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 38, 6, vm65.IsDptSys110mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 39, 6, vm65.IsDptSys210mAPass ? null : 255);
+                    SetExcelCellFontColor(cells, 40, 6, vm65.IsDptSys310mAPass ? null : 255);
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G23:G40" });
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm65.CurrentTestResult });
+                    SetRangeFontColor(range, string.Equals(vm65.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (vm66 != null)
+                {
+                    SetExcelCellValue(cells, 41, 5, vm66.Pin3031FreqText);
+                    SetExcelCellValue(cells, 42, 5, vm66.Pin3334FreqText);
+                    SetExcelCellValue(cells, 43, 5, vm66.Pin3031VoltText);
+                    SetExcelCellValue(cells, 44, 5, vm66.Pin3334VoltText);
+                    SetExcelCellValue(cells, 45, 5, vm66.PointLowSys1Text);
+                    SetExcelCellValue(cells, 46, 5, vm66.PointLowSys2Text);
+                    SetExcelCellValue(cells, 47, 5, vm66.PointMidSys1Text);
+                    SetExcelCellValue(cells, 48, 5, vm66.PointMidSys2Text);
+                    SetExcelCellValue(cells, 49, 5, vm66.PointHighSys1Text);
+                    SetExcelCellValue(cells, 50, 5, vm66.PointHighSys2Text);
+
+                    SetExcelCellValue(cells, 41, 6, vm66.IsPin3031Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 42, 6, vm66.IsPin3334Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 43, 6, vm66.IsPin3031Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 44, 6, vm66.IsPin3334Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 45, 6, vm66.IsPointLowSys1Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 46, 6, vm66.IsPointLowSys2Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 47, 6, vm66.IsPointMidSys1Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 48, 6, vm66.IsPointMidSys2Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 49, 6, vm66.IsPointHighSys1Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 50, 6, vm66.IsPointHighSys2Pass ? "合格" : "不合格");
+
+                    SetExcelCellFontColor(cells, 41, 6, vm66.IsPin3031Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 42, 6, vm66.IsPin3334Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 43, 6, vm66.IsPin3031Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 44, 6, vm66.IsPin3334Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 45, 6, vm66.IsPointLowSys1Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 46, 6, vm66.IsPointLowSys2Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 47, 6, vm66.IsPointMidSys1Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 48, 6, vm66.IsPointMidSys2Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 49, 6, vm66.IsPointHighSys1Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 50, 6, vm66.IsPointHighSys2Pass ? null : 255);
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G41:G50" });
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm66.CurrentTestResult });
+                    SetRangeFontColor(range, string.Equals(vm66.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (vm67 != null)
+                {
+                    var hc67Values = new[]
+                    {
+                        vm67.Pin49Text, vm67.Pin50Text, vm67.Pin51Text, vm67.Pin52Text, vm67.Pin53Text, vm67.Pin54Text, vm67.Pin55Text,
+                        vm67.Pin56Text, vm67.Pin57Text, vm67.Pin58Text, vm67.Pin59Text, vm67.Pin60Text, vm67.Pin61Text, vm67.Pin62Text,
+                        vm67.Pin63Text, vm67.Pin89Text, vm67.Pin90Text, vm67.Pin91Text, vm67.Pin92Text, vm67.Pin93Text, vm67.Pin94Text,
+                        vm67.Pin95Text, vm67.Pin96Text, vm67.Pin97Text, vm67.Pin98Text, vm67.Pin99Text, vm67.Pin100Text
+                    };
+
+                    var hc67Passes = new[]
+                    {
+                        vm67.IsPin49Pass, vm67.IsPin50Pass, vm67.IsPin51Pass, vm67.IsPin52Pass, vm67.IsPin53Pass, vm67.IsPin54Pass, vm67.IsPin55Pass,
+                        vm67.IsPin56Pass, vm67.IsPin57Pass, vm67.IsPin58Pass, vm67.IsPin59Pass, vm67.IsPin60Pass, vm67.IsPin61Pass, vm67.IsPin62Pass,
+                        vm67.IsPin63Pass, vm67.IsPin89Pass, vm67.IsPin90Pass, vm67.IsPin91Pass, vm67.IsPin92Pass, vm67.IsPin93Pass, vm67.IsPin94Pass,
+                        vm67.IsPin95Pass, vm67.IsPin96Pass, vm67.IsPin97Pass, vm67.IsPin98Pass, vm67.IsPin99Pass, vm67.IsPin100Pass
+                    };
+
+                    for (var i = 0; i < hc67Values.Length; i++)
+                    {
+                        var row = 51 + i;
+                        SetExcelCellValue(cells, row, 5, hc67Values[i]);
+                        SetExcelCellValue(cells, row, 6, hc67Passes[i] ? "合格" : "不合格");
+                        SetExcelCellFontColor(cells, row, 6, hc67Passes[i] ? null : 255);
+                    }
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G51:G77" });
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm67.CurrentTestResult });
+                    SetRangeFontColor(range, string.Equals(vm67.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (vm68 != null)
+                {
+                    var hc68OpenValues = new[]
+                    {
+                        vm68.OpenPin9Text, vm68.OpenPin10Text, vm68.OpenPin11Text, vm68.OpenPin12Text,
+                        vm68.OpenPin13Text, vm68.OpenPin14Text, vm68.OpenPin15Text
+                    };
+
+                    var hc68OpenPasses = new[]
+                    {
+                        vm68.IsOpenPin9Pass, vm68.IsOpenPin10Pass, vm68.IsOpenPin11Pass, vm68.IsOpenPin12Pass,
+                        vm68.IsOpenPin13Pass, vm68.IsOpenPin14Pass, vm68.IsOpenPin15Pass
+                    };
+
+                    var hc68CloseValues = new[]
+                    {
+                        vm68.ClosePin9Text, vm68.ClosePin10Text, vm68.ClosePin11Text, vm68.ClosePin12Text,
+                        vm68.ClosePin13Text, vm68.ClosePin14Text, vm68.ClosePin15Text
+                    };
+
+                    var hc68ClosePasses = new[]
+                    {
+                        vm68.IsClosePin9Pass, vm68.IsClosePin10Pass, vm68.IsClosePin11Pass, vm68.IsClosePin12Pass,
+                        vm68.IsClosePin13Pass, vm68.IsClosePin14Pass, vm68.IsClosePin15Pass
+                    };
+
+                    for (var i = 0; i < hc68OpenValues.Length; i++)
+                    {
+                        var row = 78 + i;
+                        SetExcelCellValue(cells, row, 5, hc68OpenValues[i]);
+                        SetExcelCellValue(cells, row, 6, hc68OpenPasses[i] ? "合格" : "不合格");
+                        SetExcelCellFontColor(cells, row, 6, hc68OpenPasses[i] ? null : 255);
+                    }
+
+                    for (var i = 0; i < hc68CloseValues.Length; i++)
+                    {
+                        var row = 85 + i;
+                        SetExcelCellValue(cells, row, 5, hc68CloseValues[i]);
+                        SetExcelCellValue(cells, row, 6, hc68ClosePasses[i] ? "合格" : "不合格");
+                        SetExcelCellFontColor(cells, row, 6, hc68ClosePasses[i] ? null : 255);
+                    }
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G85:G91" });
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm68.CurrentTestResult });
+                    SetRangeFontColor(range, string.Equals(vm68.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                workbook.GetType().InvokeMember("Save", BindingFlags.InvokeMethod, null, workbook, null);
+            }
+            finally
+            {
+                TryInvoke(workbook, "Close", false);
+                TryInvoke(excelApp, "Quit");
+                ReleaseComObject(range);
+                ReleaseComObject(cells);
+                ReleaseComObject(sheet);
+                ReleaseComObject(workbook);
+                ReleaseComObject(workbooks);
+                ReleaseComObject(excelApp);
+            }
+        }
+
+        private static string FormatNullableNumber(double? value)
+        {
+            return value.HasValue ? value.Value.ToString("0.###") : "--";
+        }
+
+        private static void SetExcelCellValue(object cells, int row, int column, string value)
+        {
+            var cell = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { row, column });
+            try
+            {
+                cell.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, cell, new object[] { value });
+            }
+            finally
+            {
+                ReleaseComObject(cell);
+            }
+        }
+
+        private static void SetExcelCellFontColor(object cells, int row, int column, int? oleColor)
+        {
+            var cell = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { row, column });
+            object font = null;
+            try
+            {
+                font = cell.GetType().InvokeMember("Font", BindingFlags.GetProperty, null, cell, null);
+                if (oleColor.HasValue)
+                {
+                    font.GetType().InvokeMember("Color", BindingFlags.SetProperty, null, font, new object[] { oleColor.Value });
+                }
+            }
+            finally
+            {
+                ReleaseComObject(font);
+                ReleaseComObject(cell);
+            }
+        }
+
+        private static void SetRangeFontColor(object range, int? oleColor)
+        {
+            if (range == null)
+            {
+                return;
+            }
+
+            object font = null;
+            try
+            {
+                font = range.GetType().InvokeMember("Font", BindingFlags.GetProperty, null, range, null);
+                if (oleColor.HasValue)
+                {
+                    font.GetType().InvokeMember("Color", BindingFlags.SetProperty, null, font, new object[] { oleColor.Value });
+                }
+            }
+            finally
+            {
+                ReleaseComObject(font);
+            }
+        }
+
+        private static void TryInvoke(object target, string methodName, params object[] args)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            try
+            {
+                target.GetType().InvokeMember(methodName, BindingFlags.InvokeMethod, null, target, args);
             }
             catch
             {
             }
+        }
+
+        private static void ReleaseComObject(object comObject)
+        {
+            if (comObject != null && Marshal.IsComObject(comObject))
+            {
+                try
+                {
+                    Marshal.ReleaseComObject(comObject);
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        private void AppendSingleBoardReportLine(string message)
+        {
+            return;
         }
 
         private static bool IsPass(string result)
