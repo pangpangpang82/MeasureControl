@@ -192,7 +192,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             _testTxChannel = "CH0";
 
-            _testRxChannel = "CH1";
+            _testRxChannel = "CH2";
 
 
 
@@ -1553,7 +1553,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             tx ??= "CH0";
 
-            rx ??= "CH1";
+            rx ??= "CH2";
 
 
 

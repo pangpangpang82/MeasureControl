@@ -66,13 +66,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _lastTestResult = "--";
 
         private string _enterAtpTxChannel = "429_CH0";
-        private string _enterAtpRxChannel = "429_CH1";
+        private string _enterAtpRxChannel = "429_CH2";
 
-        private string _supplyTxChannel = "429_CH2";
-        private string _potSupRxChannel = "429_CH3";
+        private string _supplyTxChannel = "429_CH0";
+        private string _potSupRxChannel = "429_CH2";
 
-        private string _exitAtpTxChannel = "429_CH8";
-        private string _exitAtpRxChannel = "429_CH9";
+        private string _exitAtpTxChannel = "429_CH0";
+        private string _exitAtpRxChannel = "429_CH2";
 
         private string _enterAtpRxDataText = "--";
         private string _dmmVoltageText = "--";

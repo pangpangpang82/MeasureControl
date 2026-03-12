@@ -41,7 +41,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool _matrixLowRouted;
 
         private string _testTxChannel = "CH0";
-        private string _testRxChannel = "CH1";
+        private string _testRxChannel = "CH2";
         private double _arincRate = 100000.0;
 
         private string _dmmIpAddress = "192.168.1.13";

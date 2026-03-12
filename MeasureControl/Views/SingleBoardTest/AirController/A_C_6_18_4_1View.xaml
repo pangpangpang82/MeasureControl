@@ -283,6 +283,7 @@
                                 SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}">
                                 <ComboBox.Style>
                                     <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
+                                        <Setter Property="IsEnabled" Value="False" />
                                         <Setter Property="Opacity" Value="1" />
                                     </Style>
                                 </ComboBox.Style>
@@ -413,6 +414,7 @@
                                 SelectedItem="{Binding TestTxChannel, Mode=TwoWay}">
                                 <ComboBox.Style>
                                     <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
+                                        <Setter Property="IsEnabled" Value="False" />
                                         <Setter Property="Opacity" Value="1" />
                                     </Style>
                                 </ComboBox.Style>
