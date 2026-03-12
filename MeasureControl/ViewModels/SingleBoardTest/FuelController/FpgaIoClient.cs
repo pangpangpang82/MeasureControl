@@ -96,30 +96,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
-        /// <summary>
-        /// 发送FPGA初始化命令（0x04），初始化后延迟500ms后将FpgaInitRequired置为false
-        /// 帧格式: AA 55 01 04
-        /// </summary>
-        private async Task SendInitCommandAsync(CancellationToken token)
-        {
-            try
-            {
-                var frame = BuildFrame(0x04);
-                await _stream.WriteAsync(frame, 0, frame.Length, token);
-                await _stream.FlushAsync(token);
-                System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] 发送FPGA初始化命令: {BitConverter.ToString(frame).Replace("-", " ")}");
-
-                // 延迟500ms后将初始化标志置为0
-                await Task.Delay(500, token);
-                FpgaInitRequired = false;
-                System.Diagnostics.Debug.WriteLine("[FpgaIoClient] FPGA初始化完成，后续连接无需再初始化");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] FPGA初始化命令发送失败: {ex.Message}");
-            }
-        }
-
         public void Disconnect()
         {
             try { _stream?.Close(); } catch { }
@@ -202,15 +178,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             await InitHi8435Async(token);
         }
 
+
+        /// <summary>0x00 写GPIO输出 (IO11-32 对应 bit0-21，uint32小端)，并消费FPGA返回的0x00响应帧</summary>
         public async Task WriteGpioOutputOnlyAsync(uint ioMask, CancellationToken token = default)
         {
             await _lock.WaitAsync(token);
             try
             {
                 await EnsureConnectedAsync(token);
+
+                // 先清空接收缓冲区，防止残留帧干扰
+                await FlushReceiveBufferAsync();
+
                 var frame = BuildFrame(0x00, BitConverter.GetBytes(ioMask));
                 await _stream.WriteAsync(frame, 0, frame.Length, token);
                 await _stream.FlushAsync(token);
+
+                //// 协议：发送0x00后FPGA会返回一个0x00帧(GPIO输入读值)，必须消费否则后续帧错位
+                //try
+                //{
+                //    using var ackCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                //    ackCts.CancelAfter(200);
+                //    var (cmd, _) = await ReadFrameAsync(ackCts.Token);
+                //    System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] WriteGpio 应答: cmd=0x{cmd:X2}");
+                //}
+                //catch (OperationCanceledException)
+                //{
+                //    System.Diagnostics.Debug.WriteLine("[FpgaIoClient] WriteGpio 无应答帧（超时）");
+                //}
+                //catch (Exception ex)
+                //{
+                //    System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] WriteGpio 应答读取异常: {ex.Message}");
+                //}
             }
             finally
             {
@@ -254,44 +253,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
-        /// <summary>0x00 写GPIO输出 (IO11-32 对应 bit0-21，uint32小端)，并消费FPGA返回的0x00响应帧</summary>
-        public async Task WriteGpioAsync(uint ioMask, CancellationToken token = default)
-        {
-            await _lock.WaitAsync(token);
-            try
-            {
-                await EnsureConnectedAsync(token);
-                
-                // 先清空接收缓冲区，防止残留帧干扰
-                await FlushReceiveBufferAsync();
-                
-                var frame = BuildFrame(0x00, BitConverter.GetBytes(ioMask));
-                await _stream.WriteAsync(frame, 0, frame.Length, token);
-                await _stream.FlushAsync(token);
-                
-                // 协议：发送0x00后FPGA会返回一个0x00帧(GPIO输入读值)，必须消费否则后续帧错位
-                try
-                {
-                    using var ackCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                    ackCts.CancelAfter(200);
-                    var (cmd, _) = await ReadFrameAsync(ackCts.Token);
-                    System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] WriteGpio 应答: cmd=0x{cmd:X2}");
-                }
-                catch (OperationCanceledException)
-                {
-                    System.Diagnostics.Debug.WriteLine("[FpgaIoClient] WriteGpio 无应答帧（超时）");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] WriteGpio 应答读取异常: {ex.Message}");
-                }
-            }
-            finally
-            {
-                _lock.Release();
-            }
-        }
-
         /// <summary>0x00 读GPIO输入 (IO43-64 对应 bit0-21，uint32小端)</summary>
         public async Task<uint> ReadGpioAsync(CancellationToken token = default)
         {
@@ -317,7 +278,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
-        /// <summary>0x04 初始化HI8435，等待FPGA应答帧</summary>
+        /// <summary>
+        /// 0x04 初始化HI8435，等待FPGA应答帧
+        /// 帧格式：AA 55 02 04 00
+        /// </summary>
         public async Task InitHi8435Async(CancellationToken token = default)
         {
             await _lock.WaitAsync(token);
@@ -328,10 +292,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 // 先清空接收缓冲区，防止残留帧干扰
                 await FlushReceiveBufferAsync();
                 
-                var frame = BuildFrame(0x04);
+                var frame = BuildFrame(0x04, new byte[] { 0x00 });
                 await _stream.WriteAsync(frame, 0, frame.Length, token);
                 await _stream.FlushAsync(token);
-                
+                System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] 发送FPGA-HI8435初始化命令: {BitConverter.ToString(frame).Replace("-", " ")}");
+
                 // 消费FPGA应答帧（若有），防止后续帧错位
                 // 缩短超时时间到100ms，避免初始化过慢
                 try
@@ -363,7 +328,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             try
             {
                 await EnsureConnectedAsync(token);
-                var frame = BuildFrame(0x06);
+                var frame = BuildFrame(0x06, new byte[] { 0x00 });
                 await _stream.WriteAsync(frame, 0, frame.Length, token);
                 await _stream.FlushAsync(token);
 
