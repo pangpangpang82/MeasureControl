@@ -30,7 +30,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double ArincRate = 100000.0;
 
         private const int Relay485ChannelIndex = 6;
-        private const int RelayAuxDoIndex = 25;
+        //private const int RelayAuxDoIndex = 25;
         private const int RelayGroundDoIndex = 26;
         private const int RelayEnableDoIndex = 27;
 
@@ -1113,8 +1113,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task WriteInitDosAsync(bool on, CancellationToken cancellationToken)
         {
-            await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
-            Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
+            //await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            //Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
 
             await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
             Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");

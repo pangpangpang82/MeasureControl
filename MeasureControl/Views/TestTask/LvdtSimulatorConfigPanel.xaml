@@ -1769,36 +1769,82 @@
                                 </Border>
 
                                 <Border Margin="20,0,0,0">
-                                    <Button
-                                        Width="80"
-                                        Height="30"
-                                        VerticalAlignment="Center"
-                                        BorderThickness="0"
-                                        Command="{Binding ToggleDeviceCommand}"
-                                        Style="{StaticResource ToggleDeviceButtonStyle}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Image
-                                                Width="15"
-                                                Height="15"
-                                                Margin="5,0,5,0"
-                                                Source="/Resources/Logo/export.png" />
-                                            <TextBlock
-                                                Margin="0,0,5,0"
-                                                FontSize="12"
-                                                Foreground="White">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Text" Value="打开板卡" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsConnected}" Value="True">
-                                                                <Setter Property="Text" Value="关闭板卡" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </StackPanel>
-                                    </Button>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button
+                                            Width="80"
+                                            Height="30"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            Command="{Binding ToggleDeviceCommand}"
+                                            Style="{StaticResource ToggleDeviceButtonStyle}">
+
+                                            <StackPanel Orientation="Horizontal">
+                                                <Image
+                                                    Width="15"
+                                                    Height="15"
+                                                    Margin="5,0,5,0"
+                                                    Source="/Resources/Logo/export.png" />
+                                                <TextBlock
+                                                    Margin="0,0,5,0"
+                                                    FontSize="12"
+                                                    Foreground="White">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Text" Value="打开板卡" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                                    <Setter Property="Text" Value="关闭板卡" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
+
+
+                                        </Button>
+                                        <Button
+                                            Width="60"
+                                            Height="30"
+                                            Margin="15,0,0,0"
+                                            Background="#3b82f6"
+                                            BorderThickness="0"
+                                            Command="{Binding NavigateToCalibrationCommand}">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border
+                                                        x:Name="border"
+                                                        Background="{TemplateBinding Background}"
+                                                        CornerRadius="4">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Image
+                                                                Width="15"
+                                                                Height="15"
+                                                                Margin="5,0,5,0"
+                                                                Source="/Resources/Logo/calibration.png" />
+                                                            <TextBlock
+                                                                Margin="0,0,5,0"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                Foreground="White"
+                                                                Text="标定" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsEnabled" Value="False">
+                                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsPressed" Value="True">
+                                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </StackPanel>
                                 </Border>
                             </StackPanel>
 

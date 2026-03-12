@@ -28,9 +28,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int ReceiveTimeoutMs = 4000;
         private const int AtpRequestPeriodMs = 100;
         private const int RelaySettleDelayMs = 100;
+        private const int PowerSettleDelayMs = 300;
         private const byte DiscreteLabelDec = 103;
-        private const byte AtpLabelDec = 20;
-        private const byte AtpStatusLabelDec = 24;
+        private const byte AtpLabelDec = 16; // 十进制
+        private const byte AtpStatusLabelDec = 20;
+        private const byte AtpStatusLabelDec2 = 102;
+        private const byte PbitLabelDec = 21;
         private const byte SsmNormal = 0;
         private const bool UsePeriodicAtpRequest = true;
         private const string TestItemName = "离散量采集测试";
@@ -48,21 +51,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             new FrameDefinition(DiscreteLabelDec, 1, new []
             {
                 new BitDefinition(10, 49), new BitDefinition(12, 50), new BitDefinition(14, 53), new BitDefinition(16, 54),
-                new BitDefinition(19, 89), new BitDefinition(21, 91), new BitDefinition(23, 93), new BitDefinition(25, 95)
+                new BitDefinition(22, 91), new BitDefinition(24, 93), new BitDefinition(26, 95)
             }),
             new FrameDefinition(DiscreteLabelDec, 2, new []
             {
                 new BitDefinition(10, 51), new BitDefinition(12, 52), new BitDefinition(14, 61), new BitDefinition(16, 62),
-                new BitDefinition(18, 55), new BitDefinition(20, 56), new BitDefinition(22, 92), new BitDefinition(24, 94), new BitDefinition(26, 96)
+                new BitDefinition(18, 55), new BitDefinition(20, 56), new BitDefinition(23, 89), new BitDefinition(25, 92), new BitDefinition(27, 94)
             }),
             new FrameDefinition(DiscreteLabelDec, 3, new []
             {
                 new BitDefinition(10, 57), new BitDefinition(12, 58), new BitDefinition(14, 59), new BitDefinition(16, 60),
-                new BitDefinition(22, 97), new BitDefinition(24, 98)
+                new BitDefinition(20, 90), new BitDefinition(22, 97), new BitDefinition(24, 98)
             }),
             new FrameDefinition(AtpStatusLabelDec, 0, new []
             {
                 new BitDefinition(12, 63)
+            }),
+            new FrameDefinition(AtpStatusLabelDec2, 2, new []
+            {
+                new BitDefinition(25, 96)
             })
         };
 
@@ -259,7 +266,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             Log("开始手动测试");
             Log($"电源: CH1 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
-            Log("JY7131: 485继电器前7路闭合，DO1~25=1，DO26=0，DO27=1");
+            Log("JY7131: 485继电器前7路闭合，DO1~25=1，DO26=1，DO27=1");
             Log($"ARINC429: RX通道{RxChannelIndex + 1}, TX通道{TxChannelIndex + 1}, 码率 {ArincRate:0}bps, 离散Label=147(oct), ATP请求Label=24(oct), ATP状态Label=30(oct)");
 
             try
@@ -268,8 +275,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureRelay485Async(true, _manualCts.Token).ConfigureAwait(false);
                 await ApplyGroundingAsync(_manualCts.Token).ConfigureAwait(false);
                 await EnsureArincRxAsync(_manualCts.Token).ConfigureAwait(false);
-                await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
                 await StartAtpRequestAsync(_manualCts.Token).ConfigureAwait(false);
+                await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
 
                 CanMeasure = true;
                 Log("手动测试初始化完成，可执行采集");
@@ -329,8 +336,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureRelay485Async(true, cancellationToken).ConfigureAwait(false);
                 await ApplyGroundingAsync(cancellationToken).ConfigureAwait(false);
                 await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
-                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
                 await StartAtpRequestAsync(cancellationToken).ConfigureAwait(false);
+                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
 
                 var success = await MeasureDiscreteAsync(cancellationToken).ConfigureAwait(false);
                 _measured14 = true;
@@ -380,22 +387,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     var words = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 512, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
                     foreach (var word in words)
                     {
-                        if (!_arinc.VerifyOddParity(word.Data429))
-                            continue;
+                        //if (!_arinc.VerifyOddParity(word.Data429))
+                        //    continue;
 
                         _arinc.ParseRawWord(word.Data429, out var label, out var sdi, out var data19, out var ssm);
-                        if (!IsExpectedLabel(label, DiscreteLabelDec) && !IsExpectedLabel(label, AtpStatusLabelDec))
+                        if (!IsExpectedLabel(label, DiscreteLabelDec)
+                            && !IsExpectedLabel(label, AtpStatusLabelDec)
+                            && !IsExpectedLabel(label, AtpStatusLabelDec2)
+                            && !IsExpectedLabel(label, PbitLabelDec))
                             continue;
+
+                        if (IsExpectedLabel(label, PbitLabelDec))
+                        {
+                            Log($"{Convert.ToString(word.Data429, 2)}");
+                        }
 
                         if (ssm != SsmNormal)
                             continue;
 
                         ApplyFrame(SignalFrames, label, sdi, data19, values, seenFrames);
+                        ApplyPbitSpecialLogic(label, sdi, data19, values);
                     }
 
-                    if (HasRequiredPins(values))
+                    CommitPinState(values);
+                    
+                    if (HasAllRequiredFrames(seenFrames))
                     {
-                        CommitPinState(values);
                         Log($"离散量采集完成，已收到 {seenFrames.Count} 帧有效信号");
                         return true;
                     }
@@ -405,12 +422,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                 if (seenFrames.Count > 0)
                 {
+                    ApplyTimeoutState(values);
                     CommitPinState(values);
                     Log("离散量采集超时，按当前收到的信号输出");
                     return false;
                 }
 
-                DetectedChannelText = "--";
+                ApplyTimeoutState(values);
+                CommitPinState(values);
+                DetectedChannelText = "超时";
                 Log("离散量采集超时，未收到有效429信号");
                 return false;
             }
@@ -529,7 +549,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             foreach (var pin in GroundPins)
             {
-                _pinTexts[pin] = (pin == 99 || pin == 100) ? "0" : "--";
+                _pinTexts[pin] = "--";
                 RaisePropertyChanged($"Pin{pin}Text");
             }
         }
@@ -541,7 +561,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private static Dictionary<int, string> CreateDefaultPinState()
         {
-            var state = GroundPins.ToDictionary(pin => pin, pin => (pin == 99 || pin == 100) ? "0" : "--");
+            var state = GroundPins.ToDictionary(pin => pin, pin => "--");
             return state;
         }
 
@@ -556,9 +576,35 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             DetectedChannelText = "已接收";
         }
 
-        private static bool HasRequiredPins(Dictionary<int, string> values)
+        private void ApplyPbitSpecialLogic(byte label, byte sdi, uint data19, Dictionary<int, string> values)
         {
-            return values[63] != "--";
+            if (!IsExpectedLabel(label, PbitLabelDec) || sdi != 0)
+                return;
+
+            var bit10 = data19 & 1u;
+            var pinValue = bit10 == 1 ? "1" : "0";
+            
+            values[99] = pinValue;
+            values[100] = pinValue;
+        }
+
+        private static bool HasAllRequiredFrames(HashSet<string> seenFrames)
+        {
+            return seenFrames.Contains($"{DiscreteLabelDec}:1")
+                && seenFrames.Contains($"{DiscreteLabelDec}:2")
+                && seenFrames.Contains($"{DiscreteLabelDec}:3")
+                && seenFrames.Contains($"{AtpStatusLabelDec}:0")
+                && seenFrames.Contains($"{AtpStatusLabelDec2}:2")
+                && seenFrames.Contains($"{PbitLabelDec}:0");
+        }
+
+        private static void ApplyTimeoutState(Dictionary<int, string> values)
+        {
+            foreach (var pin in GroundPins)
+            {
+                if (values[pin] == "--")
+                    values[pin] = "超时";
+            }
         }
 
         private void ApplyFrame(
@@ -592,7 +638,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
             await _power.ApplyAsync(PowerSupplyChannel.CH1, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
             await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(PowerSettleDelayMs, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task EnsureJy7131Async(CancellationToken cancellationToken)
@@ -622,13 +668,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task ApplyGroundingAsync(CancellationToken cancellationToken)
         {
             uint mask = 0;
-            for (var doIndex = 1; doIndex <= 27; doIndex++)
-                mask |= (1u << doIndex);
+            for (var doIndex = 0; doIndex <= 26; doIndex++) {
+                if (doIndex == 24)
+                {
+                    continue;
+                }
+
+                mask |= (1u << doIndex); }
 
             await _jy7131.WriteDoBitmaskAsync(mask, cancellationToken).ConfigureAwait(false);
 
             await Task.Delay(RelaySettleDelayMs, cancellationToken).ConfigureAwait(false);
-            Log("已完成7131输出配置: DO1~25=1, DO26=1, DO27=1");
+            Log("已完成7131输出配置: DO0~26=1");
         }
 
         private async Task EnsureArincRxAsync(CancellationToken cancellationToken)
@@ -732,8 +783,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
 
             uint data19 = requestAtp ? 0x1u : 0x0u;
-            var word = _arinc.BuildRawWord(AtpLabelDec, 0, data19, SsmNormal, true);
+            var label = GetAtpLabelForTx();
+            var word = _arinc.BuildRawWord(label, 0, data19, SsmNormal, true);
+            Log($"ATP：{requestAtp},raw=0x{word:X8}");
             await _arinc.SendWordsSingleAsync(TxChannelIndex, new[] { word }, Art4229Parity.Odd, cancellationToken).ConfigureAwait(false);
+        }
+
+        private byte GetAtpLabelForTx()
+        {
+            if (_arinc == null)
+                return AtpLabelDec;
+
+            var label = _arinc.ReverseLabel(AtpLabelDec);
+            // var label = AtpLabelDec;
+            return label;
         }
 
         private async Task EnsureRelay485Async(bool on, CancellationToken cancellationToken)
