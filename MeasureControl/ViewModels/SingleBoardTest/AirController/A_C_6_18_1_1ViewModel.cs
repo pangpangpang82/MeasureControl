@@ -22,7 +22,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
 
-        private static readonly byte[] TestCommand8 = { 0x08, 0x01, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] TestCommandTemplate8 = { 0x23, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
         private const double VoltageLowerLimit = 3.0;
         private const double VoltageUpperLimit = 3.6;
@@ -51,6 +51,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _exitAtpRxDataText;
 
         private string _testCommandXx;
+        private string _testCommandXxHighNibble;
+        private string _testCommandXxLowNibble;
         private string _testCommandDisplayText;
 
         private double? _j226Voltage;
@@ -81,6 +83,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private double _arincRate = 100000.0;
         private bool _isRealProduct;
 
+        public ObservableCollection<string> HexNibbles { get; } = new ObservableCollection<string>();
+
         public A_C_6_18_1_1ViewModel()
         {
             _testTxChannel = "429_CH0";
@@ -94,7 +98,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             EnterAtpRxDataText = "--";
             ExitAtpRxDataText = "--";
 
-            TestCommandXx = "01";
+            HexNibbles.Clear();
+            for (int i = 0; i < 16; i++)
+                HexNibbles.Add(i.ToString("X"));
+
+            TestCommandXxHighNibble = "0";
+            TestCommandXxLowNibble = "1";
             J226VoltageText = "--";
             J226JudgeText = "--";
             J227VoltageText = "--";
@@ -204,6 +213,33 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (SetProperty(ref _testCommandXx, value))
                 {
+                    UpdateTestCommandNibblesFromXx();
+                    UpdateTestCommandDisplayText();
+                }
+            }
+        }
+
+        public string TestCommandXxHighNibble
+        {
+            get => _testCommandXxHighNibble;
+            set
+            {
+                if (SetProperty(ref _testCommandXxHighNibble, NormalizeHexNibble(value)))
+                {
+                    UpdateTestCommandXxFromNibbles();
+                    UpdateTestCommandDisplayText();
+                }
+            }
+        }
+
+        public string TestCommandXxLowNibble
+        {
+            get => _testCommandXxLowNibble;
+            set
+            {
+                if (SetProperty(ref _testCommandXxLowNibble, NormalizeHexNibble(value)))
+                {
+                    UpdateTestCommandXxFromNibbles();
                     UpdateTestCommandDisplayText();
                 }
             }
@@ -337,14 +373,93 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private void UpdateTestCommandDisplayText()
         {
-            _ = TestCommandXx;
-            TestCommandDisplayText = $"0x08 01 11 01 00 00 00 00";
+            UpdateTestCommandXxFromNibbles();
+            var xx = string.IsNullOrWhiteSpace(TestCommandXx) ? "--" : TestCommandXx.Trim().ToUpperInvariant();
+            TestCommandDisplayText = $"0x23 01 01 {xx} 00 00 00 00";
         }
 
         private byte[] BuildTestCommand8OrNull(out string error)
         {
+            if (!TryParseHexByte(TestCommandXx, out var xx))
+            {
+                error = "测试指令XX无效，应为2位16进制（00~FF）";
+                return null;
+            }
+
             error = null;
-            return TestCommand8;
+            var cmd = (byte[])TestCommandTemplate8.Clone();
+            cmd[3] = xx;
+            return cmd;
+        }
+
+        private void UpdateTestCommandXxFromNibbles()
+        {
+            var hi = NormalizeHexNibble(TestCommandXxHighNibble);
+            var lo = NormalizeHexNibble(TestCommandXxLowNibble);
+            var xx = hi + lo;
+
+            if (!string.Equals(_testCommandXx, xx, StringComparison.Ordinal))
+            {
+                _testCommandXx = xx;
+                RaisePropertyChanged(nameof(TestCommandXx));
+            }
+        }
+
+        private void UpdateTestCommandNibblesFromXx()
+        {
+            var raw = (TestCommandXx ?? string.Empty).Trim().ToUpperInvariant();
+            if (raw.StartsWith("0X", StringComparison.Ordinal))
+                raw = raw.Substring(2);
+
+            if (raw.Length != 2)
+                return;
+
+            var hi = NormalizeHexNibble(raw[0].ToString());
+            var lo = NormalizeHexNibble(raw[1].ToString());
+
+            if (!string.Equals(_testCommandXxHighNibble, hi, StringComparison.Ordinal))
+            {
+                _testCommandXxHighNibble = hi;
+                RaisePropertyChanged(nameof(TestCommandXxHighNibble));
+            }
+
+            if (!string.Equals(_testCommandXxLowNibble, lo, StringComparison.Ordinal))
+            {
+                _testCommandXxLowNibble = lo;
+                RaisePropertyChanged(nameof(TestCommandXxLowNibble));
+            }
+        }
+
+        private static string NormalizeHexNibble(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s))
+                return "0";
+
+            s = s.Trim().ToUpperInvariant();
+            if (s.Length != 1)
+                return "0";
+
+            char c = s[0];
+            if (c >= '0' && c <= '9')
+                return c.ToString();
+            if (c >= 'A' && c <= 'F')
+                return c.ToString();
+            return "0";
+        }
+
+        private static bool TryParseHexByte(string text, out byte value)
+        {
+            value = 0;
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            var raw = text.Trim().ToUpperInvariant();
+            if (raw.StartsWith("0X", StringComparison.Ordinal))
+                raw = raw.Substring(2);
+            if (raw.Length != 2)
+                return false;
+
+            return byte.TryParse(raw, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value);
         }
 
         private void OnManualTest()
