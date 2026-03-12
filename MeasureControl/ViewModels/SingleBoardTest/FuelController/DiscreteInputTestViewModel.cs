@@ -1,3 +1,13 @@
+using MeasureControl.Events;
+using MeasureControl.Models;
+using MeasureControl.Models.Devices;
+using MeasureControl.Services;
+using MeasureControl.Services.HardwareApis;
+using MeasureControl.Simulations.FuelController;
+using Newtonsoft.Json.Linq;
+using Prism.Commands;
+using Prism.Events;
+using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -5,15 +15,6 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using MeasureControl.Events;
-using MeasureControl.Models;
-using MeasureControl.Models.Devices;
-using MeasureControl.Services;
-using MeasureControl.Services.HardwareApis;
-using MeasureControl.Simulations.FuelController;
-using Prism.Commands;
-using Prism.Events;
-using Prism.Mvvm;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 {
@@ -357,12 +358,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog("--- 步骤a: 接地测试 ---");
                 AddLog("正在设置接地信号...");
                 await SetDoOutputAsync(true, _testCts.Token);
+                await Task.Delay(1000);//继电器动作时间
                 bool groundedPass = await PerformGroundedTestAsync(_testCts.Token);
-
+                
                 // 3. 执行开路测试
                 AddLog("--- 步骤b: 开路测试 ---");
                 AddLog("正在设置开路信号...");
                 await SetDoOutputAsync(false, _testCts.Token);
+                await Task.Delay(1000);//继电器动作时间
                 bool openPass = await PerformOpenTestAsync(_testCts.Token);
 
                 // 4. 复位硬件
