@@ -410,7 +410,7 @@
                                 <TextBlock
                                     VerticalAlignment="Center"
                                     FontSize="16"
-                                    Text="1号系统油量：" />
+                                    Text="2号系统油量：" />
                                 <Border
                                     Width="80"
                                     Height="28"
@@ -428,7 +428,7 @@
                                     Margin="20,0,0,0"
                                     VerticalAlignment="Center"
                                     FontSize="16"
-                                    Text="2号系统油量：" />
+                                    Text="3号系统油量：" />
                                 <Border
                                     Width="80"
                                     Height="28"
@@ -490,7 +490,7 @@
                                 <TextBlock
                                     VerticalAlignment="Center"
                                     FontSize="16"
-                                    Text="1号系统油量：" />
+                                    Text="2号系统油量：" />
                                 <Border
                                     Width="80"
                                     Height="28"
@@ -508,7 +508,7 @@
                                     Margin="20,0,0,0"
                                     VerticalAlignment="Center"
                                     FontSize="16"
-                                    Text="2号系统油量：" />
+                                    Text="3号系统油量：" />
                                 <Border
                                     Width="80"
                                     Height="28"
@@ -570,7 +570,7 @@
                                 <TextBlock
                                     VerticalAlignment="Center"
                                     FontSize="16"
-                                    Text="1号系统油量：" />
+                                    Text="2号系统油量：" />
                                 <Border
                                     Width="80"
                                     Height="28"
@@ -588,7 +588,7 @@
                                     Margin="20,0,0,0"
                                     VerticalAlignment="Center"
                                     FontSize="16"
-                                    Text="2号系统油量：" />
+                                    Text="3号系统油量：" />
                                 <Border
                                     Width="80"
                                     Height="28"

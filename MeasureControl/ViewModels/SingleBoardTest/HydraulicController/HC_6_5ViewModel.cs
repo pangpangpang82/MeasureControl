@@ -30,14 +30,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double ArincRate = 100000.0;
 
         private const int Relay485ChannelIndex = 6;
-        //private const int RelayAuxDoIndex = 25;
-        private const int RelayGroundDoIndex = 26;
+        private const int RelayAuxDoIndex = 25;
+        //private const int RelayGroundDoIndex = 26;
         private const int RelayEnableDoIndex = 27;
 
         private const string PressureUnit = "Psid";
         private const int SamplesPerMeasure = 1;
         private const int SampleTimeoutMs = 3000;
-        private const int AoSettleMs = 300;
+        private const int AoSettleMs = 400;
         private const int Mtx532ReadyTimeoutMs = 6000;
         private const int Mtx532ReadyPollMs = 200;
         private const int PostSwitchRxFlushMs = 120;
@@ -450,9 +450,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _manualCts = new CancellationTokenSource();
 
             Log("开始手动测试");
-            Log($"485继电器: 第7路开启，7131 DO{RelayGroundDoIndex}=1");
+            Log($"485继电器: 第7路开启，7131 DO{RelayAuxDoIndex}=1");
             Log($"电源: CH1 {AuxiliaryInputVoltageV:0.###}V {AuxiliaryInputCurrentA:0.###}A, IP={AuxiliaryPowerSupplyIpAddress}");
-            Log($"电源: CH1/CH2 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
+            Log($"电源: CH1 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
             Log($"MTX532: AO6-AO11 六通道同档输出电流等效电压");
             Log($"ARINC429: RX通道{RxChannelIndex + 1}, 码率 {ArincRate:0}bps, DPT按Label+SDI精确匹配, bit19-27 UBNR(9bit) LSB=1, SSM=0");
 
@@ -512,17 +512,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsurePowerAsync(_autoCts.Token).ConfigureAwait(false);
 
                 var ok4 = await MeasureGroupAsync("4mA", Current4mA, Set4mA, _autoCts.Token).ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return;
+                _measured4mA = true;
+                _passed4mA = ok4;
                 await Task.Delay(80, _autoCts.Token).ConfigureAwait(false);
                 var ok20 = await MeasureGroupAsync("20mA", Current20mA, Set20mA, _autoCts.Token).ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return;
+                _measured20mA = true;
+                _passed20mA = ok20;
                 await Task.Delay(80, _autoCts.Token).ConfigureAwait(false);
                 var ok10 = await MeasureGroupAsync("10mA", Current10mA, Set10mA, _autoCts.Token).ConfigureAwait(false);
-
-                _measured4mA = true;
-                _measured20mA = true;
+                if (!IsAutoTestRunning)
+                    return;
                 _measured10mA = true;
-                _passed4mA = ok4;
-                _passed20mA = ok20;
                 _passed10mA = ok10;
+
                 await TryFinalizeAsync().ConfigureAwait(false);
                 await StopAutoTestAsync().ConfigureAwait(false);
             }
@@ -565,16 +571,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
 
             var ok4 = await MeasureGroupAsync("4mA", Current4mA, Set4mA, cancellationToken).ConfigureAwait(false);
+            if (!IsAutoTestRunning)
+                return CurrentTestResult ?? "--";
+            _measured4mA = true;
+            _passed4mA = ok4;
             await Task.Delay(80, cancellationToken).ConfigureAwait(false);
             var ok20 = await MeasureGroupAsync("20mA", Current20mA, Set20mA, cancellationToken).ConfigureAwait(false);
+            if (!IsAutoTestRunning)
+                return CurrentTestResult ?? "--";
+            _measured20mA = true;
+            _passed20mA = ok20;
             await Task.Delay(80, cancellationToken).ConfigureAwait(false);
             var ok10 = await MeasureGroupAsync("10mA", Current10mA, Set10mA, cancellationToken).ConfigureAwait(false);
-
-            _measured4mA = true;
-            _measured20mA = true;
+            if (!IsAutoTestRunning)
+                return CurrentTestResult ?? "--";
             _measured10mA = true;
-            _passed4mA = ok4;
-            _passed20mA = ok20;
             _passed10mA = ok10;
 
             await TryFinalizeAsync().ConfigureAwait(false);
@@ -772,10 +783,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     Log($"{title}: 接收超时，以下通道未获取到{SamplesPerMeasure}帧有效DPT数据: {missing}");
                     Log($"{title}: 本次测量按超时结束处理，结果保留为--，不可重复点击");
                 }
-                else
+                else if (IsAutoTestRunning)
                 {
                     var missing = string.Join(",", samples.Where(kv => kv.Value.Count < SamplesPerMeasure).Select(kv => kv.Key));
                     Log($"{title}: 接收超时，以下通道未获取到{SamplesPerMeasure}帧有效DPT数据: {missing}");
+                }
+
+                return false;
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
+            catch (Exception ex)
+            {
+                if (IsManualTestRunning)
+                {
+                    await AbortManualTestAsync($"{title}: 采集异常，手动测试中止: {ex.Message}").ConfigureAwait(false);
+                }
+                else if (IsAutoTestRunning)
+                {
+                    await AbortAutoTestAsync($"{title}: 采集异常，自动测试中止: {ex.Message}").ConfigureAwait(false);
                 }
 
                 return false;
@@ -885,6 +913,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await StopManualTestAsync().ConfigureAwait(false);
         }
 
+        private async Task AbortAutoTestAsync(string reason)
+        {
+            if (!string.IsNullOrWhiteSpace(reason))
+                Log(reason);
+
+            await StopAutoTestAsync().ConfigureAwait(false);
+        }
+
         private async Task StopManualTestAsync()
         {
             try
@@ -896,7 +932,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log($"手动测试停止/结束，正在按反序断开28V、MTX532、429、DO{RelayGroundDoIndex}、485继电器...");
+            Log($"手动测试停止/结束，正在按反序断开28V、MTX532、429、DO{RelayAuxDoIndex}、485继电器...");
             await CleanupPowerAsync().ConfigureAwait(false);
             await CleanupMtxAsync().ConfigureAwait(false);
             await CleanupArincAsync().ConfigureAwait(false);
@@ -918,7 +954,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log($"自动测试停止/结束，正在按反序断开28V、MTX532、429、DO{RelayGroundDoIndex}、485继电器...");
+            Log($"自动测试停止/结束，正在按反序断开28V、MTX532、429、DO{RelayAuxDoIndex}、485继电器...");
             await CleanupPowerAsync().ConfigureAwait(false);
             await CleanupMtxAsync().ConfigureAwait(false);
             await CleanupArincAsync().ConfigureAwait(false);
@@ -941,9 +977,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
             await _power.ApplyAsync(PowerSupplyChannel.CH1, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
-            await _power.ApplyAsync(PowerSupplyChannel.CH2, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
+            //await _power.ApplyAsync(PowerSupplyChannel.CH2, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
             await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, true, cancellationToken).ConfigureAwait(false);
+            //await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, true, cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 
@@ -954,7 +990,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (_power != null)
                 {
                     try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    //try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, false, CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
@@ -1174,11 +1210,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task WriteInitDosAsync(bool on, CancellationToken cancellationToken)
         {
-            //await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
-            //Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
+            await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
 
-            await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
-            Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
+            //await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            //Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
 
             await _jy7131.WriteDoAsync($"DO{RelayEnableDoIndex}", on, cancellationToken).ConfigureAwait(false);
             Log($"7131 DO{RelayEnableDoIndex} 已{(on ? "置位" : "复位")}");

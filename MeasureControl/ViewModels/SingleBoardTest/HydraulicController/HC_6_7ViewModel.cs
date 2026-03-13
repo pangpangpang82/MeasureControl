@@ -23,6 +23,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const string PowerSupplyIpAddress = "192.168.1.15";
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 1.0;
+        private const string Mtx532AoChannel = "AO13";
         private const int RxChannelIndex = 2;
         private const int TxChannelIndex = 0;
         private const double ArincRate = 100000.0;
@@ -32,12 +33,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int PowerSettleDelayMs = 300;
         private const int Mtx532ReadyTimeoutMs = 6000;
         private const int Mtx532ReadyPollMs = 200;
-        private const double Mtx532Ao0VoltageV = 2.5;
+        private const double Mtx532Ao0VoltageV = 4.0;
         private const byte DiscreteLabelDec = 103;
         private const byte AtpLabelDec = 16; // 十进制
         private const byte AtpStatusLabelDec = 20;
         private const byte AtpStatusLabelDec2 = 102;
-        private const byte PbitLabelDec = 21;
+        private const byte PbitLabelDec = 20;
         private const byte SsmNormal = 0;
         private const bool UsePeriodicAtpRequest = true;
         private const string TestItemName = "离散量采集测试";
@@ -108,6 +109,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _previousTestResult = "--";
         private string _currentTestResult = "--";
         private string _detectedChannelText = "--";
+        
 
         public HC_6_7ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
         {
@@ -382,6 +384,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
 
                 var success = await MeasureDiscreteAsync(cancellationToken).ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
                 _measured14 = true;
                 await FinalizeAsync(success).ConfigureAwait(false);
                 await StopAutoTestAsync().ConfigureAwait(false);
@@ -482,7 +486,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             catch (Exception ex)
             {
-                Log($"离散量采集异常: {ex.Message}");
+                if (IsManualTestRunning)
+                {
+                    await AbortManualTestAsync($"离散量采集异常，手动测试中止: {ex.Message}").ConfigureAwait(false);
+                }
+                else if (IsAutoTestRunning)
+                {
+                    await AbortAutoTestAsync($"离散量采集异常，自动测试中止: {ex.Message}").ConfigureAwait(false);
+                }
+                else
+                {
+                    Log($"离散量采集异常: {ex.Message}");
+                }
                 return false;
             }
             finally
@@ -520,6 +535,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!string.IsNullOrWhiteSpace(reason))
                 Log(reason);
             await StopManualTestAsync().ConfigureAwait(false);
+        }
+
+        private async Task AbortAutoTestAsync(string reason)
+        {
+            if (!string.IsNullOrWhiteSpace(reason))
+                Log(reason);
+
+            await StopAutoTestAsync().ConfigureAwait(false);
         }
 
         private async Task StopManualTestAsync()
@@ -635,8 +658,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!IsExpectedLabel(label, PbitLabelDec) || sdi != 0)
                 return;
 
-            var bit10 = data19 & 1u;
-            var pinValue = bit10 == 1 ? "1" : "0";
+            var bit12 = ((data19 >> 2) & 0x1u) == 1u;
+            var pinValue = bit12 ? "1" : "0";
             
             values[99] = pinValue;
             values[100] = pinValue;
@@ -706,7 +729,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 var slot = device is PxiDeviceBase pxi ? pxi.SlotIndex : 7;
                 _mtx532 = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 20000.0 }, slotNumber: slot);
 
-                await _mtx532.ConnectAsync(cancellationToken, new[] { "AO0" }).ConfigureAwait(false);
+                await _mtx532.ConnectAsync(cancellationToken, new[] { Mtx532AoChannel }).ConfigureAwait(false);
                 await SetAo0Async(0.0, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(300, cancellationToken).ConfigureAwait(false);
                 await WaitForMtx532ReadyAsync(cancellationToken).ConfigureAwait(false);
@@ -715,7 +738,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             await SetAo0Async(Mtx532Ao0VoltageV, cancellationToken).ConfigureAwait(false);
-            Log($"MT532 已连接，AO0={Mtx532Ao0VoltageV:0.###}V");
+            Log($"MT532 已连接，{Mtx532AoChannel}={Mtx532Ao0VoltageV:0.###}V");
         }
 
         private async Task WaitForMtx532ReadyAsync(CancellationToken cancellationToken)
@@ -744,7 +767,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             await _mtx532.WriteOnceDcAsync(new Dictionary<string, double>
             {
-                ["AO0"] = voltageV
+                [Mtx532AoChannel] = voltageV
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -776,7 +799,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             uint mask = 0;
             for (var doIndex = 0; doIndex <= 26; doIndex++) {
-                if (doIndex == 24)
+                if (doIndex == 15 || doIndex == 24)
                 {
                     continue;
                 }
@@ -934,8 +957,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task CleanupIoAsync()
         {
-            await StopAtpRequestAsync(true, CancellationToken.None).ConfigureAwait(false);
-
             try
             {
                 if (_power != null)
@@ -953,19 +974,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                if (_mtx532 != null)
-                {
-                    try { await _mtx532.StopOutputAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _mtx532.ResetAllToZeroAsync(disableAfterReset: true, cancellationToken: CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _mtx532.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _mtx532.DisposeAsync().ConfigureAwait(false); } catch { }
-                }
+                await StopAtpRequestAsync(true, CancellationToken.None).ConfigureAwait(false);
             }
             catch { }
-            finally
-            {
-                _mtx532 = null;
-            }
 
             try
             {
@@ -986,6 +997,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             finally
             {
                 _arinc = null;
+            }
+
+            try
+            {
+                if (_mtx532 != null)
+                {
+                    try { await _mtx532.StopOutputAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.ResetAllToZeroAsync(disableAfterReset: true, cancellationToken: CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+            }
+            catch { }
+            finally
+            {
+                _mtx532 = null;
             }
 
             try

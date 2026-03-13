@@ -65,8 +65,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int TempMsbPosition = 28;
 
         // 同一温度 Label 下，用 SDI 区分两路温度系统
-        //private const int RelayAuxDoIndex = 25;
-        private const int RelayGroundDoIndex = 26;
+        private const int RelayAuxDoIndex = 25;
+        //private const int RelayGroundDoIndex = 26;
         private const int Relay485ChannelIndex = 6;
         private const byte TempChannel112To114Sdi = 2;
         private const byte TempChannel116To118Sdi = 3;
@@ -496,6 +496,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         setValueB: v => _temp1B = v,
                         cancellationToken)
                     .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
                 await Task.Delay(80, cancellationToken).ConfigureAwait(false);
 
                 await MeasurePointAsync(
@@ -507,6 +509,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         setValueB: v => _temp2B = v,
                         cancellationToken)
                     .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
                 await Task.Delay(80, cancellationToken).ConfigureAwait(false);
 
                 await MeasurePointAsync(
@@ -518,6 +522,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         setValueB: v => _temp3B = v,
                         cancellationToken)
                     .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
 
                 _measured1 = true;
                 _measured2 = true;
@@ -606,6 +612,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         setValueB: v => _temp1B = v,
                         cancellationToken: _autoCts.Token)
                     .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return;
                 await Task.Delay(80, _autoCts.Token).ConfigureAwait(false);
 
                 await MeasurePointAsync(
@@ -617,6 +625,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         setValueB: v => _temp2B = v,
                         cancellationToken: _autoCts.Token)
                     .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return;
                 await Task.Delay(80, _autoCts.Token).ConfigureAwait(false);
 
                 await MeasurePointAsync(
@@ -628,6 +638,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         setValueB: v => _temp3B = v,
                         cancellationToken: _autoCts.Token)
                     .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return;
 
                 _measured1 = true;
                 _measured2 = true;
@@ -824,7 +836,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效温度数据");
                     Log($"{title}: 本次测量按超时结束处理，结果保留为--，不可重复点击");
                 }
-                else
+                else if (IsAutoTestRunning)
                 {
                     Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效温度数据");
                 }
@@ -845,9 +857,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     await AbortManualTestAsync($"{title}: 采集异常，手动测试中止: {ex.Message}").ConfigureAwait(false);
                 }
-                else
+                else if (IsAutoTestRunning)
                 {
-                    Log($"{title}: 采集异常: {ex.Message}");
+                    await AbortAutoTestAsync($"{title}: 采集异常，自动测试中止: {ex.Message}").ConfigureAwait(false);
                 }
                 return false;
             }
@@ -927,6 +939,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             await StopManualTestAsync().ConfigureAwait(false);
+        }
+
+        private async Task AbortAutoTestAsync(string reason)
+        {
+            if (!string.IsNullOrWhiteSpace(reason))
+            {
+                Log(reason);
+            }
+
+            await StopAutoTestAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1163,11 +1185,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task WriteInitDosAsync(bool on, CancellationToken cancellationToken)
         {
-            //await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
-            //Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
+            await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
 
-            await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
-            Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
+            //await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            //Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
         }
 
         /// <summary>

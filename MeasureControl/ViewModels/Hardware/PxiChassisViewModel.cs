@@ -1555,10 +1555,13 @@ namespace MeasureControl.ViewModels
         private void UpdateAllSlotPositions(ChassisDevice chassis)
         {
             if (chassis?.Children == null) return;
+            var orderedChildren = chassis.Children
+                .OrderBy(child => GetExistingSlotOrder(child))
+                .ToList();
             // 遍历所有子设备，更新其槽位信息
             // 控制器固定占用 Slot 1，其他板卡从 Slot 2 开始
             int currentSlot = 1;
-            foreach (var child in chassis.Children)
+            foreach (var child in orderedChildren)
             {
                 if (child is ControllerDevice controller)
                 {
@@ -1588,6 +1591,40 @@ namespace MeasureControl.ViewModels
                     currentSlot += 1;
                 }
             }
+        }
+
+        private static int GetExistingSlotOrder(DeviceBase device)
+        {
+            if (device == null)
+                return int.MaxValue;
+
+            var slot = TryParseSlotNumber(device.SlotPosition);
+            if (slot.HasValue)
+                return slot.Value;
+
+            slot = TryParseSlotNumber(device.ConnectionMethod);
+            if (slot.HasValue)
+                return slot.Value;
+
+            if (device is ControllerDevice)
+                return 1;
+
+            return int.MaxValue;
+        }
+
+        private static int? TryParseSlotNumber(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return null;
+
+            var digits = new string(text.Where(char.IsDigit).ToArray());
+            if (string.IsNullOrWhiteSpace(digits))
+                return null;
+
+            if (int.TryParse(digits, out var slot))
+                return slot;
+
+            return null;
         }
         private void InitializeTools()
         {
