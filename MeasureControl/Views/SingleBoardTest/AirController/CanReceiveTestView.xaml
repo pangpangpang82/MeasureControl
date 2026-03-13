@@ -197,21 +197,9 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="TX" />
-                            <ComboBox
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                            <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpTxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="180"
@@ -272,21 +260,9 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="RX" />
-                            <ComboBox
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                            <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="180"
@@ -319,21 +295,9 @@
                             FontSize="14"
                             Text="TX" />
 
-                        <ComboBox
-                            Width="100"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource CanChannels}"
-                            SelectedItem="{Binding CanTxChannel, Mode=TwoWay}">
-                            <ComboBox.Style>
-                                <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                    <Setter Property="Opacity" Value="1" />
-                                </Style>
-                            </ComboBox.Style>
-                        </ComboBox>
+                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding CanTxChannel}" />
+                        </Border>
 
                         <Border
                             Width="180"
@@ -399,21 +363,9 @@
                             VerticalAlignment="Center"
                             FontSize="14"
                             Text="TX" />
-                        <ComboBox
-                            Width="100"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding TestControllerRxChannel, Mode=TwoWay}">
-                            <ComboBox.Style>
-                                <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                    <Setter Property="Opacity" Value="1" />
-                                </Style>
-                            </ComboBox.Style>
-                        </ComboBox>
+                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TestControllerRxChannel}" />
+                        </Border>
 
                         <Border
                             Width="180"
@@ -480,21 +432,9 @@
                             FontSize="14"
                             Text="RX" />
 
-                        <ComboBox
-                            Width="100"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding TestBenchRxChannel, Mode=TwoWay}">
-                            <ComboBox.Style>
-                                <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                    <Setter Property="Opacity" Value="1" />
-                                </Style>
-                            </ComboBox.Style>
-                        </ComboBox>
+                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TestBenchRxChannel}" />
+                        </Border>
 
                         <Border
                             Width="180"
@@ -531,21 +471,9 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="TX" />
-                            <ComboBox
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                            <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpTxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="180"
@@ -606,21 +534,9 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="RX" />
-                            <ComboBox
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                            <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="180"
