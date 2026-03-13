@@ -1112,28 +1112,57 @@ namespace MeasureControl.Views.Common
             _singleBoardAutoTestExcelReportPath = null;
         }
 
+        private sealed class SingleBoardExcelReportConfig
+        {
+            public string TemplateFileName { get; set; }
+            public string OutputFolderName { get; set; }
+            public string FileNamePrefix { get; set; }
+            public Action<string> FillAction { get; set; }
+        }
+
+        private SingleBoardExcelReportConfig GetSingleBoardExcelReportConfig(string boardType)
+        {
+            switch (boardType?.Trim())
+            {
+                case "液压单板":
+                    return new SingleBoardExcelReportConfig
+                    {
+                        TemplateFileName = "液压测试报表模板.xlsx",
+                        OutputFolderName = "TestResults",
+                        FileNamePrefix = "液压测试",
+                        FillAction = FillHydraulicBoardExcelReport
+                    };
+                case "空气单板":
+                case "惰化单板":
+                case "加放油单板":
+                default:
+                    return null;
+            }
+        }
+
         private void TryGenerateSingleBoardExcelReport(string boardName, string boardType)
         {
-            if (!string.Equals(boardType?.Trim(), "液压单板", StringComparison.OrdinalIgnoreCase))
+            var reportConfig = GetSingleBoardExcelReportConfig(boardType);
+            if (reportConfig == null)
             {
                 return;
             }
 
             try
             {
-                var templatePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Projects", "液压测试报表模板.xlsx");
+                var templatePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Projects", reportConfig.TemplateFileName);
                 if (!File.Exists(templatePath))
                 {
                     AppendSingleBoardReportLine($"REPORT | TEMPLATE_NOT_FOUND | {templatePath}");
                     return;
                 }
 
-                var baseDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "project");
+                var baseDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), reportConfig.OutputFolderName);
                 Directory.CreateDirectory(baseDir);
 
-                var reportPath = System.IO.Path.Combine(baseDir, $"{boardName}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+                var reportPath = System.IO.Path.Combine(baseDir, $"{reportConfig.FileNamePrefix}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
                 File.Copy(templatePath, reportPath, true);
-                FillHydraulicBoardExcelReport(reportPath);
+                reportConfig.FillAction?.Invoke(reportPath);
                 _singleBoardAutoTestExcelReportPath = reportPath;
                 AppendSingleBoardReportLine($"REPORT | EXCEL_CREATED | {reportPath}");
             }
@@ -1145,6 +1174,7 @@ namespace MeasureControl.Views.Common
 
         private void FillHydraulicBoardExcelReport(string reportPath)
         {
+            var vm61 = ContainerLocator.Container.Resolve<HC_6_1ViewModel>();
             var vm62 = ContainerLocator.Container.Resolve<HC_6_2ViewModel>();
             var vm63 = ContainerLocator.Container.Resolve<HC_6_3ViewModel>();
             var vm64 = ContainerLocator.Container.Resolve<HC_6_4ViewModel>();
@@ -1152,7 +1182,7 @@ namespace MeasureControl.Views.Common
             var vm66 = ContainerLocator.Container.Resolve<HC_6_6ViewModel>();
             var vm67 = ContainerLocator.Container.Resolve<HC_6_7ViewModel>();
             var vm68 = ContainerLocator.Container.Resolve<HC_6_8ViewModel>();
-            if (vm62 == null && vm63 == null && vm64 == null && vm65 == null && vm66 == null && vm67 == null && vm68 == null)
+            if (vm61 == null && vm62 == null && vm63 == null && vm64 == null && vm65 == null && vm66 == null && vm67 == null && vm68 == null)
             {
                 return;
             }
@@ -1182,6 +1212,25 @@ namespace MeasureControl.Views.Common
                 sheet = workbook.GetType().InvokeMember("Worksheets", BindingFlags.GetProperty, null, workbook, null);
                 sheet = sheet.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, sheet, new object[] { 1 });
                 cells = sheet.GetType().InvokeMember("Cells", BindingFlags.GetProperty, null, sheet, null);
+
+                if (vm61 != null)
+                {
+                    SetExcelCellValue(cells, 4, 5, vm61.Resistance14Text);
+                    SetExcelCellValue(cells, 5, 5, vm61.Resistance182Text);
+
+                    SetExcelCellValue(cells, 4, 6, vm61.IsResistance14Pass ? "合格" : "不合格");
+                    SetExcelCellValue(cells, 5, 6, vm61.IsResistance182Pass ? "合格" : "不合格");
+
+                    SetExcelCellFontColor(cells, 4, 6, vm61.IsResistance14Pass ? null : 255);
+                    SetExcelCellFontColor(cells, 5, 6, vm61.IsResistance182Pass ? null : 255);
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G4:G5" });
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm61.CurrentTestResult });
+                    SetRangeFontColor(range, string.Equals(vm61.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                    ReleaseComObject(range);
+                    range = null;
+                }
 
                 if (vm62 != null)
                 {

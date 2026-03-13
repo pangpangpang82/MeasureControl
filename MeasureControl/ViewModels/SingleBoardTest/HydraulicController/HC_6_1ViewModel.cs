@@ -514,6 +514,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _resistance182Text, value);
         }
 
+        public bool IsResistance14Pass => _resistance14.HasValue && _resistance14.Value > PassThresholdOhm;
+
+        public bool IsResistance182Pass => _resistance182.HasValue && _resistance182.Value > PassThresholdOhm;
+
         public string LastTestTime
         {
             get => _lastTestTime;
