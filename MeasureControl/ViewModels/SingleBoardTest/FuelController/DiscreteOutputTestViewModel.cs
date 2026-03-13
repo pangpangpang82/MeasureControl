@@ -153,7 +153,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             MeasureOpenJ12Command = new DelegateCommand(async () => await MeasureSinglePointAsync(6, false), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
             MeasureOpenJ13Command = new DelegateCommand(async () => await MeasureSinglePointAsync(7, false), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
 
-            LoadPersistedState();
+            //LoadPersistedState();
             _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
         }
 
@@ -1492,11 +1492,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             if (grounded)
             {
-                double w = v - 5;           //减去回路阻抗
-                if (idx == 0) ImpedanceJ6 = w; else if (idx == 1) ImpedanceJ7 = w;
-                else if (idx == 2) ImpedanceJ8 = w; else if (idx == 3) ImpedanceJ9 = w;
-                else if (idx == 4) ImpedanceJ10 = w; else if (idx == 5) ImpedanceJ11 = w;
-                else if (idx == 6) ImpedanceJ12 = w; else if (idx == 7) ImpedanceJ13 = w;
+                 //减去回路阻抗
+                if (idx == 0) ImpedanceJ6 = v - 6.702; else if (idx == 1) ImpedanceJ7 = v - 6.706;
+                else if (idx == 2) ImpedanceJ8 = v - 6.781; else if (idx == 3) ImpedanceJ9 = v - 6.829;
+                else if (idx == 4) ImpedanceJ10 = v - 6.418; else if (idx == 5) ImpedanceJ11 = v - 6.611;
+                else if (idx == 6) ImpedanceJ12 = v - 6.659; else if (idx == 7) ImpedanceJ13 = v - 6.708;
             }
             else
             {
