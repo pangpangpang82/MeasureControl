@@ -5,27 +5,55 @@ using System.Threading;
 using System.Threading.Tasks;
 using MeasureControl.Simulations.Common;
 
-namespace MeasureControl.Simulations.A_C_6_5_1_2
+namespace MeasureControl.Simulations.A_C_6_5_2_4
 {
-    public sealed class A_C_6_5_1_2Simulation : ARINC429SimulationBase
+    public sealed class A_C_6_5_2_4Simulation : ARINC429SimulationBase
     {
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
 
-        private static readonly byte[] A_TransmitCommand8 = { 0x04, 0x01, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] B_ReceiveCommand8 = { 0x04, 0x01, 0x02, 0x03, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] TestData4 = { 0x7F, 0x00, 0xAA, 0x55 };
-        private static readonly byte[] TestPayload8 = { 0x7F, 0x00, 0xAA, 0x55, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] AbArx3ReceiveCommand8 = { 0x04, 0x02, 0x04, 0x02, 0x00, 0x00, 0x00, 0x02 };
+        private static readonly byte[] AbArx3ReceiveOkPrefix4 = { 0x04, 0x02, 0x04, 0x02 };
+        private static readonly byte[] TestData4 = { 0x01, 0x01, 0x01, 0x01 };
 
         private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
         private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
 
-        private readonly MultiLabelCommandAssembler _rxAssemblerA = new MultiLabelCommandAssembler(BenchTxFragmentLabels);
-        private readonly MultiLabelCommandAssembler _rxAssemblerB = new MultiLabelCommandAssembler(BenchTxFragmentLabels);
+        private readonly MultiLabelCommandAssembler _cmdAssembler = new MultiLabelCommandAssembler(BenchTxFragmentLabels);
 
-        private byte[] _cachedLoopbackData4;
+        private ushort? _dataPart0;
+        private ushort? _dataPart1;
+        private DateTime _dataFirstSeenUtc;
+        private byte[] _cachedReceivedData4;
+
+        public async Task SendBenchWord32Async(string benchTxChannel, uint word32, Action<string> log, CancellationToken token)
+        {
+            if (!_started || _arincDriver == null)
+                throw new InvalidOperationException("Simulation not started");
+
+            int txIndex = ParseChannelIndex(benchTxChannel);
+            uint raw = word32 & 0x7FFFFFFF;
+            uint sendWord = ApplyParity(raw);
+
+            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送32位: tx={txIndex}, word32=0x{raw:X8}");
+
+            var data429 = new[] { sendWord };
+            var parity = new uint[] { 1 };
+
+            await _arincIoLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                var ok = await _arincDriver.SendDataSingleAsync(txIndex, data429, parity);
+                if (!ok)
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 32位发送失败: tx={txIndex}");
+            }
+            finally
+            {
+                _arincIoLock.Release();
+            }
+        }
 
         public async Task SendBenchCommandOnlyAsync(string benchTxChannel, byte[] command8, Action<string> log, CancellationToken token)
         {
@@ -35,7 +63,9 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
                 throw new ArgumentException("command8 must be 8 bytes", nameof(command8));
 
             int txIndex = ParseChannelIndex(benchTxChannel);
+
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送: tx={txIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
+
             await SendMultiLabelFrameOnChannelAsync(txIndex, BenchTxFragmentLabels, command8, log, token);
         }
 
@@ -58,9 +88,6 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
                     foreach (var item in list)
                     {
                         if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
-                            continue;
-
-                        if (sdi != 0)
                             continue;
 
                         if (EnableFrameLogging && rxLogCount < maxRxLog)
@@ -90,82 +117,16 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
             return null;
         }
 
-        public async Task<byte[]> WaitBenchResponse4Async(string benchRxChannel, int timeoutMs, Action<string> log, CancellationToken token)
-        {
-            if (!_started || _arincDriver == null)
-                throw new InvalidOperationException("Simulation not started");
-
-            int rxIndex = ParseChannelIndex(benchRxChannel);
-            var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
-
-            ushort? part0 = null;
-            ushort? part1 = null;
-            var firstSeen = DateTime.UtcNow;
-            var assemblyTimeout = TimeSpan.FromMilliseconds(200);
-
-            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
-            {
-                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
-                if (list != null && list.Count > 0)
-                {
-                    foreach (var item in list)
-                    {
-                        if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
-                            continue;
-
-                        if ((DateTime.UtcNow - firstSeen) > assemblyTimeout)
-                        {
-                            part0 = null;
-                            part1 = null;
-                            firstSeen = DateTime.UtcNow;
-                        }
-
-                        if (rxLabel == ProductTxFragmentLabels[0])
-                        {
-                            part0 = payload;
-                        }
-                        else if (rxLabel == ProductTxFragmentLabels[1])
-                        {
-                            part1 = payload;
-                        }
-
-                        if (part0.HasValue && part1.HasValue)
-                        {
-                            var b = new byte[4];
-                            b[0] = (byte)((part0.Value >> 8) & 0xFF);
-                            b[1] = (byte)(part0.Value & 0xFF);
-                            b[2] = (byte)((part1.Value >> 8) & 0xFF);
-                            b[3] = (byte)(part1.Value & 0xFF);
-
-                            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 4字节拼包完成 labels=0x{ProductTxFragmentLabels[0]:X2}/0x{ProductTxFragmentLabels[1]:X2} data4={FormatBytes(b)}");
-                            return b;
-                        }
-                    }
-                }
-
-                await Task.Delay(10, token);
-            }
-
-            return null;
-        }
-
         protected override async Task StartSimProductRxAsync(Action<string> log, CancellationToken token)
         {
             if (_arincDriver == null)
                 throw new InvalidOperationException("ARINC driver not initialized");
 
-            bool ok1 = await _arincDriver.StartReceiveAsync(SimProductRxChannelIndex);
-            if (!ok1)
+            bool ok = await _arincDriver.StartReceiveAsync(SimProductRxChannelIndex);
+            if (!ok)
                 throw new InvalidOperationException($"[SIM] 启动接收失败: RX={SimProductRxChannelIndex}");
 
-            if (SimProduct2RxChannelIndex >= 0)
-            {
-                bool ok2 = await _arincDriver.StartReceiveAsync(SimProduct2RxChannelIndex);
-                if (!ok2)
-                    throw new InvalidOperationException($"[SIM] 启动接收失败: RX={SimProduct2RxChannelIndex}");
-            }
-
-            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧接收已启动: simRX={SimProductRxChannelIndex}, simRX2={SimProduct2RxChannelIndex}");
+            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧接收已启动: simRX={SimProductRxChannelIndex} (将回包到simTX={SimProductTxChannelIndex})");
 
             _rxLoopTask = Task.Run(() => SimProductRxLoopAsync(log, token), token);
         }
@@ -176,14 +137,7 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
             {
                 try
                 {
-                    await ProcessSimRxAsync(SimProductRxChannelIndex, SimProductTxChannelIndex, _rxAssemblerA, log, token);
-
-                    if (SimProduct2RxChannelIndex >= 0)
-                    {
-                        int tx2 = SimProduct2TxChannelIndex >= 0 ? SimProduct2TxChannelIndex : SimProductTxChannelIndex;
-                        await ProcessSimRxAsync(SimProduct2RxChannelIndex, tx2, _rxAssemblerB, log, token);
-                    }
-
+                    await ProcessSimRxAsync(log, token);
                     await Task.Delay(20, token);
                 }
                 catch (OperationCanceledException)
@@ -204,9 +158,9 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
             }
         }
 
-        private async Task ProcessSimRxAsync(int simRxIndex, int simTxIndex, MultiLabelCommandAssembler assembler, Action<string> log, CancellationToken token)
+        private async Task ProcessSimRxAsync(Action<string> log, CancellationToken token)
         {
-            var list = await _arincDriver.ReadReceiveDataAsync(simRxIndex, maxCount: 1024, enableTimeTag: false, enableRateAdaption: false);
+            var list = await _arincDriver.ReadReceiveDataAsync(SimProductRxChannelIndex, maxCount: 1024, enableTimeTag: false, enableRateAdaption: false);
             if (list == null || list.Count == 0)
                 return;
 
@@ -215,56 +169,98 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
                 if (!TryParseWord(item.Data429, out byte label, out byte sdi, out ushort payload))
                     continue;
 
-                if (sdi != 0)
-                    continue;
-
-                if (!assembler.TryAddFragment(label, payload, DateTime.UtcNow, out var cmd8) || cmd8 == null)
-                    continue;
-
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] simRX={simRxIndex} 拼包完成 cmd8={FormatBytes(cmd8)}");
-
-                if (cmd8.SequenceEqual(EnterAtpCommand8))
+                if (label != BenchTxFragmentLabels[0] && label != BenchTxFragmentLabels[1] && label != BenchTxFragmentLabels[2] && label != BenchTxFragmentLabels[3]
+                    && label != ProductTxFragmentLabels[0] && label != ProductTxFragmentLabels[1] && label != ProductTxFragmentLabels[2] && label != ProductTxFragmentLabels[3])
                 {
-                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP -> 回复OK");
-                    await SendMultiLabelFrameOnChannelAsync(simTxIndex, ProductTxFragmentLabels, EnterAtpOk8, log, token);
+                    uint raw = item.Data429 & 0x7FFFFFFF;
+                    var b = new byte[4];
+                    b[0] = (byte)((raw >> 24) & 0xFF);
+                    b[1] = (byte)((raw >> 16) & 0xFF);
+                    b[2] = (byte)((raw >> 8) & 0xFF);
+                    b[3] = (byte)(raw & 0xFF);
+
+                    _cachedReceivedData4 = b;
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到32位测试数据并缓存: word32=0x{raw:X8}");
                     continue;
                 }
 
-                if (cmd8.SequenceEqual(ExitAtpCommand8))
+                var now = DateTime.UtcNow;
+
+                if (label == ProductTxFragmentLabels[0] || label == ProductTxFragmentLabels[1])
                 {
-                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP -> 回复OK");
-                    await SendMultiLabelFrameOnChannelAsync(simTxIndex, ProductTxFragmentLabels, ExitAtpOk8, log, token);
+                    if (_dataPart0 == null && _dataPart1 == null)
+                        _dataFirstSeenUtc = now;
+
+                    if ((now - _dataFirstSeenUtc) > TimeSpan.FromMilliseconds(200))
+                    {
+                        _dataPart0 = null;
+                        _dataPart1 = null;
+                        _dataFirstSeenUtc = now;
+                    }
+
+                    if (label == ProductTxFragmentLabels[0])
+                        _dataPart0 = payload;
+                    else
+                        _dataPart1 = payload;
+
+                    if (_dataPart0.HasValue && _dataPart1.HasValue)
+                    {
+                        var b = new byte[4];
+                        b[0] = (byte)((_dataPart0.Value >> 8) & 0xFF);
+                        b[1] = (byte)(_dataPart0.Value & 0xFF);
+                        b[2] = (byte)((_dataPart1.Value >> 8) & 0xFF);
+                        b[3] = (byte)(_dataPart1.Value & 0xFF);
+
+                        _cachedReceivedData4 = b;
+                        _dataPart0 = null;
+                        _dataPart1 = null;
+
+                        log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到测试数据并缓存: data4={FormatBytes(_cachedReceivedData4)}");
+                    }
+
                     continue;
                 }
 
-                if (cmd8.SequenceEqual(A_TransmitCommand8))
+                if (_cmdAssembler.TryAddFragment(label, payload, now, out var cmd8) && cmd8 != null)
                 {
-                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到A发送指令 -> A通道发送测试数据");
-                    _cachedLoopbackData4 = TestData4.ToArray();
-                    await SendMultiLabelFrameOnChannelAsync(simTxIndex, ProductTxFragmentLabels, TestPayload8, log, token);
-                    continue;
-                }
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] simRX={SimProductRxChannelIndex} 拼包完成 cmd8={FormatBytes(cmd8)}");
 
-                if (cmd8.SequenceEqual(B_ReceiveCommand8))
-                {
-                    var data = _cachedLoopbackData4 ?? TestData4.ToArray();
-                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到B接收回传指令 -> 回传缓存数据");
-                    var payload8 = new byte[8];
-                    payload8[0] = data[0];
-                    payload8[1] = data[1];
-                    payload8[2] = data[2];
-                    payload8[3] = data[3];
-                    await SendMultiLabelFrameOnChannelAsync(simTxIndex, ProductTxFragmentLabels, payload8, log, token);
-                    continue;
+                    if (cmd8.SequenceEqual(EnterAtpCommand8))
+                    {
+                        log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP -> 回复OK");
+                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, EnterAtpOk8, log, token);
+                        continue;
+                    }
+
+                    if (cmd8.SequenceEqual(ExitAtpCommand8))
+                    {
+                        log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP -> 回复OK");
+                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, ExitAtpOk8, log, token);
+                        continue;
+                    }
+
+                    if (cmd8.SequenceEqual(AbArx3ReceiveCommand8))
+                    {
+                        var data = _cachedReceivedData4 ?? TestData4.ToArray();
+                        var resp8 = new byte[8];
+                        Buffer.BlockCopy(AbArx3ReceiveOkPrefix4, 0, resp8, 0, 4);
+                        Buffer.BlockCopy(data, 0, resp8, 4, 4);
+
+                        log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到接收回传指令 -> 回传缓存数据 resp8={FormatBytes(resp8)}");
+                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, resp8, log, token);
+                        continue;
+                    }
                 }
             }
         }
 
         protected override void OnAfterCleanup()
         {
-            _rxAssemblerA.Reset();
-            _rxAssemblerB.Reset();
-            _cachedLoopbackData4 = null;
+            _cmdAssembler.Reset();
+            _cachedReceivedData4 = null;
+            _dataPart0 = null;
+            _dataPart1 = null;
+            _dataFirstSeenUtc = default;
         }
 
         private sealed class MultiLabelCommandAssembler
@@ -305,16 +301,15 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
                 _mask |= (1 << index);
 
                 if (_mask != 0b1111)
-                    return true;
+                    return false;
 
-                var b = new byte[8];
-                for (int i = 0; i < 4; i++)
+                cmd8 = new byte[8];
+                for (int j = 0; j < 4; j++)
                 {
-                    b[i * 2] = (byte)((_parts[i] >> 8) & 0xFF);
-                    b[i * 2 + 1] = (byte)(_parts[i] & 0xFF);
+                    cmd8[j * 2] = (byte)((_parts[j] >> 8) & 0xFF);
+                    cmd8[j * 2 + 1] = (byte)(_parts[j] & 0xFF);
                 }
 
-                cmd8 = b;
                 _mask = 0;
                 return true;
             }
@@ -322,7 +317,7 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
             public void Reset()
             {
                 _mask = 0;
-                _firstSeenUtc = DateTime.MinValue;
+                _firstSeenUtc = default;
             }
         }
     }

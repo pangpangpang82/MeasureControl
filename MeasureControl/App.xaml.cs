@@ -26,8 +26,6 @@ using MeasureControl.ViewModels.SingleBoardTest.HydraulicController;
 
 using MeasureControl.ViewModels.SingleBoardTest.FuelController;
 
-using MeasureControl.Demos;
-
 using MeasureControl.Services.HardwareApis;
 
 using MeasureControl.Views;
@@ -111,66 +109,6 @@ namespace MeasureControl
             {
 
                 // 不抛出异常以免影响程序启动
-
-            }
-
-
-
-            if (e?.Args != null && e.Args.Length > 0 && e.Args[0] == "fpga-demo")
-
-            {
-
-                string ip = e.Args.Length >= 2 ? e.Args[1] : "127.0.0.1";
-
-                int port = 9000;
-
-                if (e.Args.Length >= 3) int.TryParse(e.Args[2], out port);
-
-                bool readReply = e.Args.Length >= 4 && e.Args[3] == "read";
-
-                int readWindowMs = 10000;
-
-                if (readReply && e.Args.Length >= 5) int.TryParse(e.Args[4], out readWindowMs);
-
-
-
-                System.Diagnostics.Trace.WriteLine("[fpga-demo] Starting TCP demo...");
-
-                try
-
-                {
-
-                    System.Threading.Tasks.Task.Run(() =>
-
-                        FpgaTcpClientNetworkAssistantDemo.Run(ip, port, readReply, readWindowMs))
-
-                        .GetAwaiter().GetResult();
-
-                }
-
-                catch (System.Exception ex)
-
-                {
-
-                    System.Diagnostics.Trace.WriteLine($"[fpga-demo] ERROR: {ex.Message}");
-
-                    System.Diagnostics.Trace.WriteLine(ex.StackTrace);
-
-                }
-
-                finally
-
-                {
-
-                    System.Diagnostics.Trace.WriteLine("[fpga-demo] Done. Shutting down application.");
-
-                    Shutdown();
-
-                }
-
-
-
-                return;
 
             }
 
