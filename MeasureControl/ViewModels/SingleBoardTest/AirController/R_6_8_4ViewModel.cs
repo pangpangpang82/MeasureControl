@@ -31,16 +31,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public R_6_8_4ViewModel()
         {
-            _enterAtpTxChannel = "CH0";
-            _enterAtpRxChannel = "CH2";
-            _controllerTemperatureTestTxChannel = "CH0";
-            _controllerTemperatureTestRxChannel = "CH2";
-            _temperatureTelemetryRxChannel = "CH2";
-            _exitAtpTxChannel = "CH0";
-            _exitAtpRxChannel = "CH2";
+            _enterAtpTxChannel = "429_CH0";
+            _enterAtpRxChannel = "429_CH1";
+            _controllerTemperatureTestTxChannel = "429_CH0";
+            _temperatureTelemetryRxChannel = "429_CH1";
+            _exitAtpTxChannel = "429_CH0";
+            _exitAtpRxChannel = "429_CH1";
 
             _enterAtpRxDataText = "--";
-            _controllerTemperatureTestRxDataText = "--";
             _temperatureTelemetryRxDataText = "--";
             _exitAtpRxDataText = "--";
 
@@ -78,13 +76,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _enterAtpTxChannel;
         private string _enterAtpRxChannel;
         private string _controllerTemperatureTestTxChannel;
-        private string _controllerTemperatureTestRxChannel;
         private string _temperatureTelemetryRxChannel;
         private string _exitAtpTxChannel;
         private string _exitAtpRxChannel;
 
         private string _enterAtpRxDataText;
-        private string _controllerTemperatureTestRxDataText;
         private string _temperatureTelemetryRxDataText;
         private string _exitAtpRxDataText;
 
@@ -237,18 +233,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _controllerTemperatureTestTxChannel;
             set => SetProperty(ref _controllerTemperatureTestTxChannel, value);
-        }
-
-        public string ControllerTemperatureTestRxChannel
-        {
-            get => _controllerTemperatureTestRxChannel;
-            set => SetProperty(ref _controllerTemperatureTestRxChannel, value);
-        }
-
-        public string ControllerTemperatureTestRxDataText
-        {
-            get => _controllerTemperatureTestRxDataText;
-            private set => SetProperty(ref _controllerTemperatureTestRxDataText, value);
         }
 
         public string TemperatureTelemetryRxChannel
@@ -719,24 +703,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _arincOpLock.WaitAsync();
             try
             {
-                ControllerTemperatureTestRxDataText = "--";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：AB_CKPT_DTS_Temperature，TX={ControllerTemperatureTestTxChannel}, RX={ControllerTemperatureTestRxChannel}, Label=0x{DefaultLabel:X2}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：AB_CKPT_DTS_Temperature，TX={ControllerTemperatureTestTxChannel}, Label=0x{DefaultLabel:X2}");
 
-                try { await _simulation.ClearRxFifoAsync(ControllerTemperatureTestRxChannel); } catch { }
-                await Task.Delay(30);
-
-                var resp = await _simulation.SendBenchCommandAndWaitAsync(
-                    ControllerTemperatureTestTxChannel, ControllerTemperatureTestRxChannel,
-                    DefaultLabel, AbCkptDtsTemperature,
-                    b => b != null && b.Length == 8 && b.SequenceEqual(AbCkptDtsTemperature),
-                    timeoutMs: 800,
-                    msg => AddLog(msg), CancellationToken.None);
-
-                if (resp != null)
-                {
-                    ControllerTemperatureTestRxDataText = "0x" + FormatData(resp);
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] AB_CKPT_DTS_Temperature 收到回包");
-                }
+                await _simulation.SendBenchCommandOnlyAsync(
+                    ControllerTemperatureTestTxChannel,
+                    DefaultLabel,
+                    AbCkptDtsTemperature,
+                    msg => AddLog(msg),
+                    CancellationToken.None);
             }
             catch (Exception ex)
             {

@@ -5,9 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using MeasureControl.Simulations.Common;
 
-namespace MeasureControl.Simulations.A_C_6_5_1_2
+namespace MeasureControl.Simulations.A_C_6_5_2_5
 {
-    public sealed class A_C_6_5_1_2Simulation : ARINC429SimulationBase
+    public sealed class A_C_6_5_2_5Simulation : ARINC429SimulationBase
     {
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
@@ -22,8 +22,7 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
         private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
         private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
 
-        private readonly MultiLabelCommandAssembler _rxAssemblerA = new MultiLabelCommandAssembler(BenchTxFragmentLabels);
-        private readonly MultiLabelCommandAssembler _rxAssemblerB = new MultiLabelCommandAssembler(BenchTxFragmentLabels);
+        private readonly MultiLabelCommandAssembler _rxAssembler = new MultiLabelCommandAssembler(BenchTxFragmentLabels);
 
         private byte[] _cachedLoopbackData4;
 
@@ -90,65 +89,6 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
             return null;
         }
 
-        public async Task<byte[]> WaitBenchResponse4Async(string benchRxChannel, int timeoutMs, Action<string> log, CancellationToken token)
-        {
-            if (!_started || _arincDriver == null)
-                throw new InvalidOperationException("Simulation not started");
-
-            int rxIndex = ParseChannelIndex(benchRxChannel);
-            var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
-
-            ushort? part0 = null;
-            ushort? part1 = null;
-            var firstSeen = DateTime.UtcNow;
-            var assemblyTimeout = TimeSpan.FromMilliseconds(200);
-
-            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
-            {
-                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
-                if (list != null && list.Count > 0)
-                {
-                    foreach (var item in list)
-                    {
-                        if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
-                            continue;
-
-                        if ((DateTime.UtcNow - firstSeen) > assemblyTimeout)
-                        {
-                            part0 = null;
-                            part1 = null;
-                            firstSeen = DateTime.UtcNow;
-                        }
-
-                        if (rxLabel == ProductTxFragmentLabels[0])
-                        {
-                            part0 = payload;
-                        }
-                        else if (rxLabel == ProductTxFragmentLabels[1])
-                        {
-                            part1 = payload;
-                        }
-
-                        if (part0.HasValue && part1.HasValue)
-                        {
-                            var b = new byte[4];
-                            b[0] = (byte)((part0.Value >> 8) & 0xFF);
-                            b[1] = (byte)(part0.Value & 0xFF);
-                            b[2] = (byte)((part1.Value >> 8) & 0xFF);
-                            b[3] = (byte)(part1.Value & 0xFF);
-
-                            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 4字节拼包完成 labels=0x{ProductTxFragmentLabels[0]:X2}/0x{ProductTxFragmentLabels[1]:X2} data4={FormatBytes(b)}");
-                            return b;
-                        }
-                    }
-                }
-
-                await Task.Delay(10, token);
-            }
-
-            return null;
-        }
-
         protected override async Task StartSimProductRxAsync(Action<string> log, CancellationToken token)
         {
             if (_arincDriver == null)
@@ -158,14 +98,7 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
             if (!ok1)
                 throw new InvalidOperationException($"[SIM] 启动接收失败: RX={SimProductRxChannelIndex}");
 
-            if (SimProduct2RxChannelIndex >= 0)
-            {
-                bool ok2 = await _arincDriver.StartReceiveAsync(SimProduct2RxChannelIndex);
-                if (!ok2)
-                    throw new InvalidOperationException($"[SIM] 启动接收失败: RX={SimProduct2RxChannelIndex}");
-            }
-
-            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧接收已启动: simRX={SimProductRxChannelIndex}, simRX2={SimProduct2RxChannelIndex}");
+            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧接收已启动: simRX={SimProductRxChannelIndex}");
 
             _rxLoopTask = Task.Run(() => SimProductRxLoopAsync(log, token), token);
         }
@@ -176,14 +109,7 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
             {
                 try
                 {
-                    await ProcessSimRxAsync(SimProductRxChannelIndex, SimProductTxChannelIndex, _rxAssemblerA, log, token);
-
-                    if (SimProduct2RxChannelIndex >= 0)
-                    {
-                        int tx2 = SimProduct2TxChannelIndex >= 0 ? SimProduct2TxChannelIndex : SimProductTxChannelIndex;
-                        await ProcessSimRxAsync(SimProduct2RxChannelIndex, tx2, _rxAssemblerB, log, token);
-                    }
-
+                    await ProcessSimRxAsync(SimProductRxChannelIndex, SimProductTxChannelIndex, _rxAssembler, log, token);
                     await Task.Delay(20, token);
                 }
                 catch (OperationCanceledException)
@@ -239,7 +165,7 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
 
                 if (cmd8.SequenceEqual(A_TransmitCommand8))
                 {
-                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到A发送指令 -> A通道发送测试数据");
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到A发送指令 -> A通道发送测试数据(4包,2包空包)");
                     _cachedLoopbackData4 = TestData4.ToArray();
                     await SendMultiLabelFrameOnChannelAsync(simTxIndex, ProductTxFragmentLabels, TestPayload8, log, token);
                     continue;
@@ -262,8 +188,7 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
 
         protected override void OnAfterCleanup()
         {
-            _rxAssemblerA.Reset();
-            _rxAssemblerB.Reset();
+            _rxAssembler.Reset();
             _cachedLoopbackData4 = null;
         }
 

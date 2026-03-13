@@ -1,7 +1,8 @@
-﻿using Prism.Commands;
+using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,29 +10,29 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using MeasureControl.Helpers;
+using MeasureControl.Simulations.A_C_6_5_2_4;
 using MeasureControl.Simulations.Common;
-using MeasureControl.Simulations.S_C_8_3_3;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
-    public sealed class S_C_8_3_3ViewModel : BindableBase, IDisposable
+    public sealed class A_C_6_5_2_4ViewModel : BindableBase, IDisposable
     {
-        private const string FixedTxChannel = "429_CH2";
-        private const string FixedRxChannel = "429_CH0";
+        private const string FixedTxChannel = "429_CH7";
+        private const string FixedRxChannel = "429_CH2";
 
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
 
-        private static readonly byte[] SArinc429In02Command8 = { 0x13, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] SArinc429In02OkPrefix4 = { 0x13, 0x02, 0x02, 0x02 };
-
+        private static readonly byte[] AbA429Arx3ReceiveCommand8 = { 0x04, 0x02, 0x04, 0x02, 0x00, 0x00, 0x00, 0x02 };
+        private static readonly byte[] AbA429Arx3ReceiveOkPrefix4 = { 0x04, 0x02, 0x04, 0x02 };
+        private const uint TestWord32 = 0x01010101;
         private static readonly byte[] TestData4 = { 0x01, 0x01, 0x01, 0x01 };
 
-        private static readonly byte[] ExpectedReceiveResp8 = { 0x13, 0x02, 0x02, 0x02, 0x01, 0x01, 0x01, 0x80 };
+        private static readonly byte[] ExpectedReceiveResp8 = { 0x04, 0x02, 0x04, 0x02, 0x01, 0x01, 0x01, 0x01 };
 
-        private readonly S_C_8_3_3Simulation _simulation = new S_C_8_3_3Simulation();
+        private readonly A_C_6_5_2_4Simulation _simulation = new A_C_6_5_2_4Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
@@ -63,7 +64,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private double _arincRate = 100000.0;
 
-        public S_C_8_3_3ViewModel()
+        public A_C_6_5_2_4ViewModel()
         {
             _testTxChannel = FixedTxChannel;
             _testRxChannel = FixedRxChannel;
@@ -271,6 +272,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     catch { }
 
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
+
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动完成");
                 }
                 catch (Exception ex)
@@ -419,7 +421,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送测试信息：{FormatBytes(TestData4)}");
 
-                    await _simulation.SendBenchWord32Async(TestTxChannel, 0x01010101, msg => AddLog(msg), CancellationToken.None);
+                    await _simulation.SendBenchWord32Async(TestTxChannel, TestWord32, msg => AddLog(msg), CancellationToken.None);
                 }
                 finally
                 {
@@ -455,12 +457,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     var token = CancellationToken.None;
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送接收指令：{FormatBytes(SArinc429In02Command8)}");
-                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, SArinc429In02Command8, msg => AddLog(msg), token);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送接收指令：{FormatBytes(AbA429Arx3ReceiveCommand8)}");
+                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbA429Arx3ReceiveCommand8, msg => AddLog(msg), token);
 
                     var resp8 = await _simulation.WaitBenchResponse8Async(
                         TestRxChannel,
-                        b => b != null && b.Length == 8 && b[0] == SArinc429In02OkPrefix4[0] && b[1] == SArinc429In02OkPrefix4[1] && b[2] == SArinc429In02OkPrefix4[2] && b[3] == SArinc429In02OkPrefix4[3],
+                        b => b != null && b.Length == 8 && b[0] == AbA429Arx3ReceiveOkPrefix4[0] && b[1] == AbA429Arx3ReceiveOkPrefix4[1] && b[2] == AbA429Arx3ReceiveOkPrefix4[2] && b[3] == AbA429Arx3ReceiveOkPrefix4[3],
                         timeoutMs: 1200,
                         log: msg => AddLog(msg),
                         token: token);
@@ -629,18 +631,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤2：发送测试信息01010101");
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
-                    await _simulation.SendBenchWord32Async(TestTxChannel, 0x01010101, msg => AddLog(msg), token);
+                    await _simulation.SendBenchWord32Async(TestTxChannel, TestWord32, msg => AddLog(msg), token);
                     await Task.Delay(30, token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：发送S_ARINC429_IN02并等待回传");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：发送接收指令并等待回传");
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
                     await _simulation.ClearRxFifoAsync(TestRxChannel);
                     await Task.Delay(20, token);
-                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, SArinc429In02Command8, msg => AddLog(msg), token);
+                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbA429Arx3ReceiveCommand8, msg => AddLog(msg), token);
 
                     var rx8 = await _simulation.WaitBenchResponse8Async(
                         TestRxChannel,
-                        b => b != null && b.Length == 8 && b[0] == SArinc429In02OkPrefix4[0] && b[1] == SArinc429In02OkPrefix4[1] && b[2] == SArinc429In02OkPrefix4[2] && b[3] == SArinc429In02OkPrefix4[3],
+                        b => b != null && b.Length == 8 && b[0] == AbA429Arx3ReceiveOkPrefix4[0] && b[1] == AbA429Arx3ReceiveOkPrefix4[1] && b[2] == AbA429Arx3ReceiveOkPrefix4[2] && b[3] == AbA429Arx3ReceiveOkPrefix4[3],
                         timeoutMs: 1200,
                         log: msg => AddLog(msg),
                         token: token);
