@@ -53,6 +53,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "6.5.2.1A控制通道ARINC接收通道1测试", () => new A_C_6_5_2_1View() },
                         { "6.5.2.2A控制通道ARINC接收通道2测试", () => new A_C_6_5_2_2View() },
                         { "6.5.2.3A控制通道ARINC接收通道3测试", () => new A_C_6_5_2_3View() },
+                        { "6.5.2.4A控制通道ARINC接收通道4测试", () => new A_C_6_5_2_4View() },
+                        { "6.5.2.5A控制通道ARINC接收通道5测试", () => new A_C_6_5_2_5View() },
                         { "6.5.2.6A控制通道ARINC接收通道6测试", () => new A_C_6_5_2_6View() },
                         { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
                         { "8.3.2 S安全通道ARINC429接收通道1测试", () => new S_C_8_3_2View() },
@@ -382,6 +384,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.1A控制通道ARINC接收通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.2A控制通道ARINC接收通道2测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.3A控制通道ARINC接收通道3测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.4A控制通道ARINC接收通道4测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.5A控制通道ARINC接收通道5测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.6A控制通道ARINC接收通道6测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.9.1A控制通道CKPT_VENTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.9.2控制通道CAB_VENTS传感器测试"));

@@ -637,9 +637,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await EnsureInstrumentsConnectedAsync(token);
             await Task.Delay(200, token);
             var freq = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? FREQuency", token);
-            var pw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? PWIDth", token);
-            var nw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? NWIDth", token);
-            var dutyPct = TryCalcDutyPctFromPulseWidths(pw, nw);
+            double? dutyPct = await QueryScopeDutyPctAsync(1, token);
+            if (!dutyPct.HasValue)
+            {
+                var pw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? PWIDth", token);
+                var nw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? NWIDth", token);
+                dutyPct = TryCalcDutyPctFromPulseWidths(pw, nw);
+            }
 
             return new Measurement
             {
@@ -853,6 +857,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return null;
 
             return pw / period * 100.0;
+        }
+
+        private static double NormalizeDutyToPercent(double dutyValue)
+        {
+            if (double.IsNaN(dutyValue) || double.IsInfinity(dutyValue))
+                return dutyValue;
+            if (dutyValue <= 1.0)
+                return dutyValue * 100.0;
+            return dutyValue;
+        }
+
+        private async Task<double?> QueryScopeDutyPctAsync(int channel, CancellationToken token)
+        {
+            var duty = await QueryScopeDoubleAsync(channel, ":MEASure:ITEM? DUTY", token);
+            if (duty.HasValue)
+                return NormalizeDutyToPercent(duty.Value);
+
+            duty = await QueryScopeDoubleAsync(channel, ":MEASure:ITEM? DUTYcycle", token);
+            if (duty.HasValue)
+                return NormalizeDutyToPercent(duty.Value);
+
+            return null;
         }
 
         private static string FormatNum(double? v)
