@@ -198,7 +198,7 @@
                                 FontSize="14"
                                 Text="TX" />
                             <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="429_CH0" />
+                                <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpTxChannel}" />
                             </Border>
 
                             <Border
@@ -261,7 +261,7 @@
                                 FontSize="14"
                                 Text="RX" />
                             <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="429_CH1" />
+                                <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxChannel}" />
                             </Border>
 
                             <Border
@@ -296,7 +296,7 @@
                             Text="TX" />
 
                         <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="CH0" />
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding CanTxChannel}" />
                         </Border>
 
                         <Border
@@ -364,7 +364,7 @@
                             FontSize="14"
                             Text="TX" />
                         <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="429_CH2" />
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TestControllerRxChannel}" />
                         </Border>
 
                         <Border
@@ -433,7 +433,7 @@
                             Text="RX" />
 
                         <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="429_CH2" />
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TestBenchRxChannel}" />
                         </Border>
 
                         <Border
@@ -472,7 +472,7 @@
                                 FontSize="14"
                                 Text="TX" />
                             <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="429_CH0" />
+                                <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpTxChannel}" />
                             </Border>
 
                             <Border
@@ -535,7 +535,7 @@
                                 FontSize="14"
                                 Text="RX" />
                             <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="429_CH1" />
+                                <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxChannel}" />
                             </Border>
 
                             <Border
