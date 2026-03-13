@@ -38,12 +38,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
 
-        private string _enterAtpTxChannel = "429_CH0";
-        private string _enterAtpRxChannel = "429_CH1";
-        private string _exitAtpTxChannel = "429_CH0";
-        private string _exitAtpRxChannel = "429_CH1";
-        private string _testControllerRxChannel = "429_CH2";
-        private string _testBenchRxChannel = "429_CH2";
+        private string _enterAtpTxChannel = "CH0";
+        private string _enterAtpRxChannel = "CH2";
+        private string _exitAtpTxChannel = "CH0";
+        private string _exitAtpRxChannel = "CH2";
+        private string _testControllerRxChannel = "CH0";
+        private string _testBenchRxChannel = "CH2";
         private string _canTxChannel = "CH0";
 
         private string _enterAtpRxDataText = "--";

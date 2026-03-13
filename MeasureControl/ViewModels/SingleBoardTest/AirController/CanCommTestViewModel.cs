@@ -37,12 +37,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
 
-        private string _enterAtpTxChannel = "429_CH0";
-        private string _enterAtpRxChannel = "429_CH1";
-        private string _exitAtpTxChannel = "429_CH0";
-        private string _exitAtpRxChannel = "429_CH1";
-        private string _testControllerRxChannel = "429_CH2";
-        private string _testBenchRxChannel = "429_CH2";
+        private string _enterAtpTxChannel = "CH0";
+        private string _enterAtpRxChannel = "CH2";
+        private string _exitAtpTxChannel = "CH0";
+        private string _exitAtpRxChannel = "CH2";
+        private string _testControllerRxChannel = "CH2";
+        private string _testBenchRxChannel = "CH2";
+        private string _testCommandTxChannel = "CH0";
 
         private string _enterAtpRxDataText = "--";
         private string _testRxDataText = "--";
@@ -128,6 +129,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _testBenchRxChannel;
             set => SetProperty(ref _testBenchRxChannel, value);
+        }
+
+        public string TestCommandTxChannel
+        {
+            get => _testCommandTxChannel;
+            set => SetProperty(ref _testCommandTxChannel, value);
         }
 
         public string EnterAtpRxDataText
@@ -380,7 +387,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 var token = _cts?.Token ?? CancellationToken.None;
-                AddLog($"[{DateTime.Now:HH:mm:ss}] (2) 发送测试指令：TX={TestControllerRxChannel}, RX={TestBenchRxChannel}, Labels=0x31 0x32 0x33 0x34, Data={FormatBytes(AbA825TransmitCommand)}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] (2) 发送测试指令：TX={TestCommandTxChannel}, RX={TestBenchRxChannel}, Labels=0x31 0x32 0x33 0x34, Data={FormatBytes(AbA825TransmitCommand)}");
 
                 try
                 {
@@ -393,7 +400,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 await Task.Delay(50, token);
 
                 var resp = await _simulation.SendBenchCommandAndWaitWithFragmentLabelsAsync(
-                    TestControllerRxChannel,
+                    TestCommandTxChannel,
                     TestBenchRxChannel,
                     AbA825TransmitCommand,
                     b => b != null && b.Length == 8 && b[0] == 0x05 && b[1] == 0x01 && b[2] == 0x01 && b[3] == 0x01,
