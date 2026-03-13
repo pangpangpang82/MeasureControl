@@ -101,7 +101,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
-            LoadPersistedState();
+            //LoadPersistedState();
             _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
         }
 
