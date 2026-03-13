@@ -42,9 +42,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int AtpRequestPeriodMs = 100;
         private const int PowerStabilizeDelayMs = 300;
 
-        //private const int RelayAuxDoIndex = 25;
+        private const int RelayAuxDoIndex = 25;
         private const int RelayAtpDoIndex = 14;
-        private const int RelayGroundDoIndex = 26;
+        //private const int RelayGroundDoIndex = 26;
         private const int Relay485ChannelIndex = 6;
         private const int Relay485AtpChannelIndex = 3;
 
@@ -478,6 +478,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         setText: t => Voltage5VText = t, setValue: v => _voltage5V = v,
                         cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
                 _measured5v = true;   // 强制标记
 
                 await Task.Delay(120, cancellationToken).ConfigureAwait(false);
@@ -488,6 +490,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         setText: t => Voltage15VText = t, setValue: v => _voltage15V = v,
                         cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
                 _measured15v = true;  // 强制标记
 
                 await Task.Delay(120, cancellationToken).ConfigureAwait(false);
@@ -498,6 +502,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         setText: t => VoltageM15VText = t, setValue: v => _voltageM15V = v,
                         cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
                 _measuredM15v = true; // 强制标记
 
                 // 此时三个都已“测量”（可能成功可能失败），可以最终判定
@@ -653,6 +659,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 setText("--");
                 setValue(null);
                 Log($"{title}: 采集异常: {ex.Message}");
+                if (IsManualTestRunning)
+                {
+                    await AbortManualTestAsync($"{title}: 采集异常，手动测试中止").ConfigureAwait(false);
+                }
+                else if (IsAutoTestRunning)
+                {
+                    await AbortAutoTestAsync($"{title}: 采集异常，自动测试中止").ConfigureAwait(false);
+                }
                 return false;
             }
             finally
@@ -780,6 +794,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await StopManualTestAsync().ConfigureAwait(false);
         }
 
+        private async Task AbortAutoTestAsync(string reason)
+        {
+            if (!string.IsNullOrWhiteSpace(reason)) Log(reason);
+            await StopAutoTestAsync().ConfigureAwait(false);
+        }
+
         private async Task StopManualTestAsync()
         {
             try { CanMeasure = false; _manualCts?.Cancel(); } catch { }
@@ -848,7 +868,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     await Task.Delay(100, cancellationToken).ConfigureAwait(false);
 
                     _isRelay485On = true;
-                    Log($"485继电器准备完成: 第{Relay485AtpChannelIndex + 1}路=ON, 第{Relay485ChannelIndex + 1}路=ON, DO{RelayAtpDoIndex}=1, DO{RelayGroundDoIndex}=1");
+                    Log($"485继电器准备完成: 第{Relay485AtpChannelIndex + 1}路=ON, 第{Relay485ChannelIndex + 1}路=ON, DO{RelayAtpDoIndex}=1");
                 }
                 else
                 {
@@ -865,7 +885,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         }
                         catch (Exception ex)
                         {
-                            Log($"复位7131 DO{RelayGroundDoIndex}失败: {ex.Message}");
+                            Log($"复位7131 DO{RelayAuxDoIndex}失败: {ex.Message}");
                         }
 
                         try
@@ -890,7 +910,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     }
 
                     _isRelay485On = false;
-                    Log($"485继电器已关闭: DO{RelayAtpDoIndex}=0, DO{RelayGroundDoIndex}=0, 第{Relay485AtpChannelIndex + 1}路=OFF, 第{Relay485ChannelIndex + 1}路=OFF");
+                    Log($"485继电器已关闭: DO{RelayAtpDoIndex}=0, 第{Relay485AtpChannelIndex + 1}路=OFF, 第{Relay485ChannelIndex + 1}路=OFF");
                 }
             }
             finally
@@ -904,11 +924,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _jy7131.WriteDoAsync($"DO{RelayAtpDoIndex}", on, cancellationToken).ConfigureAwait(false);
             Log($"7131 DO{RelayAtpDoIndex} 已{(on ? "置位" : "复位")}");
 
-            //await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
-            //Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
+            await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
 
-            await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
-            Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
+            //await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            //Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
         }
 
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)

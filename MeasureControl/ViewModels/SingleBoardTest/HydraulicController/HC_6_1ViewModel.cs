@@ -457,12 +457,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
 
-                if (!ok14)
+                if (!IsAutoTestRunning)
                 {
-                    Log("通道1(1-4): 测量失败");
-                    await StopAutoTestAsync().ConfigureAwait(false);
-                    return "不合格";
+                    return CurrentTestResult ?? "--";
                 }
+
+                _measured14 = true;
 
                 await Task.Delay(120, cancellationToken).ConfigureAwait(false);
 
@@ -474,12 +474,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
 
-                if (!ok182)
+                if (!IsAutoTestRunning)
                 {
-                    Log("通道2(1-82): 测量失败");
-                    await StopAutoTestAsync().ConfigureAwait(false);
-                    return "不合格";
+                    return CurrentTestResult ?? "--";
                 }
+
+                _measured182 = true;
 
                 var pass14 = _resistance14 > PassThresholdOhm;
                 var pass182 = _resistance182 > PassThresholdOhm;
@@ -612,6 +612,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             await StopManualTestAsync().ConfigureAwait(false);
+        }
+
+        private async Task AbortAutoTestAsync(string reason)
+        {
+            if (!string.IsNullOrWhiteSpace(reason))
+            {
+                Log(reason);
+            }
+
+            await StopAutoTestAsync().ConfigureAwait(false);
         }
 
         private async Task StopManualTestAsync()
@@ -866,6 +876,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     {
                         await AbortManualTestAsync($"{name}: 矩阵连接失败，手动测试中止").ConfigureAwait(false);
                     }
+                    else if (IsAutoTestRunning)
+                    {
+                        await AbortAutoTestAsync($"{name}: 矩阵连接失败，自动测试中止").ConfigureAwait(false);
+                    }
 
                     return false;
                 }
@@ -886,6 +900,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     {
                         await AbortManualTestAsync($"{name}: 电阻采集异常，手动测试中止").ConfigureAwait(false);
                     }
+                    else if (IsAutoTestRunning)
+                    {
+                        await AbortAutoTestAsync($"{name}: 电阻采集异常，自动测试中止").ConfigureAwait(false);
+                    }
 
                     return false;
                 }
@@ -896,6 +914,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     if (IsManualTestRunning)
                     {
                         await AbortManualTestAsync($"{name}: 电阻读数为空，手动测试中止").ConfigureAwait(false);
+                    }
+                    else if (IsAutoTestRunning)
+                    {
+                        await AbortAutoTestAsync($"{name}: 电阻读数为空，自动测试中止").ConfigureAwait(false);
                     }
 
                     return false;
@@ -915,6 +937,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     if (IsManualTestRunning)
                     {
                         await AbortManualTestAsync($"{name}: 电阻读数无效，手动测试中止").ConfigureAwait(false);
+                    }
+                    else if (IsAutoTestRunning)
+                    {
+                        await AbortAutoTestAsync($"{name}: 电阻读数无效，自动测试中止").ConfigureAwait(false);
                     }
 
                     return false;

@@ -75,8 +75,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private bool _isRelay485On;
 
         private const int Relay485ChannelIndex = 6;
-        //private const int RelayAuxDoIndex = 25;
-        private const int RelayGroundDoIndex = 26;
+        private const int RelayAuxDoIndex = 25;
+        //private const int RelayGroundDoIndex = 26;
 
         private bool _measured1;
         private bool _measured2;
@@ -512,6 +512,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     setV2: v => _p1Sys2 = v,
                     setV3: v => _p1Sys3 = v,
                     cancellationToken).ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
+
+                _measured1 = true;
 
                 await Task.Delay(80, cancellationToken).ConfigureAwait(false);
 
@@ -523,6 +527,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     setV2: v => _p2Sys2 = v,
                     setV3: v => _p2Sys3 = v,
                     cancellationToken).ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
+
+                _measured2 = true;
 
                 await Task.Delay(80, cancellationToken).ConfigureAwait(false);
 
@@ -534,10 +542,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     setV2: v => _p3Sys2 = v,
                     setV3: v => _p3Sys3 = v,
                     cancellationToken).ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
 
-                _measured1 = ok1;
-                _measured2 = ok2;
-                _measured3 = ok3;
+                _measured3 = true;
 
                 await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
                 await StopAutoTestAsync().ConfigureAwait(false);
@@ -728,7 +736,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效压力数据");
                 Log($"{title}: 本次测量按超时结束处理，结果保留为--，不可重复点击");
             }
-            else
+            else if (IsAutoTestRunning)
             {
                 Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效压力数据");
             }
@@ -832,6 +840,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             await StopManualTestAsync().ConfigureAwait(false);
+        }
+
+        private async Task AbortAutoTestAsync(string reason)
+        {
+            if (!string.IsNullOrWhiteSpace(reason))
+            {
+                Log(reason);
+            }
+
+            await StopAutoTestAsync().ConfigureAwait(false);
         }
 
         private async Task StopManualTestAsync()
@@ -1097,11 +1115,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task WriteInitDosAsync(bool on, CancellationToken cancellationToken)
         {
-            //await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
-            //Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
+            await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
 
-            await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
-            Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
+            //await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
+            //Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
         }
 
         private async Task WaitForMtx532ReadyAsync(CancellationToken cancellationToken)
