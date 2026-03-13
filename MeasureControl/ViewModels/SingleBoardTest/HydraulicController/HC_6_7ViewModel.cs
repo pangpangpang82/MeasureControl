@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using MeasureControl.Drivers;
 using MeasureControl.Events;
 using MeasureControl.Models.Devices;
 using MeasureControl.Models.Devices.DeviceCategories;
@@ -29,6 +30,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int AtpRequestPeriodMs = 100;
         private const int RelaySettleDelayMs = 100;
         private const int PowerSettleDelayMs = 300;
+        private const int Mtx532ReadyTimeoutMs = 6000;
+        private const int Mtx532ReadyPollMs = 200;
+        private const double Mtx532Ao0VoltageV = 2.5;
         private const byte DiscreteLabelDec = 103;
         private const byte AtpLabelDec = 16; // 十进制
         private const byte AtpStatusLabelDec = 20;
@@ -89,6 +93,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private IPowerSupplyApi _power;
         private IJy7131Api _jy7131;
         private IArt4229Api _arinc;
+        private IMtx532Api _mtx532;
         private bool _isRelay485On;
         private bool _txOpened;
         private CancellationTokenSource _atpRequestLoopCts;
@@ -301,6 +306,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log("开始手动测试");
             Log($"电源: CH1 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
             Log("JY7131: 485继电器前7路闭合，DO1~25=1，DO26=1，DO27=1");
+            Log($"MT532: AO0 输出 {Mtx532Ao0VoltageV:0.###}V 直流");
             Log($"ARINC429: RX通道{RxChannelIndex + 1}, TX通道{TxChannelIndex + 1}, 码率 {ArincRate:0}bps, 离散Label=147(oct), ATP请求Label=24(oct), ATP状态Label=30(oct)");
 
             try
@@ -308,6 +314,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureJy7131Async(_manualCts.Token).ConfigureAwait(false);
                 await EnsureRelay485Async(true, _manualCts.Token).ConfigureAwait(false);
                 await ApplyGroundingAsync(_manualCts.Token).ConfigureAwait(false);
+                await EnsureMtx532Async(_manualCts.Token).ConfigureAwait(false);
                 await EnsureArincRxAsync(_manualCts.Token).ConfigureAwait(false);
                 await StartAtpRequestAsync(_manualCts.Token).ConfigureAwait(false);
                 await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
@@ -369,6 +376,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureJy7131Async(cancellationToken).ConfigureAwait(false);
                 await EnsureRelay485Async(true, cancellationToken).ConfigureAwait(false);
                 await ApplyGroundingAsync(cancellationToken).ConfigureAwait(false);
+                await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
                 await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
                 await StartAtpRequestAsync(cancellationToken).ConfigureAwait(false);
                 await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
@@ -517,7 +525,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task StopManualTestAsync()
         {
             try { CanMeasure = false; _manualCts?.Cancel(); } catch { }
-            Log("手动测试停止/结束，正在释放电源、7131 与 429...");
+            Log("手动测试停止/结束，正在释放电源、MT532、7131 与 429...");
             await CleanupIoAsync().ConfigureAwait(false);
             IsManualTestRunning = false;
             Log("手动测试已结束");
@@ -526,7 +534,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task StopAutoTestAsync()
         {
             try { _autoCts?.Cancel(); } catch { }
-            Log("自动测试停止/结束，正在释放电源、7131 与 429...");
+            Log("自动测试停止/结束，正在释放电源、MT532、7131 与 429...");
             await CleanupIoAsync().ConfigureAwait(false);
             IsAutoTestRunning = false;
             Log("自动测试已结束");
@@ -685,6 +693,59 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _power.ApplyAsync(PowerSupplyChannel.CH1, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
             await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
             await Task.Delay(PowerSettleDelayMs, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task EnsureMtx532Async(CancellationToken cancellationToken)
+        {
+            if (_mtx532 == null || !_mtx532.IsConnected)
+            {
+                var device = FindFirstMtx532Device();
+                if (device == null)
+                    throw new InvalidOperationException("未找到MTX532(模拟量输出)板卡");
+
+                var slot = device is PxiDeviceBase pxi ? pxi.SlotIndex : 7;
+                _mtx532 = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 20000.0 }, slotNumber: slot);
+
+                await _mtx532.ConnectAsync(cancellationToken, new[] { "AO0" }).ConfigureAwait(false);
+                await SetAo0Async(0.0, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+                await WaitForMtx532ReadyAsync(cancellationToken).ConfigureAwait(false);
+                await _mtx532.StartOutputAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+            }
+
+            await SetAo0Async(Mtx532Ao0VoltageV, cancellationToken).ConfigureAwait(false);
+            Log($"MT532 已连接，AO0={Mtx532Ao0VoltageV:0.###}V");
+        }
+
+        private async Task WaitForMtx532ReadyAsync(CancellationToken cancellationToken)
+        {
+            if (_mtx532 == null || !_mtx532.IsConnected)
+                throw new InvalidOperationException("MTX532未连接");
+
+            var deadline = DateTime.UtcNow.AddMilliseconds(Mtx532ReadyTimeoutMs);
+            while (DateTime.UtcNow <= deadline)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (await _mtx532.CanStartOutputAsync(cancellationToken).ConfigureAwait(false))
+                    return;
+
+                await Task.Delay(Mtx532ReadyPollMs, cancellationToken).ConfigureAwait(false);
+            }
+
+            throw new InvalidOperationException("MTX532已连接，但在等待超时前仍未准备好输出");
+        }
+
+        private async Task SetAo0Async(double voltageV, CancellationToken cancellationToken)
+        {
+            if (_mtx532 == null || !_mtx532.IsConnected)
+                throw new InvalidOperationException("MTX532未连接");
+
+            await _mtx532.WriteOnceDcAsync(new Dictionary<string, double>
+            {
+                ["AO0"] = voltageV
+            }, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task EnsureJy7131Async(CancellationToken cancellationToken)
@@ -892,6 +953,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
+                if (_mtx532 != null)
+                {
+                    try { await _mtx532.StopOutputAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.ResetAllToZeroAsync(disableAfterReset: true, cancellationToken: CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+            }
+            catch { }
+            finally
+            {
+                _mtx532 = null;
+            }
+
+            try
+            {
                 if (_arinc != null)
                 {
                     try { await _arinc.StopRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
@@ -965,6 +1042,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     (d?.Name?.IndexOf("4227", StringComparison.OrdinalIgnoreCase) >= 0) ||
                     (d?.Name?.IndexOf("4229", StringComparison.OrdinalIgnoreCase) >= 0) ||
                     (d?.Name?.IndexOf("429", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                if (device != null)
+                    return device;
+            }
+
+            return null;
+        }
+
+        private DeviceBase FindFirstMtx532Device()
+        {
+            var chassisList = _pxiChassisService?.GetAllChassis();
+            if (chassisList == null)
+                return null;
+
+            foreach (var chassis in chassisList)
+            {
+                var device = chassis?.Devices?.FirstOrDefault(d =>
+                    (d?.Model?.IndexOf("X532", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.Name?.IndexOf("mtx532", StringComparison.OrdinalIgnoreCase) >= 0));
 
                 if (device != null)
                     return device;
