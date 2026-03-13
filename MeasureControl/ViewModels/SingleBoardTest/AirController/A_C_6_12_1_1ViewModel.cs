@@ -1,4 +1,4 @@
-﻿using Prism.Commands;
+using Prism.Commands;
 using Prism.Ioc;
 using Prism.Mvvm;
 using System;
@@ -78,14 +78,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _testTxChannel = "CH0";
             _testRxChannel = "CH2";
 
-            _enterAtpTxChannel = null;
-            _enterAtpRxChannel = null;
-            _exitAtpTxChannel = null;
-            _exitAtpRxChannel = null;
-
-            _fingerTestTxChannel = null;
-
-            _fingerTelemetryRxChannel = null;
+            // 固定通道显示/使用（与 6.13.2 一致：界面下拉框禁用，仅做固定展示）
+            _enterAtpTxChannel = _testTxChannel;
+            _enterAtpRxChannel = _testRxChannel;
+            _exitAtpTxChannel = _testTxChannel;
+            _exitAtpRxChannel = _testRxChannel;
+            _fingerTestTxChannel = _testTxChannel;
+            _fingerTelemetryRxChannel = _testRxChannel;
 
             EnterAtpRxDataText = "--";
             ExitAtpRxDataText = "--";

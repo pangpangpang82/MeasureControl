@@ -1,4 +1,4 @@
-﻿using Prism.Commands;
+using Prism.Commands;
 using Prism.Ioc;
 using Prism.Mvvm;
 using System;
@@ -39,15 +39,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private CancellationTokenSource _autoTestCts;
         private IMtx532Api _mtxApi;
 
-        private string _testTxChannel = "CH0";
-        private string _testRxChannel = "CH1";
-        private string _enterAtpTxChannel = "CH0";
-        private string _enterAtpRxChannel = "CH1";
-        private string _exitAtpTxChannel = "CH0";
-        private string _exitAtpRxChannel = "CH1";
-        private string _testCommandTxChannel = "CH0";
-        private string _testCommandRxChannel = "CH1";
-        private string _telemetryRxChannel = "CH1";
+        private string _testTxChannel = "429_CH1";
+        private string _testRxChannel = "429_CH0";
+        private string _enterAtpTxChannel = "429_CH1";
+        private string _enterAtpRxChannel = "429_CH0";
+        private string _exitAtpTxChannel = "429_CH1";
+        private string _exitAtpRxChannel = "429_CH0";
+        private string _testCommandTxChannel = "429_CH1";
+        private string _testCommandRxChannel = "429_CH0";
+        private string _telemetryRxChannel = "429_CH0";
 
         private string _voltageGear = "1挡";
 

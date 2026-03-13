@@ -1,4 +1,4 @@
-﻿using MeasureControl.Services.HardwareApis;
+using MeasureControl.Services.HardwareApis;
 using MeasureControl.Simulations.PT500;
 using Prism.Commands;
 using Prism.Mvvm;
@@ -15,6 +15,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public class AirSimpleSequenceViewModel : BindableBase
     {
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private const byte DefaultLabel = 0x6A;
 
         private static readonly byte[] AtpR = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
@@ -41,6 +44,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private readonly SemaphoreSlim _powerSupplyLock = new SemaphoreSlim(1, 1);
 
         private string _title = "测试";
+        private bool _isFixedArincChannels;
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private string _lastTestTime = "--";
@@ -87,12 +91,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             SendEnterAtpCommand = new DelegateCommand(async () => await OnSendEnterAtpAsync());
             SendSetVoltageCommand = new DelegateCommand(async () => await OnSendAb28vSupplyAsync());
             SendExitAtpCommand = new DelegateCommand(async () => await OnSendExitAtpAsync());
+
+            // In case Title keeps default value; View may overwrite Title afterwards.
+            ApplyFixedArincChannelPolicy();
         }
 
         public string Title
         {
             get => _title;
-            set => SetProperty(ref _title, value);
+            set
+            {
+                if (SetProperty(ref _title, value))
+                {
+                    ApplyFixedArincChannelPolicy();
+                }
+            }
+        }
+
+        public bool IsFixedArincChannels
+        {
+            get => _isFixedArincChannels;
+            private set => SetProperty(ref _isFixedArincChannels, value);
         }
 
         public string PowerSupplyIpAddress
@@ -114,19 +133,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
+            set => SetProperty(ref _enterAtpTxChannel, IsFixedArincChannels ? FixedTxChannel : value);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
+            set => SetProperty(ref _enterAtpRxChannel, IsFixedArincChannels ? FixedRxChannel : value);
         }
 
         public string SetVoltageTxChannel
         {
             get => _setVoltageTxChannel;
-            set => SetProperty(ref _setVoltageTxChannel, value);
+            set => SetProperty(ref _setVoltageTxChannel, IsFixedArincChannels ? FixedTxChannel : value);
         }
 
         public string DmmChannel
@@ -138,19 +157,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string TelemetryRxChannel
         {
             get => _telemetryRxChannel;
-            set => SetProperty(ref _telemetryRxChannel, value);
+            set => SetProperty(ref _telemetryRxChannel, IsFixedArincChannels ? FixedRxChannel : value);
         }
 
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
+            set => SetProperty(ref _exitAtpTxChannel, IsFixedArincChannels ? FixedTxChannel : value);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
+            set => SetProperty(ref _exitAtpRxChannel, IsFixedArincChannels ? FixedRxChannel : value);
+        }
+
+        private void ApplyFixedArincChannelPolicy()
+        {
+            var fixedMode = !string.IsNullOrWhiteSpace(Title) &&
+                            Title.IndexOf("6.2.1", StringComparison.OrdinalIgnoreCase) >= 0;
+
+            IsFixedArincChannels = fixedMode;
+
+            if (!fixedMode)
+                return;
+
+            // Force all TX/RX used by this sequence to the fixed channels.
+            EnterAtpTxChannel = FixedTxChannel;
+            EnterAtpRxChannel = FixedRxChannel;
+            SetVoltageTxChannel = FixedTxChannel;
+            TelemetryRxChannel = FixedRxChannel;
+            ExitAtpTxChannel = FixedTxChannel;
+            ExitAtpRxChannel = FixedRxChannel;
         }
 
         public string DmmVoltageText
