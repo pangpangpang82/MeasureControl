@@ -1,4 +1,4 @@
-﻿using Prism.Commands;
+using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -65,15 +65,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public S_C_8_5_2ViewModel()
         {
-            _testTxChannel = "429_CH0";
-            _testRxChannel = "429_CH1";
+            _testTxChannel = "429_CH1";
+            _testRxChannel = "429_CH0";
 
             _enterAtpTxChannel = _testTxChannel;
             _enterAtpRxChannel = _testRxChannel;
             _exitAtpTxChannel = _testTxChannel;
             _exitAtpRxChannel = _testRxChannel;
 
-            _canTxChannel = "CH4";
+            _canTxChannel = "CH0";
 
             EnterAtpRxDataText = "--";
             CanInjectStatusText = "--";

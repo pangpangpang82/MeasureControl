@@ -1,4 +1,4 @@
-﻿using Prism.Commands;
+using Prism.Commands;
 
 using Prism.Mvvm;
 
@@ -194,29 +194,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             _testRxChannel = "CH2";
 
-
-
-            _controllerPressureTestTxChannel = null;
-
-            _controllerPressureTestRxChannel = null;
+            // 固定通道显示/使用（与 6.13.2 一致：界面下拉框禁用，仅做固定展示）
+            _enterAtpTxChannel = _testTxChannel;
+            _enterAtpRxChannel = _testRxChannel;
+            _controllerPressureTestTxChannel = _testTxChannel;
+            _controllerPressureTestRxChannel = _testRxChannel;
+            _pressureTelemetryRxChannel = _testRxChannel;
+            _exitAtpTxChannel = _testTxChannel;
+            _exitAtpRxChannel = _testRxChannel;
 
             _controllerPressureTestRxDataText = "--";
-
-
-
-            _pressureTelemetryRxChannel = null;
-
-
-
-            _enterAtpTxChannel = null;
-
-            _enterAtpRxChannel = null;
-
-            _exitAtpTxChannel = null;
-
-            _exitAtpRxChannel = null;
-
-
 
             VoltageSetValueText = "--";
 

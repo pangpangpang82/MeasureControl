@@ -1,4 +1,4 @@
-﻿using Prism.Commands;
+using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.Generic;
@@ -30,13 +30,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public S_C_8_6_1ViewModel()
         {
-            _enterAtpTxChannel = "429_CH0";
-            _enterAtpRxChannel = "429_CH1";
-            _controllerTemperatureTestTxChannel = "429_CH0";
-            _controllerTemperatureTestRxChannel = "429_CH1";
-            _temperatureTelemetryRxChannel = "429_CH1";
-            _exitAtpTxChannel = "429_CH0";
-            _exitAtpRxChannel = "429_CH1";
+            _enterAtpTxChannel = "429_CH1";
+            _enterAtpRxChannel = "429_CH0";
+            _controllerTemperatureTestTxChannel = "429_CH1";
+            _controllerTemperatureTestRxChannel = "429_CH0";
+            _temperatureTelemetryRxChannel = "429_CH0";
+            _exitAtpTxChannel = "429_CH1";
+            _exitAtpRxChannel = "429_CH0";
 
             _enterAtpRxDataText = "--";
             _controllerTemperatureTestRxDataText = "--";
