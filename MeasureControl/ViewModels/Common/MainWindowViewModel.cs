@@ -59,6 +59,7 @@ namespace MeasureControl.ViewModels.Common
         private bool _isProjectMenuOpen;
         private bool _isBottomBarVisible = true;
         private bool _isProjectModified = false;
+        private bool _isSilentSavingSingleBoardTestResult = false;
         private string _currentTime;
         private string _currentProjectPath;
         private DispatcherTimer _timer;
@@ -638,11 +639,6 @@ namespace MeasureControl.ViewModels.Common
                     Type = AppConstants.NodeTypeTestTask,
                     Tag = "液压单板"
                 });
-            }
-
-            foreach (var task in testTasks.Children.Where(c => c != null && c.Type == AppConstants.NodeTypeTestTask))
-            {
-                task.Children?.Clear();
             }
 
             projectRoot.Children.Clear();
@@ -3544,6 +3540,31 @@ namespace MeasureControl.ViewModels.Common
                 {
                     // 标记项目为已修改
                     MarkProjectAsModified();
+
+                    if (_isSilentSavingSingleBoardTestResult)
+                    {
+                        return;
+                    }
+
+                    if (args != null
+                        && string.Equals(args.ModificationType, "SingleBoardTestResult", StringComparison.Ordinal)
+                        && CurrentProject != null
+                        && CurrentProject.Count > 0
+                        && !string.IsNullOrWhiteSpace(_currentProjectPath))
+                    {
+                        try
+                        {
+                            _isSilentSavingSingleBoardTestResult = true;
+                            SaveProjectInternal();
+                        }
+                        catch
+                        {
+                        }
+                        finally
+                        {
+                            _isSilentSavingSingleBoardTestResult = false;
+                        }
+                    }
                 }
                 catch (Exception)
                 {

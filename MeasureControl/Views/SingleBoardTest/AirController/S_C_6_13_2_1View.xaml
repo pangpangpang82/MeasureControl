@@ -58,20 +58,24 @@
                     Text="6.13.2 S安全通道压力传感器测试" />
 
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                    <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" FontSize="14" Text="测试点" />
+                    <TextBlock
+                        Margin="0,0,10,0"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="测试点" />
                     <ComboBox
                         Width="70"
                         Height="28"
                         Margin="0,0,15,0"
                         HorizontalAlignment="Left"
                         FontSize="12"
-                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                        SelectedValuePath="Tag"
                         IsEnabled="{Binding CanEditStepControls}"
-                        SelectedValue="{Binding CurrentTestPointIndex, Mode=TwoWay}">
-                        <ComboBoxItem Tag="1" Content="1" />
-                        <ComboBoxItem Tag="2" Content="2" />
-                        <ComboBoxItem Tag="3" Content="3" />
+                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                        SelectedValue="{Binding CurrentTestPointIndex, Mode=TwoWay}"
+                        SelectedValuePath="Tag">
+                        <ComboBoxItem Content="1" Tag="1" />
+                        <ComboBoxItem Content="2" Tag="2" />
+                        <ComboBoxItem Content="3" Tag="3" />
                     </ComboBox>
 
                     <Button
@@ -83,7 +87,10 @@
                         Command="{Binding ManualTestCommand}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
+                                <Border
+                                    x:Name="border"
+                                    Background="#3b82f6"
+                                    CornerRadius="6">
                                     <StackPanel Orientation="Horizontal">
                                         <Image
                                             x:Name="DeviceImage"
@@ -172,15 +179,19 @@
                 </Grid.ColumnDefinitions>
 
                 <TextBlock
-                    Height="26"
                     Grid.ColumnSpan="2"
+                    Height="26"
                     Margin="10,0,0,0"
                     VerticalAlignment="Center"
                     FontSize="20"
                     FontWeight="Bold"
                     Text="测试步骤" />
 
-                <Grid Grid.Row="1" Margin="0,0,0,69" Grid.RowSpan="2" Grid.ColumnSpan="2">
+                <Grid
+                    Grid.Row="1"
+                    Grid.RowSpan="2"
+                    Grid.ColumnSpan="2"
+                    Margin="0,0,0,69">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
@@ -198,17 +209,24 @@
                         FontSize="16"
                         Text="1.进入ATP模式：" />
 
-                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0" Orientation="Horizontal">
-                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
+                    <StackPanel
+                        Grid.Row="0"
+                        Grid.Column="1"
+                        Margin="0"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="TX" />
                         <ComboBox
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
                             HorizontalAlignment="Left"
                             FontSize="12"
+                            IsEnabled="{Binding CanEditStepControls}"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
                             SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
 
                         <Border
@@ -237,7 +255,10 @@
                             Command="{Binding SendEnterAtpCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="4">
                                         <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
                                             <TextBlock
                                                 x:Name="DeviceAction"
@@ -265,17 +286,24 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0" Orientation="Horizontal">
-                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
+                    <StackPanel
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Margin="0"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="RX" />
                         <ComboBox
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
                             HorizontalAlignment="Left"
                             FontSize="12"
+                            IsEnabled="{Binding CanEditStepControls}"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
                             SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
                         <Border
                             Width="180"
@@ -296,7 +324,11 @@
                     </StackPanel>
                 </Grid>
 
-                <Grid Grid.Row="2" Margin="0,69,0,0" Grid.RowSpan="2" Grid.ColumnSpan="2">
+                <Grid
+                    Grid.Row="2"
+                    Grid.RowSpan="2"
+                    Grid.ColumnSpan="2"
+                    Margin="0,69,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
@@ -314,17 +346,24 @@
                         FontSize="16"
                         Text="2.发送测试指令S_CP_MEA读取压力值：" />
 
-                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0" Orientation="Horizontal">
-                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
+                    <StackPanel
+                        Grid.Row="0"
+                        Grid.Column="1"
+                        Margin="0"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="TX" />
                         <ComboBox
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
                             HorizontalAlignment="Left"
                             FontSize="12"
+                            IsEnabled="{Binding CanEditStepControls}"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
                             SelectedItem="{Binding ScpMeaTxChannel, Mode=TwoWay}" />
 
                         <Border
@@ -353,7 +392,10 @@
                             Command="{Binding SendScpMeaCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="4">
                                         <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
                                             <TextBlock
                                                 x:Name="DeviceAction"
@@ -381,17 +423,24 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0" Orientation="Horizontal">
-                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
+                    <StackPanel
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Margin="0"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="RX" />
                         <ComboBox
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
                             HorizontalAlignment="Left"
                             FontSize="12"
+                            IsEnabled="{Binding CanEditStepControls}"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
                             SelectedItem="{Binding ScpMeaRxChannel, Mode=TwoWay}" />
 
                         <Border
@@ -413,7 +462,12 @@
                     </StackPanel>
                 </Grid>
 
-                <StackPanel Grid.Row="3" Margin="0,69,0,0" Orientation="Horizontal" Grid.RowSpan="2" Grid.ColumnSpan="2">
+                <StackPanel
+                    Grid.Row="3"
+                    Grid.RowSpan="2"
+                    Grid.ColumnSpan="2"
+                    Margin="0,69,0,0"
+                    Orientation="Horizontal">
                     <TextBlock
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
@@ -454,7 +508,10 @@
                     </Border>
                 </StackPanel>
 
-                <Grid Grid.Row="5" Margin="2,2,2,12" Grid.ColumnSpan="2">
+                <Grid
+                    Grid.Row="5"
+                    Grid.ColumnSpan="2"
+                    Margin="2,2,2,12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
@@ -472,17 +529,24 @@
                         FontSize="16"
                         Text="4.退出ATP模式：" />
 
-                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="2" Orientation="Horizontal">
-                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
+                    <StackPanel
+                        Grid.Row="0"
+                        Grid.Column="1"
+                        Margin="2"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="TX" />
                         <ComboBox
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
                             HorizontalAlignment="Left"
                             FontSize="12"
+                            IsEnabled="{Binding CanEditStepControls}"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
                             SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
 
                         <Border
@@ -511,7 +575,10 @@
                             Command="{Binding SendExitAtpCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="4">
                                         <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
                                             <TextBlock
                                                 x:Name="DeviceAction"
@@ -539,17 +606,24 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="2" Orientation="Horizontal">
-                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
+                    <StackPanel
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Margin="2"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="RX" />
                         <ComboBox
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
                             HorizontalAlignment="Left"
                             FontSize="12"
+                            IsEnabled="{Binding CanEditStepControls}"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            IsEnabled="{Binding CanEditStepControls}"
                             SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}" />
 
                         <Border
@@ -571,7 +645,12 @@
                     </StackPanel>
                 </Grid>
 
-                <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,69" Orientation="Horizontal" Grid.RowSpan="2">
+                <StackPanel
+                    Grid.Row="0"
+                    Grid.RowSpan="2"
+                    Grid.Column="2"
+                    Margin="0,0,0,69"
+                    Orientation="Horizontal">
                     <TextBlock
                         VerticalAlignment="Center"
                         FontSize="22"
@@ -586,7 +665,10 @@
                         Command="{Binding ClearLogCommand}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                <Border
+                                    x:Name="border"
+                                    Background="#3b82f6"
+                                    CornerRadius="4">
                                     <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
                                         <TextBlock
                                             x:Name="DeviceAction"
@@ -616,8 +698,8 @@
 
                 <Border
                     Grid.Row="1"
-                    Grid.Column="2"
                     Grid.RowSpan="5"
+                    Grid.Column="2"
                     Width="350"
                     Height="350"
                     HorizontalAlignment="Center"
@@ -632,11 +714,14 @@
                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                         ScrollViewer.VerticalScrollBarVisibility="Auto">
                         <ListBox.Resources>
-                            <Style TargetType="ScrollViewer" BasedOn="{StaticResource SimpleScrollViewerStyle}" />
+                            <Style BasedOn="{StaticResource SimpleScrollViewerStyle}" TargetType="ScrollViewer" />
                         </ListBox.Resources>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock FontSize="12" Text="{Binding}" TextWrapping="Wrap" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Text="{Binding}"
+                                    TextWrapping="Wrap" />
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>

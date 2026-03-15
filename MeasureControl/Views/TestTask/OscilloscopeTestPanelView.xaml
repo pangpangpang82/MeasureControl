@@ -254,7 +254,13 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <Border Grid.Row="0" Grid.Column="0" Margin="0,0,0,10" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="6">
+                        <Border
+                            Grid.Row="0"
+                            Grid.Column="0"
+                            Margin="0,0,0,10"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="6">
                             <Grid Margin="10">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -264,32 +270,81 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock FontSize="18" FontWeight="SemiBold" Text="CH1" />
-                                        <ToggleButton Style="{StaticResource ChannelDisplayToggleStyle}" IsChecked="{Binding Ch1DisplayEnabled}" Content="显示" />
+                                    <StackPanel
+                                        Grid.Column="0"
+                                        VerticalAlignment="Center"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            FontSize="18"
+                                            FontWeight="SemiBold"
+                                            Text="CH1" />
+                                        <ToggleButton
+                                            Content="显示"
+                                            IsChecked="{Binding Ch1DisplayEnabled}"
+                                            Style="{StaticResource ChannelDisplayToggleStyle}" />
                                     </StackPanel>
-                                    <StackPanel Grid.Column="1" Margin="14,0,0,0" Orientation="Vertical" VerticalAlignment="Center">
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                            <TextBlock Width="46" VerticalAlignment="Center" Text="幅值" />
-                                            <TextBox Width="90" VerticalContentAlignment="Center" IsReadOnly="True" Text="{Binding Ch1Vpp}" />
-                                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Text="Vp" />
+                                    <StackPanel
+                                        Grid.Column="1"
+                                        Margin="14,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Orientation="Vertical">
+                                        <StackPanel Margin="0,0,0,6" Orientation="Horizontal">
+                                            <TextBlock
+                                                Width="46"
+                                                VerticalAlignment="Center"
+                                                Text="幅值" />
+                                            <TextBox
+                                                Width="90"
+                                                VerticalContentAlignment="Center"
+                                                IsReadOnly="True"
+                                                Text="{Binding Ch1Vpp}" />
+                                            <TextBlock
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Text="Vp" />
                                         </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                            <TextBlock Width="46" VerticalAlignment="Center" Text="频率" />
-                                            <TextBox Width="90" VerticalContentAlignment="Center" IsReadOnly="True" Text="{Binding Ch1Frequency}" />
-                                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Text="Hz" />
+                                        <StackPanel Margin="0,0,0,6" Orientation="Horizontal">
+                                            <TextBlock
+                                                Width="46"
+                                                VerticalAlignment="Center"
+                                                Text="频率" />
+                                            <TextBox
+                                                Width="90"
+                                                VerticalContentAlignment="Center"
+                                                IsReadOnly="True"
+                                                Text="{Binding Ch1Frequency}" />
+                                            <TextBlock
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Text="Hz" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Width="46" VerticalAlignment="Center" Text="Vrms" />
-                                            <TextBox Width="90" VerticalContentAlignment="Center" IsReadOnly="True" Text="{Binding Ch1Vrms}" />
-                                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Text="V" />
+                                            <TextBlock
+                                                Width="46"
+                                                VerticalAlignment="Center"
+                                                Text="Vrms" />
+                                            <TextBox
+                                                Width="90"
+                                                VerticalContentAlignment="Center"
+                                                IsReadOnly="True"
+                                                Text="{Binding Ch1Vrms}" />
+                                            <TextBlock
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Text="V" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Grid>
                             </Grid>
                         </Border>
 
-                        <Border Grid.Row="1" Grid.Column="0" Margin="0,0,0,10" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="6">
+                        <Border
+                            Grid.Row="1"
+                            Grid.Column="0"
+                            Margin="0,0,0,10"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="6">
                             <Grid Margin="10">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -299,32 +354,81 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock FontSize="18" FontWeight="SemiBold" Text="CH2" />
-                                        <ToggleButton Style="{StaticResource ChannelDisplayToggleStyle}" IsChecked="{Binding Ch2DisplayEnabled}" Content="显示" />
+                                    <StackPanel
+                                        Grid.Column="0"
+                                        VerticalAlignment="Center"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            FontSize="18"
+                                            FontWeight="SemiBold"
+                                            Text="CH2" />
+                                        <ToggleButton
+                                            Content="显示"
+                                            IsChecked="{Binding Ch2DisplayEnabled}"
+                                            Style="{StaticResource ChannelDisplayToggleStyle}" />
                                     </StackPanel>
-                                    <StackPanel Grid.Column="1" Margin="14,0,0,0" Orientation="Vertical" VerticalAlignment="Center">
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                            <TextBlock Width="46" VerticalAlignment="Center" Text="幅值" />
-                                            <TextBox Width="90" VerticalContentAlignment="Center" IsReadOnly="True" Text="{Binding Ch2Vpp}" />
-                                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Text="Vp" />
+                                    <StackPanel
+                                        Grid.Column="1"
+                                        Margin="14,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Orientation="Vertical">
+                                        <StackPanel Margin="0,0,0,6" Orientation="Horizontal">
+                                            <TextBlock
+                                                Width="46"
+                                                VerticalAlignment="Center"
+                                                Text="幅值" />
+                                            <TextBox
+                                                Width="90"
+                                                VerticalContentAlignment="Center"
+                                                IsReadOnly="True"
+                                                Text="{Binding Ch2Vpp}" />
+                                            <TextBlock
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Text="Vp" />
                                         </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                            <TextBlock Width="46" VerticalAlignment="Center" Text="频率" />
-                                            <TextBox Width="90" VerticalContentAlignment="Center" IsReadOnly="True" Text="{Binding Ch2Frequency}" />
-                                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Text="Hz" />
+                                        <StackPanel Margin="0,0,0,6" Orientation="Horizontal">
+                                            <TextBlock
+                                                Width="46"
+                                                VerticalAlignment="Center"
+                                                Text="频率" />
+                                            <TextBox
+                                                Width="90"
+                                                VerticalContentAlignment="Center"
+                                                IsReadOnly="True"
+                                                Text="{Binding Ch2Frequency}" />
+                                            <TextBlock
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Text="Hz" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Width="46" VerticalAlignment="Center" Text="Vrms" />
-                                            <TextBox Width="90" VerticalContentAlignment="Center" IsReadOnly="True" Text="{Binding Ch2Vrms}" />
-                                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Text="V" />
+                                            <TextBlock
+                                                Width="46"
+                                                VerticalAlignment="Center"
+                                                Text="Vrms" />
+                                            <TextBox
+                                                Width="90"
+                                                VerticalContentAlignment="Center"
+                                                IsReadOnly="True"
+                                                Text="{Binding Ch2Vrms}" />
+                                            <TextBlock
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Text="V" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Grid>
                             </Grid>
                         </Border>
 
-                        <Border Grid.Row="2" Grid.Column="0" Margin="0,0,0,10" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="6">
+                        <Border
+                            Grid.Row="2"
+                            Grid.Column="0"
+                            Margin="0,0,0,10"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="6">
                             <Grid Margin="10">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -334,32 +438,80 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock FontSize="18" FontWeight="SemiBold" Text="CH3" />
-                                        <ToggleButton Style="{StaticResource ChannelDisplayToggleStyle}" IsChecked="{Binding Ch3DisplayEnabled}" Content="显示" />
+                                    <StackPanel
+                                        Grid.Column="0"
+                                        VerticalAlignment="Center"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            FontSize="18"
+                                            FontWeight="SemiBold"
+                                            Text="CH3" />
+                                        <ToggleButton
+                                            Content="显示"
+                                            IsChecked="{Binding Ch3DisplayEnabled}"
+                                            Style="{StaticResource ChannelDisplayToggleStyle}" />
                                     </StackPanel>
-                                    <StackPanel Grid.Column="1" Margin="14,0,0,0" Orientation="Vertical" VerticalAlignment="Center">
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                            <TextBlock Width="46" VerticalAlignment="Center" Text="幅值" />
-                                            <TextBox Width="90" VerticalContentAlignment="Center" IsReadOnly="True" Text="{Binding Ch3Vpp}" />
-                                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Text="Vp" />
+                                    <StackPanel
+                                        Grid.Column="1"
+                                        Margin="14,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Orientation="Vertical">
+                                        <StackPanel Margin="0,0,0,6" Orientation="Horizontal">
+                                            <TextBlock
+                                                Width="46"
+                                                VerticalAlignment="Center"
+                                                Text="幅值" />
+                                            <TextBox
+                                                Width="90"
+                                                VerticalContentAlignment="Center"
+                                                IsReadOnly="True"
+                                                Text="{Binding Ch3Vpp}" />
+                                            <TextBlock
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Text="Vp" />
                                         </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                            <TextBlock Width="46" VerticalAlignment="Center" Text="频率" />
-                                            <TextBox Width="90" VerticalContentAlignment="Center" IsReadOnly="True" Text="{Binding Ch3Frequency}" />
-                                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Text="Hz" />
+                                        <StackPanel Margin="0,0,0,6" Orientation="Horizontal">
+                                            <TextBlock
+                                                Width="46"
+                                                VerticalAlignment="Center"
+                                                Text="频率" />
+                                            <TextBox
+                                                Width="90"
+                                                VerticalContentAlignment="Center"
+                                                IsReadOnly="True"
+                                                Text="{Binding Ch3Frequency}" />
+                                            <TextBlock
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Text="Hz" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Width="46" VerticalAlignment="Center" Text="Vrms" />
-                                            <TextBox Width="90" VerticalContentAlignment="Center" IsReadOnly="True" Text="{Binding Ch3Vrms}" />
-                                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Text="V" />
+                                            <TextBlock
+                                                Width="46"
+                                                VerticalAlignment="Center"
+                                                Text="Vrms" />
+                                            <TextBox
+                                                Width="90"
+                                                VerticalContentAlignment="Center"
+                                                IsReadOnly="True"
+                                                Text="{Binding Ch3Vrms}" />
+                                            <TextBlock
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Text="V" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Grid>
                             </Grid>
                         </Border>
 
-                        <Border Grid.Row="3" Grid.Column="0" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="6">
+                        <Border
+                            Grid.Row="3"
+                            Grid.Column="0"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="6">
                             <Grid Margin="10">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -369,25 +521,68 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock FontSize="18" FontWeight="SemiBold" Text="CH4" />
-                                        <ToggleButton Style="{StaticResource ChannelDisplayToggleStyle}" IsChecked="{Binding Ch4DisplayEnabled}" Content="显示" />
+                                    <StackPanel
+                                        Grid.Column="0"
+                                        VerticalAlignment="Center"
+                                        Orientation="Horizontal">
+                                        <TextBlock
+                                            FontSize="18"
+                                            FontWeight="SemiBold"
+                                            Text="CH4" />
+                                        <ToggleButton
+                                            Content="显示"
+                                            IsChecked="{Binding Ch4DisplayEnabled}"
+                                            Style="{StaticResource ChannelDisplayToggleStyle}" />
                                     </StackPanel>
-                                    <StackPanel Grid.Column="1" Margin="14,0,0,0" Orientation="Vertical" VerticalAlignment="Center">
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                            <TextBlock Width="46" VerticalAlignment="Center" Text="幅值" />
-                                            <TextBox Width="90" VerticalContentAlignment="Center" IsReadOnly="True" Text="{Binding Ch4Vpp}" />
-                                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Text="Vp" />
+                                    <StackPanel
+                                        Grid.Column="1"
+                                        Margin="14,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Orientation="Vertical">
+                                        <StackPanel Margin="0,0,0,6" Orientation="Horizontal">
+                                            <TextBlock
+                                                Width="46"
+                                                VerticalAlignment="Center"
+                                                Text="幅值" />
+                                            <TextBox
+                                                Width="90"
+                                                VerticalContentAlignment="Center"
+                                                IsReadOnly="True"
+                                                Text="{Binding Ch4Vpp}" />
+                                            <TextBlock
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Text="Vp" />
                                         </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                            <TextBlock Width="46" VerticalAlignment="Center" Text="频率" />
-                                            <TextBox Width="90" VerticalContentAlignment="Center" IsReadOnly="True" Text="{Binding Ch4Frequency}" />
-                                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Text="Hz" />
+                                        <StackPanel Margin="0,0,0,6" Orientation="Horizontal">
+                                            <TextBlock
+                                                Width="46"
+                                                VerticalAlignment="Center"
+                                                Text="频率" />
+                                            <TextBox
+                                                Width="90"
+                                                VerticalContentAlignment="Center"
+                                                IsReadOnly="True"
+                                                Text="{Binding Ch4Frequency}" />
+                                            <TextBlock
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Text="Hz" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Width="46" VerticalAlignment="Center" Text="Vrms" />
-                                            <TextBox Width="90" VerticalContentAlignment="Center" IsReadOnly="True" Text="{Binding Ch4Vrms}" />
-                                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Text="V" />
+                                            <TextBlock
+                                                Width="46"
+                                                VerticalAlignment="Center"
+                                                Text="Vrms" />
+                                            <TextBox
+                                                Width="90"
+                                                VerticalContentAlignment="Center"
+                                                IsReadOnly="True"
+                                                Text="{Binding Ch4Vrms}" />
+                                            <TextBlock
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Text="V" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Grid>
@@ -395,28 +590,44 @@
                         </Border>
                     </Grid>
 
-                    <Border Grid.Column="1" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="6">
+                    <Border
+                        Grid.Column="1"
+                        BorderBrush="#D9D9D9"
+                        BorderThickness="1"
+                        CornerRadius="6">
                         <Grid Margin="10">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
-                            <TextBlock FontSize="18" FontWeight="SemiBold" Text="波形预览" />
-                            <Border Grid.Row="1" Margin="0,10,0,0" BorderBrush="#e5e7eb" BorderThickness="1" CornerRadius="4">
-                                <Image Stretch="Uniform" Source="{Binding ScreenshotPreview}" />
+                            <TextBlock
+                                FontSize="18"
+                                FontWeight="SemiBold"
+                                Text="波形预览" />
+                            <Border
+                                Grid.Row="1"
+                                Margin="0,10,0,0"
+                                BorderBrush="#e5e7eb"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                                <Image Source="{Binding ScreenshotPreview}" Stretch="Uniform" />
                             </Border>
 
-                            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+                            <StackPanel
+                                Grid.Row="2"
+                                Margin="0,10,0,0"
+                                HorizontalAlignment="Center"
+                                Orientation="Horizontal">
                                 <Button
                                     Width="90"
                                     Height="30"
                                     Background="#10b981"
                                     BorderThickness="0"
                                     Command="{Binding RunCommand}"
+                                    Content="RUN"
                                     FontSize="14"
-                                    Foreground="White"
-                                    Content="RUN" />
+                                    Foreground="White" />
                                 <Button
                                     Width="90"
                                     Height="30"
@@ -424,9 +635,9 @@
                                     Background="#f59e0b"
                                     BorderThickness="0"
                                     Command="{Binding StopCommand}"
+                                    Content="STOP"
                                     FontSize="14"
-                                    Foreground="White"
-                                    Content="STOP" />
+                                    Foreground="White" />
                                 <Button
                                     Width="90"
                                     Height="30"
@@ -434,9 +645,9 @@
                                     Background="#6366f1"
                                     BorderThickness="0"
                                     Command="{Binding AutoCommand}"
+                                    Content="AUTO"
                                     FontSize="14"
-                                    Foreground="White"
-                                    Content="AUTO" />
+                                    Foreground="White" />
                             </StackPanel>
                         </Grid>
                     </Border>
