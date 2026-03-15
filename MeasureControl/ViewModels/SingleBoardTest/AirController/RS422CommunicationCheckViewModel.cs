@@ -91,14 +91,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public RS422CommunicationCheckViewModel(Rs422CommTestMode mode = Rs422CommTestMode.All)
         {
             _mode = mode;
-            _enterAtpTxChannel = "429_CH0";
-            _enterAtpRxChannel = "429_CH1";
-            _exitAtpTxChannel = "429_CH0";
-            _exitAtpRxChannel = "429_CH1";
-            _rs422TransmitTxChannel = "429_CH0";
-            _rs422TransmitRxChannel = "429_CH1";
-            _rs422ReceiveTxChannel = "429_CH0";
-            _rs422ReceiveRxChannel = "429_CH1";
+            if (mode == Rs422CommTestMode.All)
+            {
+                _enterAtpTxChannel = "CH1";
+                _enterAtpRxChannel = "CH0";
+                _exitAtpTxChannel = "CH1";
+                _exitAtpRxChannel = "CH0";
+                _rs422TransmitTxChannel = "CH1";
+                _rs422TransmitRxChannel = "CH0";
+                _rs422ReceiveTxChannel = "CH1";
+                _rs422ReceiveRxChannel = "CH0";
+            }
+            else
+            {
+                _enterAtpTxChannel = "CH0";
+                _enterAtpRxChannel = "CH2";
+                _exitAtpTxChannel = "CH0";
+                _exitAtpRxChannel = "CH2";
+                _rs422TransmitTxChannel = "CH0";
+                _rs422TransmitRxChannel = "CH2";
+                _rs422ReceiveTxChannel = "CH0";
+                _rs422ReceiveRxChannel = "CH2";
+            }
 
             EnterAtpRxDataText = "--";
             ExitAtpRxDataText = "--";
