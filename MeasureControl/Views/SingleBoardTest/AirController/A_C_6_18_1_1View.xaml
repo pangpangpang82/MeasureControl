@@ -9,24 +9,31 @@
     d:DesignWidth="970"
     mc:Ignorable="d">
     <UserControl.Resources>
-        <x:Array x:Key="Arinc429Channels" Type="sys:String">
-            <sys:String>429_CH0</sys:String>
-            <sys:String>429_CH1</sys:String>
-            <sys:String>429_CH2</sys:String>
-            <sys:String>429_CH3</sys:String>
-            <sys:String>429_CH4</sys:String>
-            <sys:String>429_CH5</sys:String>
-            <sys:String>429_CH6</sys:String>
-            <sys:String>429_CH7</sys:String>
-            <sys:String>429_CH8</sys:String>
-            <sys:String>429_CH9</sys:String>
-            <sys:String>429_CH10</sys:String>
-            <sys:String>429_CH11</sys:String>
-            <sys:String>429_CH12</sys:String>
-            <sys:String>429_CH13</sys:String>
-            <sys:String>429_CH14</sys:String>
-            <sys:String>429_CH15</sys:String>
-        </x:Array>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Styles/ScrollBarStyles.xaml" />
+                <ResourceDictionary Source="/Styles/ComboBoxStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <x:Array x:Key="Arinc429Channels" Type="sys:String">
+                <sys:String>429_CH0</sys:String>
+                <sys:String>429_CH1</sys:String>
+                <sys:String>429_CH2</sys:String>
+                <sys:String>429_CH3</sys:String>
+                <sys:String>429_CH4</sys:String>
+                <sys:String>429_CH5</sys:String>
+                <sys:String>429_CH6</sys:String>
+                <sys:String>429_CH7</sys:String>
+                <sys:String>429_CH8</sys:String>
+                <sys:String>429_CH9</sys:String>
+                <sys:String>429_CH10</sys:String>
+                <sys:String>429_CH11</sys:String>
+                <sys:String>429_CH12</sys:String>
+                <sys:String>429_CH13</sys:String>
+                <sys:String>429_CH14</sys:String>
+                <sys:String>429_CH15</sys:String>
+            </x:Array>
+        </ResourceDictionary>
     </UserControl.Resources>
 
     <Grid
@@ -433,7 +440,7 @@
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     FontSize="12"
-                                    Text="0x23 01 01 XX 00 00 00 00" />
+                                    Text="{Binding TestCommandDisplayText}" />
                             </Border>
 
                             <Button

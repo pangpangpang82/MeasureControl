@@ -46,23 +46,10 @@
                             Command="{Binding ManualTestCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border
-                                        x:Name="border"
-                                        Background="#3b82f6"
-                                        CornerRadius="6">
+                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
                                         <StackPanel Orientation="Horizontal">
-                                            <Image
-                                                Width="15"
-                                                Height="15"
-                                                Margin="5,0,5,0"
-                                                Source="/Resources/Logo/hand_w.png" />
-                                            <TextBlock
-                                                x:Name="DeviceAction"
-                                                Margin="0,0,5,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="16"
-                                                Foreground="White"
-                                                Text="手动测试" />
+                                            <Image Width="15" Height="15" Margin="5,0,5,0" Source="/Resources/Logo/hand_w.png" />
+                                            <TextBlock x:Name="DeviceAction" Margin="0,0,5,0" VerticalAlignment="Center" FontSize="16" Foreground="White" Text="手动测试" />
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
@@ -104,23 +91,10 @@
                             Command="{Binding AutoTestCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border
-                                        x:Name="border"
-                                        Background="#22c55e"
-                                        CornerRadius="6">
+                                    <Border x:Name="border" Background="#22c55e" CornerRadius="6">
                                         <StackPanel Orientation="Horizontal">
-                                            <Image
-                                                Width="15"
-                                                Height="15"
-                                                Margin="5,0,5,0"
-                                                Source="/Resources/Logo/auto.png" />
-                                            <TextBlock
-                                                x:Name="DeviceAction"
-                                                Margin="0,0,5,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="16"
-                                                Foreground="White"
-                                                Text="自动测试" />
+                                            <Image Width="15" Height="15" Margin="5,0,5,0" Source="/Resources/Logo/auto.png" />
+                                            <TextBlock x:Name="DeviceAction" Margin="0,0,5,0" VerticalAlignment="Center" FontSize="16" Foreground="White" Text="自动测试" />
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
@@ -187,57 +161,33 @@
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="10,5,10,5">
 
-                            <Border
-                                Margin="0,10,0,0"
-                                Padding="6"
-                                Background="#fef3c7"
-                                BorderBrush="#f59e0b"
-                                BorderThickness="1"
-                                CornerRadius="6">
+                            <Border Margin="0,10,0,0" Background="#fef3c7" BorderBrush="#f59e0b" BorderThickness="1" CornerRadius="6" Padding="6">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock
-                                        Grid.Column="0"
-                                        VerticalAlignment="Center"
-                                        FontWeight="Bold"
-                                        Foreground="#92400e"
-                                        Text="前置条件：" />
-                                    <TextBlock
-                                        Grid.Column="1"
-                                        Margin="5,0"
-                                        VerticalAlignment="Center"
-                                        Foreground="#92400e"
-                                        Text="组件提供28V供电；通过RS-422通信协议发送0xAA55并回读比对。"
-                                        TextWrapping="Wrap" />
-                                    <Border
-                                        Grid.Column="2"
-                                        Margin="5,0"
-                                        Padding="8,3"
-                                        CornerRadius="4">
+                                    <TextBlock Grid.Column="0" Text="前置条件：" FontWeight="Bold" VerticalAlignment="Center" Foreground="#92400e"/>
+                                    <TextBlock Grid.Column="1" Text="组件提供28V供电；通过RS-422通信协议发送0xAA55并回读比对。" VerticalAlignment="Center" Foreground="#92400e" Margin="5,0" TextWrapping="Wrap"/>
+                                    <Border Grid.Column="2" CornerRadius="4" Padding="8,3" Margin="5,0">
                                         <Border.Style>
                                             <Style TargetType="Border">
-                                                <Setter Property="Background" Value="#fecaca" />
+                                                <Setter Property="Background" Value="#fecaca"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding IsPowerOn}" Value="True">
-                                                        <Setter Property="Background" Value="#bbf7d0" />
+                                                        <Setter Property="Background" Value="#bbf7d0"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
-                                        <TextBlock
-                                            VerticalAlignment="Center"
-                                            FontWeight="Bold"
-                                            Text="{Binding PowerStatus}">
+                                        <TextBlock Text="{Binding PowerStatus}" FontWeight="Bold" VerticalAlignment="Center">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="#dc2626" />
+                                                    <Setter Property="Foreground" Value="#dc2626"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsPowerOn}" Value="True">
-                                                            <Setter Property="Foreground" Value="#16a34a" />
+                                                            <Setter Property="Foreground" Value="#16a34a"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -247,13 +197,7 @@
                                 </Grid>
                             </Border>
 
-                            <Border
-                                Margin="0,10,0,0"
-                                Padding="10"
-                                Background="#f8fafc"
-                                BorderBrush="#e2e8f0"
-                                BorderThickness="1"
-                                CornerRadius="6">
+                            <Border Margin="0,10,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="10">
                                 <StackPanel>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -262,24 +206,9 @@
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock
-                                            Grid.Column="0"
-                                            VerticalAlignment="Center"
-                                            FontSize="14"
-                                            FontWeight="Bold"
-                                            Text="a) 通道1收发测试" />
-                                        <TextBlock
-                                            Grid.Column="1"
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            Foreground="#666"
-                                            Text="J15/J16发送0xAA55，经CRM_PIN19回读并一致性比对"
-                                            TextWrapping="Wrap" />
-                                        <Border
-                                            Grid.Column="2"
-                                            Margin="10,0"
-                                            Padding="10,3"
-                                            CornerRadius="4">
+                                        <TextBlock Grid.Column="0" Text="a) 通道1收发测试" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="J15/J16发送0xAA55，经CRM_PIN19回读并一致性比对" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap" />
+                                        <Border Grid.Column="2" CornerRadius="4" Margin="10,0" Padding="10,3">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="#f3f4f6" />
@@ -293,10 +222,7 @@
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
-                                            <TextBlock
-                                                HorizontalAlignment="Center"
-                                                FontWeight="Bold"
-                                                Text="{Binding StepAResult}">
+                                            <TextBlock Text="{Binding StepAResult}" HorizontalAlignment="Center" FontWeight="Bold">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="#6b7280" />
@@ -312,24 +238,11 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Border>
-                                        <Button
-                                            Grid.Column="3"
-                                            Width="80"
-                                            Height="26"
-                                            Command="{Binding StepACommand}">
+                                        <Button Grid.Column="3" Command="{Binding StepACommand}" Height="26" Width="80">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
-                                                    <Border
-                                                        x:Name="border"
-                                                        Padding="10,3"
-                                                        Background="#3b82f6"
-                                                        CornerRadius="4">
-                                                        <TextBlock
-                                                            HorizontalAlignment="Center"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="12"
-                                                            Foreground="White"
-                                                            Text="测试" />
+                                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4" Padding="10,3">
+                                                        <TextBlock Text="测试" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" />
                                                     </Border>
                                                     <ControlTemplate.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
@@ -348,35 +261,15 @@
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock
-                                            Grid.Column="0"
-                                            Margin="0,2"
-                                            FontWeight="Bold"
-                                            Text="回读数据:" />
-                                        <Border
-                                            Grid.Column="1"
-                                            Margin="10,2"
-                                            Padding="10,3"
-                                            Background="White"
-                                            BorderBrush="#d1d5db"
-                                            BorderThickness="1"
-                                            CornerRadius="4">
-                                            <TextBlock
-                                                HorizontalAlignment="Center"
-                                                FontFamily="Consolas"
-                                                Text="{Binding StepARxData}" />
+                                        <TextBlock Grid.Column="0" Text="回读数据:" FontWeight="Bold" Margin="0,2" />
+                                        <Border Grid.Column="1" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="10,2" Padding="10,3">
+                                            <TextBlock Text="{Binding StepARxData}" FontFamily="Consolas" HorizontalAlignment="Center" />
                                         </Border>
                                     </Grid>
                                 </StackPanel>
                             </Border>
 
-                            <Border
-                                Margin="0,10,0,0"
-                                Padding="10"
-                                Background="#f8fafc"
-                                BorderBrush="#e2e8f0"
-                                BorderThickness="1"
-                                CornerRadius="6">
+                            <Border Margin="0,10,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="10">
                                 <StackPanel>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -385,24 +278,9 @@
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock
-                                            Grid.Column="0"
-                                            VerticalAlignment="Center"
-                                            FontSize="14"
-                                            FontWeight="Bold"
-                                            Text="b) 通道2收发测试" />
-                                        <TextBlock
-                                            Grid.Column="1"
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            Foreground="#666"
-                                            Text="J20/J21发送0xAA55，经CRM_PIN20回读并一致性比对"
-                                            TextWrapping="Wrap" />
-                                        <Border
-                                            Grid.Column="2"
-                                            Margin="10,0"
-                                            Padding="10,3"
-                                            CornerRadius="4">
+                                        <TextBlock Grid.Column="0" Text="b) 通道2收发测试" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="J20/J21发送0xAA55，经CRM_PIN20回读并一致性比对" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap" />
+                                        <Border Grid.Column="2" CornerRadius="4" Margin="10,0" Padding="10,3">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="#f3f4f6" />
@@ -416,10 +294,7 @@
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
-                                            <TextBlock
-                                                HorizontalAlignment="Center"
-                                                FontWeight="Bold"
-                                                Text="{Binding StepBResult}">
+                                            <TextBlock Text="{Binding StepBResult}" HorizontalAlignment="Center" FontWeight="Bold">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="#6b7280" />
@@ -435,24 +310,11 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Border>
-                                        <Button
-                                            Grid.Column="3"
-                                            Width="80"
-                                            Height="26"
-                                            Command="{Binding StepBCommand}">
+                                        <Button Grid.Column="3" Command="{Binding StepBCommand}" Height="26" Width="80">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
-                                                    <Border
-                                                        x:Name="border"
-                                                        Padding="10,3"
-                                                        Background="#3b82f6"
-                                                        CornerRadius="4">
-                                                        <TextBlock
-                                                            HorizontalAlignment="Center"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="12"
-                                                            Foreground="White"
-                                                            Text="测试" />
+                                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4" Padding="10,3">
+                                                        <TextBlock Text="测试" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" />
                                                     </Border>
                                                     <ControlTemplate.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
@@ -471,35 +333,15 @@
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock
-                                            Grid.Column="0"
-                                            Margin="0,2"
-                                            FontWeight="Bold"
-                                            Text="回读数据:" />
-                                        <Border
-                                            Grid.Column="1"
-                                            Margin="10,2"
-                                            Padding="10,3"
-                                            Background="White"
-                                            BorderBrush="#d1d5db"
-                                            BorderThickness="1"
-                                            CornerRadius="4">
-                                            <TextBlock
-                                                HorizontalAlignment="Center"
-                                                FontFamily="Consolas"
-                                                Text="{Binding StepBRxData}" />
+                                        <TextBlock Grid.Column="0" Text="回读数据:" FontWeight="Bold" Margin="0,2" />
+                                        <Border Grid.Column="1" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="10,2" Padding="10,3">
+                                            <TextBlock Text="{Binding StepBRxData}" FontFamily="Consolas" HorizontalAlignment="Center" />
                                         </Border>
                                     </Grid>
                                 </StackPanel>
                             </Border>
 
-                            <Border
-                                Margin="0,10,0,0"
-                                Padding="10"
-                                Background="#f8fafc"
-                                BorderBrush="#e2e8f0"
-                                BorderThickness="1"
-                                CornerRadius="6">
+                            <Border Margin="0,10,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="10">
                                 <StackPanel>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -508,24 +350,9 @@
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock
-                                            Grid.Column="0"
-                                            VerticalAlignment="Center"
-                                            FontSize="14"
-                                            FontWeight="Bold"
-                                            Text="c) 通道1回环测试" />
-                                        <TextBlock
-                                            Grid.Column="1"
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            Foreground="#666"
-                                            Text="CRM_PIN9发送0xAA55，经J17/J18回读并一致性比对"
-                                            TextWrapping="Wrap" />
-                                        <Border
-                                            Grid.Column="2"
-                                            Margin="10,0"
-                                            Padding="10,3"
-                                            CornerRadius="4">
+                                        <TextBlock Grid.Column="0" Text="c) 通道1回环测试" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="CRM_PIN9发送0xAA55，经J17/J18回读并一致性比对" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap" />
+                                        <Border Grid.Column="2" CornerRadius="4" Margin="10,0" Padding="10,3">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="#f3f4f6" />
@@ -539,10 +366,7 @@
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
-                                            <TextBlock
-                                                HorizontalAlignment="Center"
-                                                FontWeight="Bold"
-                                                Text="{Binding StepCResult}">
+                                            <TextBlock Text="{Binding StepCResult}" HorizontalAlignment="Center" FontWeight="Bold">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="#6b7280" />
@@ -558,24 +382,11 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Border>
-                                        <Button
-                                            Grid.Column="3"
-                                            Width="80"
-                                            Height="26"
-                                            Command="{Binding StepCCommand}">
+                                        <Button Grid.Column="3" Command="{Binding StepCCommand}" Height="26" Width="80">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
-                                                    <Border
-                                                        x:Name="border"
-                                                        Padding="10,3"
-                                                        Background="#3b82f6"
-                                                        CornerRadius="4">
-                                                        <TextBlock
-                                                            HorizontalAlignment="Center"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="12"
-                                                            Foreground="White"
-                                                            Text="测试" />
+                                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4" Padding="10,3">
+                                                        <TextBlock Text="测试" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" />
                                                     </Border>
                                                     <ControlTemplate.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
@@ -594,35 +405,15 @@
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock
-                                            Grid.Column="0"
-                                            Margin="0,2"
-                                            FontWeight="Bold"
-                                            Text="回读数据:" />
-                                        <Border
-                                            Grid.Column="1"
-                                            Margin="10,2"
-                                            Padding="10,3"
-                                            Background="White"
-                                            BorderBrush="#d1d5db"
-                                            BorderThickness="1"
-                                            CornerRadius="4">
-                                            <TextBlock
-                                                HorizontalAlignment="Center"
-                                                FontFamily="Consolas"
-                                                Text="{Binding StepCRxData}" />
+                                        <TextBlock Grid.Column="0" Text="回读数据:" FontWeight="Bold" Margin="0,2" />
+                                        <Border Grid.Column="1" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="10,2" Padding="10,3">
+                                            <TextBlock Text="{Binding StepCRxData}" FontFamily="Consolas" HorizontalAlignment="Center" />
                                         </Border>
                                     </Grid>
                                 </StackPanel>
                             </Border>
 
-                            <Border
-                                Margin="0,10,0,0"
-                                Padding="10"
-                                Background="#f8fafc"
-                                BorderBrush="#e2e8f0"
-                                BorderThickness="1"
-                                CornerRadius="6">
+                            <Border Margin="0,10,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="10">
                                 <StackPanel>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -631,24 +422,9 @@
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock
-                                            Grid.Column="0"
-                                            VerticalAlignment="Center"
-                                            FontSize="14"
-                                            FontWeight="Bold"
-                                            Text="d) 通道2回环测试" />
-                                        <TextBlock
-                                            Grid.Column="1"
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            Foreground="#666"
-                                            Text="CRM_PIN10发送0xAA55，经J22/J23回读并一致性比对"
-                                            TextWrapping="Wrap" />
-                                        <Border
-                                            Grid.Column="2"
-                                            Margin="10,0"
-                                            Padding="10,3"
-                                            CornerRadius="4">
+                                        <TextBlock Grid.Column="0" Text="d) 通道2回环测试" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="CRM_PIN10发送0xAA55，经J22/J23回读并一致性比对" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap" />
+                                        <Border Grid.Column="2" CornerRadius="4" Margin="10,0" Padding="10,3">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="#f3f4f6" />
@@ -662,10 +438,7 @@
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
-                                            <TextBlock
-                                                HorizontalAlignment="Center"
-                                                FontWeight="Bold"
-                                                Text="{Binding StepDResult}">
+                                            <TextBlock Text="{Binding StepDResult}" HorizontalAlignment="Center" FontWeight="Bold">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="#6b7280" />
@@ -681,24 +454,11 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Border>
-                                        <Button
-                                            Grid.Column="3"
-                                            Width="80"
-                                            Height="26"
-                                            Command="{Binding StepDCommand}">
+                                        <Button Grid.Column="3" Command="{Binding StepDCommand}" Height="26" Width="80">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
-                                                    <Border
-                                                        x:Name="border"
-                                                        Padding="10,3"
-                                                        Background="#3b82f6"
-                                                        CornerRadius="4">
-                                                        <TextBlock
-                                                            HorizontalAlignment="Center"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="12"
-                                                            Foreground="White"
-                                                            Text="测试" />
+                                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4" Padding="10,3">
+                                                        <TextBlock Text="测试" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" />
                                                     </Border>
                                                     <ControlTemplate.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
@@ -717,44 +477,11 @@
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock
-                                            Grid.Column="0"
-                                            Margin="0,2"
-                                            FontWeight="Bold"
-                                            Text="回读数据:" />
-                                        <Border
-                                            Grid.Column="1"
-                                            Margin="10,2"
-                                            Padding="10,3"
-                                            Background="White"
-                                            BorderBrush="#d1d5db"
-                                            BorderThickness="1"
-                                            CornerRadius="4">
-                                            <TextBlock
-                                                HorizontalAlignment="Center"
-                                                FontFamily="Consolas"
-                                                Text="{Binding StepDRxData}" />
+                                        <TextBlock Grid.Column="0" Text="回读数据:" FontWeight="Bold" Margin="0,2" />
+                                        <Border Grid.Column="1" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="10,2" Padding="10,3">
+                                            <TextBlock Text="{Binding StepDRxData}" FontFamily="Consolas" HorizontalAlignment="Center" />
                                         </Border>
                                     </Grid>
-                                </StackPanel>
-                            </Border>
-
-                            <Border
-                                Margin="0,10,0,0"
-                                Padding="6"
-                                Background="#f0fdf4"
-                                BorderBrush="#22c55e"
-                                BorderThickness="1"
-                                CornerRadius="6">
-                                <StackPanel>
-                                    <TextBlock
-                                        FontWeight="Bold"
-                                        Foreground="#166534"
-                                        Text="测试判据：" />
-                                    <TextBlock
-                                        Margin="0,5,0,0"
-                                        Foreground="#166534"
-                                        Text="• 四次比对结果均一致（PASS）" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -779,11 +506,7 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock
-                                    Margin="10,10,0,5"
-                                    FontSize="16"
-                                    FontWeight="Bold"
-                                    Text="测试日志" />
+                                <TextBlock Margin="10,10,0,5" FontSize="16" FontWeight="Bold" Text="测试日志" />
                                 <Button
                                     Grid.Column="1"
                                     Width="80"
@@ -794,10 +517,7 @@
                                     Command="{Binding ClearLogCommand}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Border
-                                                x:Name="border"
-                                                Background="#3b82f6"
-                                                CornerRadius="4">
+                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
                                                 <TextBlock
                                                     x:Name="btnText"
                                                     HorizontalAlignment="Center"
@@ -822,22 +542,12 @@
                                     </Button.Template>
                                 </Button>
                             </Grid>
-                            <Border
-                                Grid.Row="1"
-                                Margin="5"
-                                Background="White"
-                                BorderBrush="#d1d5db"
-                                BorderThickness="1"
-                                CornerRadius="4">
+                            <Border Grid.Row="1" Margin="5" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl Margin="5" ItemsSource="{Binding Logs}">
+                                    <ItemsControl ItemsSource="{Binding Logs}" Margin="5">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock
-                                                    Margin="0,1"
-                                                    FontSize="12"
-                                                    Text="{Binding}"
-                                                    TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" Margin="0,1" />
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -846,20 +556,9 @@
                         </Grid>
                     </Border>
 
-                    <StackPanel
-                        Grid.Row="2"
-                        Grid.ColumnSpan="2"
-                        Margin="10,5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Text="综合结果：" />
-                        <Border
-                            Margin="10,0"
-                            Padding="15,5"
-                            CornerRadius="4">
+                    <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="10,5">
+                        <TextBlock Text="综合结果：" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
+                        <Border CornerRadius="4" Padding="15,5" Margin="10,0">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Setter Property="Background" Value="#f3f4f6" />
@@ -873,10 +572,7 @@
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
-                            <TextBlock
-                                FontSize="16"
-                                FontWeight="Bold"
-                                Text="{Binding OverallResult}">
+                            <TextBlock Text="{Binding OverallResult}" FontSize="16" FontWeight="Bold">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Foreground" Value="#6b7280" />
@@ -892,15 +588,8 @@
                                 </TextBlock.Style>
                             </TextBlock>
                         </Border>
-                        <TextBlock
-                            Margin="20,0,5,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="上次测试时间：" />
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="{Binding LastTestTime}" />
+                        <TextBlock Text="上次测试时间：" FontSize="14" VerticalAlignment="Center" Margin="20,0,5,0" />
+                        <TextBlock Text="{Binding LastTestTime}" FontSize="14" VerticalAlignment="Center" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -912,18 +601,14 @@
                 BorderBrush="#D9D9D9"
                 BorderThickness="1.5"
                 CornerRadius="8">
-                <StackPanel Margin="10,5" Orientation="Horizontal">
-                    <TextBlock
-                        VerticalAlignment="Center"
-                        FontSize="14"
-                        FontWeight="Bold"
-                        Text="测试说明：" />
+                <StackPanel Orientation="Horizontal" Margin="10,5">
+                    <TextBlock Text="测试说明：" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" />
                     <TextBlock
                         Margin="10,0,0,0"
                         FontSize="14"
                         Foreground="#666"
-                        Text="组件28V供电状态下，按照RS-422通信协议发送0xAA55，回读并进行一致性比对；四次比对结果均一致为PASS。"
-                        TextWrapping="Wrap" />
+                        TextWrapping="Wrap"
+                        Text="组件28V供电状态下，按照RS-422通信协议发送0xAA55，回读并进行一致性比对；四次比对结果均一致为PASS。" />
                 </StackPanel>
             </Border>
         </Grid>
