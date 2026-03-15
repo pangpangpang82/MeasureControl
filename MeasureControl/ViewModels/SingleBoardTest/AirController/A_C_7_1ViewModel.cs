@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -19,9 +20,9 @@ using Prism.Mvvm;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
-    public sealed class A_C_8_1ViewModel : BindableBase, IDisposable
+    public sealed class A_C_7_1ViewModel : BindableBase, IDisposable
     {
-        private const string TestItemKey = "AirController_8_1_PowerToGroundImpedance";
+        private const string TestItemKey = "AirController_7_1_PowerBoard_PowerToGroundImpedance";
         private const double ImpedanceThreshold = 200.0;
         private const string RelayControlChannel = "DO9";
 
@@ -45,7 +46,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private IPowerSupplyApi _relayPowerSupply;
 
-        private readonly A_C_8_1Simulation _simulation;
+        private readonly A_C_7_1Simulation _simulation;
 
         private IDmmApi _dmmSocket;
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
@@ -68,20 +69,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private double? _impedanceC;
         private double? _impedanceD;
         private double? _impedanceE;
-        private double? _impedanceF;
 
         private string _resultA = "--";
         private string _resultB = "--";
         private string _resultC = "--";
         private string _resultD = "--";
         private string _resultE = "--";
-        private string _resultF = "--";
 
         private string _overallResult = "--";
         private string _lastTestTime = "--";
         private string _relayStatus = "未激活";
 
-        public A_C_8_1ViewModel(
+        public A_C_7_1ViewModel(
             ISingleBoardTestContextService singleBoardTestContext,
             ProjectService projectService,
             IEventAggregator eventAggregator,
@@ -96,7 +95,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _pxiChassisService = pxiChassisService;
             _dmmApi = dmmApi;
 
-            _simulation = new A_C_8_1Simulation { ImpedanceThreshold = ImpedanceThreshold };
+            _simulation = new A_C_7_1Simulation { ImpedanceThreshold = ImpedanceThreshold };
 
             ManualTestCommand = new DelegateCommand(OnManualTest);
             AutoTestCommand = new DelegateCommand(OnAutoTest);
@@ -107,7 +106,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             MeasureCCommand = new DelegateCommand(async () => await MeasureSinglePointAsync("C"), () => !IsBusy && IsRelayActivated);
             MeasureDCommand = new DelegateCommand(async () => await MeasureSinglePointAsync("D"), () => !IsBusy && IsRelayActivated);
             MeasureECommand = new DelegateCommand(async () => await MeasureSinglePointAsync("E"), () => !IsBusy && IsRelayActivated);
-            MeasureFCommand = new DelegateCommand(async () => await MeasureSinglePointAsync("F"), () => !IsBusy && IsRelayActivated);
 
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
@@ -125,7 +123,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public DelegateCommand MeasureCCommand { get; }
         public DelegateCommand MeasureDCommand { get; }
         public DelegateCommand MeasureECommand { get; }
-        public DelegateCommand MeasureFCommand { get; }
         public DelegateCommand ClearLogCommand { get; }
 
         public bool IsRelayActivated
@@ -191,14 +188,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public double? ImpedanceC { get => _impedanceC; set => SetProperty(ref _impedanceC, value); }
         public double? ImpedanceD { get => _impedanceD; set => SetProperty(ref _impedanceD, value); }
         public double? ImpedanceE { get => _impedanceE; set => SetProperty(ref _impedanceE, value); }
-        public double? ImpedanceF { get => _impedanceF; set => SetProperty(ref _impedanceF, value); }
 
         public string ResultA { get => _resultA; set => SetProperty(ref _resultA, value); }
         public string ResultB { get => _resultB; set => SetProperty(ref _resultB, value); }
         public string ResultC { get => _resultC; set => SetProperty(ref _resultC, value); }
         public string ResultD { get => _resultD; set => SetProperty(ref _resultD, value); }
         public string ResultE { get => _resultE; set => SetProperty(ref _resultE, value); }
-        public string ResultF { get => _resultF; set => SetProperty(ref _resultF, value); }
 
         public string OverallResult { get => _overallResult; set => SetProperty(ref _overallResult, value); }
         public string LastTestTime { get => _lastTestTime; set => SetProperty(ref _lastTestTime, value); }
@@ -320,35 +315,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     await ActivateRelayWithTimeoutAsync(token);
                     if (token.IsCancellationRequested) return;
 
-                    AddLog("步骤3: 测量 28V_IN 对地阻抗");
+                    AddLog("步骤3: 测量 28V_DC_BUS1 对地阻抗");
                     await MeasureImpedanceWithTimeoutAsync("A", token);
                     if (token.IsCancellationRequested) return;
 
-                    AddLog("步骤4: 测量 +15V 对地阻抗");
+                    AddLog("步骤4: 测量 28V_DC_BUS2 对地阻抗");
                     await MeasureImpedanceWithTimeoutAsync("B", token);
                     if (token.IsCancellationRequested) return;
 
-                    AddLog("步骤5: 测量 -15V 对地阻抗");
+                    AddLog("步骤5: 测量 +18V 对地阻抗");
                     await MeasureImpedanceWithTimeoutAsync("C", token);
                     if (token.IsCancellationRequested) return;
 
-                    AddLog("步骤6: 测量 5V 对地阻抗");
+                    AddLog("步骤6: 测量 +5V 对地阻抗");
                     await MeasureImpedanceWithTimeoutAsync("D", token);
                     if (token.IsCancellationRequested) return;
 
-                    AddLog("步骤7: 测量 3.3V 对地阻抗");
+                    AddLog("步骤7: 测量 +3.3V 对地阻抗");
                     await MeasureImpedanceWithTimeoutAsync("E", token);
                     if (token.IsCancellationRequested) return;
 
-                    AddLog("步骤8: 测量 1.5V 对地阻抗");
-                    await MeasureImpedanceWithTimeoutAsync("F", token);
-                    if (token.IsCancellationRequested) return;
-
                     EvaluateOverallResult();
-                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
                     AddLog($"自动测试完成，综合结果: {OverallResult}");
 
-                    AddLog("步骤9: 复位硬件设备...");
+                    AddLog("步骤8: 复位硬件设备...");
                     await ResetHardwareAsync(CancellationToken.None);
                 }
                 catch (OperationCanceledException)
@@ -614,16 +605,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const string MatrixIpAddress = "192.168.1.3";
 
         private const int MatrixSlotSig = 6;
-        private const int MatrixSlotDmm = 4;
+        private const int MatrixSlotDmm =4;
 
-        private static readonly (string In, string Out, int Slot) MatrixDmmH = ("I4", "O2", MatrixSlotDmm);
+        private const int MatrixSlotSigDe = 9;
+
+        private static readonly (string In, string Out, int Slot) MatrixDmmH_ABC = ("I4", "O2", MatrixSlotDmm);
+        private static readonly (string In, string Out, int Slot) MatrixDmmH_DE = ("I4", "O7", MatrixSlotDmm);
 
         private static readonly (string In, string Out, int Slot) MatrixPointA1 = ("I1", "O8", MatrixSlotSig);
         private static readonly (string In, string Out, int Slot) MatrixPointB1 = ("I1", "O9", MatrixSlotSig);
         private static readonly (string In, string Out, int Slot) MatrixPointC1 = ("I1", "O10", MatrixSlotSig);
-        private static readonly (string In, string Out, int Slot) MatrixPointD1 = ("I1", "O11", MatrixSlotSig);
-        private static readonly (string In, string Out, int Slot) MatrixPointE1 = ("I1", "O12", MatrixSlotSig);
-        private static readonly (string In, string Out, int Slot) MatrixPointF1 = ("I1", "O13", MatrixSlotSig);
+        private static readonly (string In, string Out, int Slot) MatrixPointD1 = ("I0", "O0", MatrixSlotSigDe);
+        private static readonly (string In, string Out, int Slot) MatrixPointE1 = ("I0", "O1", MatrixSlotSigDe);
 
         private string GetDmmIpAddress() => DmmIpAddress;
 
@@ -654,13 +647,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             var matrix = MatrixControlService.Instance;
             await Task.Delay(500);
-            try { await matrix.DisconnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress); } catch { }
+            try { await matrix.DisconnectNodesAsync(MatrixDmmH_ABC.In, MatrixDmmH_ABC.Out, MatrixDmmH_ABC.Slot, MatrixIpAddress); } catch { }
+            try { await matrix.DisconnectNodesAsync(MatrixDmmH_DE.In, MatrixDmmH_DE.Out, MatrixDmmH_DE.Slot, MatrixIpAddress); } catch { }
             try { await matrix.DisconnectNodesAsync(MatrixPointA1.In, MatrixPointA1.Out, MatrixPointA1.Slot, MatrixIpAddress); } catch { }
             try { await matrix.DisconnectNodesAsync(MatrixPointB1.In, MatrixPointB1.Out, MatrixPointB1.Slot, MatrixIpAddress); } catch { }
             try { await matrix.DisconnectNodesAsync(MatrixPointC1.In, MatrixPointC1.Out, MatrixPointC1.Slot, MatrixIpAddress); } catch { }
             try { await matrix.DisconnectNodesAsync(MatrixPointD1.In, MatrixPointD1.Out, MatrixPointD1.Slot, MatrixIpAddress); } catch { }
             try { await matrix.DisconnectNodesAsync(MatrixPointE1.In, MatrixPointE1.Out, MatrixPointE1.Slot, MatrixIpAddress); } catch { }
-            try { await matrix.DisconnectNodesAsync(MatrixPointF1.In, MatrixPointF1.Out, MatrixPointF1.Slot, MatrixIpAddress); } catch { }
         }
 
         private async Task PowerOnRelaySupplyWithTimeoutAsync(CancellationToken token)
@@ -883,14 +876,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             ImpedanceC = null;
             ImpedanceD = null;
             ImpedanceE = null;
-            ImpedanceF = null;
 
             ResultA = "--";
             ResultB = "--";
             ResultC = "--";
             ResultD = "--";
             ResultE = "--";
-            ResultF = "--";
 
             OverallResult = "--";
         }
@@ -902,12 +893,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 var pointName = point switch
                 {
-                    "A" => "28V_IN（J1/J2/J3 - J37/J38/J39）",
-                    "B" => "+15V（J24/J25 - J22/J23）",
-                    "C" => "-15V（J61/J62 - J59/J60）",
-                    "D" => "5V（J95/J96 - J93/J94）",
-                    "E" => "3.3V（J63/J64 - J93/J94）",
-                    "F" => "1.5V（J97/J98 - J93/J94）",
+                    "A" => "28V_DC_BUS1（J189/J190/J126/J127 - J128/J129/J191/J192）",
+                    "B" => "28V_DC_BUS2（J3/J4/J65/J66 - J5/J6/J67/J68）",
+                    "C" => "+18V（J91/J102 - J90/J103）",
+                    "D" => "+5V（J28/J39 - J27/J40）",
+                    "E" => "+3.3V（J155/J154/J162/J163 - J152/J165）",
                     _ => point
                 };
 
@@ -925,7 +915,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         case "C": ImpedanceC = impedance; ResultC = result; break;
                         case "D": ImpedanceD = impedance; ResultD = result; break;
                         case "E": ImpedanceE = impedance; ResultE = result; break;
-                        case "F": ImpedanceF = impedance; ResultF = result; break;
                     }
                 });
 
@@ -934,9 +923,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (IsManualTestRunning)
                 {
                     EvaluateOverallResult();
-                    if (new[] { ResultA, ResultB, ResultC, ResultD, ResultE, ResultF }.All(r => r != "--"))
+                    if (new[] { ResultA, ResultB, ResultC, ResultD, ResultE }.All(r => r != "--"))
                     {
-                        LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                        LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
                         AddLog($"所有测试点测量完成，综合结果: {OverallResult}");
                     }
                 }
@@ -956,11 +945,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                if (new[] { ResultA, ResultB, ResultC, ResultD, ResultE, ResultF }.All(r => r == "PASS"))
+                if (new[] { ResultA, ResultB, ResultC, ResultD, ResultE }.All(r => r == "PASS"))
                 {
                     OverallResult = "PASS";
                 }
-                else if (new[] { ResultA, ResultB, ResultC, ResultD, ResultE, ResultF }.Any(r => r == "FAIL"))
+                else if (new[] { ResultA, ResultB, ResultC, ResultD, ResultE }.Any(r => r == "FAIL"))
                 {
                     OverallResult = "FAIL";
                 }
@@ -988,15 +977,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     "C" => MatrixPointC1,
                     "D" => MatrixPointD1,
                     "E" => MatrixPointE1,
-                    "F" => MatrixPointF1,
                     _ => MatrixPointA1
                 };
 
-                var okDmm = await matrix.ConnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress);
+                (string In, string Out, int Slot) dmmH = point switch
+                {
+                    "A" => MatrixDmmH_ABC,
+                    "B" => MatrixDmmH_ABC,
+                    "C" => MatrixDmmH_ABC,
+                    "D" => MatrixDmmH_DE,
+                    "E" => MatrixDmmH_DE,
+                    _ => MatrixDmmH_ABC
+                };
+
+                var okDmm = await matrix.ConnectNodesAsync(dmmH.In, dmmH.Out, dmmH.Slot, MatrixIpAddress);
                 var ok1 = await matrix.ConnectNodesAsync(c1.In, c1.Out, c1.Slot, MatrixIpAddress);
                 await Task.Delay(1000, token);
 
-                AddLog($"矩阵连接 {(okDmm && ok1 ? "OK" : "FAIL")} - DMM:{MatrixDmmH.In}-{MatrixDmmH.Out}(slot{MatrixDmmH.Slot}), {c1.In}-{c1.Out}(slot{c1.Slot})");
+                AddLog($"矩阵连接 {(okDmm && ok1 ? "OK" : "FAIL")} - DMM:{dmmH.In}-{dmmH.Out}(slot{dmmH.Slot}), {c1.In}-{c1.Out}(slot{c1.Slot})");
 
                 if (!okDmm || !ok1)
                 {
@@ -1052,7 +1050,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 MeasureCCommand?.RaiseCanExecuteChanged();
                 MeasureDCommand?.RaiseCanExecuteChanged();
                 MeasureECommand?.RaiseCanExecuteChanged();
-                MeasureFCommand?.RaiseCanExecuteChanged();
             });
         }
 
