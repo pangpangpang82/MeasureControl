@@ -183,6 +183,7 @@
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
+                                        IsEnabled="False"
                                         ItemsSource="{StaticResource Arinc429Channels}"
                                         SelectedItem="{Binding EnterAtpTxChannelDisplay, Mode=TwoWay}" />
                                 </StackPanel>
@@ -193,6 +194,7 @@
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
+                                        IsEnabled="False"
                                         ItemsSource="{StaticResource Arinc429Channels}"
                                         SelectedItem="{Binding EnterAtpRxChannelDisplay, Mode=TwoWay}" />
                                 </StackPanel>
@@ -247,6 +249,7 @@
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
+                                        IsEnabled="False"
                                         ItemsSource="{StaticResource Arinc429Channels}"
                                         SelectedItem="{Binding TestTxChannelDisplay, Mode=TwoWay}" />
                                 </StackPanel>
@@ -257,6 +260,7 @@
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
+                                        IsEnabled="False"
                                         ItemsSource="{StaticResource Arinc429Channels}"
                                         SelectedItem="{Binding TestRxChannelDisplay, Mode=TwoWay}" />
                                 </StackPanel>
@@ -311,6 +315,7 @@
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
+                                        IsEnabled="False"
                                         ItemsSource="{StaticResource Arinc429Channels}"
                                         SelectedItem="{Binding TestTxChannelDisplay, Mode=TwoWay}" />
                                 </StackPanel>
@@ -321,6 +326,7 @@
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
+                                        IsEnabled="False"
                                         ItemsSource="{StaticResource Arinc429Channels}"
                                         SelectedItem="{Binding TestRxChannelDisplay, Mode=TwoWay}" />
                                 </StackPanel>
@@ -375,6 +381,7 @@
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
+                                        IsEnabled="False"
                                         ItemsSource="{StaticResource Arinc429Channels}"
                                         SelectedItem="{Binding TestTxChannelDisplay, Mode=TwoWay}" />
                                 </StackPanel>
@@ -385,6 +392,7 @@
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
+                                        IsEnabled="False"
                                         ItemsSource="{StaticResource Arinc429Channels}"
                                         SelectedItem="{Binding TestRxChannelDisplay, Mode=TwoWay}" />
                                 </StackPanel>
@@ -439,6 +447,7 @@
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
+                                        IsEnabled="False"
                                         ItemsSource="{StaticResource Arinc429Channels}"
                                         SelectedItem="{Binding TestTxChannelDisplay, Mode=TwoWay}" />
                                 </StackPanel>
@@ -449,6 +458,7 @@
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
+                                        IsEnabled="False"
                                         ItemsSource="{StaticResource Arinc429Channels}"
                                         SelectedItem="{Binding TestRxChannelDisplay, Mode=TwoWay}" />
                                 </StackPanel>
@@ -503,6 +513,7 @@
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
+                                        IsEnabled="False"
                                         ItemsSource="{StaticResource Arinc429Channels}"
                                         SelectedItem="{Binding ExitAtpTxChannelDisplay, Mode=TwoWay}" />
                                 </StackPanel>
@@ -513,6 +524,7 @@
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
+                                        IsEnabled="False"
                                         ItemsSource="{StaticResource Arinc429Channels}"
                                         SelectedItem="{Binding ExitAtpRxChannelDisplay, Mode=TwoWay}" />
                                 </StackPanel>
