@@ -17,6 +17,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public sealed class A_C_6_18_1_1ViewModel : BindableBase, IDisposable
     {
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
@@ -87,8 +90,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public A_C_6_18_1_1ViewModel()
         {
-            _testTxChannel = "429_CH0";
-            _testRxChannel = "429_CH2";
+            _testTxChannel = FixedTxChannel;
+            _testRxChannel = FixedRxChannel;
 
             _enterAtpTxChannel = _testTxChannel;
             _enterAtpRxChannel = _testRxChannel;
@@ -149,37 +152,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string TestTxChannel
         {
             get => _testTxChannel;
-            set => SetProperty(ref _testTxChannel, value);
         }
 
         public string TestRxChannel
         {
             get => _testRxChannel;
-            set => SetProperty(ref _testRxChannel, value);
         }
 
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
         }
 
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
         }
 
         public double ArincRate

@@ -16,6 +16,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public sealed class A_C_6_15_1_2ViewModel : BindableBase, IDisposable
     {
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
@@ -40,8 +43,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool _matrixHighRouted;
         private bool _matrixLowRouted;
 
-        private string _testTxChannel = "CH0";
-        private string _testRxChannel = "CH2";
+        private readonly string _testTxChannel;
+        private readonly string _testRxChannel;
         private double _arincRate = 100000.0;
 
         private string _dmmIpAddress = "192.168.1.13";
@@ -66,6 +69,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public A_C_6_15_1_2ViewModel()
         {
+            _testTxChannel = FixedTxChannel;
+            _testRxChannel = FixedRxChannel;
+
             ManualTestCommand = new DelegateCommand(OnManualTest);
             AutoTestCommand = new DelegateCommand(OnAutoTest);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
@@ -91,13 +97,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string TestTxChannel
         {
             get => _testTxChannel;
-            set => SetProperty(ref _testTxChannel, value);
         }
 
         public string TestRxChannel
         {
             get => _testRxChannel;
-            set => SetProperty(ref _testRxChannel, value);
         }
 
         public double ArincRate

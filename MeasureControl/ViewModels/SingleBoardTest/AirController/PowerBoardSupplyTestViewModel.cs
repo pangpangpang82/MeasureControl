@@ -140,19 +140,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
         }
 
         public string CommandTxChannel
         {
             get => _commandTxChannel;
-            set => SetProperty(ref _commandTxChannel, value);
         }
 
         public string DmmChannel
@@ -164,19 +161,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string TelemetryRxChannel
         {
             get => _telemetryRxChannel;
-            set => SetProperty(ref _telemetryRxChannel, value);
         }
 
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
         }
 
         public string DmmVoltageText

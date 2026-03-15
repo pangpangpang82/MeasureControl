@@ -28,6 +28,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] Pwm50Command8 = { 0x21, 0x04, 0x04, 0x02, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] Pwm0Command8 = { 0x21, 0x04, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private readonly A_C_6_15_2_1Simulation _simulation = new A_C_6_15_2_1Simulation();
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
@@ -44,8 +47,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private CancellationTokenSource _autoTestCts;
 
-        private string _testTxChannel = "CH0";
-        private string _testRxChannel = "CH2";
+        private string _testTxChannel = FixedTxChannel;
+        private string _testRxChannel = FixedRxChannel;
 
         private string _oscilloscopeIpAddress = "192.168.1.18";
         private string _frequencyCounterIpAddress = "192.168.1.14";
@@ -283,6 +286,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _previousTestResult, value);
         }
 
+        private void EnsureManualArincChannels()
+        {
+            TestTxChannel = FixedTxChannel;
+            TestRxChannel = FixedRxChannel;
+        }
+
         private void OnManualTest()
         {
             if (IsManualTestRunning)
@@ -312,6 +321,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsBusy)
                     return;
+
+                EnsureManualArincChannels();
 
                 IsBusy = true;
                 try
@@ -391,6 +402,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsBusy)
                     return;
+
+                EnsureManualArincChannels();
 
                 IsBusy = true;
                 IsAutoTestRunning = true;
