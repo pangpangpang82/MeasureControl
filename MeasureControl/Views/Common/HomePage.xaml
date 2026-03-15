@@ -20,7 +20,10 @@
                         <RowDefinition Height="75*" />
                         <RowDefinition Height="29*" />
                     </Grid.RowDefinitions>
-                    <Grid Height="400" Width="800" Grid.Row="0">
+                    <Grid
+                        Grid.Row="0"
+                        Width="800"
+                        Height="400">
                         <Grid.Background>
                             <ImageBrush ImageSource="/Resources/Logo/Mainwindow.jpg" Stretch="Fill" />
                         </Grid.Background>

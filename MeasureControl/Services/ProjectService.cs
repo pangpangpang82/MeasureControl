@@ -18,6 +18,18 @@ namespace MeasureControl.Services
 
     public class ProjectService
     {
+        private static readonly string[] HydraulicSingleBoardTestItems =
+        {
+            "电源阻抗测试",
+            "二次电源测试",
+            "温度采集测试",
+            "压力传感器信号采集测试",
+            "压差传感器信号采集测试",
+            "油量传感器信号采集测试",
+            "离散量采集测试",
+            "离散量输出测试"
+        };
+
         public string LastMatrixSwitchTestTaskName { get; private set; }
         public string LastMatrixSwitchConfigTableName { get; private set; }
         public string LastMatrixSwitchChassisName { get; private set; }
@@ -199,7 +211,14 @@ namespace MeasureControl.Services
                     Name = "液压单板",
                     Icon = AppConstants.IconTasks,
                     Type = AppConstants.NodeTypeTestTask,
-                    Tag = "液压单板"
+                    Tag = "液压单板",
+                    Children = new ObservableCollection<ProjectItem>(HydraulicSingleBoardTestItems.Select(name => new ProjectItem
+                    {
+                        Name = name,
+                        Icon = AppConstants.IconTasks,
+                        Type = "single_board_test_item",
+                        Tag = "SingleBoardTestItem"
+                    }))
                 });
 
                 Debug.WriteLine($"[Project] Adding children to rootNode...");
@@ -506,23 +525,23 @@ namespace MeasureControl.Services
                         Slots = new List<FixedSlotTemplate>
                         {
                             new FixedSlotTemplate { Slot = "Slot1", Device = "凌华 PXIe-3987" },
-                            new FixedSlotTemplate { Slot = "Slot2", Device = "简仪 PXIe-7131" },
-                            new FixedSlotTemplate { Slot = "Slot3", Device = "阿尔泰 PXI-7012" },
-                            new FixedSlotTemplate { Slot = "Slot4", Device = "阿尔泰 PXI-7012" },
-                            new FixedSlotTemplate { Slot = "Slot5", Device = "欧开 PXI-4087C" },
-                            new FixedSlotTemplate { Slot = "Slot6", Device = "欧开 PXI-4087C" },
-                            new FixedSlotTemplate { Slot = "Slot7", Device = "欧开 PXI-4087A" },
-                            new FixedSlotTemplate { Slot = "Slot8", Device = "阿尔泰 PXIe-9774" },
-                            new FixedSlotTemplate { Slot = "Slot9", Device = "芒果树 MT-X532" },
-                            new FixedSlotTemplate { Slot = "Slot10", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot11", Device = "阿尔泰 PXIe-4227" },
-                            new FixedSlotTemplate { Slot = "Slot12", Device = "阿尔泰 PXI-4004" },
+                            new FixedSlotTemplate { Slot = "Slot2", Device = "欧开 PXI-4087A" },
+                            new FixedSlotTemplate { Slot = "Slot3", Device = "欧开 PXI-4087C" },
+                            new FixedSlotTemplate { Slot = "Slot4", Device = "欧开 PXI-4087C" },
+                            new FixedSlotTemplate { Slot = "Slot5", Device = "阿尔泰 PXI-7012" },
+                            new FixedSlotTemplate { Slot = "Slot6", Device = "阿尔泰 PXI-7012" },
+                            new FixedSlotTemplate { Slot = "Slot7", Device = "芒果树 MT-X532" },
+                            new FixedSlotTemplate { Slot = "Slot8", Device = "阿尔泰 PXIe-4227" },
+                            new FixedSlotTemplate { Slot = "Slot9", Device = "阿尔泰 PXIe-9774" },
+                            new FixedSlotTemplate { Slot = "Slot10", Device = "盲板" },
+                            new FixedSlotTemplate { Slot = "Slot11", Device = "阿尔泰 PXI-4004" },
+                            new FixedSlotTemplate { Slot = "Slot12", Device = "简仪 PXIe-7131" },
                             new FixedSlotTemplate { Slot = "Slot13", Device = "芒果树 MT-X970" },
                             new FixedSlotTemplate { Slot = "Slot14", Device = "阿尔泰 PXI-4332" },
                             new FixedSlotTemplate { Slot = "Slot15", Device = "怀智 HZ-MIL1394B-PX1e-4N" },
-                            new FixedSlotTemplate { Slot = "Slot16", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot17", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot18", Device = "空槽" }
+                            new FixedSlotTemplate { Slot = "Slot16", Device = "盲板" },
+                            new FixedSlotTemplate { Slot = "Slot17", Device = "盲板" },
+                            new FixedSlotTemplate { Slot = "Slot18", Device = "盲板" }
                         }
                     },
                     new FixedChassisTemplate
@@ -533,15 +552,15 @@ namespace MeasureControl.Services
                         GridColumn = 1,
                         Slots = new List<FixedSlotTemplate>
                         {
-                            new FixedSlotTemplate { Slot = "Slot1", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot2", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot3", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot4", Device = "空槽" },
+                            new FixedSlotTemplate { Slot = "Slot1", Device = "凌华 PXIe-3987" },
+                            new FixedSlotTemplate { Slot = "Slot2", Device = "阿尔泰 PXI-3022" },
+                            new FixedSlotTemplate { Slot = "Slot3", Device = "阿尔泰 PXI-3022" },
+                            new FixedSlotTemplate { Slot = "Slot4", Device = "阿尔泰 PXI-2601" },
                             new FixedSlotTemplate { Slot = "Slot5", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot6", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot7", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot8", Device = "空槽" },
-                            new FixedSlotTemplate { Slot = "Slot9", Device = "空槽" }
+                            new FixedSlotTemplate { Slot = "Slot6", Device = "阿尔泰 PXI-2601" },
+                            new FixedSlotTemplate { Slot = "Slot7", Device = "阿尔泰 PXI-2601" },
+                            new FixedSlotTemplate { Slot = "Slot8", Device = "阿尔泰 PXI-2601" },
+                            new FixedSlotTemplate { Slot = "Slot9", Device = "阿尔泰 PXI-2601" }
                         }
                     }
                 }

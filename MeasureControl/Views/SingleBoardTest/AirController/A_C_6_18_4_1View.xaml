@@ -291,14 +291,14 @@
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="AliceBlue"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="AliceBlue"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
                                     Text="0x00 01 00 01 00 00 00 00" />
                             </Border>
@@ -343,7 +343,10 @@
                             </Button>
                         </StackPanel>
 
-                        <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
+                        <StackPanel
+                            Grid.Row="1"
+                            Margin="115,5,5,5"
+                            Orientation="Horizontal">
                             <TextBlock
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
@@ -370,14 +373,14 @@
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="AliceBlue"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="AliceBlue"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
                                     Text="{Binding EnterAtpRxDataText}" />
                             </Border>
@@ -421,14 +424,14 @@
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="AliceBlue"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="AliceBlue"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
                                     Text="0x23 04 01 01 00 00 00 00" />
                             </Border>
@@ -531,14 +534,14 @@
                                 Height="28"
                                 Margin="12,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="LightYellow"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="LightYellow"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
                                     Text="{Binding J174VoltageText}" />
                             </Border>
@@ -583,14 +586,14 @@
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="AliceBlue"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="AliceBlue"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
                                     Text="0x00 02 00 01 00 00 00 01" />
                             </Border>
@@ -635,7 +638,10 @@
                             </Button>
                         </StackPanel>
 
-                        <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
+                        <StackPanel
+                            Grid.Row="1"
+                            Margin="115,5,5,5"
+                            Orientation="Horizontal">
                             <TextBlock
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
@@ -662,14 +668,14 @@
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="AliceBlue"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="AliceBlue"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
                                     Text="{Binding ExitAtpRxDataText}" />
                             </Border>
@@ -730,9 +736,9 @@
                         Grid.Row="1"
                         Grid.RowSpan="4"
                         Grid.Column="1"
-                        Margin="0,0,5,0"
                         Width="350"
                         Height="350"
+                        Margin="0,0,5,0"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         BorderBrush="#D9D9D9"
