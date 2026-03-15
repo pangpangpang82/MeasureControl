@@ -12,8 +12,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
     public class A28vOc100mADiscreteOutputCh2TestViewModel : BindableBase
     {
         private const byte DefaultLabel = 0x6A;
-        private const string FixedTxChannelDisplay = "CH0";
-        private const string FixedRxChannelDisplay = "CH2";
+        private const string FixedTxChannelDisplay = "429_CH0";
+        private const string FixedRxChannelDisplay = "429_CH2";
 
         private static readonly byte[] EnterAtpCommand = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
@@ -124,7 +124,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             set => SetProperty(ref _exitAtpRxChannelDisplay, FixedRxChannelDisplay);
         }
 
-        private static string ToSimChannel(string display) => display?.Replace("CH", "429_CH") ?? "429_CH0";
+        private static string ToSimChannel(string display)
+        {
+            if (string.IsNullOrWhiteSpace(display))
+                return "429_CH0";
+            var trimmed = display.Trim();
+            if (trimmed.StartsWith("429_CH", StringComparison.OrdinalIgnoreCase))
+                return trimmed;
+            return trimmed.Replace("CH", "429_CH");
+        }
 
         public string EnterAtpRxDataText
         {

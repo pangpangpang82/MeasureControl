@@ -29,6 +29,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] OfvtrvFingerTelemetryPrefix4 = { 0x07, 0x05, 0x01, 0x02 };
 
         private const string AoChannel = "AO1";
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
 
         private readonly A_C_6_12_1_1Simulation _simulation = new A_C_6_12_1_1Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
@@ -75,8 +77,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public A_C_6_12_1_1ViewModel()
         {
-            _testTxChannel = "CH0";
-            _testRxChannel = "CH2";
+            _testTxChannel = FixedTxChannel;
+            _testRxChannel = FixedRxChannel;
 
             // 固定通道显示/使用（与 6.13.2 一致：界面下拉框禁用，仅做固定展示）
             _enterAtpTxChannel = _testTxChannel;
@@ -135,38 +137,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public string TestTxChannel
         {
-            get => _testTxChannel;
-            set => SetProperty(ref _testTxChannel, value);
+            get => FixedTxChannel;
         }
 
         public string TestRxChannel
         {
-            get => _testRxChannel;
-            set => SetProperty(ref _testRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public string EnterAtpTxChannel
         {
-            get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
+            get => FixedTxChannel;
         }
 
         public string EnterAtpRxChannel
         {
-            get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public string ExitAtpTxChannel
         {
-            get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
+            get => FixedTxChannel;
         }
 
         public string ExitAtpRxChannel
         {
-            get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public string EnterAtpRxDataText
@@ -219,14 +215,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public string FingerTestTxChannel
         {
-            get => _fingerTestTxChannel;
-            set => SetProperty(ref _fingerTestTxChannel, value);
+            get => FixedTxChannel;
         }
 
         public string FingerTelemetryRxChannel
         {
-            get => _fingerTelemetryRxChannel;
-            set => SetProperty(ref _fingerTelemetryRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public string FingerTelemetryValueText
@@ -1007,22 +1001,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private void EnsureManualArincChannels()
         {
-            var tx = FirstNonEmpty(EnterAtpTxChannel, ExitAtpTxChannel, FingerTestTxChannel, TestTxChannel);
-            var rx = FirstNonEmpty(EnterAtpRxChannel, ExitAtpRxChannel, FingerTelemetryRxChannel, TestRxChannel);
-
-            tx ??= "CH0";
-            rx ??= "CH2";
-
-            TestTxChannel = tx;
-            TestRxChannel = rx;
-
-            EnterAtpTxChannel ??= tx;
-            EnterAtpRxChannel ??= rx;
-            ExitAtpTxChannel ??= tx;
-            ExitAtpRxChannel ??= rx;
-
-            FingerTestTxChannel ??= tx;
-            FingerTelemetryRxChannel ??= rx;
         }
 
         private static string FirstNonEmpty(params string[] values)

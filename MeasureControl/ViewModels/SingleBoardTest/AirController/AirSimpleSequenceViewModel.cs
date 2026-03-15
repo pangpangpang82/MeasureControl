@@ -69,12 +69,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public AirSimpleSequenceViewModel()
         {
-            _enterAtpTxChannel = "429_CH0";
-            _enterAtpRxChannel = "429_CH1";
-            _setVoltageTxChannel = "429_CH2";
-            _telemetryRxChannel = "429_CH4";
-            _exitAtpTxChannel = "429_CH5";
-            _exitAtpRxChannel = "429_CH6";
+            _enterAtpTxChannel = FixedTxChannel;
+            _enterAtpRxChannel = FixedRxChannel;
+            _setVoltageTxChannel = FixedTxChannel;
+            _telemetryRxChannel = FixedRxChannel;
+            _exitAtpTxChannel = FixedTxChannel;
+            _exitAtpRxChannel = FixedRxChannel;
             _dmmChannel = "Port1";
 
             DmmVoltageText = "--";
@@ -133,19 +133,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, IsFixedArincChannels ? FixedTxChannel : value);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, IsFixedArincChannels ? FixedRxChannel : value);
         }
 
         public string SetVoltageTxChannel
         {
             get => _setVoltageTxChannel;
-            set => SetProperty(ref _setVoltageTxChannel, IsFixedArincChannels ? FixedTxChannel : value);
         }
 
         public string DmmChannel
@@ -157,38 +154,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string TelemetryRxChannel
         {
             get => _telemetryRxChannel;
-            set => SetProperty(ref _telemetryRxChannel, IsFixedArincChannels ? FixedRxChannel : value);
         }
 
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, IsFixedArincChannels ? FixedTxChannel : value);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, IsFixedArincChannels ? FixedRxChannel : value);
         }
 
         private void ApplyFixedArincChannelPolicy()
         {
-            var fixedMode = !string.IsNullOrWhiteSpace(Title) &&
-                            Title.IndexOf("6.2.1", StringComparison.OrdinalIgnoreCase) >= 0;
-
-            IsFixedArincChannels = fixedMode;
-
-            if (!fixedMode)
-                return;
+            IsFixedArincChannels = true;
 
             // Force all TX/RX used by this sequence to the fixed channels.
-            EnterAtpTxChannel = FixedTxChannel;
-            EnterAtpRxChannel = FixedRxChannel;
-            SetVoltageTxChannel = FixedTxChannel;
-            TelemetryRxChannel = FixedRxChannel;
-            ExitAtpTxChannel = FixedTxChannel;
-            ExitAtpRxChannel = FixedRxChannel;
+            SetProperty(ref _enterAtpTxChannel, FixedTxChannel);
+            SetProperty(ref _enterAtpRxChannel, FixedRxChannel);
+            SetProperty(ref _setVoltageTxChannel, FixedTxChannel);
+            SetProperty(ref _telemetryRxChannel, FixedRxChannel);
+            SetProperty(ref _exitAtpTxChannel, FixedTxChannel);
+            SetProperty(ref _exitAtpRxChannel, FixedRxChannel);
         }
 
         public string DmmVoltageText
