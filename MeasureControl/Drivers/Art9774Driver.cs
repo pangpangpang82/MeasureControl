@@ -31,8 +31,8 @@ namespace MeasureControl.Drivers
         private bool _isConnected;
         private bool _isAcquisitionRunning;
         private IntPtr _taskHandle = IntPtr.Zero;
-        //private string _deviceName = "Dev3"; // 加放油
-        private string _deviceName = "Dev1"; // 液压
+        private string _deviceName = "Dev2"; // 第一套
+        //private string _deviceName = "Dev1"; // 第二套
         //private string _deviceName = "Dev2"; // 第三套
         private Task _acquisitionTask;
         private CancellationTokenSource _acquisitionCancellationTokenSource;
@@ -101,21 +101,14 @@ namespace MeasureControl.Drivers
 
         #region 构造函数
 
-        public Art9774Driver(DeviceBase device, string deviceNameOverride = null)
+        public Art9774Driver(DeviceBase device)
         {
             _device = device ?? throw new ArgumentNullException(nameof(device));
             _isConnected = false;
             _isAcquisitionRunning = false;
 
-            if (!string.IsNullOrWhiteSpace(deviceNameOverride))
-            {
-                _deviceName = deviceNameOverride.Trim();
-            }
-            else
-            {
-                // 从设备名称中提取设备标识（如 "Dev1"）
-                ExtractDeviceName();
-            }
+            // 从设备名称中提取设备标识（如 "Dev1"）
+            ExtractDeviceName();
 
             // 初始化通道配置（32通道）
             InitializeChannels();
@@ -169,91 +162,120 @@ namespace MeasureControl.Drivers
             if (_isConnected)
                 return true;
 
-            try
+            const int maxRetries = 2;
+            const int retryDelayMs = 500;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                Debug.WriteLine("[Art9774Driver] Attempting to connect {DeviceName}, DeviceName={_deviceName}");
-
-                DEVICE_EEP_INFO devInfo = new DEVICE_EEP_INFO();
-                Int32 devInfoErr = ArtDAQ_GetDeviceEEPInfo(_deviceName, ref devInfo);
-                if (devInfoErr != ArtDAQSuccess)
-                {
-                    GetErrorString(devInfoErr);
-                    Debug.WriteLine("[Art9774Driver] Device check failed: {_deviceName}, Err={devInfoErr}");
-                    _isConnected = false;
-                    return false;
-                }
-
-                // 进行一次轻量的创建任务/创建通道自检，尽早发现 CreateTask/CreateChannel/Timing 等错误
-                IntPtr tmpTask = IntPtr.Zero;
-                bool selfTestFailed = false;
                 try
                 {
-                    Int32 err = ArtDAQ_CreateTask("selftest_temp_task", out tmpTask);
-                    if (err < 0)
+                    Debug.WriteLine($"[Art9774Driver] Attempting to connect {DeviceName}, DeviceName={_deviceName}, 尝试 {attempt}/{maxRetries}");
+
+                    DEVICE_EEP_INFO devInfo = new DEVICE_EEP_INFO();
+                    Int32 devInfoErr = ArtDAQ_GetDeviceEEPInfo(_deviceName, ref devInfo);
+                    if (devInfoErr != ArtDAQSuccess)
                     {
-                        GetErrorString(err);
-                        Debug.WriteLine($"[Art9774Driver] Self-test: CreateTask failed: {err}");
-                        selfTestFailed = true;
+                        GetErrorString(devInfoErr);
+                        Debug.WriteLine($"[Art9774Driver] Device check failed: {_deviceName}, Err={devInfoErr}");
+                        _isConnected = false;
+                        
+                        if (attempt < maxRetries)
+                        {
+                            Debug.WriteLine($"[Art9774Driver] 等待 {retryDelayMs}ms 后重试...");
+                            await Task.Delay(retryDelayMs);
+                            continue;
+                        }
+                        return false;
                     }
-                    else
+
+                    // 进行一次轻量的创建任务/创建通道自检，尽早发现 CreateTask/CreateChannel/Timing 等错误
+                    IntPtr tmpTask = IntPtr.Zero;
+                    bool selfTestFailed = false;
+                    try
                     {
-                        // 选择一个默认物理通道进行创建测试（Dev?/ai0）
-                        string physChannel = $"{_deviceName}/ai0";
-                        err = ArtDAQ_CreateAIVoltageChan(tmpTask, physChannel, "", ArtDAQ_Val_Cfg_Default, -10.0, 10.0, ArtDAQ_Val_Volts, null);
+                        Int32 err = ArtDAQ_CreateTask("selftest_temp_task", out tmpTask);
                         if (err < 0)
                         {
                             GetErrorString(err);
-                            Debug.WriteLine($"[Art9774Driver] Self-test: CreateAIVoltageChan failed for {physChannel}: {err}");
+                            Debug.WriteLine($"[Art9774Driver] Self-test: CreateTask failed: {err}");
                             selfTestFailed = true;
                         }
                         else
                         {
-                            // 尝试配置时钟（短暂配置用于检测参数兼容性）
-                            err = ArtDAQ_CfgSampClkTiming(tmpTask, "", Math.Max(1000.0, _sampleRate), ArtDAQ_Val_Rising, ArtDAQ_Val_FiniteSamps, 10);
+                            // 选择一个默认物理通道进行创建测试（Dev?/ai0）
+                            string physChannel = $"{_deviceName}/ai0";
+                            err = ArtDAQ_CreateAIVoltageChan(tmpTask, physChannel, "", ArtDAQ_Val_Cfg_Default, -10.0, 10.0, ArtDAQ_Val_Volts, null);
                             if (err < 0)
                             {
                                 GetErrorString(err);
-                                Debug.WriteLine($"[Art9774Driver] Self-test: CfgSampClkTiming failed: {err}");
+                                Debug.WriteLine($"[Art9774Driver] Self-test: CreateAIVoltageChan failed for {physChannel}: {err}");
                                 selfTestFailed = true;
+                            }
+                            else
+                            {
+                                // 尝试配置时钟（短暂配置用于检测参数兼容性）
+                                err = ArtDAQ_CfgSampClkTiming(tmpTask, "", Math.Max(1000.0, _sampleRate), ArtDAQ_Val_Rising, ArtDAQ_Val_FiniteSamps, 10);
+                                if (err < 0)
+                                {
+                                    GetErrorString(err);
+                                    Debug.WriteLine($"[Art9774Driver] Self-test: CfgSampClkTiming failed: {err}");
+                                    selfTestFailed = true;
+                                }
                             }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[Art9774Driver] Self-test exception: {ex.Message}");
+                        selfTestFailed = true;
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            if (tmpTask != IntPtr.Zero)
+                            {
+                                ArtDAQ_ClearTask(tmpTask);
+                                tmpTask = IntPtr.Zero;
+                            }
+                        }
+                        catch { }
+                    }
+
+                    if (selfTestFailed)
+                    {
+                        Debug.WriteLine($"[Art9774Driver] Self-test failed (尝试 {attempt}/{maxRetries})");
+                        _isConnected = false;
+                        
+                        if (attempt < maxRetries)
+                        {
+                            Debug.WriteLine($"[Art9774Driver] 等待 {retryDelayMs}ms 后重试...");
+                            await Task.Delay(retryDelayMs);
+                            continue;
+                        }
+                        return false;
+                    }
+
+                    _isConnected = true;
+                    await Task.Delay(100); // 增加稳定延时
+                    Debug.WriteLine($"[Art9774Driver] 连接成功");
+                    return true;
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[Art9774Driver] Self-test exception: {ex.Message}");
-                    selfTestFailed = true;
-                }
-                finally
-                {
-                    try
-                    {
-                        if (tmpTask != IntPtr.Zero)
-                        {
-                            ArtDAQ_ClearTask(tmpTask);
-                            tmpTask = IntPtr.Zero;
-                        }
-                    }
-                    catch { }
-                }
-
-                if (selfTestFailed)
-                {
-                    Debug.WriteLine("[Art9774Driver] Self-test failed, ConnectAsync will return false.");
+                    Debug.WriteLine($"[Art9774Driver] Connect exception (尝试 {attempt}/{maxRetries}): {ex.Message}");
                     _isConnected = false;
-                    return false;
+                    
+                    if (attempt < maxRetries)
+                    {
+                        Debug.WriteLine($"[Art9774Driver] 等待 {retryDelayMs}ms 后重试...");
+                        await Task.Delay(retryDelayMs);
+                    }
                 }
+            }
 
-                _isConnected = true;
-                await Task.Delay(50);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[Art9774Driver] Connect exception: {ex.Message}");
-                _isConnected = false;
-                return false;
-            }
+            Debug.WriteLine($"[Art9774Driver] 连接失败，已重试 {maxRetries} 次");
+            return false;
         }
 
         public async Task<bool> DisconnectAsync()

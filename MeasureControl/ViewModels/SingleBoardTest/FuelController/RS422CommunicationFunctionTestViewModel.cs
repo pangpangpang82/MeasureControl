@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO.Ports;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
@@ -23,6 +24,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private static readonly byte[] DefaultTxData = { 0xAA, 0x55 };
 
+        // FPGA透传命令帧：AA 55 03 01 AA 55（命令0x01=UART0 TX透传，数据=AA 55）
+        private static readonly byte[] FpgaTxFrameUart0 = { 0xAA, 0x55, 0x03, 0x01, 0xAA, 0x55 };
+        // FPGA透传命令帧：AA 55 03 02 AA 55（命令0x02=UART1 TX透传，数据=AA 55）
+        private static readonly byte[] FpgaTxFrameUart1 = { 0xAA, 0x55, 0x03, 0x02, 0xAA, 0x55 };
+
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
         private readonly ProjectService _projectService;
         private readonly IEventAggregator _eventAggregator;
@@ -38,8 +44,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isBusy;
         private FpgaIoClient _fpga;
         private bool _fpgaConnected;
+        private Rs422SerialClient _serial1; // COM14 - 第1路422串口
+        private Rs422SerialClient _serial2; // COM15 - 第2路422串口
+        private bool _serial1Connected;
+        private bool _serial2Connected;
         private bool _isPowerOn;
         private string _powerStatus = "未上电";
+
+        private bool _rs422LoopModeEnabled;
+        private bool _rs422LoopModeInitialized;
 
         private string _stepAResult = "--";
         private string _stepBResult = "--";
@@ -88,7 +101,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
-            LoadPersistedState();
+            //LoadPersistedState();
             _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
         }
 
@@ -393,15 +406,57 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     _fpgaConnected = true;
                     AddLog("FPGA连接成功");
 
-                    // IO11=MUX1(bit0)=1: 外部通信模式，MUX2=0
-                    // MUX1=1 → RS422信号路由到J1外部接口
-                    await _fpga.WriteGpioAsync(0x00000001u, token);
-                    AddLog("[FPGA] MUX1=1已设置（RS422外部通信模式）");
+                    try
+                    {
+                        AddLog("正在初始化HI8435...");
+                        await _fpga.InitHi8435AfterConnectAsync(token);
+                        AddLog("HI8435初始化完成");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"HI8435初始化失败: {ex.Message}");
+                    }
+
+                    //开启422回环模式
+                    await EnsureRs422LoopModeAsync(true, token);
+
+                    // 启动异步接收功能
+                    _fpga.StartAsyncReceive(AddLog);
                 }
                 catch (Exception ex)
                 {
                     AddLog($"FPGA连接失败: {ex.Message}，将使用仿真模式");
                     _fpgaConnected = false;
+                }
+
+                // 连接422串口（COM14 - 第1路，COM15 - 第2路）
+                AddLog("正在连接422串口...");
+                try
+                {
+                    _serial1 = new Rs422SerialClient(Rs422SerialClient.DefaultPortName1);
+                    _serial1.Open();
+                    _serial1.StartAsyncReceive(AddLog);
+                    _serial1Connected = true;
+                    AddLog($"422串口 {Rs422SerialClient.DefaultPortName1} 连接成功");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"422串口 {Rs422SerialClient.DefaultPortName1} 连接失败: {ex.Message}");
+                    _serial1Connected = false;
+                }
+
+                try
+                {
+                    _serial2 = new Rs422SerialClient(Rs422SerialClient.DefaultPortName2);
+                    _serial2.Open();
+                    _serial2.StartAsyncReceive(AddLog);
+                    _serial2Connected = true;
+                    AddLog($"422串口 {Rs422SerialClient.DefaultPortName2} 连接成功");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"422串口 {Rs422SerialClient.DefaultPortName2} 连接失败: {ex.Message}");
+                    _serial2Connected = false;
                 }
 
                 _hardwareInitialized = true;
@@ -419,9 +474,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 if (_fpga != null)
                 {
+                    try
+                    {
+                        try { _fpga.StopAsyncReceive(); } catch { }
+                        await Task.Delay(50, CancellationToken.None);
+
+                        //关闭422回环模式
+                        await EnsureRs422LoopModeAsync(false, token);
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"[FPGA] 关闭MUX失败: {ex.Message}");
+                    }
+
                     try { _fpga.Disconnect(); } catch { }
                     _fpga = null;
                     _fpgaConnected = false;
+                    _rs422LoopModeEnabled = false;
+                    _rs422LoopModeInitialized = false;
+                }
+
+                // 关闭422串口
+                if (_serial1 != null)
+                {
+                    try { _serial1.Close(); } catch { }
+                    _serial1 = null;
+                    _serial1Connected = false;
+                }
+                if (_serial2 != null)
+                {
+                    try { _serial2.Close(); } catch { }
+                    _serial2 = null;
+                    _serial2Connected = false;
                 }
 
                 try { await _componentPowerStateApi.ApplyComponentDownStateAsync(token); } catch { }
@@ -461,33 +545,64 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
         }
 
+        private async Task EnsureRs422LoopModeAsync(bool enable, CancellationToken token)
+        {
+            if (!_fpgaConnected || _fpga == null)
+                return;
+
+            if (_rs422LoopModeInitialized && _rs422LoopModeEnabled == enable)
+                return;
+
+            uint mask = enable ? 0x00000003u : 0x00000000u;                         //小端模式
+            await _fpga.WriteGpioOutputOnlyAsync(mask, token);
+            _rs422LoopModeEnabled = enable;
+            _rs422LoopModeInitialized = true;
+            AddLog(enable
+                ? "[FPGA] 已设置 IO11(MUX1)=1、IO12(MUX2)=1（开启RS422回环模式）"
+                : "[FPGA] 已设置 IO11(MUX1)=0、IO12(MUX2)=0（关闭RS422回环模式）");
+
+            await Task.Delay(50, token);
+        }
+
         private async Task RunStepAAsync(CancellationToken token)
         {
-            // 步骤a: 测试设备通过J15和J16向电源板组件发送0xAA55，并通过CRM_PIN19回读数据
-            // J15/J16 → RS422_TX1+/TX1- → 电源板组件 → RS422_RX1+/RX1- → CRM_PIN19(SCIRXD_1)
-            // 外部通信模式(MUX1=1)：外部设备发送数据，FPGA通过UART0(SCI1)接收
-            // 实际测试中，外部设备（测试设备）通过J15/J16发送，FPGA通过CRM_PIN19接收
-            if (_fpgaConnected && _fpga != null)
+            // 步骤a: 验证产品的接收功能（通道1）
+            // 流程：试验台通过TCP向FPGA发送数据 → FPGA透传给产品 → 产品通过422串口发送给试验台 → 试验台接收后做一致性比对
+            // TCP发送：AA 55 03 01 AA 55（命令0x01=UART0 TX透传，数据=AA 55）
+            // 422串口接收：COM14接收产品回传的数据
+            if (_fpgaConnected && _fpga != null && _serial1Connected && _serial1 != null)
             {
                 try
                 {
-                    AddLog("步骤a: J15/J16发送0xAA55 → CRM_PIN19回读");
-                    AddLog("[FPGA] 等待UART0(SCI1)接收外部数据（CRM_PIN19）...");
-                    // 外部通信模式下，等待外部设备发送的数据
-                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                    cts.CancelAfter(2000); // 2秒超时
-                    var rx = await _fpga.UartRxWaitAsync(0, cts.Token);
-                    AddLog($"[FPGA] UART0(SCI1) 接收: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
-                    SetStepResultAndRx("a", rx);
-                    return;
-                }
-                catch (OperationCanceledException)
-                {
-                    AddLog("[FPGA] UART0接收超时，请确保外部设备已发送数据");
+                    AddLog("步骤a: 通道1收发测试（验证产品接收功能）");
+                    // 清空串口接收缓存
+                    _serial1.ClearReceivedData();
+                    var sendTime = DateTime.UtcNow;
+
+                    // 通过TCP向FPGA发送透传命令
+                    AddLog($"[TCP→FPGA] 发送UART0透传命令: {BitConverter.ToString(FpgaTxFrameUart0).Replace("-", " ")}");
+                    await _fpga.UartTxOnlyAsync(0, DefaultTxData, token);
+
+                    // 等待422串口接收产品回传的数据
+                    AddLog($"[422串口] 等待 {Rs422SerialClient.DefaultPortName1} 接收产品回传数据...");
+                    var rx = await _serial1.WaitForDataAfterAsync(sendTime, DefaultTxData.Length, 3000, token);
+
+                    if (rx != null && rx.Length >= DefaultTxData.Length)
+                    {
+                        AddLog($"[422串口] {Rs422SerialClient.DefaultPortName1} 接收: 0x{BitConverter.ToString(rx).Replace("-", " ")}");
+                        SetStepResultAndRx("a", rx);
+                        return;
+                    }
+                    else
+                    {
+                        AddLog($"[422串口] {Rs422SerialClient.DefaultPortName1} 接收超时或数据不足");
+                        SetStepResultAndRx("a", rx);
+                        return;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[FPGA] UART0接收失败: {ex.Message}，降级仿真");
+                    AddLog($"步骤a执行失败: {ex.Message}，降级仿真");
                 }
             }
             var simRx = await _simulation.SendAndReceiveAsync("步骤a", DefaultTxData, AddLog, token);
@@ -496,29 +611,43 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task RunStepBAsync(CancellationToken token)
         {
-            // 步骤b: 测试设备通过J20和J21向电源板组件发送0xAA55，并通过CRM_PIN20回读数据
-            // J20/J21 → RS422_TX2+/TX2- → 电源板组件 → RS422_RX2+/RX2- → CRM_PIN20(SCIRXD_2)
-            // 外部通信模式(MUX1=1)：外部设备发送数据，FPGA通过UART1(SCI2)接收
-            if (_fpgaConnected && _fpga != null)
+            // 步骤b: 验证产品的接收功能（通道2）
+            // 流程：试验台通过TCP向FPGA发送数据 → FPGA透传给产品 → 产品通过422串口发送给试验台 → 试验台接收后做一致性比对
+            // TCP发送：AA 55 03 02 AA 55（命令0x02=UART1 TX透传，数据=AA 55）
+            // 422串口接收：COM15接收产品回传的数据
+            if (_fpgaConnected && _fpga != null && _serial2Connected && _serial2 != null)
             {
                 try
                 {
-                    AddLog("步骤b: J20/J21发送0xAA55 → CRM_PIN20回读");
-                    AddLog("[FPGA] 等待UART1(SCI2)接收外部数据（CRM_PIN20）...");
-                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                    cts.CancelAfter(2000); // 2秒超时
-                    var rx = await _fpga.UartRxWaitAsync(1, cts.Token);
-                    AddLog($"[FPGA] UART1(SCI2) 接收: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
-                    SetStepResultAndRx("b", rx);
-                    return;
-                }
-                catch (OperationCanceledException)
-                {
-                    AddLog("[FPGA] UART1接收超时，请确保外部设备已发送数据");
+                    AddLog("步骤b: 通道2收发测试（验证产品接收功能）");
+                    // 清空串口接收缓存
+                    _serial2.ClearReceivedData();
+                    var sendTime = DateTime.UtcNow;
+
+                    // 通过TCP向FPGA发送透传命令
+                    AddLog($"[TCP→FPGA] 发送UART1透传命令: {BitConverter.ToString(FpgaTxFrameUart1).Replace("-", " ")}");
+                    await _fpga.UartTxOnlyAsync(1, DefaultTxData, token);
+
+                    // 等待422串口接收产品回传的数据
+                    AddLog($"[422串口] 等待 {Rs422SerialClient.DefaultPortName2} 接收产品回传数据...");
+                    var rx = await _serial2.WaitForDataAfterAsync(sendTime, DefaultTxData.Length, 3000, token);
+
+                    if (rx != null && rx.Length >= DefaultTxData.Length)
+                    {
+                        AddLog($"[422串口] {Rs422SerialClient.DefaultPortName2} 接收: 0x{BitConverter.ToString(rx).Replace("-", " ")}");
+                        SetStepResultAndRx("b", rx);
+                        return;
+                    }
+                    else
+                    {
+                        AddLog($"[422串口] {Rs422SerialClient.DefaultPortName2} 接收超时或数据不足");
+                        SetStepResultAndRx("b", rx);
+                        return;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[FPGA] UART1接收失败: {ex.Message}，降级仿真");
+                    AddLog($"步骤b执行失败: {ex.Message}，降级仿真");
                 }
             }
             var simRx = await _simulation.SendAndReceiveAsync("步骤b", DefaultTxData, AddLog, token);
@@ -527,24 +656,61 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task RunStepCAsync(CancellationToken token)
         {
-            // 步骤c: 测试设备通过CRM_PIN9向电源板组件发送0xAA55，并通过J17和J18回读数据
-            // CRM_PIN9(SCITXD_1) → RS422_TX1+/TX1- → 电源板组件 → RS422_RX1+/RX1- → J17/J18
-            // 外部通信模式(MUX1=1)：FPGA通过UART0(SCI1)发送，外部设备通过J17/J18接收
-            if (_fpgaConnected && _fpga != null)
+            // 步骤c: 验证产品的发送功能（通道1）
+            // 流程：试验台通过422串口向产品发送数据 → 产品发送给FPGA → FPGA通过TCP发送给试验台 → 试验台读取FPGA回读数据做一致性比对
+            // 422串口发送：COM14发送0xAA55
+            // TCP接收：FPGA异步接收中获取命令0x01的响应数据
+            if (_fpgaConnected && _fpga != null && _serial1Connected && _serial1 != null)
             {
                 try
                 {
-                    AddLog("步骤c: CRM_PIN9发送0xAA55 → J17/J18回读");
-                    AddLog($"[FPGA] UART0(SCI1) 发送: 0x{string.Join(" ", DefaultTxData.Select(b => b.ToString("X2")))}");
-                    // 发送数据后等待回环（外部设备收到后应回传）
-                    var rx = await _fpga.UartTxRxAsync(0, DefaultTxData, token);
-                    AddLog($"[FPGA] UART0(SCI1) 接收回传: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
-                    SetStepResultAndRx("c", rx);
-                    return;
+                    AddLog("步骤c: 通道1回环测试（验证产品发送功能）");
+                    // 清空FPGA异步接收缓存
+                    _fpga.ClearReceivedFrames();
+                    var sendTime = DateTime.UtcNow;
+
+                    // 通过422串口向产品发送数据
+                    AddLog($"[422串口] {Rs422SerialClient.DefaultPortName1} 发送: 0x{BitConverter.ToString(DefaultTxData).Replace("-", " ")}");
+                    await _serial1.SendAsync(DefaultTxData, token);
+
+                    // 等待FPGA异步接收中获取命令0x01的响应数据
+                    AddLog("[TCP←FPGA] 等待FPGA异步接收UART0回传数据...");
+                    byte[] rx = null;
+                    var startTime = DateTime.Now;
+                    const int timeoutMs = 3000;
+
+                    while ((DateTime.Now - startTime).TotalMilliseconds < timeoutMs)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        var frames = _fpga.GetReceivedFramesByCommandAfter(0x01, sendTime);
+                        if (frames != null && frames.Count > 0)
+                        {
+                            var latestFrame = frames[frames.Count - 1];
+                            if (latestFrame.Payload != null && latestFrame.Payload.Length >= DefaultTxData.Length)
+                            {
+                                rx = latestFrame.Payload.Take(DefaultTxData.Length).ToArray();
+                                AddLog($"[TCP←FPGA] UART0接收: 0x{BitConverter.ToString(rx).Replace("-", " ")}");
+                                break;
+                            }
+                        }
+                        await Task.Delay(50, token);
+                    }
+
+                    if (rx != null)
+                    {
+                        SetStepResultAndRx("c", rx);
+                        return;
+                    }
+                    else
+                    {
+                        AddLog("[TCP←FPGA] FPGA异步接收超时，未收到UART0回传数据");
+                        SetStepResultAndRx("c", null);
+                        return;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[FPGA] UART0发送/接收失败: {ex.Message}，降级仿真");
+                    AddLog($"步骤c执行失败: {ex.Message}，降级仿真");
                 }
             }
             var simRx = await _simulation.SendAndReceiveAsync("步骤c", DefaultTxData, AddLog, token);
@@ -553,23 +719,61 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task RunStepDAsync(CancellationToken token)
         {
-            // 步骤d: 测试设备通过CRM_PIN10向电源板组件发送0xAA55，并通过J22和J23回读数据
-            // CRM_PIN10(SCITXD_2) → RS422_TX2+/TX2- → 电源板组件 → RS422_RX2+/RX2- → J22/J23
-            // 外部通信模式(MUX1=1)：FPGA通过UART1(SCI2)发送，外部设备通过J22/J23接收
-            if (_fpgaConnected && _fpga != null)
+            // 步骤d: 验证产品的发送功能（通道2）
+            // 流程：试验台通过422串口向产品发送数据 → 产品发送给FPGA → FPGA通过TCP发送给试验台 → 试验台读取FPGA回读数据做一致性比对
+            // 422串口发送：COM15发送0xAA55
+            // TCP接收：FPGA异步接收中获取命令0x02的响应数据
+            if (_fpgaConnected && _fpga != null && _serial2Connected && _serial2 != null)
             {
                 try
                 {
-                    AddLog("步骤d: CRM_PIN10发送0xAA55 → J22/J23回读");
-                    AddLog($"[FPGA] UART1(SCI2) 发送: 0x{string.Join(" ", DefaultTxData.Select(b => b.ToString("X2")))}");
-                    var rx = await _fpga.UartTxRxAsync(1, DefaultTxData, token);
-                    AddLog($"[FPGA] UART1(SCI2) 接收回传: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
-                    SetStepResultAndRx("d", rx);
-                    return;
+                    AddLog("步骤d: 通道2回环测试（验证产品发送功能）");
+                    // 清空FPGA异步接收缓存
+                    _fpga.ClearReceivedFrames();
+                    var sendTime = DateTime.UtcNow;
+
+                    // 通过422串口向产品发送数据
+                    AddLog($"[422串口] {Rs422SerialClient.DefaultPortName2} 发送: 0x{BitConverter.ToString(DefaultTxData).Replace("-", " ")}");
+                    await _serial2.SendAsync(DefaultTxData, token);
+
+                    // 等待FPGA异步接收中获取命令0x02的响应数据
+                    AddLog("[TCP←FPGA] 等待FPGA异步接收UART1回传数据...");
+                    byte[] rx = null;
+                    var startTime = DateTime.Now;
+                    const int timeoutMs = 3000;
+
+                    while ((DateTime.Now - startTime).TotalMilliseconds < timeoutMs)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        var frames = _fpga.GetReceivedFramesByCommandAfter(0x02, sendTime);
+                        if (frames != null && frames.Count > 0)
+                        {
+                            var latestFrame = frames[frames.Count - 1];
+                            if (latestFrame.Payload != null && latestFrame.Payload.Length >= DefaultTxData.Length)
+                            {
+                                rx = latestFrame.Payload.Take(DefaultTxData.Length).ToArray();
+                                AddLog($"[TCP←FPGA] UART1接收: 0x{BitConverter.ToString(rx).Replace("-", " ")}");
+                                break;
+                            }
+                        }
+                        await Task.Delay(50, token);
+                    }
+
+                    if (rx != null)
+                    {
+                        SetStepResultAndRx("d", rx);
+                        return;
+                    }
+                    else
+                    {
+                        AddLog("[TCP←FPGA] FPGA异步接收超时，未收到UART1回传数据");
+                        SetStepResultAndRx("d", null);
+                        return;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[FPGA] UART1发送/接收失败: {ex.Message}，降级仿真");
+                    AddLog($"步骤d执行失败: {ex.Message}，降级仿真");
                 }
             }
             var simRx = await _simulation.SendAndReceiveAsync("步骤d", DefaultTxData, AddLog, token);
@@ -637,6 +841,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             try { _fpga?.Disconnect(); } catch { }
             _fpga = null;
+
+            // 关闭422串口
+            try { _serial1?.Close(); } catch { }
+            _serial1 = null;
+            try { _serial2?.Close(); } catch { }
+            _serial2 = null;
 
             if (_projectSavingToken != null)
             {

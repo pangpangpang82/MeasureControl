@@ -1,3 +1,13 @@
+using MeasureControl.Events;
+using MeasureControl.Models;
+using MeasureControl.Models.Devices;
+using MeasureControl.Services;
+using MeasureControl.Services.HardwareApis;
+using MeasureControl.Simulations.FuelController;
+using Newtonsoft.Json.Linq;
+using Prism.Commands;
+using Prism.Events;
+using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -5,14 +15,6 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using MeasureControl.Events;
-using MeasureControl.Models;
-using MeasureControl.Services;
-using MeasureControl.Services.HardwareApis;
-using MeasureControl.Simulations.FuelController;
-using Prism.Commands;
-using Prism.Events;
-using Prism.Mvvm;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 {
@@ -34,6 +36,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
         private const int HardwareTimeoutMs = 3000;
 
+        /// <summary>
+        /// 继电器控制通道，使用7131板卡的DO15
+        /// </summary>
+        private const string RelayControlChannel = "DO15";
+
         #endregion
 
         #region 依赖服务
@@ -42,6 +49,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private readonly ProjectService _projectService;
         private readonly IPxiChassisService _pxiChassisService;
         private readonly IComponentPowerStateApi _componentPowerStateApi;
+        private IJy7131Api _jy7131Api;
 
         #endregion
 
@@ -54,6 +62,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _useSimulation = true;
         private FpgaIoClient _fpga;
         private bool _fpgaConnected;
+
+        // DO1-DO14通道名称（用于给J30J提供地/开信号）
+        private static readonly string[] DoChannels = new[]
+        {
+            "DO1", "DO2", "DO3", "DO4", "DO5", "DO6", "DO7",
+            "DO8", "DO9", "DO10", "DO11", "DO12", "DO13", "DO14"
+        };
 
         #endregion
 
@@ -93,6 +108,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             // 初始化命令
             ManualTestCommand = new DelegateCommand(ExecuteManualTest, CanExecuteManualTest);
             AutoTestCommand = new DelegateCommand(ExecuteAutoTest, CanExecuteAutoTest);
+            SetGroundedSignalCommand = new DelegateCommand(ExecuteSetGroundedSignal, CanExecuteSetSignal);
+            SetOpenSignalCommand = new DelegateCommand(ExecuteSetOpenSignal, CanExecuteSetSignal);
             GroundedTestCommand = new DelegateCommand(ExecuteGroundedTest, CanExecuteGroundedTest);
             OpenTestCommand = new DelegateCommand(ExecuteOpenTest, CanExecuteOpenTest);
             ClearLogCommand = new DelegateCommand(ExecuteClearLog);
@@ -101,7 +118,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             _eventAggregator.GetEvent<ProjectSavingEvent>().Subscribe(OnProjectSaving);
 
             // 加载持久化数据
-            LoadPersistedState();
+            //LoadPersistedState();
         }
 
         #endregion
@@ -209,6 +226,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         public DelegateCommand ManualTestCommand { get; }
         public DelegateCommand AutoTestCommand { get; }
+        public DelegateCommand SetGroundedSignalCommand { get; }
+        public DelegateCommand SetOpenSignalCommand { get; }
         public DelegateCommand GroundedTestCommand { get; }
         public DelegateCommand OpenTestCommand { get; }
         public DelegateCommand ClearLogCommand { get; }
@@ -219,8 +238,51 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private bool CanExecuteManualTest() => !IsAutoTestRunning;
         private bool CanExecuteAutoTest() => !IsManualTestRunning;
+        private bool CanExecuteSetSignal() => IsManualTestRunning && _hardwareInitialized;
         private bool CanExecuteGroundedTest() => IsManualTestRunning && _hardwareInitialized;
         private bool CanExecuteOpenTest() => IsManualTestRunning && _hardwareInitialized;
+
+        /// <summary>
+        /// 执行设置接地信号
+        /// </summary>
+        private async void ExecuteSetGroundedSignal()
+        {
+            if (_testCts == null || _testCts.IsCancellationRequested)
+                return;
+
+            try
+            {
+                AddLog("--- 设置接地信号 ---");
+                await SetDoOutputAsync(true, _testCts.Token); // true = 接地（高电平）
+
+                AddLog("接地信号已设置完成，可点击\"接地测试\"按钮进行测量");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"设置接地信号异常: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 执行设置开路信号
+        /// </summary>
+        private async void ExecuteSetOpenSignal()
+        {
+            if (_testCts == null || _testCts.IsCancellationRequested)
+                return;
+
+            try
+            {
+                AddLog("--- 设置开路信号 ---");
+                await SetDoOutputAsync(false, _testCts.Token); // false = 开路（低电平）
+                
+                AddLog("开路信号已设置完成，可点击\"开路测试\"按钮进行测量");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"设置开路信号异常: {ex.Message}");
+            }
+        }
 
         private async void ExecuteManualTest()
         {
@@ -294,10 +356,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 // 2. 执行接地测试
                 AddLog("--- 步骤a: 接地测试 ---");
+                AddLog("正在设置接地信号...");
+                await SetDoOutputAsync(true, _testCts.Token);
+                await Task.Delay(500);//继电器动作时间
                 bool groundedPass = await PerformGroundedTestAsync(_testCts.Token);
-
+                
                 // 3. 执行开路测试
                 AddLog("--- 步骤b: 开路测试 ---");
+                AddLog("正在设置开路信号...");
+                await SetDoOutputAsync(false, _testCts.Token);
+                await Task.Delay(500);//继电器动作时间
                 bool openPass = await PerformOpenTestAsync(_testCts.Token);
 
                 // 4. 复位硬件
@@ -400,6 +468,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 ManualTestCommand.RaiseCanExecuteChanged();
                 AutoTestCommand.RaiseCanExecuteChanged();
+                SetGroundedSignalCommand.RaiseCanExecuteChanged();
+                SetOpenSignalCommand.RaiseCanExecuteChanged();
                 GroundedTestCommand.RaiseCanExecuteChanged();
                 OpenTestCommand.RaiseCanExecuteChanged();
             });
@@ -411,40 +481,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         /// <summary>
         /// 执行接地测试
+        /// 根据通讯协议，发送命令0x06读取HI8435 BANK3-0，并检测异步接收中的响应
         /// </summary>
         private async Task<bool> PerformGroundedTestAsync(CancellationToken token)
         {
-            // 1. 设置所有DO通道为接地状态
-            if (_fpgaConnected && _fpga != null)
-            {
-                try
-                {
-                    // IO11-32 对应 bit0-21; DO通道对应FPGA GPIO输出
-                    // 接地状态：将DO对应的GPIO输出置低（接地）→ MUX选通
-                    await _fpga.WriteGpioAsync(0x00000000u, token);
-                    AddLog("[FPGA] DO通道全部设置为接地（GPIO全低）");
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"[FPGA] GPIO写入失败: {ex.Message}，降级仿真");
-                    await _simulation.SetAllDoGroundedAsync(AddLog, token);
-                }
-            }
-            else
-            {
-                await _simulation.SetAllDoGroundedAsync(AddLog, token);
-            }
-
-            // 2. 等待稳定
-            await Task.Delay(100, token);
-
-            // 3. 读取离散量采集结果
+            // 1. 读取离散量采集结果（通过FPGA命令0x06）
             int[] results;
             if (_fpgaConnected && _fpga != null)
             {
                 try
                 {
-                    results = await ReadHi8435ResultsAsync(token);
+                    results = await ReadHi8435WithAsyncReceiveAsync(token);
                 }
                 catch (Exception ex)
                 {
@@ -457,17 +504,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
             }
 
-            // 4. 保存结果
+            // 2. 保存结果
             Array.Copy(results, _groundedTestResults, results.Length);
 
-            // 5. 更新UI显示
+            // 3. 更新UI显示
             Application.Current?.Dispatcher?.Invoke(() =>
             {
                 Bank0GroundedResults = FormatBankResults(results, 0, DiscreteInputSimulation.Bank0ChannelCount);
                 Bank1GroundedResults = FormatBankResults(results, DiscreteInputSimulation.Bank0ChannelCount, DiscreteInputSimulation.Bank1ChannelCount);
             });
 
-            // 6. 判定结果：所有通道结果均为1
+            // 4. 判定结果：所有通道结果均为1
             bool pass = true;
             for (int i = 0; i < results.Length; i++)
             {
@@ -489,40 +536,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         /// <summary>
         /// 执行开路测试
+        /// 根据通讯协议，发送命令0x06读取HI8435 BANK3-0，并检测异步接收中的响应
         /// </summary>
         private async Task<bool> PerformOpenTestAsync(CancellationToken token)
         {
-            // 1. 设置所有DO通道为开路状态
-            if (_fpgaConnected && _fpga != null)
-            {
-                try
-                {
-                    // 开路状态：将DO对应的GPIO输出置高（悬空/开路）
-                    // IO11-32 bit0-21全部置1表示输出高
-                    await _fpga.WriteGpioAsync(0x003FFFFFu, token);
-                    AddLog("[FPGA] DO通道全部设置为开路（GPIO全高）");
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"[FPGA] GPIO写入失败: {ex.Message}，降级仿真");
-                    await _simulation.SetAllDoOpenAsync(AddLog, token);
-                }
-            }
-            else
-            {
-                await _simulation.SetAllDoOpenAsync(AddLog, token);
-            }
-
-            // 2. 等待稳定
-            await Task.Delay(100, token);
-
-            // 3. 读取离散量采集结果
+            // 1. 读取离散量采集结果（通过FPGA命令0x06）
             int[] results;
             if (_fpgaConnected && _fpga != null)
             {
                 try
                 {
-                    results = await ReadHi8435ResultsAsync(token);
+                    results = await ReadHi8435WithAsyncReceiveAsync(token);
                 }
                 catch (Exception ex)
                 {
@@ -535,17 +559,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
             }
 
-            // 4. 保存结果
+            // 2. 保存结果
             Array.Copy(results, _openTestResults, results.Length);
 
-            // 5. 更新UI显示
+            // 3. 更新UI显示
             Application.Current?.Dispatcher?.Invoke(() =>
             {
                 Bank0OpenResults = FormatBankResults(results, 0, DiscreteInputSimulation.Bank0ChannelCount);
                 Bank1OpenResults = FormatBankResults(results, DiscreteInputSimulation.Bank0ChannelCount, DiscreteInputSimulation.Bank1ChannelCount);
             });
 
-            // 6. 判定结果：所有通道结果均为0
+            // 4. 判定结果：所有通道结果均为0
             bool pass = true;
             for (int i = 0; i < results.Length; i++)
             {
@@ -563,6 +587,88 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             AddLog($"开路测试结果: {(pass ? "PASS" : "FAIL")}");
             return pass;
+        }
+
+        /// <summary>
+        /// 通过FPGA命令0x06读取HI8435 BANK3-0，并检测异步接收中的响应
+        /// 协议：发送 AA 55 02 06 00，接收 AA 55 05 06 [bank3] [bank2] [bank1] [bank0]
+        /// </summary>
+        private async Task<int[]> ReadHi8435WithAsyncReceiveAsync(CancellationToken token)
+        {
+            const byte Cmd06 = 0x06;
+            const int WaitTimeMs = 3000; // 等待响应的最大时间
+
+            // 记录发送前的时间，用于过滤旧帧
+            var sendTime = DateTime.UtcNow;
+
+            // 1. 发送命令0x06读取HI8435
+            AddLog("[FPGA] 发送命令0x06读取HI8435 BANK3-0...");
+            await _fpga.SendReadHi8435CommandAsync(token);
+
+            // 2. 等待并检测异步接收中的响应
+            AddLog("[FPGA] 等待异步接收响应...");
+            var startTime = DateTime.Now;
+            byte[] responseData = null;
+
+            while ((DateTime.Now - startTime).TotalMilliseconds < WaitTimeMs)
+            {
+                token.ThrowIfCancellationRequested();
+
+                // 检查异步接收缓存中是否有命令0x06的响应（发送后收到的）
+                var frames = _fpga.GetReceivedFramesByCommandAfter(Cmd06, sendTime);
+                if (frames != null && frames.Count > 0)
+                {
+                    var latestFrame = frames[frames.Count - 1];
+                    if (latestFrame.Payload != null && latestFrame.Payload.Length >= 4)
+                    {
+                        responseData = latestFrame.Payload;
+                        AddLog($"[FPGA] 收到命令0x06响应: {latestFrame.RawHex}");
+                        break;
+                    }
+                }
+
+                await Task.Delay(100, token);
+            }
+
+            // 3. 检查是否收到响应
+            if (responseData == null || responseData.Length < 4)
+            {
+                // 弹窗提示
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    MessageBox.Show(
+                        "未收到FPGA的HI8435读取响应（命令0x06）。\n请检查FPGA连接和通信状态。",
+                        "通信超时",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                });
+                throw new TimeoutException("FPGA未返回HI8435读取响应");
+            }
+
+            // 4. 解析响应数据
+            // 响应格式：[bank3] [bank2] [bank1] [bank0]，每个bank 8位
+            // 我们只需要bank0[0:6]和bank1[0:6]，共14个通道
+            byte bank0 = responseData.Length > 3 ? responseData[3] : (byte)0;
+            byte bank1 = responseData.Length > 2 ? responseData[2] : (byte)0;
+
+            AddLog($"[FPGA] HI8435数据: Bank0=0x{bank0:X2}, Bank1=0x{bank1:X2}");
+
+            // 5. 转换为通道结果数组
+            int[] results = new int[DiscreteInputSimulation.TotalChannelCount];
+
+            // Bank0[0:6] -> results[0:6]
+            for (int i = 0; i < DiscreteInputSimulation.Bank0ChannelCount && i < 7; i++)
+            {
+                results[i] = (bank0 >> i) & 1;
+            }
+
+            // Bank1[0:6] -> results[7:13]
+            for (int i = 0; i < DiscreteInputSimulation.Bank1ChannelCount && i < 7; i++)
+            {
+                results[DiscreteInputSimulation.Bank0ChannelCount + i] = (bank1 >> i) & 1;
+            }
+
+            return results;
         }
 
         /// <summary>
@@ -617,7 +723,43 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 PowerStatus = "已上电";
             });
 
-            // 2. 连接FPGA
+            // 2. 连接7131板卡（用于提供地/开信号）
+            AddLog("正在连接7131板卡...");
+            if (_jy7131Api == null)
+            {
+                var device7131 = FindFirstJy7131Device();
+                if (device7131 != null)
+                {
+                    string devSlot = Infer7131SlotNumber(device7131);
+                    AddLog($"找到7131板卡: {device7131.Model ?? device7131.Name}，槽位={devSlot}");
+                    if (int.TryParse(devSlot, out int slotNum))
+                        _jy7131Api = new Jy7131Api(device7131, slotNum);
+                    else
+                        _jy7131Api = new Jy7131Api(device7131);
+                }
+            }
+
+            if (_jy7131Api != null)
+            {
+                try
+                {
+                    if (!_jy7131Api.IsConnected)
+                    {
+                        await _jy7131Api.ConnectAsync(token);
+                        AddLog("7131板卡连接成功");
+                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
+                        await _jy7131Api.StartAsync(token);
+                        AddLog("7131板卡已启动");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"7131板卡初始化异常: {ex.Message}，使用仿真信号模式");
+                    _jy7131Api = null;
+                }
+            }
+
+            // 3. 连接FPGA
             AddLog("正在连接FPGA...");
             try
             {
@@ -627,20 +769,78 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 _fpgaConnected = true;
                 AddLog("FPGA连接成功");
 
-                // 3. 初始化HI8435 (cmd 0x04)
+                // 4. 初始化HI8435 (cmd 0x04)
                 AddLog("正在初始化HI8435...");
-                await _fpga.InitHi8435Async(token);
+                await _fpga.InitHi8435AfterConnectAsync(token);
                 await Task.Delay(50, token);
                 AddLog("HI8435初始化完成");
+
+                // 启动异步接收功能
+                _fpga.StartAsyncReceive(AddLog);
             }
             catch (Exception ex)
             {
-                AddLog($"FPGA连接/初始化失败: {ex.Message}，将使用仿真模式");
+                AddLog($"FPGA连接/初始化失败: {ex.Message}，将使用仿真模式读取");
                 _fpgaConnected = false;
             }
 
             _hardwareInitialized = true;
             UpdateCommandStates();
+        }
+
+        private DeviceBase FindFirstJy7131Device()
+        {
+            var chassisList = _pxiChassisService?.GetAllChassis();
+            if (chassisList == null)
+                return null;
+
+            foreach (var chassis in chassisList)
+            {
+                if (chassis?.Devices == null)
+                    continue;
+
+                var device = chassis.Devices.FirstOrDefault(d =>
+                    d is MeasureControl.Models.Devices.DigitalIODevice ||
+                    (d?.Model?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("离散量", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("数字量", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                if (device != null)
+                    return device;
+
+                foreach (var d in chassis.Devices)
+                {
+                    if (d?.Children == null)
+                        continue;
+
+                    var childDevice = d.Children.FirstOrDefault(c =>
+                        c is MeasureControl.Models.Devices.DigitalIODevice ||
+                        (c?.Model?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        (c?.DeviceTypeName?.IndexOf("离散量", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        (c?.DeviceTypeName?.IndexOf("数字量", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                    if (childDevice != null)
+                        return childDevice;
+                }
+            }
+
+            return null;
+        }
+
+        private static string Infer7131SlotNumber(DeviceBase device)
+        {
+            if (device is MeasureControl.Models.Devices.DeviceCategories.PxiDeviceBase pxi && pxi.SlotIndex > 0)
+                return pxi.SlotIndex.ToString();
+
+            var slot = device?.SlotPosition;
+            if (!string.IsNullOrWhiteSpace(slot))
+            {
+                var trimmed = slot.Replace("Slot", "").Replace("slot", "").Trim();
+                if (int.TryParse(trimmed, out var slotNum) && slotNum > 0)
+                    return slotNum.ToString();
+            }
+
+            return "12";
         }
 
         /// <summary>
@@ -650,9 +850,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             AddLog("正在复位硬件...");
 
+            // 关闭 485 继电器前 4 路
+            AddLog("正在关闭 485 继电器前 4 路...");
+            try
+            {
+                await _jy7131Api.SetRelayAsync(0, false, token);
+                await _jy7131Api.SetRelayAsync(1, false, token);
+                await _jy7131Api.SetRelayAsync(2, false, token);
+                await _jy7131Api.SetRelayAsync(3, false, token);
+                AddLog("485 继电器前 4 路已关闭");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"485 继电器操作失败: {ex.Message}");
+            }
+
+            // 断开7131
+            if (_jy7131Api != null)
+            {
+                try
+                {
+                    if (_jy7131Api.IsRunning) await _jy7131Api.StopAsync(token);
+                    await _jy7131Api.DisconnectAsync(token);
+                    AddLog("7131板卡已断开");
+                }
+                catch { }
+                _jy7131Api = null;
+            }
+
             // 断开FPGA
             if (_fpga != null)
             {
+                try { _fpga.StopAsyncReceive(); } catch { }
                 try { _fpga.Disconnect(); } catch { }
                 _fpga = null;
                 _fpgaConnected = false;
@@ -701,6 +930,115 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             catch
             {
                 // 忽略异常
+            }
+        }
+
+        #endregion
+
+        #region DO输出控制
+
+        /// <summary>
+        /// 设置DO1-DO14输出状态（参考DiscreteOutputTestViewModel）
+        /// </summary>
+        /// <param name="grounded">true=接地（高电平），false=开路（低电平）</param>
+        private async Task SetDoOutputAsync(bool grounded, CancellationToken token)
+        {
+            if (_jy7131Api != null && _jy7131Api.IsConnected)
+            {
+                try
+                {
+                    // 确保7131板卡已连接并启动
+                    await _jy7131Api.EnsureConnectedAndRunningAsync(token);
+
+                    //打开前四路 485 继电器
+                    AddLog("正在打开 485 继电器前 4 路...");
+                    try
+                    {
+                        await _jy7131Api.SetRelayAsync(0, true, token);
+                        await _jy7131Api.SetRelayAsync(1, true, token);
+                        await _jy7131Api.SetRelayAsync(2, true, token);
+                        await _jy7131Api.SetRelayAsync(3, true, token);
+                        AddLog("485 继电器前 4 路已打开");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"485 继电器操作失败: {ex.Message}");
+                    }
+
+                    // 设置DO1-DO14输出
+                    AddLog($"正在写DO1-DO14（{(grounded ? "高电平" : "低电平")}）...");
+                    foreach (var channel in DoChannels)
+                    {
+                        await _jy7131Api.WriteDoAsync(channel, grounded, token);
+                    }
+                    AddLog($"[7131] DO1-DO14已设置为{(grounded ? "接地（高电平）" : "开路（低电平）")}");
+
+                    // 回读验证DO输出状态
+                    try
+                    {
+                        var mask = await _jy7131Api.ReadDoBitmaskAsync(token);
+                        // DO1-DO14对应bit1-bit14（DO1=bit1, DO2=bit2, ..., DO14=bit14）
+                        uint expectedMask = grounded ? 0x7FFEu : 0x0000u;
+                        uint actualDo1To14 = mask & 0x7FFEu;
+                        bool verified = (grounded && actualDo1To14 == expectedMask) || (!grounded && actualDo1To14 == 0);
+                        AddLog($"DO回读验证: mask=0x{mask:X8}, DO1-14=0x{actualDo1To14:X4}, 期望=0x{expectedMask:X4}, {(verified ? "✓" : "✗")}");
+                }
+                catch (Exception ex)
+                {
+                        AddLog($"DO回读验证失败: {ex.Message}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[7131] DO写入失败: {ex.Message}，降级仿真");
+                    if (grounded)
+                        await _simulation.SetAllDoGroundedAsync(AddLog, token);
+                    else
+                        await _simulation.SetAllDoOpenAsync(AddLog, token);
+                }
+            }
+            else
+            {
+                AddLog("[7131] 板卡不可用，使用仿真模式");
+                if (grounded)
+                    await _simulation.SetAllDoGroundedAsync(AddLog, token);
+                else
+                    await _simulation.SetAllDoOpenAsync(AddLog, token);
+            }
+        }
+
+        /// <summary>
+        /// 激活继电器，然后 DO15 输出
+        /// </summary>
+        private async Task ActivateRelayAsync(CancellationToken token)
+        {
+            if (_jy7131Api != null && _jy7131Api.IsConnected)
+            {
+                try
+                {
+                    await _jy7131Api.EnsureConnectedAndRunningAsync(token);
+
+                    
+
+                    // 2. 再输出 DO15
+                    AddLog("正在激活继电器 (DO15高电平)...");
+                    await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token);
+
+                    // 回读验证
+                    var mask = await _jy7131Api.ReadDoBitmaskAsync(token);
+                    bool do15State = (mask & (1u << 15)) != 0;
+                    AddLog($"继电器已激活: DO15={do15State}");
+                    
+                    await Task.Delay(200, token); // 等待继电器动作完成
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"激活继电器异常: {ex.Message}");
+                }
+            }
+            else
+            {
+                AddLog("[7131] 板卡不可用，跳过继电器激活");
             }
         }
 

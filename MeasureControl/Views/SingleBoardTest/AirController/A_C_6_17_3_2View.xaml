@@ -1,13 +1,12 @@
-<UserControl
-    x:Class="MeasureControl.Views.SingleBoardTest.AirController.A_C_6_17_3_2View"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:sys="clr-namespace:System;assembly=mscorlib"
-    d:DesignHeight="550"
-    d:DesignWidth="970"
-    mc:Ignorable="d">
+<UserControl x:Class="MeasureControl.Views.SingleBoardTest.AirController.A_C_6_17_3_2View"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             d:DesignHeight="550"
+             d:DesignWidth="970"
+             mc:Ignorable="d">
 
     <UserControl.Resources>
         <ResourceDictionary>
@@ -37,11 +36,7 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid
-        x:Name="RootGrid"
-        Background="White"
-        Focusable="True"
-        PreviewMouseDown="RootGrid_PreviewMouseDown">
+    <Grid x:Name="RootGrid" Background="White" Focusable="True" PreviewMouseDown="RootGrid_PreviewMouseDown">
         <Grid.RowDefinitions>
             <RowDefinition Height="0.8*" />
             <RowDefinition Height="6*" />
@@ -311,9 +306,9 @@
                     Grid.Row="1"
                     Grid.RowSpan="2"
                     Grid.Column="1"
+                    Margin="0,0,5,0"
                     Width="350"
                     Height="350"
-                    Margin="0,0,5,0"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     BorderBrush="#D9D9D9"
@@ -331,36 +326,22 @@
                             </ListBox.Resources>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock
-                                        FontSize="12"
-                                        Text="{Binding}"
-                                        TextWrapping="Wrap" />
+                                    <TextBlock FontSize="12" Text="{Binding}" TextWrapping="Wrap" />
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
                     </Grid>
                 </Border>
 
-                <Grid
-                    Grid.Row="1"
-                    Grid.Column="0"
-                    Margin="10,0,10,0">
+                <Grid Grid.Row="1" Grid.Column="0" Margin="10,0,10,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
                     <StackPanel Margin="5" Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            Text="进入ATP模式：" />
-                        <TextBlock
-                            Margin="0,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="TX" />
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="进入ATP模式：" />
+                        <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
                         <ComboBox
                             Width="80"
                             Height="28"
@@ -372,44 +353,16 @@
                             SelectedItem="{Binding TestTxChannel, Mode=TwoWay}"
                             Style="{StaticResource CustomComboBoxStyle}" />
 
-                        <Border
-                            Width="220"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="AliceBlue"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="0x00 01 00 01 00 00 00 00" />
+                        <Border Width="220" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" Background="AliceBlue" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="0x00 01 00 01 00 00 00 00" />
                         </Border>
 
-                        <Button
-                            Width="50"
-                            Height="28"
-                            Margin="15,0,0,0"
-                            VerticalAlignment="Center"
-                            BorderThickness="0"
-                            Command="{Binding SendEnterAtpCommand}">
+                        <Button Width="50" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding SendEnterAtpCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border
-                                        x:Name="border"
-                                        Background="#3b82f6"
-                                        CornerRadius="4">
+                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
                                         <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                            <TextBlock
-                                                x:Name="DeviceAction"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                FontSize="14"
-                                                Foreground="White"
-                                                Text="发送" />
+                                            <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送" />
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
@@ -429,15 +382,8 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="1"
-                        Margin="115,5,5,5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="RX" />
+                    <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="RX" />
                         <ComboBox
                             Width="80"
                             Height="28"
@@ -449,29 +395,13 @@
                             SelectedItem="{Binding TestRxChannel, Mode=TwoWay}"
                             Style="{StaticResource CustomComboBoxStyle}" />
 
-                        <Border
-                            Width="220"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="LightYellow"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding EnterAtpRxDataText}" />
+                        <Border Width="220" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" Background="LightYellow" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxDataText}" />
                         </Border>
                     </StackPanel>
                 </Grid>
 
-                <Grid
-                    Grid.Row="2"
-                    Grid.Column="0"
-                    Margin="10,0,10,0">
+                <Grid Grid.Row="2" Grid.Column="0" Margin="10,0,10,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
@@ -482,16 +412,8 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Margin="5" Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            Text="DIR引脚引入高电平：" />
-                        <TextBlock
-                            Margin="0,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="TX" />
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="DIR引脚引入高电平：" />
+                        <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
                         <ComboBox
                             Width="80"
                             Height="28"
@@ -503,43 +425,15 @@
                             SelectedItem="{Binding TestTxChannel, Mode=TwoWay}"
                             Style="{StaticResource CustomComboBoxStyle}" />
 
-                        <Border
-                            Width="220"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="AliceBlue"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="0x22 03 03 01 00 00 00 00" />
+                        <Border Width="220" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" Background="AliceBlue" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="0x22 03 03 01 00 00 00 00" />
                         </Border>
-                        <Button
-                            Width="90"
-                            Height="28"
-                            Margin="15,0,0,0"
-                            VerticalAlignment="Center"
-                            BorderThickness="0"
-                            Command="{Binding RunDirHighAndMeasureCommand}">
+                        <Button Width="90" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding RunDirHighAndMeasureCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border
-                                        x:Name="border"
-                                        Background="#3b82f6"
-                                        CornerRadius="4">
+                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
                                         <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                            <TextBlock
-                                                x:Name="DeviceAction"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                FontSize="14"
-                                                Foreground="White"
-                                                Text="发送测量" />
+                                            <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送测量" />
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
@@ -559,95 +453,20 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="1"
-                        Margin="115,5,5,5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="VPP" />
-                        <Border
-                            Width="140"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="LightYellow"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding DirHighVppText}" />
+                    <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="VMAX" />
+                        <Border Width="140" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" Background="LightYellow" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding DirHighVmaxText}" />
+                        </Border>
+                        <TextBlock Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="VMIN" />
+                        <Border Width="140" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" Background="LightYellow" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding DirHighVminText}" />
                         </Border>
                     </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="1"
-                        Margin="320,5,5,5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="VMAX" />
-                        <Border
-                            Width="140"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="LightYellow"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding DirHighVmaxText}" />
-                        </Border>
-                        <TextBlock
-                            Margin="20,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="VMIN" />
-                        <Border
-                            Width="140"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="LightYellow"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding DirHighVminText}" />
-                        </Border>
-                    </StackPanel>
-
-                    <StackPanel
-                        Grid.Row="2"
-                        Margin="5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            Text="DIR引脚引入低电平：" />
-                        <TextBlock
-                            Margin="0,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="TX" />
+                    <StackPanel Grid.Row="2" Margin="5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="DIR引脚引入低电平：" />
+                        <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
                         <ComboBox
                             Width="80"
                             Height="28"
@@ -659,43 +478,15 @@
                             SelectedItem="{Binding TestTxChannel, Mode=TwoWay}"
                             Style="{StaticResource CustomComboBoxStyle}" />
 
-                        <Border
-                            Width="220"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="AliceBlue"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="0x22 03 03 02 00 00 00 00" />
+                        <Border Width="220" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" Background="AliceBlue" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="0x22 03 03 02 00 00 00 00" />
                         </Border>
-                        <Button
-                            Width="90"
-                            Height="28"
-                            Margin="15,0,0,0"
-                            VerticalAlignment="Center"
-                            BorderThickness="0"
-                            Command="{Binding RunDirLowAndMeasureCommand}">
+                        <Button Width="90" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding RunDirLowAndMeasureCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border
-                                        x:Name="border"
-                                        Background="#3b82f6"
-                                        CornerRadius="4">
+                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
                                         <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                            <TextBlock
-                                                x:Name="DeviceAction"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                FontSize="14"
-                                                Foreground="White"
-                                                Text="发送测量" />
+                                            <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送测量" />
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
@@ -715,95 +506,20 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="3"
-                        Margin="115,5,5,5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="VPP" />
-                        <Border
-                            Width="140"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="LightYellow"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding DirLowVppText}" />
+                    <StackPanel Grid.Row="3" Margin="115,5,5,5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="VMAX" />
+                        <Border Width="140" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" Background="LightYellow" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding DirLowVmaxText}" />
+                        </Border>
+                        <TextBlock Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="VMIN" />
+                        <Border Width="140" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" Background="LightYellow" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding DirLowVminText}" />
                         </Border>
                     </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="3"
-                        Margin="320,5,5,5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="VMAX" />
-                        <Border
-                            Width="140"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="LightYellow"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding DirLowVmaxText}" />
-                        </Border>
-                        <TextBlock
-                            Margin="20,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="VMIN" />
-                        <Border
-                            Width="140"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="LightYellow"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding DirLowVminText}" />
-                        </Border>
-                    </StackPanel>
-
-                    <StackPanel
-                        Grid.Row="4"
-                        Margin="5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            Text="退出ATP模式：" />
-                        <TextBlock
-                            Margin="0,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="TX" />
+                    <StackPanel Grid.Row="4" Margin="5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="退出ATP模式：" />
+                        <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
                         <ComboBox
                             Width="80"
                             Height="28"
@@ -815,43 +531,15 @@
                             SelectedItem="{Binding TestTxChannel, Mode=TwoWay}"
                             Style="{StaticResource CustomComboBoxStyle}" />
 
-                        <Border
-                            Width="220"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="AliceBlue"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="0x00 02 00 01 00 00 00 01" />
+                        <Border Width="220" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" Background="AliceBlue" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="0x00 02 00 01 00 00 00 01" />
                         </Border>
-                        <Button
-                            Width="50"
-                            Height="28"
-                            Margin="15,0,0,0"
-                            VerticalAlignment="Center"
-                            BorderThickness="0"
-                            Command="{Binding SendExitAtpCommand}">
+                        <Button Width="50" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding SendExitAtpCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border
-                                        x:Name="border"
-                                        Background="#3b82f6"
-                                        CornerRadius="4">
+                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
                                         <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                            <TextBlock
-                                                x:Name="DeviceAction"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                FontSize="14"
-                                                Foreground="White"
-                                                Text="发送" />
+                                            <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送" />
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
@@ -871,15 +559,8 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="5"
-                        Margin="115,5,5,5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="RX" />
+                    <StackPanel Grid.Row="5" Margin="115,5,5,5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="RX" />
                         <ComboBox
                             Width="80"
                             Height="28"
@@ -891,21 +572,8 @@
                             SelectedItem="{Binding TestRxChannel, Mode=TwoWay}"
                             Style="{StaticResource CustomComboBoxStyle}" />
 
-                        <Border
-                            Width="220"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="LightYellow"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding ExitAtpRxDataText}" />
+                        <Border Width="220" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" Background="LightYellow" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding ExitAtpRxDataText}" />
                         </Border>
                     </StackPanel>
                 </Grid>

@@ -716,7 +716,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         {
                             await _jy7131Api.ConnectAsync(timeoutCts.Token);
                             AddLog("7131板卡连接成功");
-                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.PushPull, timeoutCts.Token);
+                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, timeoutCts.Token);
                             await _jy7131Api.StartAsync(timeoutCts.Token);
                             AddLog("7131板卡已启动");
                         }
@@ -725,7 +725,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                             AddLog("7131板卡已连接，检查运行状态...");
                             if (!_jy7131Api.IsRunning)
                             {
-                                await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.PushPull, timeoutCts.Token);
+                                await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, timeoutCts.Token);
                                 await _jy7131Api.StartAsync(timeoutCts.Token);
                                 AddLog("7131板卡已启动");
                             }
@@ -1018,9 +1018,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     // 如果板卡已连接但未运行，需要先启动
                     if (!_jy7131Api.IsRunning)
                     {
-                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.PushPull, timeoutCts.Token);
+                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, timeoutCts.Token);
                         await _jy7131Api.StartAsync(timeoutCts.Token);
                         AddLog("7131板卡已启动");
+                    }
+
+                    // 打开485继电器第4路
+                    try
+                    {
+                        await _jy7131Api.SetRelayAsync(3, true, _opCts.Token);
+                        await Task.Delay(200);
+                        AddLog("485继电器第4路已打开");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"485继电器操作失败: {ex.Message}");
                     }
 
                     // DO15高电平 → SWITCH1 → 驱动继电器U3/E1/E2线圈得电 → NC跳NO → 产品与试验台隔离
@@ -1030,7 +1042,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     {
                         var mask = await _jy7131Api.ReadDoBitmaskAsync(timeoutCts.Token);
                         var ok = int.TryParse(RelayControlChannel.Substring(2), out var doIdx);
-                        var bit = ok ? doIdx : 15;
+                        var bit = ok ? (doIdx == 0 ? 0 : doIdx - 1) : 14;
                         AddLog($"DO写回读取: mask=0x{mask:X8}，{RelayControlChannel}={(mask & (1u << bit)) != 0}");
                     }
                     catch (Exception ex)
@@ -1046,7 +1058,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
 
                 // 等待继电器动作完成
-                await Task.Delay(200, timeoutCts.Token);
+                await Task.Delay(500, timeoutCts.Token);
 
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
@@ -1083,14 +1095,35 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 if (_jy7131Api != null && _jy7131Api.IsConnected)
                 {
+                    // 某些情况下Stop后仍保持IsConnected，此时写DO可能无效；确保DO任务已Start
+                    if (!_jy7131Api.IsRunning)
+                    {
+                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, timeoutCts.Token);
+                        await _jy7131Api.StartAsync(timeoutCts.Token);
+                        AddLog("7131板卡已启动");
+                    }
+
                     // DO15低电平 → 继电器线圈失电 → 触点恢复NC → 产品与试验台恢复连接
                     AddLog("正在写DO15（低电平）...");
                     await _jy7131Api.WriteDoAsync(RelayControlChannel, false, timeoutCts.Token);
+
+                    // 关闭485继电器第4路
+                    try
+                    {
+                        await _jy7131Api.SetRelayAsync(3, false, _opCts.Token);
+                        await Task.Delay(200);
+                        AddLog("485继电器第4路已关闭");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"485继电器操作失败: {ex.Message}");
+                    }
+
                     try
                     {
                         var mask = await _jy7131Api.ReadDoBitmaskAsync(timeoutCts.Token);
                         var ok = int.TryParse(RelayControlChannel.Substring(2), out var doIdx);
-                        var bit = ok ? doIdx : 15;
+                        var bit = ok ? (doIdx == 0 ? 0 : doIdx - 1) : 14;
                         AddLog($"DO写回读取: mask=0x{mask:X8}，{RelayControlChannel}={(mask & (1u << bit)) != 0}");
                     }
                     catch (Exception ex)
@@ -1106,7 +1139,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
 
                 // 等待继电器动作完成
-                await Task.Delay(200, timeoutCts.Token);
+                await Task.Delay(500, timeoutCts.Token);
 
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
