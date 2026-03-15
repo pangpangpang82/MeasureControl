@@ -102,6 +102,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private bool _historyLoaded;
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
+        private bool _isManualTestInitializing;
+        private bool _isAutoTestInitializing;
+        private bool _isManualTestStopping;
+        private bool _isAutoTestStopping;
         private int _selectedTabIndex;
 
         private string _lastTestTime = "--";
@@ -169,6 +173,66 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
 
+        public bool IsManualTestBusy => IsManualTestInitializing || IsManualTestStopping;
+
+        public bool IsAutoTestBusy => IsAutoTestInitializing || IsAutoTestStopping;
+
+        public bool IsManualTestInitializing
+        {
+            get => _isManualTestInitializing;
+            private set
+            {
+                if (SetProperty(ref _isManualTestInitializing, value))
+                {
+                    RaisePropertyChanged(nameof(IsManualTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsAutoTestInitializing
+        {
+            get => _isAutoTestInitializing;
+            private set
+            {
+                if (SetProperty(ref _isAutoTestInitializing, value))
+                {
+                    RaisePropertyChanged(nameof(IsAutoTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsManualTestStopping
+        {
+            get => _isManualTestStopping;
+            private set
+            {
+                if (SetProperty(ref _isManualTestStopping, value))
+                {
+                    RaisePropertyChanged(nameof(IsManualTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsAutoTestStopping
+        {
+            get => _isAutoTestStopping;
+            private set
+            {
+                if (SetProperty(ref _isAutoTestStopping, value))
+                {
+                    RaisePropertyChanged(nameof(IsAutoTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
         public bool IsManualTestRunning
         {
             get => _isManualTestRunning;
@@ -177,6 +241,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (SetProperty(ref _isManualTestRunning, value))
                 {
                     RaisePropertyChanged(nameof(CanMeasure14));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
                     Measure14Command?.RaiseCanExecuteChanged();
                 }
             }
@@ -190,6 +256,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (SetProperty(ref _isAutoTestRunning, value))
                 {
                     RaisePropertyChanged(nameof(CanMeasure14));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
                     Measure14Command?.RaiseCanExecuteChanged();
                 }
             }
@@ -247,6 +315,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             RaisePropertyChanged(nameof(CanMeasure14));
             Measure14Command?.RaiseCanExecuteChanged();
         }
+
+        public bool CanStartManualTest => !IsManualTestBusy && !IsAutoTestBusy && !IsAutoTestRunning;
+        public bool CanStartAutoTest => !IsManualTestBusy && !IsAutoTestBusy && !IsManualTestRunning;
 
         public string CurrentTestResult
         {
@@ -432,7 +503,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (IsAutoTestRunning)
                 await StopAutoTestAsync().ConfigureAwait(false);
 
-            IsManualTestRunning = true;
+            IsManualTestInitializing = true;
+            IsManualTestStopping = false;
             CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
@@ -464,6 +536,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureMtx532Async(_manualCts.Token).ConfigureAwait(false);
                 await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
 
+                IsManualTestInitializing = false;
+                IsManualTestRunning = true;
                 CanMeasure = true;
                 Log("手动测试初始化完成，可点击测量");
             }
@@ -484,7 +558,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (IsManualTestRunning)
                 await StopManualTestAsync().ConfigureAwait(false);
 
-            IsAutoTestRunning = true;
+            IsAutoTestInitializing = true;
+            IsAutoTestStopping = false;
             CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
@@ -544,6 +619,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
+                IsAutoTestInitializing = false;
                 _autoCts?.Dispose();
                 _autoCts = null;
             }
@@ -551,7 +627,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
         {
-            IsAutoTestRunning = true;
             CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
@@ -569,6 +644,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
             await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
             await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+            IsAutoTestInitializing = false;
+            IsAutoTestRunning = true;
 
             var ok4 = await MeasureGroupAsync("4mA", Current4mA, Set4mA, cancellationToken).ConfigureAwait(false);
             if (!IsAutoTestRunning)
@@ -923,6 +1000,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task StopManualTestAsync()
         {
+            IsManualTestStopping = true;
+            IsManualTestInitializing = false;
             try
             {
                 CanMeasure = false;
@@ -933,19 +1012,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             Log($"手动测试停止/结束，正在按反序断开28V、MTX532、429、DO{RelayAuxDoIndex}、485继电器...");
-            await CleanupPowerAsync().ConfigureAwait(false);
-            await CleanupMtxAsync().ConfigureAwait(false);
-            await CleanupArincAsync().ConfigureAwait(false);
-            await EnsureGroundDoAsync(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
-            await EnsureRelay485Async(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
-            await CleanupJy7131Async().ConfigureAwait(false);
-
-            IsManualTestRunning = false;
-            Log("手动测试已结束");
+            try
+            {
+                await CleanupPowerAsync().ConfigureAwait(false);
+                await CleanupMtxAsync().ConfigureAwait(false);
+                await CleanupArincAsync().ConfigureAwait(false);
+                await EnsureGroundDoAsync(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
+                await EnsureRelay485Async(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
+                await CleanupJy7131Async().ConfigureAwait(false);
+            }
+            finally
+            {
+                IsManualTestInitializing = false;
+                IsManualTestRunning = false;
+                IsManualTestStopping = false;
+                RaisePropertyChanged(nameof(CanStartManualTest));
+                RaisePropertyChanged(nameof(CanStartAutoTest));
+                Log("手动测试已结束");
+            }
         }
 
         private async Task StopAutoTestAsync()
         {
+            IsAutoTestStopping = true;
+            IsAutoTestInitializing = false;
             try
             {
                 _autoCts?.Cancel();
@@ -955,15 +1045,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             Log($"自动测试停止/结束，正在按反序断开28V、MTX532、429、DO{RelayAuxDoIndex}、485继电器...");
-            await CleanupPowerAsync().ConfigureAwait(false);
-            await CleanupMtxAsync().ConfigureAwait(false);
-            await CleanupArincAsync().ConfigureAwait(false);
-            await EnsureGroundDoAsync(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
-            await EnsureRelay485Async(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
-            await CleanupJy7131Async().ConfigureAwait(false);
-
-            IsAutoTestRunning = false;
-            Log("自动测试已结束");
+            try
+            {
+                await CleanupPowerAsync().ConfigureAwait(false);
+                await CleanupMtxAsync().ConfigureAwait(false);
+                await CleanupArincAsync().ConfigureAwait(false);
+                await EnsureGroundDoAsync(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
+                await EnsureRelay485Async(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
+                await CleanupJy7131Async().ConfigureAwait(false);
+            }
+            finally
+            {
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = false;
+                IsAutoTestStopping = false;
+                RaisePropertyChanged(nameof(CanStartManualTest));
+                RaisePropertyChanged(nameof(CanStartAutoTest));
+                Log("自动测试已结束");
+            }
         }
 
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)

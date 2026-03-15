@@ -2993,6 +2993,7 @@ namespace MeasureControl.ViewModels
             if (projectItem.Name.Contains("Chroma 6314A")) return "程控电源";
             if (projectItem.Name.Contains("Chroma 6312A")) return "电子负载";
             if (projectItem.Name.Contains("Chroma")) return "程控仪器仪表";
+            if (projectItem.Name.Contains("PXI-3022") || projectItem.Name.Contains("PXI-2601")) return "矩阵开关";
             // 程控仪器仪表子类型识别
             if (projectItem.Name.Contains("DG1032Z") || projectItem.Name.Contains("信号发生器")) return "信号发生器";
             if (projectItem.Name.Contains("DM3068") || projectItem.Name.Contains("数字多用表")) return "数字多用表";

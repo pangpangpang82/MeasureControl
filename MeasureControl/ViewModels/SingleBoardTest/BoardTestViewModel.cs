@@ -297,9 +297,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 if (!ReferenceEquals(value, _selectedTestItem) && _selectedTestItem != null && IsCurrentTestRunning())
                 {
-                    ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                    RaisePropertyChanged(nameof(SelectedTestItem));
-                    return;
+                    var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                    if (result != System.Windows.MessageBoxResult.Yes || !TryStopCurrentTest())
+                    {
+                        RaisePropertyChanged(nameof(SelectedTestItem));
+                        return;
+                    }
                 }
 
                 if (SetProperty(ref _selectedTestItem, value))
@@ -374,8 +377,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
             if (IsCurrentTestRunning())
             {
-                ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                continuationCallback(false);
+                var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                continuationCallback(result == System.Windows.MessageBoxResult.Yes && TryStopCurrentTest());
                 return;
             }
 
@@ -386,8 +389,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         {
             if (IsCurrentTestRunning())
             {
-                ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                return false;
+                var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并关闭窗口？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                return result == System.Windows.MessageBoxResult.Yes && TryStopCurrentTest();
             }
 
             return true;
@@ -416,6 +419,75 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 var auto = pAuto?.PropertyType == typeof(bool) && (bool)(pAuto.GetValue(dc) ?? false);
 
                 return manual || auto;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool TryStopCurrentTest()
+        {
+            if (RightPanelContent is not System.Windows.FrameworkElement element)
+            {
+                return true;
+            }
+
+            var dc = element.DataContext;
+            if (dc == null)
+            {
+                return true;
+            }
+
+            try
+            {
+                var type = dc.GetType();
+                var pManual = type.GetProperty("IsManualTestRunning");
+                var pAuto = type.GetProperty("IsAutoTestRunning");
+
+                var manual = pManual?.PropertyType == typeof(bool) && (bool)(pManual.GetValue(dc) ?? false);
+                var auto = pAuto?.PropertyType == typeof(bool) && (bool)(pAuto.GetValue(dc) ?? false);
+
+                if (manual)
+                {
+                    return InvokeStopMethod(dc, "StopManualTestAsync");
+                }
+
+                if (auto)
+                {
+                    return InvokeStopMethod(dc, "StopAutoTestAsync");
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool InvokeStopMethod(object target, string methodName)
+        {
+            if (target == null || string.IsNullOrWhiteSpace(methodName))
+            {
+                return false;
+            }
+
+            try
+            {
+                var method = target.GetType().GetMethod(methodName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                if (method == null)
+                {
+                    return false;
+                }
+
+                var result = method.Invoke(target, null);
+                if (result is System.Threading.Tasks.Task task)
+                {
+                    task.GetAwaiter().GetResult();
+                }
+
+                return true;
             }
             catch
             {

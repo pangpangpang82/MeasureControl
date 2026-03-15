@@ -72,6 +72,7 @@ namespace MeasureControl.Views.Common
             
             // 在窗口加载完成后导航到HomePage
             Loaded += OnMainWindowLoaded;
+            Closing += OnMainWindowClosing;
             Closed += OnMainWindowClosed;
             _viewModel.PropertyChanged += ViewModelOnPropertyChanged;
             ProjectTreeView.Loaded += ProjectTreeView_OnLoaded;
@@ -157,6 +158,7 @@ namespace MeasureControl.Views.Common
             {
                 _viewModel.PropertyChanged -= ViewModelOnPropertyChanged;
             }
+            Closing -= OnMainWindowClosing;
             ProjectTreeView.Loaded -= ProjectTreeView_OnLoaded;
             
             // 取消订阅事件
@@ -164,6 +166,24 @@ namespace MeasureControl.Views.Common
             {
                 _eventAggregator.GetEvent<TestTaskCreatedEvent>().Unsubscribe(OnTestTaskCreated);
                 _eventAggregator.GetEvent<SelectProjectItemEvent>().Unsubscribe(OnSelectProjectItem);
+            }
+        }
+
+        private void OnMainWindowClosing(object sender, CancelEventArgs e)
+        {
+            try
+            {
+                if (MainContentContainer?.Content is FrameworkElement element)
+                {
+                    if (element.DataContext is ICloseGuard guard && !guard.CanClose())
+                    {
+                        e.Cancel = true;
+                    }
+                }
+            }
+            catch
+            {
+                e.Cancel = true;
             }
         }
 

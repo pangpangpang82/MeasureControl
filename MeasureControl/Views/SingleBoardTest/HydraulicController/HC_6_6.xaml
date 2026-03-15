@@ -43,6 +43,7 @@
                             Margin="0,0,20,0"
                             VerticalAlignment="Center"
                             BorderThickness="0"
+                            IsEnabled="{Binding CanStartManualTest, FallbackValue=True}"
                             Command="{Binding ManualTestCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
@@ -67,6 +68,15 @@
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsManualTestInitializing}" Value="True">
+                                            <Setter Property="Tag" Value="Init" />
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding IsManualTestStopping}" Value="True">
+                                            <Setter Property="Tag" Value="Stopping" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
+                                        </DataTrigger>
+
                                         <DataTrigger Binding="{Binding IsManualTestRunning}" Value="True">
                                             <Setter Property="Tag" Value="True" />
                                             <Setter TargetName="border" Property="Background" Value="#ef4444" />
@@ -128,6 +138,7 @@
                             Margin="0,0,30,0"
                             VerticalAlignment="Center"
                             BorderThickness="0"
+                            IsEnabled="{Binding CanStartAutoTest, FallbackValue=True}"
                             Command="{Binding AutoTestCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
@@ -152,6 +163,15 @@
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsAutoTestInitializing}" Value="True">
+                                            <Setter Property="Tag" Value="Init" />
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding IsAutoTestStopping}" Value="True">
+                                            <Setter Property="Tag" Value="Stopping" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
+                                        </DataTrigger>
+
                                         <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="True">
                                             <Setter Property="Tag" Value="True" />
                                             <Setter TargetName="border" Property="Background" Value="#ef4444" />
