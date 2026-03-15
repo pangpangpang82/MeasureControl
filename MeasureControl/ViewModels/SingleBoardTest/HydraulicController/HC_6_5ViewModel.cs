@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Globalization;
 using MeasureControl.Models.Devices;
 using MeasureControl.Models.Devices.DeviceCategories;
 using MeasureControl.Events;
@@ -135,6 +136,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _dptSys210mAText = "--";
         private string _dptSys310mAText = "--";
 
+        private string _dptEdp2CustommAText = "--";
+        private string _dptEmp2BCustommAText = "--";
+        private string _dptEmp3BCustommAText = "--";
+        private string _dptSys1CustommAText = "--";
+        private string _dptSys2CustommAText = "--";
+        private string _dptSys3CustommAText = "--";
+        private string _customCurrentInput = "10.0";
+
         private sealed class DptChannelDefinition
         {
             public DptChannelDefinition(string group, string slotKey, string channelName, byte label, byte sdi)
@@ -161,6 +170,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
             Measure14Command = new DelegateCommand(async () => await OnMeasure14Async(), () => CanMeasure14);
+            MeasureCustomCurrentCommand = new DelegateCommand(async () => await OnMeasureCustomCurrentAsync(), () => CanMeasureCustomCurrent);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
             LoadLastTestResultFromProject();
@@ -169,6 +179,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public DelegateCommand ManualTestCommand { get; }
         public DelegateCommand AutoTestCommand { get; }
         public DelegateCommand Measure14Command { get; }
+        public DelegateCommand MeasureCustomCurrentCommand { get; }
         public DelegateCommand ClearLogCommand { get; }
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
@@ -241,9 +252,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (SetProperty(ref _isManualTestRunning, value))
                 {
                     RaisePropertyChanged(nameof(CanMeasure14));
+                    RaisePropertyChanged(nameof(CanMeasureCustomCurrent));
                     RaisePropertyChanged(nameof(CanStartManualTest));
                     RaisePropertyChanged(nameof(CanStartAutoTest));
                     Measure14Command?.RaiseCanExecuteChanged();
+                    MeasureCustomCurrentCommand?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -256,9 +269,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (SetProperty(ref _isAutoTestRunning, value))
                 {
                     RaisePropertyChanged(nameof(CanMeasure14));
+                    RaisePropertyChanged(nameof(CanMeasureCustomCurrent));
                     RaisePropertyChanged(nameof(CanStartManualTest));
                     RaisePropertyChanged(nameof(CanStartAutoTest));
                     Measure14Command?.RaiseCanExecuteChanged();
+                    MeasureCustomCurrentCommand?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -271,7 +286,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (SetProperty(ref _selectedTabIndex, value))
                 {
                     RaisePropertyChanged(nameof(CanMeasure14));
+                    RaisePropertyChanged(nameof(CanMeasureCustomCurrent));
                     Measure14Command?.RaiseCanExecuteChanged();
+                    MeasureCustomCurrentCommand?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -284,7 +301,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (SetProperty(ref _canMeasure, value))
                 {
                     RaisePropertyChanged(nameof(CanMeasure14));
+                    RaisePropertyChanged(nameof(CanMeasureCustomCurrent));
                     Measure14Command?.RaiseCanExecuteChanged();
+                    MeasureCustomCurrentCommand?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -310,10 +329,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        public bool CanMeasureCustomCurrent => IsManualTestRunning && CanMeasure && TryGetValidatedCustomCurrent(out _);
+
         private void RefreshMeasureCommand()
         {
             RaisePropertyChanged(nameof(CanMeasure14));
+            RaisePropertyChanged(nameof(CanMeasureCustomCurrent));
             Measure14Command?.RaiseCanExecuteChanged();
+            MeasureCustomCurrentCommand?.RaiseCanExecuteChanged();
         }
 
         public bool CanStartManualTest => !IsManualTestBusy && !IsAutoTestBusy && !IsAutoTestRunning;
@@ -385,6 +408,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public string DptSys110mAText { get => _dptSys110mAText; private set => SetProperty(ref _dptSys110mAText, value); }
         public string DptSys210mAText { get => _dptSys210mAText; private set => SetProperty(ref _dptSys210mAText, value); }
         public string DptSys310mAText { get => _dptSys310mAText; private set => SetProperty(ref _dptSys310mAText, value); }
+
+        public string DptEdp2CustommAText { get => _dptEdp2CustommAText; private set => SetProperty(ref _dptEdp2CustommAText, value); }
+        public string DptEmp2BCustommAText { get => _dptEmp2BCustommAText; private set => SetProperty(ref _dptEmp2BCustommAText, value); }
+        public string DptEmp3BCustommAText { get => _dptEmp3BCustommAText; private set => SetProperty(ref _dptEmp3BCustommAText, value); }
+        public string DptSys1CustommAText { get => _dptSys1CustommAText; private set => SetProperty(ref _dptSys1CustommAText, value); }
+        public string DptSys2CustommAText { get => _dptSys2CustommAText; private set => SetProperty(ref _dptSys2CustommAText, value); }
+        public string DptSys3CustommAText { get => _dptSys3CustommAText; private set => SetProperty(ref _dptSys3CustommAText, value); }
+
+        public string CustomCurrentInput
+        {
+            get => _customCurrentInput;
+            set
+            {
+                var normalized = NormalizeCurrentInput(value);
+                if (SetProperty(ref _customCurrentInput, normalized))
+                {
+                    RaisePropertyChanged(nameof(CanMeasureCustomCurrent));
+                    MeasureCustomCurrentCommand?.RaiseCanExecuteChanged();
+                }
+            }
+        }
 
         public double? DptEdp24mAValue => ParseMeasurementValue(DptEdp24mAText);
         public double? DptEmp2B4mAValue => ParseMeasurementValue(DptEmp2B4mAText);
@@ -713,8 +757,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     break;
             }
             RefreshMeasureCommand();
+        }
 
-            await TryFinalizeAsync().ConfigureAwait(false);
+        private async Task OnMeasureCustomCurrentAsync()
+        {
+            if (!TryGetValidatedCustomCurrent(out var currentmA))
+            {
+                Log("自定义电流输入无效，请输入 4~20mA，且最多 1 位小数");
+                RefreshMeasureCommand();
+                return;
+            }
+
+            var token = _manualCts?.Token ?? CancellationToken.None;
+            var ok = await MeasureGroupAsync($"自定义点({currentmA:0.0}mA)", currentmA, SetCustomCurrent, token).ConfigureAwait(false);
+            if (!IsManualTestRunning || _manualAborted || !ok)
+                return;
+
+            Log($"自定义电流测量完成: {currentmA:0.0}mA，可继续修改电流并重复测量");
         }
 
         private void Set4mA(string name, string text)
@@ -753,6 +812,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 case "RF2": DptSys110mAText = text; break;
                 case "SYS2": DptSys210mAText = text; break;
                 case "SYS3": DptSys310mAText = text; break;
+            }
+        }
+
+        private void SetCustomCurrent(string name, string text)
+        {
+            switch (name)
+            {
+                case "EDP2": DptEdp2CustommAText = text; break;
+                case "EMP2B": DptEmp2BCustommAText = text; break;
+                case "EMP3B": DptEmp3BCustommAText = text; break;
+                case "RF2": DptSys1CustommAText = text; break;
+                case "SYS2": DptSys2CustommAText = text; break;
+                case "SYS3": DptSys3CustommAText = text; break;
             }
         }
 
@@ -976,9 +1048,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             LastTestResult = resultText;
             SaveTestResultToProject();
             Log($"最终结果: {resultText}");
-
-            if (IsManualTestRunning)
-                await StopManualTestAsync().ConfigureAwait(false);
         }
 
         private async Task AbortManualTestAsync(string reason)
@@ -1423,6 +1492,67 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             DptSys110mAText = "--";
             DptSys210mAText = "--";
             DptSys310mAText = "--";
+
+            DptEdp2CustommAText = "--";
+            DptEmp2BCustommAText = "--";
+            DptEmp3BCustommAText = "--";
+            DptSys1CustommAText = "--";
+            DptSys2CustommAText = "--";
+            DptSys3CustommAText = "--";
+        }
+
+        private string NormalizeCurrentInput(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            var sanitized = value.Replace("mA", string.Empty).Replace("MA", string.Empty).Replace("ma", string.Empty).Trim();
+            sanitized = sanitized.Replace(',', '.');
+
+            var chars = new List<char>(sanitized.Length);
+            var hasDot = false;
+            var decimalCount = 0;
+            foreach (var ch in sanitized)
+            {
+                if (char.IsDigit(ch))
+                {
+                    if (hasDot)
+                    {
+                        if (decimalCount >= 1)
+                            continue;
+
+                        decimalCount++;
+                    }
+
+                    chars.Add(ch);
+                    continue;
+                }
+
+                if (ch == '.' && !hasDot)
+                {
+                    hasDot = true;
+                    chars.Add(ch);
+                }
+            }
+
+            return new string(chars.ToArray());
+        }
+
+        private bool TryGetValidatedCustomCurrent(out double currentmA)
+        {
+            currentmA = 0;
+            var text = NormalizeCurrentInput(CustomCurrentInput);
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            if (text.EndsWith(".", StringComparison.Ordinal))
+                text = text.TrimEnd('.');
+
+            if (!double.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out currentmA))
+                return false;
+
+            currentmA = Math.Truncate(currentmA * 10d) / 10d;
+            return currentmA >= Current4mA && currentmA <= Current20mA;
         }
 
         private void Log(string message)

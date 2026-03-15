@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Globalization;
 using MeasureControl.Events;
 using MeasureControl.Models;
 using MeasureControl.Models.Devices;
@@ -108,6 +109,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _pointMidSys2Text = "--";
         private string _pointHighSys1Text = "--";
         private string _pointHighSys2Text = "--";
+        private string _customRangeSys1Text = "--";
+        private string _customRangeSys2Text = "--";
+        private string _manualRangeLowInput = "28";
+        private string _manualRangeHighInput = "32";
         private bool _isManualTestInitializing;
         private bool _isAutoTestInitializing;
         private bool _isManualTestStopping;
@@ -145,6 +150,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             MeasureLowPointCommand = new DelegateCommand(async () => await OnMeasureLowPointAsync(), () => CanMeasureLowPoint);
             MeasureMidPointCommand = new DelegateCommand(async () => await OnMeasureMidPointAsync(), () => CanMeasureMidPoint);
             MeasureHighPointCommand = new DelegateCommand(async () => await OnMeasureHighPointAsync(), () => CanMeasureHighPoint);
+            MeasureCustomRangeCommand = new DelegateCommand(async () => await OnMeasureCustomRangeAsync(), () => CanMeasureCustomRange);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
             LoadLastTestResultFromProject();
@@ -157,6 +163,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public DelegateCommand MeasureLowPointCommand { get; }
         public DelegateCommand MeasureMidPointCommand { get; }
         public DelegateCommand MeasureHighPointCommand { get; }
+        public DelegateCommand MeasureCustomRangeCommand { get; }
         public DelegateCommand ClearLogCommand { get; }
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
@@ -264,6 +271,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public bool CanMeasureLowPoint => CanMeasure && IsManualTestRunning && !_measuredLow;
         public bool CanMeasureMidPoint => CanMeasure && IsManualTestRunning && !_measuredMid;
         public bool CanMeasureHighPoint => CanMeasure && IsManualTestRunning && !_measuredHigh;
+        public bool CanMeasureCustomRange => CanMeasure && IsManualTestRunning && TryCreateCustomRangePoint(out _);
         public bool CanStartManualTest => !IsManualTestBusy && !IsAutoTestBusy && !IsAutoTestRunning;
         public bool CanStartAutoTest => !IsManualTestBusy && !IsAutoTestBusy && !IsManualTestRunning;
 
@@ -372,6 +380,95 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         }
 
         public bool IsPointHighSys2Pass => TryParsePercent(_pointHighSys2Text, out var value) && IsQuantityInRange(value, HighPoint);
+
+        public string CustomRangeSys1Text
+        {
+            get => _customRangeSys1Text;
+            private set => SetProperty(ref _customRangeSys1Text, value);
+        }
+
+        public string CustomRangeSys2Text
+        {
+            get => _customRangeSys2Text;
+            private set => SetProperty(ref _customRangeSys2Text, value);
+        }
+
+        public string ManualRangeLowInput
+        {
+            get => _manualRangeLowInput;
+            set
+            {
+                var normalized = NormalizeIntegerInput(value);
+                if (SetProperty(ref _manualRangeLowInput, normalized))
+                {
+                    RaisePropertyChanged(nameof(CanMeasureCustomRange));
+                    MeasureCustomRangeCommand?.RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        public string ManualRangeHighInput
+        {
+            get => _manualRangeHighInput;
+            set
+            {
+                var normalized = NormalizeIntegerInput(value);
+                if (SetProperty(ref _manualRangeHighInput, normalized))
+                {
+                    RaisePropertyChanged(nameof(CanMeasureCustomRange));
+                    MeasureCustomRangeCommand?.RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        public void NormalizeManualRangeInputs(string preferredSide)
+        {
+            var lowText = NormalizeIntegerInput(ManualRangeLowInput);
+            var highText = NormalizeIntegerInput(ManualRangeHighInput);
+
+            var hasLow = int.TryParse(lowText, NumberStyles.None, CultureInfo.InvariantCulture, out var low);
+            var hasHigh = int.TryParse(highText, NumberStyles.None, CultureInfo.InvariantCulture, out var high);
+
+            if (hasLow)
+                low = Math.Max(0, Math.Min(100, low));
+
+            if (hasHigh)
+                high = Math.Max(0, Math.Min(100, high));
+
+            if (hasLow && hasHigh && low >= high)
+            {
+                if (string.Equals(preferredSide, "Low", StringComparison.Ordinal))
+                {
+                    if (high <= 0)
+                    {
+                        low = 0;
+                        high = 1;
+                    }
+                    else
+                    {
+                        low = high - 1;
+                    }
+                }
+                else
+                {
+                    if (low >= 100)
+                    {
+                        low = 99;
+                        high = 100;
+                    }
+                    else
+                    {
+                        high = low + 1;
+                    }
+                }
+            }
+
+            if (hasLow)
+                ManualRangeLowInput = low.ToString(CultureInfo.InvariantCulture);
+
+            if (hasHigh)
+                ManualRangeHighInput = high.ToString(CultureInfo.InvariantCulture);
+        }
 
         public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
         {
@@ -610,6 +707,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _measuredExc1 = true;
             RefreshMeasureCommands();
             await TryFinalizeAsync().ConfigureAwait(false);
+        }
+
+        private async Task OnMeasureCustomRangeAsync()
+        {
+            if (!TryCreateCustomRangePoint(out var point))
+            {
+                Log("自定义油量范围无效：请输入整数，且左侧必须小于右侧");
+                RefreshMeasureCommands();
+                return;
+            }
+
+            var token = _manualCts?.Token ?? CancellationToken.None;
+            var pass = await MeasureQuantityPointAsync(point, (sdi, text) =>
+            {
+                if (sdi == 2)
+                    CustomRangeSys1Text = text;
+                else if (sdi == 3)
+                    CustomRangeSys2Text = text;
+            }, token).ConfigureAwait(false);
+
+            if (!IsManualTestRunning || _manualAborted)
+                return;
+
+            Log($"{point.Name}: 自定义区间测量完成，结果={(pass ? "合格" : "不合格")}，可继续修改范围重复测量");
         }
 
         private async Task OnMeasureExcitation2Async()
@@ -877,6 +998,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return value >= point.Min && value <= point.Max;
         }
 
+        private string NormalizeIntegerInput(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return string.Empty;
+
+            var chars = text.Where(char.IsDigit).ToArray();
+            return new string(chars);
+        }
+
+        private bool TryCreateCustomRangePoint(out QuantityPoint point)
+        {
+            point = null;
+
+            var lowText = NormalizeIntegerInput(ManualRangeLowInput);
+            var highText = NormalizeIntegerInput(ManualRangeHighInput);
+            if (string.IsNullOrWhiteSpace(lowText) || string.IsNullOrWhiteSpace(highText))
+                return false;
+
+            if (!int.TryParse(lowText, NumberStyles.None, CultureInfo.InvariantCulture, out var low))
+                return false;
+
+            if (!int.TryParse(highText, NumberStyles.None, CultureInfo.InvariantCulture, out var high))
+                return false;
+
+            if (low < 0 || high > 100 || low >= high)
+                return false;
+
+            var target = Math.Round((low + high) / 2.0, 1, MidpointRounding.AwayFromZero);
+            point = new QuantityPoint($"({low},{high})%", target, low, high);
+            return true;
+        }
+
         private static bool TryParsePercent(string text, out double value)
         {
             value = 0;
@@ -950,6 +1103,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task TryFinalizeAsync()
         {
+            if (!IsAutoTestRunning)
+                return;
+
             if (!(_measuredExc1 && _measuredExc2 && _measuredLow && _measuredMid && _measuredHigh))
                 return;
 
@@ -963,9 +1119,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             LastTestResult = resultText;
             SaveTestResultToProject();
             Log($"最终结果: {resultText}");
-
-            if (IsManualTestRunning)
-                await StopManualTestAsync().ConfigureAwait(false);
         }
 
         private async Task AbortManualTestAsync(string reason)
@@ -1485,6 +1638,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             PointMidSys2Text = "--";
             PointHighSys1Text = "--";
             PointHighSys2Text = "--";
+            CustomRangeSys1Text = "--";
+            CustomRangeSys2Text = "--";
             RefreshMeasureCommands();
         }
 
@@ -1495,11 +1650,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             RaisePropertyChanged(nameof(CanMeasureLowPoint));
             RaisePropertyChanged(nameof(CanMeasureMidPoint));
             RaisePropertyChanged(nameof(CanMeasureHighPoint));
+            RaisePropertyChanged(nameof(CanMeasureCustomRange));
             MeasureExcitation1Command?.RaiseCanExecuteChanged();
             MeasureExcitation2Command?.RaiseCanExecuteChanged();
             MeasureLowPointCommand?.RaiseCanExecuteChanged();
             MeasureMidPointCommand?.RaiseCanExecuteChanged();
             MeasureHighPointCommand?.RaiseCanExecuteChanged();
+            MeasureCustomRangeCommand?.RaiseCanExecuteChanged();
         }
 
         private void Log(string message)
