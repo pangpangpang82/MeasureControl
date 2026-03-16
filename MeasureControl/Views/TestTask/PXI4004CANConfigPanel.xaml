@@ -1,0 +1,1251 @@
+<UserControl
+    x:Class="MeasureControl.Views.PXI4004CANConfigPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:MeasureControl.Helpers"
+    xmlns:local="clr-namespace:MeasureControl.Views"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    x:Name="RootControl"
+    d:DesignHeight="550"
+    d:DesignWidth="970"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!--  布尔值转可见性转换器123  -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <!--  布尔值取反转换器  -->
+        <helpers:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <!--  容器禁用时降低不透明度以呈现灰色调效果  -->
+        <Style x:Key="DisableableOpacityStyle" TargetType="Border">
+            <Setter Property="Opacity" Value="1" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource Self}}" Value="False">
+                    <Setter Property="Opacity" Value="0.6" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <!--  统一按钮样式（灰白风格）  -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#F3F5F7" />
+            <Setter Property="Foreground" Value="#333333" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#E5E7EB" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#D9D9D9" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#F0F0F0" />
+                                <Setter TargetName="border" Property="BorderBrush" Value="#CCCCCC" />
+                                <Setter Property="Foreground" Value="#999999" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CustomMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Background" Value="#ffffff" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border
+                            x:Name="Border"
+                            Padding="{TemplateBinding Padding}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="0">
+                            <ContentPresenter
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                ContentSource="Header" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#f0f0f0" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#cccccc" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--  使能CheckBox样式  -->
+        <Style x:Key="EnableCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid>
+                            <Border
+                                x:Name="checkBoxBorder"
+                                Width="16"
+                                Height="16"
+                                Background="White"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="2">
+                                <Path
+                                    x:Name="checkMark"
+                                    Data="M 2 8 L 6 12 L 14 4"
+                                    Stroke="White"
+                                    StrokeThickness="2"
+                                    Visibility="Collapsed" />
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="checkBoxBorder" Property="Background" Value="#3b82f6" />
+                                <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#3b82f6" />
+                                <Setter TargetName="checkMark" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#3b82f6" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--  简洁的滚动条样式  -->
+        <Style x:Key="SimpleScrollBarStyle" TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Width" Value="8" />
+            <Setter Property="MinWidth" Value="8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Border Background="Transparent" BorderThickness="0">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Style>
+                                            <Style TargetType="Thumb">
+                                                <Setter Property="Background" Value="#CCCCCC" />
+                                                <Setter Property="BorderThickness" Value="0" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Thumb">
+                                                            <Border
+                                                                Background="{TemplateBinding Background}"
+                                                                BorderThickness="0"
+                                                                CornerRadius="4" />
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#999999" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter Property="Background" Value="#666666" />
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Thumb.Style>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--  简洁的ScrollViewer样式  -->
+        <Style x:Key="SimpleScrollViewerStyle" TargetType="ScrollViewer">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="8" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <ScrollContentPresenter
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                Margin="{TemplateBinding Padding}"
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}" />
+
+                            <ScrollBar
+                                x:Name="PART_VerticalScrollBar"
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                Maximum="{TemplateBinding ScrollableHeight}"
+                                Orientation="Vertical"
+                                Style="{StaticResource SimpleScrollBarStyle}"
+                                ViewportSize="{TemplateBinding ViewportHeight}"
+                                Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                Value="{TemplateBinding VerticalOffset}" />
+
+                            <ScrollBar
+                                x:Name="PART_HorizontalScrollBar"
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                Maximum="{TemplateBinding ScrollableWidth}"
+                                Orientation="Horizontal"
+                                Style="{StaticResource SimpleScrollBarStyle}"
+                                ViewportSize="{TemplateBinding ViewportWidth}"
+                                Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"
+                                Value="{TemplateBinding HorizontalOffset}" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+
+        <!--  通道选项卡样式（单选，高亮）  -->
+        <Style x:Key="ChannelTabStyle" TargetType="RadioButton">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border
+                            x:Name="bd"
+                            Margin="0,0"
+                            Padding="0"
+                            Background="White"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="0.5"
+                            CornerRadius="4">
+                            <Grid>
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <Rectangle
+                                    x:Name="underline"
+                                    Height="2"
+                                    VerticalAlignment="Bottom"
+                                    Fill="#62b5e6"
+                                    RadiusX="0"
+                                    RadiusY="0"
+                                    Visibility="Collapsed" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <!--  When underlying channel model indicates channel is opened, use highlight color  -->
+                            <DataTrigger Binding="{Binding DataContext.IsOpen, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#d6ebfc" />
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#BFD7E8" />
+                            </DataTrigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#EAF2F7" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#d6ebfc" />
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#BFD7E8" />
+                                <Setter Property="FontWeight" Value="Bold" />
+                                <Setter TargetName="underline" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bd" Property="Background" Value="#F0F0F0" />
+                                <Setter Property="Foreground" Value="#999999" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </UserControl.Resources>
+
+    <Grid Background="White">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="55" />
+            <!--  顶部选项卡/工具栏  -->
+            <RowDefinition Height="*" />
+            <!--  中间主体  -->
+            <RowDefinition Height="300" />
+            <!--  底部任务区  -->
+        </Grid.RowDefinitions>
+
+        <!--  顶部：板卡名 + 打开板卡按钮与工具栏  -->
+        <Border
+            Margin="8,8,8,4"
+            BorderBrush="#D9D9D9"
+            BorderThickness="1.5"
+            CornerRadius="8">
+            <Grid>
+                <StackPanel
+                    Margin="0,0,10,0"
+                    DockPanel.Dock="Left"
+                    Orientation="Horizontal">
+                    <TextBlock
+                        Width="180"
+                        Margin="15,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Text="{Binding CardModel, StringFormat='{}{0} CAN板卡'}" />
+
+                    <StackPanel
+                        Margin="5,0,5,0"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal">
+                        <Button
+                            Width="80"
+                            Height="30"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding ToggleDeviceCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="4">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image
+                                                x:Name="DeviceImage"
+                                                Width="15"
+                                                Height="15"
+                                                Margin="5,0,5,0"
+                                                Source="/Resources/Logo/export.png" />
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                Foreground="White"
+                                                Text="打开板卡" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <!--  1. 已连接时的基础状态  -->
+                                        <DataTrigger Binding="{Binding IsDeviceConnected}" Value="True">
+                                            <Setter Property="Tag" Value="True" />
+                                            <Setter TargetName="DeviceImage" Property="Source" Value="/Resources/Logo/import.png" />
+                                            <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="关闭板卡" />
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding IsDeviceConnected}" Value="False">
+                                            <Setter Property="Tag" Value="False" />
+                                        </DataTrigger>
+
+                                        <!--  2. 未连接 + 悬停  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                        </MultiTrigger>
+
+                                        <!--  3. 未连接 + 按下  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsPressed" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </MultiTrigger>
+
+                                        <!--  4. 已连接 + 悬停（优先级更高，放在后面）  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                        </MultiTrigger>
+
+                                        <!--  5. 已连接 + 按下  -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsPressed" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                        </MultiTrigger>
+
+                                        <!--  6. 禁用状态（最高优先级）  -->
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <StackPanel
+                            Margin="15,0,0,0"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal">
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                FontSize="14"
+                                Text="连接状态：" />
+                            <Grid Width="18" Height="18">
+                                <Ellipse
+                                    Width="18"
+                                    Height="18"
+                                    Stroke="#d1d5db"
+                                    StrokeThickness="0.5" />
+                                <Ellipse
+                                    Width="16"
+                                    Height="16"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill">
+                                                <Setter.Value>
+                                                    <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                        <GradientStop Offset="0" Color="#ff6b6b" />
+                                                        <GradientStop Offset="1" Color="#b91c1c" />
+                                                    </RadialGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsDeviceConnected, Mode=OneWay}" Value="True">
+                                                    <Setter Property="Fill">
+                                                        <Setter.Value>
+                                                            <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                                <GradientStop Offset="0" Color="#4ade80" />
+                                                                <GradientStop Offset="1" Color="#22c55e" />
+                                                            </RadialGradientBrush>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                            </Grid>
+                            <TextBlock
+                                Margin="5,0,0,0"
+                                VerticalAlignment="Center"
+                                FontSize="15"
+                                Text="{Binding ConnectionStatus}" />
+                        </StackPanel>
+
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel
+                    Margin="5,0,0,0"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal">
+                    <Button
+                        Width="100"
+                        Height="34"
+                        Margin="6,0"
+                        Padding="10,4"
+                        BorderBrush="#D9D9D9"
+                        BorderThickness="1"
+                        Command="{Binding OpenAllChannelsCommand}"
+                        Content="打开所有通道"
+                        FontSize="14" />
+                    <Button
+                        Width="100"
+                        Height="34"
+                        Margin="6,0"
+                        Padding="10,4"
+                        BorderBrush="#D9D9D9"
+                        BorderThickness="1"
+                        Command="{Binding CloseAllChannelsCommand}"
+                        Content="关闭所有通道"
+                        FontSize="14" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!--  中间主体：全部为通道区  -->
+        <Grid Grid.Row="1" Grid.ColumnSpan="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border
+                x:Name="MiddleAreaBorder"
+                Grid.Column="0"
+                Margin="8,4,8,4"
+                Padding="1"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1.5"
+                CornerRadius="4">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Opacity" Value="1" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource Self}}" Value="False">
+                                <Setter Property="Opacity" Value="0.6" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsDeviceConnected}" Value="True">
+                                <Setter Property="Background" Value="#F3F9FE" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <!--  通道标签行  -->
+                        <RowDefinition Height="Auto" />
+                        <!--  操作按钮行  -->
+                        <RowDefinition Height="*" />
+                        <!--  主显示区  -->
+                    </Grid.RowDefinitions>
+
+                    <!--  通道选项卡（均分为20列，无横向滚动）  -->
+                    <Grid
+                        Grid.Row="0"
+                        Height="25"
+                        Margin="0,0,0,4">
+                        <Grid.Resources>
+                            <Style BasedOn="{StaticResource ChannelTabStyle}" TargetType="RadioButton">
+                                <Setter Property="FontSize" Value="7.5" />
+                                <Setter Property="Padding" Value="-2" />
+                            </Style>
+                        </Grid.Resources>
+                        <ItemsControl ItemsSource="{Binding Channels}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="20" Rows="1" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <RadioButton
+                                        Margin="0.5"
+                                        Padding="0"
+                                        HorizontalAlignment="Stretch"
+                                        Content="{Binding Name}"
+                                        FontSize="10"
+                                        GroupName="ChannelTabs"
+                                        IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                        Style="{StaticResource ChannelTabStyle}">
+                                        <RadioButton.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem
+                                                    Click="MenuOpenChannel_Click"
+                                                    Header="打开通道"
+                                                    Style="{DynamicResource CustomMenuItemStyle}"
+                                                    Visibility="{Binding DataContext.IsOpen, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource InverseBoolConverter}}" />
+                                                <MenuItem
+                                                    Click="MenuCloseChannel_Click"
+                                                    Header="关闭通道"
+                                                    Visibility="{Binding DataContext.IsOpen, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                            </ContextMenu>
+                                        </RadioButton.ContextMenu>
+                                    </RadioButton>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+
+                    <!--  操作按钮行  -->
+                    <Grid Grid.Row="1" Margin="0,2,0,5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <!--  左侧操作按钮  -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                            <Button
+                                Width="60"
+                                Height="20"
+                                Margin="4,0"
+                                Background="#d6ebfc"
+                                BorderBrush="#62b5e6"
+                                BorderThickness="1"
+                                Command="{Binding OpenBusSettingsCommand}"
+                                Content="总线设置" />
+                            <Button
+                                Width="40"
+                                Height="20"
+                                Margin="4,0"
+                                Background="#d6ebfc"
+                                BorderBrush="#62b5e6"
+                                BorderThickness="1"
+                                Command="{Binding StartCommand}"
+                                Content="{Binding StartButtonText}" />
+                            <Button
+                                Width="40"
+                                Height="20"
+                                Margin="4,0"
+                                Background="#d6ebfc"
+                                BorderBrush="#62b5e6"
+                                BorderThickness="1"
+                                Command="{Binding PauseCommand}"
+                                Content="暂 停" />
+                            <Button
+                                Width="60"
+                                Height="20"
+                                Margin="4,0"
+                                Background="#d6ebfc"
+                                BorderBrush="#62b5e6"
+                                BorderThickness="1"
+                                Command="{Binding StartReceiveCommand}"
+                                Content="开始接收" />
+                            <Button
+                                Width="60"
+                                Height="20"
+                                Margin="4,0"
+                                Background="#d6ebfc"
+                                BorderBrush="#62b5e6"
+                                BorderThickness="1"
+                                Command="{Binding StopReceiveCommand}"
+                                Content="停止接收" />
+                            <Button
+                                Width="60"
+                                Height="20"
+                                Margin="4,0"
+                                Background="#d6ebfc"
+                                BorderBrush="#62b5e6"
+                                BorderThickness="1"
+                                Command="{Binding ClearListCommand}"
+                                Content="清空列表" />
+                        </StackPanel>
+
+                        <!--  右侧接收状态指示灯  -->
+                        <StackPanel
+                            Grid.Column="2"
+                            Margin="0,0,10,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal">
+                            <TextBlock
+                                Margin="0,0,3,0"
+                                VerticalAlignment="Center"
+                                FontSize="11"
+                                Text="接收状态：" />
+                            <Border
+                                Width="18"
+                                Height="18"
+                                VerticalAlignment="Center"
+                                Background="Transparent"
+                                CornerRadius="9">
+                                <Ellipse
+                                    Width="14"
+                                    Height="14"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill">
+                                                <Setter.Value>
+                                                    <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                        <GradientStop Offset="0" Color="#9ca3af" />
+                                                        <GradientStop Offset="1" Color="#6b7280" />
+                                                    </RadialGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedChannelIsReceiving, Mode=OneWay}" Value="True">
+                                                    <Setter Property="Fill">
+                                                        <Setter.Value>
+                                                            <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                                <GradientStop Offset="0" Color="#3b82f6" />
+                                                                <GradientStop Offset="1" Color="#1d4ed8" />
+                                                            </RadialGradientBrush>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                            </Border>
+                            <TextBlock
+                                Margin="5,0,0,0"
+                                VerticalAlignment="Center"
+                                FontSize="11"
+                                FontWeight="Bold">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="未接收" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedChannelIsReceiving}" Value="True">
+                                                <Setter Property="Text" Value="正在接收" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </Grid>
+
+                    <!--  主显示区  -->
+                    <Border
+                        Grid.Row="2"
+                        Margin="2"
+                        Background="#F8FCFF"
+                        BorderBrush="#E5EEF6"
+                        BorderThickness="1"
+                        CornerRadius="4">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!--  消息表格  -->
+                            <DataGrid
+                                Grid.Row="0"
+                                MinHeight="100"
+                                AlternatingRowBackground="#F3FAFF"
+                                AutoGenerateColumns="False"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CanUserAddRows="False"
+                                CanUserDeleteRows="False"
+                                EnableColumnVirtualization="True"
+                                EnableRowVirtualization="True"
+                                GridLinesVisibility="Horizontal"
+                                HeadersVisibility="Column"
+                                IsReadOnly="True"
+                                ItemsSource="{Binding Messages}"
+                                RowHeaderWidth="28"
+                                ScrollViewer.CanContentScroll="True"
+                                VirtualizingStackPanel.IsVirtualizing="True"
+                                VirtualizingStackPanel.VirtualizationMode="Recycling">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn
+                                        Width="40"
+                                        Binding="{Binding Index}"
+                                        Header="#" />
+                                    <DataGridTextColumn
+                                        Width="120"
+                                        Binding="{Binding Time}"
+                                        Header="时间" />
+                                    <DataGridTextColumn
+                                        Width="60"
+                                        Binding="{Binding Direction}"
+                                        Header="方向" />
+                                    <DataGridTextColumn
+                                        Width="80"
+                                        Binding="{Binding Id}"
+                                        Header="帧ID" />
+                                    <DataGridTextColumn
+                                        Width="100"
+                                        Binding="{Binding FrameType}"
+                                        Header="帧类型" />
+                                    <DataGridTextColumn
+                                        Width="100"
+                                        Binding="{Binding FrameFormat}"
+                                        Header="帧格式" />
+                                    <DataGridTextColumn
+                                        Width="60"
+                                        Binding="{Binding Length}"
+                                        Header="帧长度" />
+                                    <DataGridTextColumn
+                                        Width="*"
+                                        Binding="{Binding Data}"
+                                        Header="帧数据" />
+                                    <DataGridTextColumn
+                                        Width="80"
+                                        Binding="{Binding SendStatus}"
+                                        Header="发送状态" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!--  底部任务区  -->
+        <!-- ORIGINAL: <Border Grid.Row="2" BorderThickness="1.5" BorderBrush="#E5EEF6" CornerRadius="4" Padding="8" Background="#FFFFFF" Margin="0,5,0,0" IsEnabled="{Binding IsDeviceConnected}" Style="{StaticResource DisableableOpacityStyle}"> -->
+        <Border
+            Grid.Row="2"
+            Margin="8,4,8,4"
+            Padding="6"
+            Background="#FFFFFF"
+            BorderBrush="#D9D9D9"
+            BorderThickness="1.5"
+            CornerRadius="4"
+            IsEnabled="{Binding IsTaskAreaEnabled}"
+            Style="{StaticResource DisableableOpacityStyle}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="270" />
+                    <!--  任务定义  -->
+                    <ColumnDefinition Width="100" />
+                    <!--  操作  -->
+                    <ColumnDefinition Width="*" />
+                    <!--  任务列表  -->
+                </Grid.ColumnDefinitions>
+
+                <!--  任务定义  -->
+                <Border
+                    Grid.Column="0"
+                    Margin="0,0,5,0"
+                    Padding="3"
+                    BorderBrush="#E5EEF6"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                    <StackPanel>
+                        <TextBlock
+                            Width="60"
+                            Margin="12,-10,0,5"
+                            HorizontalAlignment="Left"
+                            Panel.ZIndex="2"
+                            Background="#FFFFFF"
+                            FontSize="12"
+                            FontWeight="Bold"
+                            Text="任 务 定 义"
+                            TextAlignment="Center" />
+                        <ScrollViewer
+                            MaxHeight="250"
+                            Padding="0"
+                            HorizontalScrollBarVisibility="Disabled"
+                            Style="{StaticResource SimpleScrollViewerStyle}"
+                            VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <StackPanel Margin="0,4" Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        Text="帧类型：" />
+                                    <ComboBox
+                                        Width="150"
+                                        Height="24"
+                                        SelectedIndex="0"
+                                        SelectedItem="{Binding NewTask_FrameType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource CustomComboBoxStyle}">
+                                        <ComboBoxItem Content="数据帧" />
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <StackPanel Margin="0,4" Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        Text="帧格式：" />
+                                    <ComboBox
+                                        Width="150"
+                                        Height="24"
+                                        SelectedIndex="0"
+                                        SelectedItem="{Binding NewTask_FrameFormat, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource CustomComboBoxStyle}">
+                                        <ComboBoxItem Content="标准帧" />
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <StackPanel Margin="0,4" Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        Text="帧ID方式：" />
+                                    <ComboBox
+                                        Width="150"
+                                        Height="26"
+                                        SelectedIndex="0"
+                                        SelectedItem="{Binding NewTask_IdMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource CustomComboBoxStyle}">
+                                        <ComboBoxItem Content="固定" />
+                                        <ComboBoxItem Content="自增" />
+                                        <ComboBoxItem Content="随机" />
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <StackPanel Margin="0,4" Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        Text="帧ID(Hex)：" />
+                                    <Border
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBox
+                                            Width="145"
+                                            Height="24"
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            BorderThickness="0"
+                                            Text="{Binding NewTask_Id, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    </Border>
+                                </StackPanel>
+
+                                <StackPanel Margin="0,4" Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        Text="帧数据方式：" />
+                                    <ComboBox
+                                        Width="150"
+                                        Height="26"
+                                        SelectedIndex="0"
+                                        SelectedItem="{Binding NewTask_DataMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource CustomComboBoxStyle}">
+                                        <ComboBoxItem Content="固定" />
+                                        <ComboBoxItem Content="自增" />
+                                        <ComboBoxItem Content="随机" />
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <StackPanel Margin="0,4,0,15" Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        Text="帧数据(Hex)：" />
+
+                                    <Border
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBox
+                                            Width="145"
+                                            Height="24"
+                                            Margin="1"
+                                            BorderThickness="0"
+                                            Text="{Binding NewTask_Data, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    </Border>
+                                </StackPanel>
+
+                                <StackPanel Margin="0,4" Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        Text="发送间隔:" />
+                                    <Border
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBox
+                                            Width="145"
+                                            Height="24"
+                                            Margin="1"
+                                            BorderThickness="0"
+                                            PreviewTextInput="NumberValidationTextBox"
+                                            Text="{Binding NewTask_Interval, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    </Border>
+                                </StackPanel>
+
+                                <StackPanel Margin="0,4,0,20" Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        Text="发送次数:" />
+
+                                    <Border
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBox
+                                            Width="100"
+                                            Height="24"
+                                            Margin="1"
+                                            BorderThickness="0"
+                                            PreviewTextInput="NumberValidationTextBox"
+                                            Text="{Binding NewTask_Count, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    </Border>
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox
+                                            Margin="5,0,0,0"
+                                            VerticalAlignment="Center"
+                                            IsChecked="{Binding NewTask_Loop, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            Style="{StaticResource EnableCheckBoxStyle}" />
+                                        <TextBlock VerticalAlignment="Center" Text="循环" />
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <StackPanel Margin="0,4" Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        Text="发送帧数:" />
+                                    <Border
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBox
+                                            Width="100"
+                                            Height="24"
+                                            Margin="1"
+                                            BorderThickness="0"
+                                            IsReadOnly="True"
+                                            Text="{Binding SendFrameCount, Mode=OneWay}" />
+                                    </Border>
+                                    <Button
+                                        Width="40"
+                                        Height="20"
+                                        Margin="5,0,0,0"
+                                        BorderBrush="#3d3d3d"
+                                        BorderThickness="1"
+                                        Command="{Binding ClearSendFrameCountCommand}"
+                                        Content="清 除" />
+                                </StackPanel>
+
+                                <StackPanel Margin="0,4" Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        Text="接收帧数:" />
+                                    <Border
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBox
+                                            Width="100"
+                                            Height="24"
+                                            Margin="1"
+                                            BorderThickness="0"
+                                            IsReadOnly="True"
+                                            Text="{Binding ReceiveFrameCount, Mode=OneWay}" />
+                                    </Border>
+                                    <Button
+                                        Width="40"
+                                        Height="20"
+                                        Margin="5,0,0,0"
+                                        BorderBrush="#3d3d3d"
+                                        BorderThickness="1"
+                                        Command="{Binding ClearReceiveFrameCountCommand}"
+                                        Content="清 除" />
+                                </StackPanel>
+
+                                <StackPanel Margin="0,4" Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        Text="发送耗时:" />
+                                    <Border
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBox
+                                            Width="100"
+                                            Height="24"
+                                            Margin="1"
+                                            BorderThickness="0"
+                                            IsReadOnly="True"
+                                            Text="{Binding SendTimeElapsed, Mode=OneWay}" />
+                                    </Border>
+                                    <TextBlock
+                                        Width="80"
+                                        Margin="5,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Text="(ms)" />
+                                    <Button
+                                        Width="40"
+                                        Height="20"
+                                        Margin="5,0,0,0"
+                                        BorderBrush="#3d3d3d"
+                                        BorderThickness="1"
+                                        Command="{Binding ClearSendTimeElapsedCommand}"
+                                        Content="清 除" />
+                                </StackPanel>
+
+                                <StackPanel Margin="0,4" Orientation="Horizontal">
+                                    <TextBlock
+                                        Width="80"
+                                        VerticalAlignment="Center"
+                                        Text="校验错误数:" />
+                                    <Border
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBox
+                                            Width="100"
+                                            Height="24"
+                                            Margin="1"
+                                            BorderThickness="0"
+                                            Text="0" />
+                                    </Border>
+                                    <Button
+                                        Width="40"
+                                        Height="20"
+                                        Margin="5,0,0,0"
+                                        BorderBrush="#3d3d3d"
+                                        BorderThickness="1"
+                                        Content="清 除" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+
+                <!--  操作  -->
+                <Border
+                    Grid.Column="1"
+                    Margin="0,0,5,0"
+                    Padding="3"
+                    BorderBrush="#E5EEF6"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                    <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                        <TextBlock
+                            Width="30"
+                            Margin="6,-10,0,5"
+                            HorizontalAlignment="Left"
+                            Panel.ZIndex="2"
+                            Background="#FFFFFF"
+                            FontSize="12"
+                            FontWeight="Bold"
+                            Text="操  作"
+                            TextAlignment="Center" />
+                        <Button
+                            Width="80"
+                            Height="25"
+                            Margin="0,4"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            Command="{Binding AddTaskCommand}"
+                            Content="添加任务" />
+                        <Button
+                            Width="80"
+                            Height="25"
+                            Margin="0,4"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            Command="{Binding DeleteTaskCommand}"
+                            Content="删除任务" />
+                        <Button
+                            Width="80"
+                            Height="27"
+                            Margin="0,15,0,4"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            Command="{Binding SendCurrentTaskCommand}"
+                            Content="发送当前任务" />
+                        <Button
+                            Width="80"
+                            Height="25"
+                            Margin="0,4"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            Command="{Binding SendAllTasksCommand}"
+                            Content="发送列表任务" />
+                        <Button
+                            Width="80"
+                            Height="27"
+                            Margin="0,15,0,4"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            Content="导入任务列表" />
+                        <Button
+                            Width="80"
+                            Height="25"
+                            Margin="0,4"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            Content="导出任务列表" />
+                        <Button
+                            Width="80"
+                            Height="25"
+                            Margin="0,4"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            Command="{Binding ClearTaskListCommand}"
+                            Content="清除任务列表" />
+                    </StackPanel>
+                </Border>
+
+                <!--  任务列表  -->
+                <Border
+                    Grid.Column="2"
+                    Margin="0,0,0,0"
+                    Padding="3"
+                    BorderBrush="#E5EEF6"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock
+                            Grid.Row="0"
+                            Width="60"
+                            Margin="12,-10,0,5"
+                            HorizontalAlignment="Left"
+                            Panel.ZIndex="2"
+                            Background="#FFFFFF"
+                            FontSize="12"
+                            FontWeight="Bold"
+                            Text="任 务 列 表"
+                            TextAlignment="Center" />
+                        <DataGrid
+                            Grid.Row="1"
+                            Margin="1"
+                            AutoGenerateColumns="False"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CanUserAddRows="False"
+                            HeadersVisibility="Column"
+                            ItemsSource="{Binding TaskList}"
+                            SelectedItem="{Binding SelectedTask, Mode=TwoWay}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn
+                                    Width="60"
+                                    Binding="{Binding SendFormat}"
+                                    Header="发送格式" />
+                                <DataGridTextColumn
+                                    Width="50"
+                                    Binding="{Binding FrameType}"
+                                    Header="帧类型" />
+                                <DataGridTextColumn
+                                    Width="50"
+                                    Binding="{Binding FrameFormat}"
+                                    Header="帧格式" />
+                                <DataGridTextColumn
+                                    Width="60"
+                                    Binding="{Binding IdMode}"
+                                    Header="帧ID方式" />
+                                <DataGridTextColumn
+                                    Width="40"
+                                    Binding="{Binding Id}"
+                                    Header="帧ID" />
+                                <DataGridTextColumn
+                                    Width="70"
+                                    Binding="{Binding DataMode}"
+                                    Header="帧数据方式" />
+                                <DataGridTextColumn
+                                    Width="*"
+                                    Binding="{Binding Data}"
+                                    Header="帧数据" />
+                                <DataGridTextColumn
+                                    Width="40"
+                                    Binding="{Binding Count}"
+                                    Header="次数" />
+                                <DataGridCheckBoxColumn
+                                    Width="40"
+                                    Binding="{Binding Loop, Mode=TwoWay}"
+                                    Header="循环" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

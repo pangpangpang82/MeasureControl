@@ -1,0 +1,22 @@
+﻿<Prism:PrismApplication
+    x:Class="MeasureControl.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:Prism="http://prismlibrary.com/"
+    xmlns:behaviors="clr-namespace:MeasureControl.Behaviors"
+    xmlns:local="clr-namespace:MeasureControl">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!--  先加载滚动条样式，这样其他样式文件可以使用它  -->
+                <ResourceDictionary Source="/Styles/ScrollBarStyles.xaml" />
+                <ResourceDictionary Source="/Styles/ComboBoxStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!--  全局ScrollViewer样式，默认启用滚轮横向滚动  -->
+            <Style TargetType="ScrollViewer">
+                <Setter Property="behaviors:ScrollViewerExtensions.EnableHorizontalWheelScroll" Value="True" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Prism:PrismApplication>

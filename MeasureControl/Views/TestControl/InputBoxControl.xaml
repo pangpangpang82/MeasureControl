@@ -1,0 +1,97 @@
+<UserControl
+    x:Class="MeasureControl.Views.TestControl.InputBoxControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:MeasureControl.Views.TestControl"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    d:DesignHeight="70"
+    d:DesignWidth="100"
+    mc:Ignorable="d">
+    <!--  输入框控件 - 设置模拟量输出值，可编辑  -->
+    <StackPanel>
+        <!--  控件名称（上方显示）  -->
+        <TextBlock
+            x:Name="ControlNameText"
+            Margin="0,0,0,5"
+            HorizontalAlignment="Center"
+            FontSize="14"
+            Foreground="Black"
+            Text="输入框1" />
+        <!--  值输入区域  -->
+        <Border
+            x:Name="MainBorder"
+            MinHeight="32"
+            Padding="8,4"
+            Background="#e8ebed"
+            BorderBrush="#d0d3d6"
+            BorderThickness="1"
+            CornerRadius="0"
+            Cursor="IBeam"
+            MouseLeftButtonDown="MainBorder_MouseLeftButtonDown">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="MinWidth" Value="80" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DecimalPlaces}" Value="0">
+                            <Setter Property="MinWidth" Value="60" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DecimalPlaces}" Value="1">
+                            <Setter Property="MinWidth" Value="70" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DecimalPlaces}" Value="2">
+                            <Setter Property="MinWidth" Value="80" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DecimalPlaces}" Value="3">
+                            <Setter Property="MinWidth" Value="90" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DecimalPlaces}" Value="4">
+                            <Setter Property="MinWidth" Value="100" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DecimalPlaces}" Value="5">
+                            <Setter Property="MinWidth" Value="110" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <Grid>
+                <!--  显示模式  -->
+                <StackPanel
+                    x:Name="DisplayPanel"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal">
+                    <TextBlock
+                        x:Name="ValueText"
+                        VerticalAlignment="Center"
+                        FontFamily="Consolas"
+                        FontSize="20"
+                        FontWeight="Medium"
+                        Foreground="Black"
+                        Text="0.00" />
+                    <TextBlock
+                        x:Name="UnitText"
+                        Margin="4,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="18"
+                        Foreground="Black"
+                        Text="" />
+                </StackPanel>
+                <!--  编辑模式  -->
+                <TextBox
+                    x:Name="EditTextBox"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    FontFamily="Consolas"
+                    FontSize="18"
+                    FontWeight="Medium"
+                    Foreground="Black"
+                    KeyDown="EditTextBox_KeyDown"
+                    LostFocus="EditTextBox_LostFocus"
+                    Visibility="Collapsed" />
+            </Grid>
+        </Border>
+    </StackPanel>
+</UserControl>

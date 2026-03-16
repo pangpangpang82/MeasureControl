@@ -1,0 +1,277 @@
+<Window
+    x:Class="MeasureControl.Views.Dialogs.AddChassisDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Title="添加机箱"
+    Width="280"
+    Height="280"
+    AllowsTransparency="True"
+    Background="Transparent"
+    ResizeMode="NoResize"
+    WindowStartupLocation="CenterOwner"
+    WindowStyle="None"
+    mc:Ignorable="d">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <Style x:Key="DialogButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="#1c1c1c" />
+                <Setter Property="Foreground" Value="White" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="Width" Value="70" />
+                <Setter Property="Height" Value="30" />
+                <Setter Property="Margin" Value="5" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#4F5C87" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Background" Value="#4F5C87" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.5" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border BorderBrush="#1c1c1c" BorderThickness="1">
+        <Grid Background="White">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="30" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!--  标题栏  -->
+            <Border
+                Grid.Row="0"
+                Height="30"
+                Background="#1c1c1c"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <TextBlock
+                    Margin="10,0,0,0"
+                    VerticalAlignment="Center"
+                    FontSize="14"
+                    Foreground="White"
+                    Text="添加机箱" />
+            </Border>
+
+            <!--  内容区域  -->
+            <Grid
+                Grid.Row="1"
+                Margin="20,10,20,10"
+                VerticalAlignment="Center">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!--  机箱型号（只读显示）  -->
+                <StackPanel
+                    Grid.Row="0"
+                    Margin="0,0,0,5"
+                    Orientation="Horizontal">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="机箱型号：" />
+                    <TextBlock
+                        Margin="10,0,0,5"
+                        FontSize="14"
+                        FontWeight="Bold"
+                        Foreground="#2d354d"
+                        Text="{Binding ChassisModel}" />
+                </StackPanel>
+
+                <!--  机箱名称输入  -->
+                <Grid Grid.Row="1" Margin="0,5,0,5">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="机箱名称：" />
+                    <Border
+                        Width="175"
+                        HorizontalAlignment="Right"
+                        BorderBrush="#ebecef"
+                        BorderThickness="1"
+                        CornerRadius="3">
+                        <TextBox
+                            x:Name="ChassisNameTextBox"
+                            Width="165"
+                            Height="30"
+                            Margin="10,0,0,0"
+                            HorizontalAlignment="Left"
+                            VerticalContentAlignment="Center"
+                            BorderThickness="0"
+                            FontSize="14"
+                            Text="{Binding ChassisName, UpdateSourceTrigger=PropertyChanged}" />
+                    </Border>
+                </Grid>
+
+                <!--  本地网口选择  -->
+                <Grid Grid.Row="2" Margin="0,5,0,5">
+
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="本地网口：" />
+
+                    <ComboBox
+                        Width="175"
+                        Height="30"
+                        HorizontalAlignment="Right"
+                        BorderBrush="#ebecef"
+                        BorderThickness="1"
+                        DisplayMemberPath="DisplayName"
+                        FontSize="14"
+                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                        ItemsSource="{Binding NetworkInterfaces}"
+                        SelectedItem="{Binding SelectedNetworkInterface}"
+                        Style="{StaticResource CustomComboBoxStyle}" />
+                </Grid>
+
+                <!--  IP地址输入  -->
+                <Grid Grid.Row="3" Margin="0,5,0,5">
+                    <TextBlock
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="IP地址：" />
+                    <Border
+                        Width="175"
+                        HorizontalAlignment="Right"
+                        BorderBrush="#ebecef"
+                        BorderThickness="1"
+                        CornerRadius="3">
+                        <TextBox
+                            Width="165"
+                            Height="30"
+                            Margin="10,0,0,0"
+                            HorizontalAlignment="Left"
+                            VerticalContentAlignment="Center"
+                            BorderThickness="0"
+                            FontSize="14"
+                            Text="{Binding IpAddress, UpdateSourceTrigger=PropertyChanged}" />
+                    </Border>
+                    <TextBlock
+                        Width="175"
+                        Height="25"
+                        HorizontalAlignment="Left"
+                        FontSize="11"
+                        Foreground="#e74c3c"
+                        Text="{Binding IpAddressError}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IpAddressError}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IpAddressError}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+
+                <!--  子网掩码输入  -->
+                <Grid Grid.Row="4" Margin="0,5,0,5">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="子网掩码：" />
+                    <Border
+                        Width="175"
+                        HorizontalAlignment="Right"
+                        BorderBrush="#ebecef"
+                        BorderThickness="1"
+                        CornerRadius="3">
+                        <TextBox
+                            Width="165"
+                            Height="30"
+                            Margin="10,0,0,0"
+                            HorizontalAlignment="Left"
+                            VerticalContentAlignment="Center"
+                            BorderBrush="#ebecef"
+                            BorderThickness="0"
+                            FontSize="14"
+                            Text="{Binding SubnetMask, UpdateSourceTrigger=PropertyChanged}" />
+                    </Border>
+                    <TextBlock
+                        Width="175"
+                        Height="25"
+                        HorizontalAlignment="Left"
+                        FontSize="11"
+                        Foreground="#e74c3c"
+                        Text="{Binding SubnetMaskError}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SubnetMaskError}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding SubnetMaskError}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Grid>
+
+            <!--  按钮区域  -->
+            <Border Grid.Row="2" Background="#F0F0F0">
+                <StackPanel
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal">
+                    <Button
+                        x:Name="ConfirmButton"
+                        Width="50"
+                        Height="20"
+                        Margin="0,5,5,5"
+                        Command="{Binding ConfirmCommand}"
+                        Content="确定"
+                        Focusable="True"
+                        FontSize="14"
+                        IsDefault="True"
+                        Style="{StaticResource DialogButtonStyle}" />
+                    <Button
+                        Width="50"
+                        Height="20"
+                        Margin="5,5,5,5"
+                        Command="{Binding CancelCommand}"
+                        Content="取消"
+                        FontSize="14"
+                        IsCancel="True"
+                        Style="{StaticResource DialogButtonStyle}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

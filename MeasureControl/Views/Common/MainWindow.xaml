@@ -1,0 +1,1193 @@
+﻿<Window
+    x:Class="MeasureControl.Views.Common.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:MeasureControl.Helpers"
+    xmlns:local="clr-namespace:MeasureControl"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:prism="http://prismlibrary.com/"
+    xmlns:vm="clr-namespace:MeasureControl.ViewModels"
+    Title="控制器硬件测试平台"
+    Width="1800"
+    Height="1000"
+    MinWidth="1200"
+    MinHeight="700"
+    Icon="pack://application:,,,/Resources/Logo.ico"
+    ResizeMode="CanResize"
+    WindowStartupLocation="CenterScreen"
+    WindowStyle="None"
+    mc:Ignorable="d">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome
+            CaptionHeight="0"
+            CornerRadius="0"
+            GlassFrameThickness="0"
+            NonClientFrameEdges="None"
+            ResizeBorderThickness="5"
+            UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <!--  动画资源  -->
+        <Storyboard x:Key="FadeInAnimation">
+            <DoubleAnimation
+                Storyboard.TargetProperty="Opacity"
+                From="0"
+                To="1"
+                Duration="0:0:0.8">
+                <DoubleAnimation.EasingFunction>
+                    <PowerEase EasingMode="EaseOut" Power="2" />
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <Storyboard x:Key="SlideInFromTopAnimation">
+            <DoubleAnimation
+                Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                From="-50"
+                To="0"
+                Duration="0:0:0.6">
+                <DoubleAnimation.EasingFunction>
+                    <PowerEase EasingMode="EaseOut" Power="2" />
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation
+                Storyboard.TargetProperty="Opacity"
+                From="0"
+                To="1"
+                Duration="0:0:0.6">
+                <DoubleAnimation.EasingFunction>
+                    <PowerEase EasingMode="EaseOut" Power="2" />
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <Storyboard x:Key="SlideInFromLeftAnimation">
+            <DoubleAnimation
+                Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                From="-100"
+                To="0"
+                Duration="0:0:0.7">
+                <DoubleAnimation.EasingFunction>
+                    <PowerEase EasingMode="EaseOut" Power="2" />
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation
+                Storyboard.TargetProperty="Opacity"
+                From="0"
+                To="1"
+                Duration="0:0:0.7">
+                <DoubleAnimation.EasingFunction>
+                    <PowerEase EasingMode="EaseOut" Power="2" />
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <Storyboard x:Key="TreeExpandAnimation">
+            <DoubleAnimation
+                Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                From="0"
+                To="1"
+                Duration="0:0:0.3">
+                <DoubleAnimation.EasingFunction>
+                    <PowerEase EasingMode="EaseOut" Power="2" />
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation
+                Storyboard.TargetProperty="Opacity"
+                From="0"
+                To="1"
+                Duration="0:0:0.3">
+                <DoubleAnimation.EasingFunction>
+                    <PowerEase EasingMode="EaseOut" Power="2" />
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <!--  右键菜单样式，统一应用于项目树和机箱  -->
+        <Style x:Key="CustomContextMenuStyle" TargetType="ContextMenu">
+            <Setter Property="Background" Value="#ffffff" />
+            <Setter Property="BorderBrush" Value="#cccccc" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="2" />
+        </Style>
+
+        <Style x:Key="CustomMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Background" Value="#ffffff" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border
+                            x:Name="Border"
+                            Padding="{TemplateBinding Padding}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="0">
+                            <ContentPresenter
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                ContentSource="Header" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#f0f0f0" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#cccccc" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+
+        <Style x:Key="ToolButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            x:Name="Border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter
+                                x:Name="contentPresenter"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                                <ContentPresenter.RenderTransform>
+                                    <TranslateTransform Y="0" />
+                                </ContentPresenter.RenderTransform>
+                            </ContentPresenter>
+                        </Border>
+                        <ControlTemplate.Triggers>
+
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <!--<Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="contentPresenter"
+                                                             Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                                             To="-1"
+                                                             Duration="0:0:0.08" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="contentPresenter"
+                                                             Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                                             To="0"
+                                                             Duration="0:0:0.08" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>-->
+                                <Setter TargetName="Border" Property="Background" Value="#eaeaea" />
+                            </Trigger>
+
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#eaeaea" />
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#2196F3" />
+                                <Setter TargetName="Border" Property="BorderThickness" Value="1" />
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation
+                                                Storyboard.TargetName="contentPresenter"
+                                                Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                                To="1"
+                                                Duration="0:0:0.04" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation
+                                                Storyboard.TargetName="contentPresenter"
+                                                Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                                To="0"
+                                                Duration="0:0:0.04" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DefaultButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            x:Name="Border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#eaeaea" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#d0d0d0" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding ContextMenu.IsOpen, RelativeSource={RelativeSource Self}}" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#f0f0f0" />
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <helpers:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <helpers:BoolToColorConverter x:Key="BoolToColorConverter" />
+        <helpers:TreeViewItemIsTopLevelConverter x:Key="TreeViewItemIsTopLevelConverter" />
+        <helpers:LevelToIndentConverter x:Key="LevelToIndentConverter" />
+        <helpers:StringEqualsIgnoreCaseMultiConverter x:Key="StringEqualsIgnoreCaseMultiConverter" />
+
+        <!--  简洁的滚动条样式  -->
+        <Style x:Key="SimpleScrollBarStyle" TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Width" Value="8" />
+            <Setter Property="MinWidth" Value="8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Border Background="Transparent" BorderThickness="0">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Style>
+                                            <Style TargetType="Thumb">
+                                                <Setter Property="Background" Value="#CCCCCC" />
+                                                <Setter Property="BorderThickness" Value="0" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Thumb">
+                                                            <Border
+                                                                Background="{TemplateBinding Background}"
+                                                                BorderThickness="0"
+                                                                CornerRadius="4" />
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#999999" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter Property="Background" Value="#666666" />
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Thumb.Style>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--  简洁的ScrollViewer样式  -->
+        <Style x:Key="SimpleScrollViewerStyle" TargetType="ScrollViewer">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <ScrollContentPresenter
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                Margin="{TemplateBinding Padding}"
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}" />
+
+                            <ScrollBar
+                                x:Name="PART_VerticalScrollBar"
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                Maximum="{TemplateBinding ScrollableHeight}"
+                                Orientation="Vertical"
+                                Style="{StaticResource SimpleScrollBarStyle}"
+                                ViewportSize="{TemplateBinding ViewportHeight}"
+                                Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                Value="{TemplateBinding VerticalOffset}" />
+
+                            <ScrollBar
+                                x:Name="PART_HorizontalScrollBar"
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                Maximum="{TemplateBinding ScrollableWidth}"
+                                Orientation="Horizontal"
+                                Style="{StaticResource SimpleScrollBarStyle}"
+                                ViewportSize="{TemplateBinding ViewportWidth}"
+                                Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"
+                                Value="{TemplateBinding HorizontalOffset}" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border BorderBrush="#1c1c1c" BorderThickness="2">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="28*" />
+                <RowDefinition Height="252*" />
+                <RowDefinition Height="8*" />
+            </Grid.RowDefinitions>
+
+            <!--  顶部栏  -->
+            <Border x:Name="TopBarContainer" Grid.Row="0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="2*" />
+                        <RowDefinition Height="3*" />
+                        <RowDefinition Height="4*" />
+                    </Grid.RowDefinitions>
+                    <Border
+                        Grid.Row="0"
+                        Background="#1c1c1c"
+                        MouseLeftButtonDown="TopBar_MouseLeftButtonDown">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Image
+                                Grid.Column="0"
+                                Width="30"
+                                Height="20"
+                                Margin="10,0,10,0"
+                                Source="/Resources/Logo/logo.jpg" />
+                            <TextBlock
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Foreground="White"
+                                Text="四川汉宇航空科技有限公司" />
+                            <TextBlock
+                                x:Name="filepath"
+                                Grid.Column="2"
+                                Margin="90,0,0,0"
+                                VerticalAlignment="Center"
+                                Foreground="White"
+                                Text="" />
+                            <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                <Button
+                                    x:Name="min"
+                                    Width="23"
+                                    Height="23"
+                                    Margin="2,0,2,0"
+                                    VerticalAlignment="Center"
+                                    Command="{Binding ToggleMinimizeCommand}"
+                                    CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                                    Style="{StaticResource DefaultButtonStyle}">
+                                    <Image Source="/Resources/Logo/min.png" Stretch="Uniform" />
+                                </Button>
+                                <Button
+                                    x:Name="max"
+                                    Width="25"
+                                    Height="20"
+                                    Margin="2,0,2,0"
+                                    VerticalAlignment="Center"
+                                    Command="{Binding ToggleMaximizeCommand}"
+                                    CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                                    Style="{StaticResource DefaultButtonStyle}">
+                                    <Image Source="/Resources/Logo/max.png" Stretch="Uniform" />
+                                </Button>
+                                <Button
+                                    x:Name="close"
+                                    Width="23"
+                                    Height="23"
+                                    Margin="2,0,10,0"
+                                    VerticalAlignment="Center"
+                                    Command="{Binding CloseMainWindowCommand}"
+                                    CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                                    Style="{StaticResource DefaultButtonStyle}">
+                                    <Image Source="/Resources/Logo/close.png" Stretch="Uniform" />
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border
+                        x:Name="line2"
+                        Grid.Row="1"
+                        Grid.ColumnSpan="3"
+                        Background="#cccccc"
+                        BorderBrush="#1c1c1c"
+                        BorderThickness="0,2,0,2">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel
+                                Grid.Column="0"
+                                Margin="15,0,0,0"
+                                Orientation="Horizontal">
+                                <Button
+                                    x:Name="Project"
+                                    Width="35"
+                                    Height="25"
+                                    Margin="0,0,10,0"
+                                    Content="项目"
+                                    FontSize="14"
+                                    Style="{StaticResource DefaultButtonStyle}">
+                                    <!--<Button.ContextMenu>
+                                    <ContextMenu x:Name="ProjectContextMenu"
+                                                 Style="{StaticResource CustomContextMenuStyle}"
+                                                 Placement="Bottom"
+                                                 PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType=Button}}"
+                                                 HorizontalOffset="0"
+                                                 VerticalOffset="0">
+                                        <MenuItem Header="新建项目"
+                                                  Command="{Binding NewProjectCommand}"
+                                                  Style="{StaticResource CustomMenuItemStyle}" />
+                                        <MenuItem Header="打开项目"
+                                                  Command="{Binding OpenProjectCommand}"
+                                                  Style="{StaticResource CustomMenuItemStyle}" />
+                                        <MenuItem Header="保存项目"
+                                                  Command="{Binding SaveProjectCommand}"
+                                                  Style="{StaticResource CustomMenuItemStyle}" />
+                                        <MenuItem Header="关闭项目"
+                                                  Command="{Binding CloseProjectCommand}"
+                                                  Style="{StaticResource CustomMenuItemStyle}" />
+                                    </ContextMenu>
+                                </Button.ContextMenu>-->
+                                </Button>
+                                <Popup
+                                    x:Name="ProjectPopup"
+                                    AllowsTransparency="True"
+                                    IsOpen="{Binding IsProjectMenuOpen, Mode=TwoWay}"
+                                    Placement="Bottom"
+                                    PlacementTarget="{Binding ElementName=Project}"
+                                    StaysOpen="False">
+                                    <Border
+                                        Background="#ffffff"
+                                        BorderBrush="#1c1c1c"
+                                        BorderThickness="1.5">
+                                        <ItemsControl ItemsSource="{Binding ProjectMenuItems}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button
+                                                        Height="30"
+                                                        Padding="10,5"
+                                                        HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Left"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Command="{Binding Command}"
+                                                        Content="{Binding Header}"
+                                                        FontSize="14">
+                                                        <Button.Style>
+                                                            <Style TargetType="Button">
+                                                                <Setter Property="Background" Value="Transparent" />
+                                                                <Setter Property="Template">
+                                                                    <Setter.Value>
+                                                                        <ControlTemplate TargetType="Button">
+                                                                            <Border
+                                                                                x:Name="border"
+                                                                                Padding="{TemplateBinding Padding}"
+                                                                                Background="Transparent">
+                                                                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" />
+                                                                            </Border>
+                                                                            <ControlTemplate.Triggers>
+                                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                                    <Setter TargetName="border" Property="Background" Value="#cccccc" />
+                                                                                </Trigger>
+                                                                                <Trigger Property="IsPressed" Value="True">
+                                                                                    <Setter TargetName="border" Property="Background" Value="#cccccc" />
+                                                                                </Trigger>
+                                                                            </ControlTemplate.Triggers>
+                                                                        </ControlTemplate>
+                                                                    </Setter.Value>
+                                                                </Setter>
+                                                            </Style>
+                                                        </Button.Style>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Border>
+                                </Popup>
+
+                                <Button
+                                    Width="35"
+                                    Height="25"
+                                    Margin="10,0,10,0"
+                                    Content="编辑"
+                                    FontSize="14"
+                                    Style="{StaticResource DefaultButtonStyle}" />
+                                <Button
+                                    Width="35"
+                                    Height="25"
+                                    Margin="10,0,10,0"
+                                    Content="视图"
+                                    FontSize="14"
+                                    Style="{StaticResource DefaultButtonStyle}" />
+                                <Button
+                                    Width="35"
+                                    Height="25"
+                                    Margin="10,0,10,0"
+                                    Content="工具"
+                                    FontSize="14"
+                                    Style="{StaticResource DefaultButtonStyle}" />
+                                <Button
+                                    x:Name="size"
+                                    Width="35"
+                                    Height="25"
+                                    Margin="10,0,10,0"
+                                    Content="帮助"
+                                    FontSize="14"
+                                    Style="{StaticResource DefaultButtonStyle}" />
+                            </StackPanel>
+                            <TextBlock
+                                Grid.Column="2"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Bottom"
+                                FontSize="{Binding ElementName=size, Path=FontSize}"
+                                Text="多组件自动化测试平台" />
+                        </Grid>
+                    </Border>
+
+                    <Border
+                        x:Name="ToolBarContainer"
+                        Grid.Row="2"
+                        Grid.ColumnSpan="3"
+                        Background="#cccccc"
+                        BorderBrush="#1c1c1c"
+                        BorderThickness="0,0,0,2">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" MinWidth="400" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel
+                                Grid.Column="0"
+                                Margin="10,0,0,0"
+                                Orientation="Horizontal">
+                                <Button
+                                    Width="30"
+                                    Height="25"
+                                    Margin="10,0,10,0"
+                                    Style="{StaticResource ToolButtonStyle}"
+                                    ToolTip="打开项目">
+                                    <Image
+                                        Width="25"
+                                        Height="19"
+                                        Source="/Resources/Logo/file.png"
+                                        Stretch="Uniform" />
+                                </Button>
+                                <Button
+                                    Width="30"
+                                    Height="25"
+                                    Margin="0,0,10,0"
+                                    Command="{Binding SaveProjectCommand}"
+                                    Style="{StaticResource ToolButtonStyle}"
+                                    ToolTip="保存项目">
+                                    <Image
+                                        Width="25"
+                                        Height="18"
+                                        Source="/Resources/Logo/save.png"
+                                        Stretch="Uniform" />
+                                </Button>
+                                <Button
+                                    Width="30"
+                                    Height="25"
+                                    Margin="10,0,0,0"
+                                    Style="{StaticResource ToolButtonStyle}">
+                                    <Image
+                                        Width="25"
+                                        Height="18"
+                                        Source="/Resources/Logo/cut.png"
+                                        Stretch="Uniform" />
+                                </Button>
+                                <Button
+                                    Width="30"
+                                    Height="25"
+                                    Margin="10,0,0,0"
+                                    Style="{StaticResource ToolButtonStyle}">
+                                    <Image
+                                        Width="25"
+                                        Height="18"
+                                        Source="/Resources/Logo/copy.png"
+                                        Stretch="Uniform" />
+                                </Button>
+                                <Button
+                                    Width="30"
+                                    Height="25"
+                                    Margin="10,0,10,0"
+                                    Style="{StaticResource ToolButtonStyle}">
+                                    <Image
+                                        Width="25"
+                                        Height="18"
+                                        Source="/Resources/Logo/paste.png"
+                                        Stretch="Uniform" />
+                                </Button>
+                                <!--  Start/Pause 合并按钮  -->
+                                <Button
+                                    Width="30"
+                                    Height="25"
+                                    Margin="10,0,0,0"
+                                    Style="{StaticResource ToolButtonStyle}"
+                                    ToolTip="{Binding ToolTipContent}">
+                                    <Image
+                                        Width="25"
+                                        Height="20"
+                                        Stretch="Uniform">
+                                        <Image.Style>
+                                            <Style TargetType="Image">
+                                                <Setter Property="Source" Value="/Resources/Logo/start.png" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsTestRunning}" Value="True">
+                                                        <Setter Property="Source" Value="/Resources/Logo/pause.png" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsTestPaused}" Value="True">
+                                                        <Setter Property="Source" Value="/Resources/Logo/start.png" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Image.Style>
+                                    </Image>
+                                </Button>
+                                <!--  Stop 按钮  -->
+                                <Button
+                                    Width="30"
+                                    Height="25"
+                                    Margin="10,0,0,0"
+                                    Command="{Binding StopTestCommand}"
+                                    Style="{StaticResource ToolButtonStyle}"
+                                    ToolTip="停止测试">
+                                    <Image
+                                        Width="25"
+                                        Height="20"
+                                        Source="/Resources/Logo/over.png"
+                                        Stretch="Uniform" />
+                                </Button>
+                                <Button
+                                    Width="30"
+                                    Height="25"
+                                    Margin="10,0,0,0"
+                                    Command="{Binding SelfInspectionCommand}"
+                                    Style="{StaticResource ToolButtonStyle}"
+                                    ToolTip="自检">
+                                    <Image
+                                        Width="20"
+                                        Height="20"
+                                        Source="/Resources/Logo/si.png"
+                                        Stretch="Uniform" />
+                                </Button>
+                            </StackPanel>
+                            <TextBlock
+                                Grid.Column="2"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                FontSize="{Binding ElementName=size, Path=FontSize}"
+                                Text="AUTOTEST" />
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1" BorderThickness="0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="12*" />
+                        <ColumnDefinition Width="79*" />
+                    </Grid.ColumnDefinitions>
+                    <!--  左侧项目树  -->
+                    <Border x:Name="ProjectTreeContainer" Grid.Column="0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Border
+                                Grid.Row="0"
+                                Height="{Binding ElementName=line2, Path=ActualHeight}"
+                                Background="#b2b2b2"
+                                BorderBrush="#1c1c1c"
+                                BorderThickness="0,0,0,2">
+                                <TextBlock
+                                    x:Name="xms"
+                                    Margin="10,0,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="项目树" />
+                            </Border>
+                            <Border Grid.Row="1">
+                                <TreeView
+                                    x:Name="ProjectTreeView"
+                                    Grid.Row="1"
+                                    Margin="0,0,0,0"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    ItemsSource="{Binding ProjectTreeItems}">
+                                    <TreeView.Style>
+                                        <Style TargetType="TreeView">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="TreeView">
+                                                        <Border
+                                                            Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}">
+                                                            <ScrollViewer
+                                                                Focusable="False"
+                                                                HorizontalScrollBarVisibility="Disabled"
+                                                                Style="{StaticResource SimpleScrollViewerStyle}"
+                                                                VerticalScrollBarVisibility="Auto">
+                                                                <ItemsPresenter />
+                                                            </ScrollViewer>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </TreeView.Style>
+                                    <TreeView.Resources>
+                                        <Style TargetType="{x:Type TreeViewItem}">
+                                            <EventSetter Event="MouseDoubleClick" Handler="TreeViewItem_MouseDoubleClick" />
+                                            <EventSetter Event="Selected" Handler="TreeViewItem_Selected" />
+                                            <EventSetter Event="MouseRightButtonDown" Handler="TreeViewItem_MouseRightButtonDown" />
+                                            <Setter Property="Padding" Value="16,4,10,4" />
+                                            <Setter Property="Background" Value="Transparent" />
+                                            <Setter Property="IsExpanded" Value="True" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="{x:Type TreeViewItem}">
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto" />
+                                                                <RowDefinition />
+                                                            </Grid.RowDefinitions>
+                                                            <!--  背景层：全宽高亮Border（仅用于channel_config_tabel和signal_config_tabel），从TreeView最左边开始  -->
+                                                            <Border
+                                                                x:Name="FullWidthHighlight"
+                                                                Grid.Row="0"
+                                                                Margin="-10000,0,0,0"
+                                                                Padding="10000,0,0,0"
+                                                                HorizontalAlignment="Stretch"
+                                                                VerticalAlignment="Stretch"
+                                                                Background="Transparent"
+                                                                Visibility="Collapsed" />
+                                                            <Grid Grid.Row="0">
+                                                                <!--  前景层：带缩进的内容  -->
+                                                                <Border
+                                                                    x:Name="Bd"
+                                                                    Padding="{TemplateBinding Padding}"
+                                                                    Background="{TemplateBinding Background}"
+                                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                                    MouseLeftButtonUp="Border_MouseLeftButtonUp">
+                                                                    <ContentPresenter
+                                                                        x:Name="PART_Header"
+                                                                        HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                                        ContentSource="Header"
+                                                                        MouseLeftButtonUp="Header_MouseLeftButtonUp" />
+                                                                </Border>
+                                                            </Grid>
+                                                            <ItemsPresenter x:Name="ItemsHost" Grid.Row="1" />
+                                                        </Grid>
+                                                        <ControlTemplate.Triggers>
+                                                            <!--  对于channel_config_tabel和signal_config_tabel，显示全宽高亮  -->
+                                                            <DataTrigger Binding="{Binding Type}" Value="channel_config_tabel">
+                                                                <Setter TargetName="FullWidthHighlight" Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Type}" Value="signal_config_tabel">
+                                                                <Setter TargetName="FullWidthHighlight" Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Type}" Value="communicating_signal_config_tabel">
+                                                                <Setter TargetName="FullWidthHighlight" Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Type}" Value="icd_mapping_tabel">
+                                                                <Setter TargetName="FullWidthHighlight" Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                            <!--  鼠标悬停时的高亮  -->
+                                                            <Trigger SourceName="Bd" Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="Bd" Property="Background" Value="#d3e0ea" />
+                                                            </Trigger>
+                                                            <!--  对于配置表类型，鼠标悬停时同时高亮全宽背景  -->
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Type}" Value="channel_config_tabel" />
+                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsMouseOver}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter TargetName="FullWidthHighlight" Property="Background" Value="#d3e0ea" />
+                                                            </MultiDataTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Type}" Value="signal_config_tabel" />
+                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsMouseOver}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter TargetName="FullWidthHighlight" Property="Background" Value="#d3e0ea" />
+                                                            </MultiDataTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Type}" Value="communicating_signal_config_tabel" />
+                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsMouseOver}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter TargetName="FullWidthHighlight" Property="Background" Value="#d3e0ea" />
+                                                            </MultiDataTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Type}" Value="icd_mapping_tabel" />
+                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsMouseOver}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter TargetName="FullWidthHighlight" Property="Background" Value="#d3e0ea" />
+                                                            </MultiDataTrigger>
+                                                            <!--  运行状态的高亮（浅绿色）  -->
+                                                            <DataTrigger Binding="{Binding Tag}" Value="Running">
+                                                                <Setter TargetName="FullWidthHighlight" Property="Background" Value="#c8e6c8" />
+                                                                <Setter TargetName="FullWidthHighlight" Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+
+                                                            <!--  自检状态的高亮（黄色）  -->
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Type}" Value="PXIChassis" />
+                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource TreeViewItemIsTopLevelConverter}}" Value="True" />
+                                                                    <Condition Value="True">
+                                                                        <Condition.Binding>
+                                                                            <MultiBinding Converter="{StaticResource StringEqualsIgnoreCaseMultiConverter}">
+                                                                                <Binding Path="Name" />
+                                                                                <Binding Path="DataContext.SelfInspectingChassisName" RelativeSource="{RelativeSource AncestorType={x:Type TreeView}}" />
+                                                                            </MultiBinding>
+                                                                        </Condition.Binding>
+                                                                    </Condition>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter TargetName="Bd" Property="Background" Value="#fff3b0" />
+                                                                <Setter TargetName="FullWidthHighlight" Property="Background" Value="#fff3b0" />
+                                                                <Setter TargetName="FullWidthHighlight" Property="Visibility" Value="Visible" />
+                                                            </MultiDataTrigger>
+                                                            <!--  选中时的高亮  -->
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter TargetName="Bd" Property="Background" Value="#a8c6df" />
+                                                            </Trigger>
+                                                            <!--  对于配置表类型，选中时同时高亮全宽背景  -->
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Type}" Value="channel_config_tabel" />
+                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsSelected}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter TargetName="FullWidthHighlight" Property="Background" Value="#a8c6df" />
+                                                            </MultiDataTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Type}" Value="signal_config_tabel" />
+                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsSelected}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter TargetName="FullWidthHighlight" Property="Background" Value="#a8c6df" />
+                                                            </MultiDataTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Type}" Value="communicating_signal_config_tabel" />
+                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsSelected}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter TargetName="FullWidthHighlight" Property="Background" Value="#a8c6df" />
+                                                            </MultiDataTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Type}" Value="icd_mapping_tabel" />
+                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsSelected}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter TargetName="FullWidthHighlight" Property="Background" Value="#a8c6df" />
+                                                            </MultiDataTrigger>
+                                                            <Trigger Property="IsExpanded" Value="True">
+                                                                <Setter TargetName="ItemsHost" Property="Visibility" Value="Visible" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsExpanded" Value="False">
+                                                                <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed" />
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </TreeView.Resources>
+                                    <TreeView.ItemTemplate>
+                                        <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <StackPanel.Margin>
+                                                    <MultiBinding Converter="{StaticResource LevelToIndentConverter}">
+                                                        <Binding RelativeSource="{RelativeSource AncestorType={x:Type TreeViewItem}}" />
+                                                        <Binding Source="20" />
+                                                    </MultiBinding>
+                                                </StackPanel.Margin>
+                                                <Image
+                                                    Width="20"
+                                                    Height="{Binding ElementName=xms, Path=ActualHeight}"
+                                                    Margin="0,0,8,0"
+                                                    Source="{Binding Icon}">
+                                                    <Image.Style>
+                                                        <Style TargetType="Image">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Icon}" Value="{x:Null}">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Icon}" Value="">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Image.Style>
+                                                </Image>
+                                                <TextBlock FontSize="13" Text="{Binding Name}" />
+                                            </StackPanel>
+                                        </HierarchicalDataTemplate>
+                                    </TreeView.ItemTemplate>
+                                </TreeView>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <GridSplitter
+                        Grid.Column="0"
+                        Width="2"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Stretch"
+                        Background="#1c1c1c"
+                        ShowsPreview="True" />
+
+                    <!--  主内容  -->
+                    <ContentControl
+                        x:Name="MainContentContainer"
+                        Grid.Column="1"
+                        prism:RegionManager.RegionName="MainRegion" />
+                </Grid>
+            </Border>
+
+
+
+            <!--  底栏  -->
+            <Border
+                x:Name="BottomBarContainer"
+                Grid.Row="2"
+                Grid.ColumnSpan="3"
+                Background="#1c1c1c"
+                Visibility="{Binding IsBottomBarVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid Margin="10,0,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="11*" />
+                        <ColumnDefinition Width="11*" />
+                        <ColumnDefinition Width="143*" />
+                        <ColumnDefinition Width="14*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="auto" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <Image
+                                Grid.Column="0"
+                                Width="20"
+                                Margin="10,0,0,0"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                Source="/Resources/Logo/device.png" />
+                            <TextBlock
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Foreground="White"
+                                Text="设备占位符" />
+                        </Grid>
+                    </Border>
+                    <Border Grid.Column="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="auto" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <Image
+                                Grid.Column="0"
+                                Height="13"
+                                Margin="10,0,5,0"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                Source="/Resources/Logo/database.png" />
+                            <TextBlock
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Foreground="White"
+                                Text="数据库占位符" />
+                        </Grid>
+                    </Border>
+                    <!--<Border Grid.Column="2" Margin="7,0,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="auto" />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <Border>
+                            <Button
+                                Width="90"
+                                Margin="0,2,0,2"
+                                HorizontalAlignment="Left"
+                                Background="#dee1e4">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border
+                                            Background="{TemplateBinding Background}"
+                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                            CornerRadius="2">
+                                            <ContentPresenter
+                                                Margin="6,0,0,0"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center" />
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <TextBlock
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Background="Transparent"
+                                    Text="总览" />
+                            </Button>
+                        </Border>
+                    </Grid>
+                </Border>-->
+
+                    <Border Grid.Column="2" Margin="7,0,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="auto" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <Border>
+                                <ScrollViewer
+                                    CanContentScroll="True"
+                                    HorizontalScrollBarVisibility="Auto"
+                                    PanningMode="HorizontalOnly"
+                                    Style="{StaticResource SimpleScrollViewerStyle}"
+                                    VerticalScrollBarVisibility="Hidden">
+                                    <ItemsControl ItemsSource="{Binding NavigationButtons}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button
+                                                    Width="90"
+                                                    Margin="2,3,0,3"
+                                                    HorizontalAlignment="Left"
+                                                    Background="{Binding IsActive, Converter={StaticResource BoolToColorConverter}}"
+                                                    BorderThickness="0"
+                                                    Command="{Binding DataContext.NavigationButtonClickCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding Name}"
+                                                    Content="{Binding DisplayName}"
+                                                    FocusVisualStyle="{x:Null}"
+                                                    ToolTip="{Binding TooltipPath}">
+                                                    <Button.ContextMenu>
+                                                        <ContextMenu Style="{StaticResource CustomContextMenuStyle}">
+                                                            <MenuItem
+                                                                Click="CloseTabMenuItem_Click"
+                                                                Header="关闭"
+                                                                Style="{StaticResource CustomMenuItemStyle}"
+                                                                Tag="{Binding Name}" />
+                                                        </ContextMenu>
+                                                    </Button.ContextMenu>
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border
+                                                                Background="{TemplateBinding Background}"
+                                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                                CornerRadius="2">
+                                                                <ContentPresenter
+                                                                    Margin="6,0,0,0"
+                                                                    HorizontalAlignment="Left"
+                                                                    VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="#c8d4e0" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsPressed" Value="True">
+                                                                    <Setter Property="Background" Value="#b0c4d8" />
+                                                                    <Setter Property="FontWeight" Value="Bold" />
+                                                                </Trigger>
+                                                                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                    <Setter Property="FontWeight" Value="Bold" />
+                                                                </DataTrigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Column="3">
+                        <TextBlock
+                            x:Name="TimeDisplay"
+                            Margin="0,0,10,0"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            FontSize="13"
+                            Foreground="White"
+                            Text="{Binding CurrentTime}" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Button
+                Grid.Row="2"
+                Margin="0,0,20,10"
+                Padding="10,4"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                Background="#333333"
+                BorderBrush="#666666"
+                BorderThickness="1"
+                Command="{Binding ShowBottomBarCommand}"
+                Content="显示菜单栏"
+                Foreground="White"
+                Style="{StaticResource DefaultButtonStyle}"
+                Visibility="{Binding IsBottomBarVisible, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter='mode=bool;invert=true'}" />
+        </Grid>
+    </Border>
+</Window>

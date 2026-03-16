@@ -1,0 +1,932 @@
+﻿<UserControl
+    x:Class="MeasureControl.Views.ConfigTabel.DataCalibration"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:MeasureControl.Helpers"
+    xmlns:local="clr-namespace:MeasureControl.Views"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib"
+    d:DesignHeight="550"
+    d:DesignWidth="970"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <helpers:EmptyStringToVisibilityConverter x:Key="EmptyToVisibility" />
+        <helpers:CalibrationStatusToBackgroundConverter x:Key="CalibrationStatusToBackgroundConverter" />
+        <helpers:CalibrationStatusToForegroundConverter x:Key="CalibrationStatusToForegroundConverter" />
+        <helpers:CalibrationStatusToTextConverter x:Key="CalibrationStatusToTextConverter" />
+        <helpers:CalibrationValueConverter x:Key="CalibrationValueConverter" />
+        <helpers:CalibrationTimeConverter x:Key="CalibrationTimeConverter" />
+
+        <!--  简洁的滚动条样式  -->
+        <Style x:Key="SimpleScrollBarStyle" TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Width" Value="8" />
+            <Setter Property="MinWidth" Value="8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Border Background="Transparent" BorderThickness="0">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Style>
+                                            <Style TargetType="Thumb">
+                                                <Setter Property="Background" Value="#CCCCCC" />
+                                                <Setter Property="BorderThickness" Value="0" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Thumb">
+                                                            <Border
+                                                                Background="{TemplateBinding Background}"
+                                                                BorderThickness="0"
+                                                                CornerRadius="4" />
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#999999" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter Property="Background" Value="#666666" />
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Thumb.Style>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--  简洁的ScrollViewer样式  -->
+        <Style x:Key="SimpleScrollViewerStyle" TargetType="ScrollViewer">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="8" />
+                            </Grid.ColumnDefinitions>
+                            <ScrollContentPresenter
+                                Grid.Column="0"
+                                Margin="{TemplateBinding Padding}"
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}" />
+                            <ScrollBar
+                                x:Name="PART_VerticalScrollBar"
+                                Grid.Column="1"
+                                Maximum="{TemplateBinding ScrollableHeight}"
+                                Orientation="Vertical"
+                                Style="{StaticResource SimpleScrollBarStyle}"
+                                ViewportSize="{TemplateBinding ViewportHeight}"
+                                Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                Value="{TemplateBinding VerticalOffset}" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Border
+        Background="White"
+        Focusable="True"
+        MouseDown="Border_MouseDown">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="65*" />
+                <ColumnDefinition Width="28*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="1.7*" />
+                        <RowDefinition Height="3.1*" />
+                        <RowDefinition Height="1.2*" />
+                        <RowDefinition Height="6*" />
+                    </Grid.RowDefinitions>
+                    <Border
+                        Grid.Row="0"
+                        Margin="8,8,8,8"
+                        Background="White"
+                        BorderBrush="#D9D9D9"
+                        BorderThickness="1.5"
+                        CornerRadius="8">
+                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                            <StackPanel Margin="0,5,5,5" Orientation="Vertical">
+                                <TextBlock
+                                    Margin="0,0,0,5"
+                                    FontSize="13"
+                                    Text="通道名称" />
+                                <Border
+                                    Width="190"
+                                    Height="28"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBox
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center"
+                                        BorderThickness="0"
+                                        FontSize="14"
+                                        Text="{Binding ChannelName, UpdateSourceTrigger=PropertyChanged}" />
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Margin="15,5,5,5" Orientation="Vertical">
+                                <TextBlock
+                                    Margin="0,0,0,5"
+                                    FontSize="13"
+                                    Text="通道地址" />
+
+                                <ComboBox
+                                    Width="190"
+                                    Height="28"
+                                    Margin="0,0,2,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                                    ItemsSource="{Binding AvailableChannelAddresses}"
+                                    SelectedItem="{Binding SelectedChannelAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    Style="{StaticResource CustomComboBoxStyle}">
+                                    <ComboBox.Resources>
+                                        <Style BasedOn="{StaticResource SimpleScrollViewerStyle}" TargetType="ScrollViewer" />
+                                    </ComboBox.Resources>
+                                </ComboBox>
+
+                            </StackPanel>
+
+                            <StackPanel Margin="15,5,0,5" Orientation="Vertical">
+                                <TextBlock
+                                    Margin="0,0,0,5"
+                                    FontSize="13"
+                                    Text="测量点数" />
+                                <Border
+                                    Width="190"
+                                    Height="28"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBox
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center"
+                                        BorderThickness="0"
+                                        FontSize="14"
+                                        LostFocus="MeasurementPointCountTextBox_LostFocus"
+                                        Text="{Binding MeasurementPointCount, UpdateSourceTrigger=LostFocus}" />
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+
+                        <Border
+                            Grid.Column="0"
+                            Margin="8,4,8,4"
+                            Background="White"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1.5"
+                            CornerRadius="8">
+                            <StackPanel Margin="24,8,20,8">
+                                <TextBlock
+                                    Margin="0,0,0,8"
+                                    FontSize="13"
+                                    Text="仪器设定值" />
+                                <Border
+                                    Height="100"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1.5"
+                                    CornerRadius="3">
+                                    <ScrollViewer Style="{StaticResource SimpleScrollViewerStyle}" VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding InstrumentSetValues}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border
+                                                        Height="28"
+                                                        Margin="5,2,5,2"
+                                                        HorizontalAlignment="Stretch"
+                                                        BorderBrush="#D9D9D9"
+                                                        BorderThickness="1"
+                                                        CornerRadius="3">
+                                                        <TextBox
+                                                            Margin="10,0,0,0"
+                                                            VerticalAlignment="Center"
+                                                            BorderThickness="0"
+                                                            DataObject.Pasting="NumericTextBox_Pasting"
+                                                            FontSize="14"
+                                                            LostFocus="NumericTextBox_LostFocus"
+                                                            PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                                            Text="{Binding Value, UpdateSourceTrigger=LostFocus, TargetNullValue=''}" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Border>
+                            </StackPanel>
+
+                        </Border>
+
+                        <Border
+                            Grid.Column="1"
+                            Margin="8,4,8,4"
+                            Background="White"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1.5"
+                            CornerRadius="8">
+
+                            <StackPanel Margin="24,8,20,8">
+                                <TextBlock
+                                    Margin="0,0,0,8"
+                                    FontSize="13"
+                                    Text="板卡测量值" />
+                                <Border
+                                    Height="100"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1.5"
+                                    CornerRadius="3">
+                                    <ScrollViewer Style="{StaticResource SimpleScrollViewerStyle}" VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding CardMeasuredValues}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border
+                                                        Height="28"
+                                                        Margin="5,2,5,2"
+                                                        HorizontalAlignment="Stretch"
+                                                        BorderBrush="#D9D9D9"
+                                                        BorderThickness="1"
+                                                        CornerRadius="3">
+                                                        <TextBox
+                                                            Margin="10,0,0,0"
+                                                            VerticalAlignment="Center"
+                                                            BorderThickness="0"
+                                                            DataObject.Pasting="NumericTextBox_Pasting"
+                                                            FontSize="14"
+                                                            LostFocus="NumericTextBox_LostFocus"
+                                                            PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                                            Text="{Binding Value, UpdateSourceTrigger=LostFocus, TargetNullValue=''}" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Border>
+                            </StackPanel>
+
+                        </Border>
+
+                    </Grid>
+
+                    <Border Grid.Row="2" Margin="8,2,8,2">
+                        <Grid>
+                            <Border>
+                                <Button
+                                    Width="320"
+                                    Height="40"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    Background="#3b82f6"
+                                    BorderThickness="0"
+                                    Command="{Binding CalculateCalibrationCommand}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border
+                                                x:Name="border"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="4">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image
+                                            Width="18"
+                                            Height="18"
+                                            Margin="5,0,5,0"
+                                            Source="/Resources/Logo/caculate.png" />
+                                        <TextBlock
+                                            Margin="0,0,5,0"
+                                            FontSize="15"
+                                            Foreground="White"
+                                            Text="计算校准参数" />
+                                    </StackPanel>
+                                </Button>
+                            </Border>
+
+                            <Border>
+                                <Button
+                                    Width="320"
+                                    Height="40"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Background="#52c41a"
+                                    BorderThickness="0"
+                                    Command="{Binding SaveToFileCommand}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border
+                                                x:Name="border"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="4">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#389e0d" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#237804" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Opacity" Value="0.55" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image
+                                            Width="20"
+                                            Height="20"
+                                            Margin="5,0,5,0"
+                                            Source="/Resources/Logo/save_white.png" />
+                                        <TextBlock
+                                            Margin="0,0,5,0"
+                                            FontSize="15"
+                                            Foreground="White"
+                                            Text="更新通道校准" />
+                                    </StackPanel>
+                                </Button>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <Border
+                        Grid.Row="3"
+                        Margin="8,4,8,8"
+                        Background="White"
+                        BorderBrush="#D9D9D9"
+                        BorderThickness="1.5"
+                        CornerRadius="8">
+
+                        <StackPanel>
+                            <Grid>
+                                <StackPanel Margin="24,8,8,4" HorizontalAlignment="Left">
+                                    <TextBlock FontSize="13" Text="斜率" />
+                                    <Border
+                                        Width="290"
+                                        Height="30"
+                                        Margin="0,5,0,2"
+                                        HorizontalAlignment="Left"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBox
+                                            Margin="10,0,0,0"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="14"
+                                            IsReadOnly="True"
+                                            Text="{Binding Slope, StringFormat=F4}" />
+                                    </Border>
+                                </StackPanel>
+
+                                <StackPanel Margin="24,8,20,4" HorizontalAlignment="Right">
+                                    <TextBlock FontSize="13" Text="截距" />
+                                    <Border
+                                        Width="290"
+                                        Height="30"
+                                        Margin="0,5,0,2"
+                                        HorizontalAlignment="Left"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBox
+                                            Margin="10,0,0,0"
+                                            VerticalAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="14"
+                                            IsReadOnly="True"
+                                            Text="{Binding Intercept, StringFormat=F4}" />
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Height="210" Margin="22,0,20,0">
+                                <Grid>
+                                    <Canvas
+                                        Width="510"
+                                        Height="200"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center">
+                                        <!--  轴线  -->
+                                        <Line
+                                            Stroke="Black"
+                                            StrokeThickness="1.5"
+                                            X1="0"
+                                            X2="510"
+                                            Y1="190"
+                                            Y2="190" />
+                                        <Line
+                                            Stroke="Black"
+                                            StrokeThickness="1.5"
+                                            X1="0"
+                                            X2="0"
+                                            Y1="20"
+                                            Y2="190" />
+
+                                        <!--  X轴刻度与标签  -->
+                                        <ItemsControl ItemsSource="{Binding XAxisTicks}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <Canvas />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemContainerStyle>
+                                                <Style TargetType="ContentPresenter">
+                                                    <Setter Property="Canvas.Left" Value="{Binding Position}" />
+                                                    <Setter Property="Canvas.Top" Value="200" />
+                                                </Style>
+                                            </ItemsControl.ItemContainerStyle>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                                                        <Line
+                                                            Stroke="Black"
+                                                            StrokeThickness="1"
+                                                            X1="0"
+                                                            X2="0"
+                                                            Y1="-8"
+                                                            Y2="-12" />
+                                                        <TextBlock
+                                                            Margin="-4,-8,0,0"
+                                                            FontSize="12"
+                                                            Foreground="Black"
+                                                            Text="{Binding Label}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <!--  Y轴刻度与标签  -->
+                                        <ItemsControl ItemsSource="{Binding YAxisTicks}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <Canvas />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemContainerStyle>
+                                                <Style TargetType="ContentPresenter">
+                                                    <Setter Property="Canvas.Left" Value="0" />
+                                                    <Setter Property="Canvas.Top" Value="{Binding Position}" />
+                                                </Style>
+                                            </ItemsControl.ItemContainerStyle>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                                        <Line
+                                                            Stroke="Black"
+                                                            StrokeThickness="1"
+                                                            X1="2"
+                                                            X2="-2"
+                                                            Y1="0"
+                                                            Y2="0" />
+                                                        <TextBlock
+                                                            Margin="-27,-8,0,0"
+                                                            HorizontalAlignment="Center"
+                                                            FontSize="12"
+                                                            Foreground="Black"
+                                                            Text="{Binding Label}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <!--  轴标题  -->
+                                        <TextBlock
+                                            Canvas.Left="515"
+                                            Canvas.Top="180"
+                                            FontSize="13"
+                                            Foreground="#333"
+                                            Text="测量值" />
+                                        <TextBlock
+                                            Canvas.Left="-20"
+                                            Canvas.Top="-5"
+                                            FontSize="13"
+                                            Foreground="#333"
+                                            Text="设定值" />
+
+                                        <!--  拟合曲线  -->
+                                        <Polyline
+                                            Points="{Binding CalibrationLinePoints}"
+                                            Stroke="Black"
+                                            StrokeThickness="2" />
+
+                                        <!--  散点  -->
+                                        <ItemsControl ItemsSource="{Binding CalibrationPoints}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <Canvas />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemContainerStyle>
+                                                <Style TargetType="ContentPresenter">
+                                                    <Setter Property="Canvas.Left" Value="{Binding X}" />
+                                                    <Setter Property="Canvas.Top" Value="{Binding Y}" />
+                                                </Style>
+                                            </ItemsControl.ItemContainerStyle>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Ellipse
+                                                        Width="6"
+                                                        Height="6"
+                                                        Fill="Red" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Canvas>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+
+            </Border>
+
+            <Border Grid.Column="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="18*" />
+                        <RowDefinition Height="55*" />
+                    </Grid.RowDefinitions>
+
+                    <Border
+                        Grid.Row="0"
+                        Margin="8,8,8,8"
+                        Background="White"
+                        BorderBrush="#D9D9D9"
+                        BorderThickness="1.5"
+                        CornerRadius="8">
+                        <StackPanel Margin="10">
+                            <TextBlock FontSize="13" Text="校准数据存储路径" />
+                            <Grid Margin="0,10,0,0">
+                                <Border
+                                    Width="215"
+                                    Height="28"
+                                    HorizontalAlignment="Left"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBox
+                                        Margin="5,0,0,0"
+                                        VerticalAlignment="Center"
+                                        BorderThickness="0"
+                                        FontSize="14"
+                                        Text="{Binding CalibrationFilePath, UpdateSourceTrigger=PropertyChanged}" />
+
+                                </Border>
+                                <Button
+                                    Width="30"
+                                    Height="28"
+                                    Margin="5,0,0,0"
+                                    HorizontalAlignment="Right"
+                                    Background="#D9D9D9"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    Command="{Binding BrowseCalibrationFileCommand}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border
+                                                x:Name="border"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="4">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+
+                                    <Image
+                                        Width="16"
+                                        Height="16"
+                                        Margin="5,0,5,0"
+                                        Source="/Resources/Logo/folder_white.png" />
+
+                                </Button>
+                            </Grid>
+
+                            <Grid Margin="0,10,0,5">
+                                <Border HorizontalAlignment="Left">
+                                    <Button
+                                        Width="120"
+                                        Height="30"
+                                        VerticalAlignment="Center"
+                                        Background="#52c41a"
+                                        BorderThickness="0"
+                                        Command="{Binding ImportCalibrationCommand}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="4">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#389e0d" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#237804" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image
+                                                Width="16"
+                                                Height="16"
+                                                Margin="5,0,5,0"
+                                                Source="/Resources/Logo/file_import.png" />
+                                            <TextBlock
+                                                Margin="0,0,5,0"
+                                                FontSize="13"
+                                                Foreground="White"
+                                                Text="导入" />
+                                        </StackPanel>
+                                    </Button>
+                                </Border>
+
+                                <Border HorizontalAlignment="Right">
+                                    <Button
+                                        Width="120"
+                                        Height="30"
+                                        VerticalAlignment="Center"
+                                        Background="#3b82f6"
+                                        BorderThickness="0"
+                                        Command="{Binding ExportCalibrationCommand}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="4">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image
+                                                Width="16"
+                                                Height="16"
+                                                Margin="5,0,5,0"
+                                                Source="/Resources/Logo/file_export.png" />
+                                            <TextBlock
+                                                Margin="0,0,5,0"
+                                                FontSize="13"
+                                                Foreground="White"
+                                                Text="导出" />
+                                        </StackPanel>
+                                    </Button>
+                                </Border>
+
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border
+                        Grid.Row="1"
+                        Margin="8,8,8,8"
+                        Background="White"
+                        BorderBrush="#D9D9D9"
+                        BorderThickness="1.5"
+                        CornerRadius="8">
+                        <StackPanel
+                            Margin="10"
+                            HorizontalAlignment="Left"
+                            Orientation="Vertical">
+                            <Border
+                                Width="253"
+                                Height="30"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="2"
+                                CornerRadius="3">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Image
+                                        Grid.Column="0"
+                                        Width="10"
+                                        Margin="10,0,0,0"
+                                        Source="/Resources/Logo/search.png" />
+
+                                    <TextBox
+                                        x:Name="ChannelSearchTextBox"
+                                        Grid.Column="1"
+                                        Width="220"
+                                        Height="20"
+                                        Margin="10,0,0,0"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        BorderThickness="0" />
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        Width="220"
+                                        Margin="10,0,0,0"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Foreground="#D9D9D9"
+                                        IsHitTestVisible="False"
+                                        Text="搜索通道..."
+                                        Visibility="{Binding Text, ElementName=ChannelSearchTextBox, Converter={StaticResource EmptyToVisibility}}" />
+                                </Grid>
+                            </Border>
+                            <TextBlock
+                                Margin="0,10,0,0"
+                                FontSize="14"
+                                Text="通道校准记录" />
+                            <ScrollViewer
+                                x:Name="ChannelCalibrate"
+                                Width="253"
+                                Height="340"
+                                Style="{StaticResource SimpleScrollViewerStyle}"
+                                VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding CalibrationRecords}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border
+                                                Height="95"
+                                                Margin="0,10,0,0"
+                                                Background="Transparent"
+                                                BorderBrush="#D9D9D9"
+                                                BorderThickness="1.5"
+                                                CornerRadius="8"
+                                                Cursor="Hand">
+                                                <Border.InputBindings>
+                                                    <MouseBinding
+                                                        Command="{Binding DataContext.CalibrationRecordDoubleClickCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        MouseAction="LeftDoubleClick" />
+                                                </Border.InputBindings>
+                                                <StackPanel Margin="10,5,10,0" Orientation="Vertical">
+                                                    <Grid>
+                                                        <TextBlock
+                                                            Margin="3"
+                                                            HorizontalAlignment="Left"
+                                                            FontSize="14"
+                                                            Text="{Binding ChannelName}" />
+                                                        <Border
+                                                            Width="40"
+                                                            Height="20"
+                                                            HorizontalAlignment="Right"
+                                                            Background="{Binding IsCalibrated, Converter={StaticResource CalibrationStatusToBackgroundConverter}}"
+                                                            CornerRadius="4">
+                                                            <TextBlock
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                FontSize="12"
+                                                                Foreground="{Binding IsCalibrated, Converter={StaticResource CalibrationStatusToForegroundConverter}}"
+                                                                Text="{Binding IsCalibrated, Converter={StaticResource CalibrationStatusToTextConverter}}" />
+                                                        </Border>
+                                                    </Grid>
+                                                    <TextBlock
+                                                        Margin="3"
+                                                        FontSize="12"
+                                                        Text="模拟量输入" />
+                                                    <Grid>
+                                                        <StackPanel
+                                                            Margin="3"
+                                                            HorizontalAlignment="Left"
+                                                            Orientation="Horizontal">
+                                                            <TextBlock
+                                                                VerticalAlignment="Center"
+                                                                FontSize="11"
+                                                                Foreground="Black"
+                                                                Text="斜率：" />
+                                                            <TextBlock
+                                                                Margin="4,0,0,0"
+                                                                VerticalAlignment="Center"
+                                                                FontSize="11"
+                                                                Foreground="#3b82f6">
+                                                                <TextBlock.Text>
+                                                                    <MultiBinding Converter="{StaticResource CalibrationValueConverter}">
+                                                                        <Binding Path="Slope" />
+                                                                        <Binding Path="IsCalibrated" />
+                                                                    </MultiBinding>
+                                                                </TextBlock.Text>
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                        <StackPanel
+                                                            Margin="100,3,0,3"
+                                                            HorizontalAlignment="Left"
+                                                            Orientation="Horizontal">
+                                                            <TextBlock
+                                                                VerticalAlignment="Center"
+                                                                FontSize="11"
+                                                                Foreground="Black"
+                                                                Text="截距：" />
+                                                            <TextBlock
+                                                                Margin="4,0,0,0"
+                                                                VerticalAlignment="Center"
+                                                                FontSize="11"
+                                                                Foreground="#3b82f6">
+                                                                <TextBlock.Text>
+                                                                    <MultiBinding Converter="{StaticResource CalibrationValueConverter}">
+                                                                        <Binding Path="Intercept" />
+                                                                        <Binding Path="IsCalibrated" />
+                                                                    </MultiBinding>
+                                                                </TextBlock.Text>
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                    <TextBlock
+                                                        Margin="3"
+                                                        HorizontalAlignment="Left"
+                                                        FontSize="10"
+                                                        Foreground="#979797">
+                                                        <TextBlock.Text>
+                                                            <MultiBinding Converter="{StaticResource CalibrationTimeConverter}" StringFormat="上次校准：{0}">
+                                                                <Binding Path="LastCalibrationTime" />
+                                                                <Binding Path="IsCalibrated" />
+                                                            </MultiBinding>
+                                                        </TextBlock.Text>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+            </Border>
+        </Grid>
+
+    </Border>
+
+</UserControl>

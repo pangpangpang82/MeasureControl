@@ -1,0 +1,296 @@
+using System;
+using System.Collections.ObjectModel;
+using System.Windows;
+using System.Windows.Controls;
+using MeasureControl.ViewModels.TestTask.CardCATPanel.MIL1394B;
+using BMDataItem = MeasureControl.ViewModels.TestTask.BMDataItem;
+
+namespace MeasureControl.Views.TestTask.CardCATPanel.Mil1394B
+{
+    /// <summary>
+    /// Mil1394NodeSendRcvPanel.xaml 的交互逻辑
+    /// WPF版本的数据收发界面，替代WinForms的NodeSendRcvForm
+    /// 
+    /// 
+    /// </summary>
+    public partial class Mil1394NodeSendRcvPanel : UserControl
+    {
+        private readonly uint _cardNumber;
+        private readonly uint _nodeNumber;
+        private readonly IntPtr[] _pnode;
+        private readonly Mil1394NodeSendRcvPanelViewModel _viewModel;
+        private readonly System.Windows.Threading.DispatcherTimer _refreshTimer;
+        private bool _isBMDataMonitorRunning = false;
+        private int _lastBMDataCount = 0; // 记录上次显示的数据数量，用于避免重复添加
+
+        public Mil1394NodeSendRcvPanel(uint cardNum, uint nodeNumber, IntPtr[] pnode, Mil1394NodeSendRcvPanelViewModel viewModel)
+        {
+            InitializeComponent();
+            _cardNumber = cardNum;
+            _nodeNumber = nodeNumber;
+            _pnode = pnode ?? throw new ArgumentNullException(nameof(pnode));
+            _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+            
+            DataContext = _viewModel;
+            
+            // 初始化数据表格
+            DgvBMData.ItemsSource = new ObservableCollection<BMDataItem>();
+            LvwCheckData.ItemsSource = new ObservableCollection<CheckDataItem>();
+            
+            // 初始化刷新定时器
+            _refreshTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(10)
+            };
+            _refreshTimer.Tick += RefreshTimer_Tick;
+            
+            // 初始化按钮状态颜色（符合项目风格）
+            InitializeButtonStates();
+        }
+        
+        private bool _isSending = false;
+        private bool _isReceiving = false;
+
+        private void InitializeButtonStates()
+        {
+            // 初始状态：开始按钮使用绿色
+            BtnStart.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(82, 196, 26)); // #52c41a 绿色
+            BtnRcv.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(82, 196, 26)); // #52c41a 绿色
+            BtnBMStart.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(82, 196, 26)); // #52c41a 绿色
+        }
+
+        private void BtnStart_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_isSending)
+                {
+                    // 开始发送
+                    _viewModel?.StartSend(_pnode[_nodeNumber]);
+                    BtnStart.Content = "停止发送";
+                    BtnStart.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 77, 79)); // #ff4d4f 红色
+                    _isSending = true;
+                }
+                else
+                {
+                    // 停止发送
+                    _viewModel?.StopSend(_pnode[_nodeNumber]);
+                    BtnStart.Content = "3.开始发送";
+                    BtnStart.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(82, 196, 26)); // #52c41a 绿色
+                    _isSending = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"操作失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnRcv_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_isReceiving)
+                {
+                    // 开始接收
+                    _viewModel?.StartReceive(_pnode[_nodeNumber]);
+                    BtnRcv.Content = "停止接收";
+                    BtnRcv.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 77, 79)); // #ff4d4f 红色
+                    _isReceiving = true;
+                    _refreshTimer.Start();
+                }
+                else
+                {
+                    // 停止接收
+                    _viewModel?.StopReceive(_pnode[_nodeNumber]);
+                    BtnRcv.Content = "接收";
+                    BtnRcv.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(82, 196, 26)); // #52c41a 绿色
+                    _isReceiving = false;
+                    _refreshTimer.Stop();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"操作失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnBMStart_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_isBMDataMonitorRunning)
+                {
+                    // 启动数据监控
+                    _viewModel?.StartBMDataMonitor(_pnode[_nodeNumber]);
+                    
+                    // 启动刷新定时器
+                    if (!_refreshTimer.IsEnabled)
+                    {
+                        _refreshTimer.Start();
+                    }
+                    
+                    // 按钮文本变为"暂停数据监控"
+                    BtnBMStart.Content = "暂停数据监控";
+                    BtnBMStart.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(250, 173, 20)); // 橙色（表示运行中）
+                    _isBMDataMonitorRunning = true;
+                }
+                else
+                {
+                    // 暂停数据监控
+                    _viewModel?.StopBMDataMonitor(_pnode[_nodeNumber]);
+                    
+                    // 停止刷新定时器
+                    _refreshTimer.Stop();
+                    
+                    // 按钮文本变为"启动数据监控"
+                    BtnBMStart.Content = "启动数据监控";
+                    BtnBMStart.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(82, 196, 26)); // #52c41a 绿色
+                    _isBMDataMonitorRunning = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"数据监控操作失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnBMDataClear_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 清空ViewModel中的数据
+                _viewModel?.ClearBMData();
+                
+                // 清空显示的数据
+                var items = DgvBMData.ItemsSource as ObservableCollection<BMDataItem>;
+                if (items != null)
+                {
+                    items.Clear();
+                }
+                
+                // 重置计数
+                _lastBMDataCount = 0;
+                
+                // 清空校验数据
+                var checkItems = LvwCheckData.ItemsSource as ObservableCollection<CheckDataItem>;
+                if (checkItems != null)
+                {
+                    checkItems.Clear();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"清空数据失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"清空数据失败: {ex.Message}");
+            }
+        }
+
+        private void BtnSaveData_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _viewModel?.SaveData();
+                // SaveData方法内部已经显示成功/失败消息，这里不需要再显示
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"保存数据失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"BtnSaveData_Click异常: {ex.Message}\n{ex.StackTrace}");
+            }
+        }
+
+        private void BtnDataReadFromFile_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _viewModel?.LoadDataFromFile();
+                RefreshDataDisplay();
+                MessageBox.Show("数据加载成功", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"加载数据失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void RefreshTimer_Tick(object sender, EventArgs e)
+        {
+            RefreshDataDisplay();
+        }
+
+        private void RefreshDataDisplay()
+        {
+            try
+            {
+                if (!_isBMDataMonitorRunning)
+                {
+                    return; // 如果数据监控未启动，不刷新
+                }
+
+                var bmDataList = _viewModel?.GetBMData();
+                if (bmDataList != null && bmDataList.Count > _lastBMDataCount)
+                {
+                    var items = DgvBMData.ItemsSource as ObservableCollection<BMDataItem>;
+                    if (items != null)
+                    {
+                        // 只添加新数据（避免重复添加）
+                        for (int i = _lastBMDataCount; i < bmDataList.Count; i++)
+                        {
+                            items.Add(bmDataList[i]);
+                        }
+                        
+                        _lastBMDataCount = bmDataList.Count;
+                        
+                        // 自动滚动到最后一行
+                        if (items.Count > 0)
+                        {
+                            DgvBMData.ScrollIntoView(items[items.Count - 1]);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"RefreshDataDisplay异常: {ex.Message}");
+            }
+        }
+
+        // BMDataItem类已移动到ViewModel中
+
+        /// <summary>
+        /// 校验数据项
+        /// </summary>
+        public class CheckDataItem
+        {
+            public int Index { get; set; }
+            public string Time { get; set; }
+            public string Data { get; set; }
+        }
+
+        private void DgvBMData_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
+
+        /// <summary>
+        /// 处理ScrollViewer的鼠标滚轮事件，确保可以滚动
+        /// </summary>
+        private void ScrollViewer_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+        {
+            if (sender is System.Windows.Controls.ScrollViewer scrollViewer)
+            {
+                // 使用PageUp/PageDown实现更流畅的滚动
+                if (e.Delta > 0)
+                {
+                    scrollViewer.PageUp();
+                }
+                else
+                {
+                    scrollViewer.PageDown();
+                }
+                e.Handled = true;
+            }
+        }
+    }
+}

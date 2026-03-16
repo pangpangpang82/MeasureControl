@@ -1,0 +1,516 @@
+﻿<UserControl
+    x:Class="MeasureControl.Views.Database.DatabaseConfig"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:MeasureControl.Helpers"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:prism="http://prismlibrary.com/"
+    xmlns:vm="clr-namespace:MeasureControl.ViewModels"
+    d:DesignHeight="800"
+    d:DesignWidth="1500"
+    prism:ViewModelLocator.AutoWireViewModel="True"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            x:Name="Border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#eaeaea" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#d0d0d0" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--  数据库切换按钮样式  -->
+        <Style x:Key="DatabaseTabButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="3,3,0,0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <!--  鼠标悬停效果：只在未选中状态下显示  -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.8" />
+                            </Trigger>
+                            <!--  鼠标按下效果  -->
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.6" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <helpers:BoolToColorConverter x:Key="BoolToColorConverter" />
+        <helpers:LevelToIndentConverter x:Key="LevelToIndentConverter" />
+        <helpers:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <helpers:BoolToExpansionIconConverter x:Key="BoolToExpansionIconConverter" />
+        <helpers:StringToBrushConverter x:Key="StringToBrushConverter" />
+        <helpers:ModelDisplayConverter x:Key="ModelDisplayConverter" />
+        <helpers:DeviceTypeToBackgroundConverter x:Key="DeviceTypeToBackgroundConverter" />
+        <helpers:DeviceTypeToHoverBackgroundConverter x:Key="DeviceTypeToHoverBackgroundConverter" />
+
+        <!--  简洁的滚动条样式  -->
+        <Style x:Key="SimpleScrollBarStyle" TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Width" Value="8" />
+            <Setter Property="MinWidth" Value="8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Border Background="Transparent" BorderThickness="0">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Style>
+                                            <Style TargetType="Thumb">
+                                                <Setter Property="Background" Value="#CCCCCC" />
+                                                <Setter Property="BorderThickness" Value="0" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Thumb">
+                                                            <Border
+                                                                Background="{TemplateBinding Background}"
+                                                                BorderThickness="0"
+                                                                CornerRadius="4" />
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#999999" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter Property="Background" Value="#666666" />
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Thumb.Style>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--  简洁的ScrollViewer样式  -->
+        <Style x:Key="SimpleScrollViewerStyle" TargetType="ScrollViewer">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="8" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <ScrollContentPresenter
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                Margin="{TemplateBinding Padding}"
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}" />
+
+                            <ScrollBar
+                                x:Name="PART_VerticalScrollBar"
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                Maximum="{TemplateBinding ScrollableHeight}"
+                                Orientation="Vertical"
+                                Style="{StaticResource SimpleScrollBarStyle}"
+                                ViewportSize="{TemplateBinding ViewportHeight}"
+                                Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                Value="{TemplateBinding VerticalOffset}" />
+
+                            <ScrollBar
+                                x:Name="PART_HorizontalScrollBar"
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                Maximum="{TemplateBinding ScrollableWidth}"
+                                Orientation="Horizontal"
+                                Style="{StaticResource SimpleScrollBarStyle}"
+                                ViewportSize="{TemplateBinding ViewportWidth}"
+                                Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"
+                                Value="{TemplateBinding HorizontalOffset}" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Border>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="80*" />
+                <ColumnDefinition Width="15*" />
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="70*" />
+                        <RowDefinition Height="29*" />
+                    </Grid.RowDefinitions>
+                    <Border x:Name="CenterRegion" Grid.Row="0">
+                        <Border.Resources>
+                            <!--  按钮样式定义在这里，这样浮动时也能保持样式  -->
+                            <Style x:Key="TitleBarButtonStyle" TargetType="Button">
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="BorderThickness" Value="0" />
+                                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border
+                                                x:Name="Border"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Border" Property="Background" Value="#3d455d" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="Border" Property="Background" Value="#4d556d" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Opacity" Value="0.5" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Border.Resources>
+                        <Grid Background="White">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="5*" />
+                                <RowDefinition Height="5*" />
+                                <RowDefinition Height="92*" />
+                            </Grid.RowDefinitions>
+                            <Border
+                                x:Name="line"
+                                Grid.Row="0"
+                                Background="#2d354d"
+                                Cursor="Hand"
+                                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                                <Grid>
+                                    <TextBlock
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Foreground="White"
+                                        Text="{Binding DisplayPath}" />
+                                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                                        <Button Click="OnMinimizeButtonClick" Style="{StaticResource TitleBarButtonStyle}">
+                                            <Image
+                                                Width="30"
+                                                Margin="0,0,5,0"
+                                                Source="/Resources/Logo/min.png" />
+                                        </Button>
+                                        <Border Width="30" Margin="0,0,5,0">
+                                            <Button Click="OnFloatButtonClick" Style="{StaticResource TitleBarButtonStyle}">
+                                                <Image
+                                                    x:Name="FloatImage"
+                                                    Width="15"
+                                                    Source="/Resources/Logo/float.png" />
+                                            </Button>
+                                        </Border>
+                                        <Button Click="OnCloseButtonClick" Style="{StaticResource TitleBarButtonStyle}">
+                                            <Image Margin="0,0,5,0" Source="/Resources/Logo/close.png" />
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Row="1" Background="#cccccc">
+                                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                    <Button
+                                        Width="80"
+                                        Height="23"
+                                        Margin="10,0,0,0"
+                                        Background="#3b82f6"
+                                        Command="{Binding AddChannelCommand}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="3">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                            <Image
+                                                Width="18"
+                                                Margin="0,1,0,0"
+                                                VerticalAlignment="Center"
+                                                Source="/Resources/Logo/import.png" />
+                                            <TextBlock
+                                                Margin="5,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Foreground="White"
+                                                Text="导入工程" />
+                                        </StackPanel>
+                                    </Button>
+
+                                    <Button
+                                        Width="80"
+                                        Height="23"
+                                        Margin="10,0,0,0"
+                                        Background="#10b981"
+                                        Command="{Binding AddChannelCommand}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="3">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#0EA271" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#0EA271" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                            <Image
+                                                Width="18"
+                                                Margin="0,1,0,0"
+                                                VerticalAlignment="Center"
+                                                Source="/Resources/Logo/export.png" />
+                                            <TextBlock
+                                                Margin="5,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Foreground="White"
+                                                Text="导出工程" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="2">
+                                <Grid>
+                                    <Border>
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="*" />
+                                            </Grid.RowDefinitions>
+                                            <Border
+                                                Grid.Row="0"
+                                                Height="50"
+                                                VerticalAlignment="Center"
+                                                BorderBrush="#D9D9D9"
+                                                BorderThickness="0,0,0,1.5">
+                                                <Grid>
+                                                    <StackPanel Margin="20,0,0,0" Orientation="Horizontal">
+                                                        <Button
+                                                            Height="34"
+                                                            VerticalAlignment="Bottom"
+                                                            Background="{Binding IsTaskConfigSelected, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#d4e8ff|Transparent'}"
+                                                            Command="{Binding SwitchToTaskConfigCommand}"
+                                                            Style="{StaticResource DatabaseTabButtonStyle}">
+                                                            <StackPanel
+                                                                Margin="10,0,0,0"
+                                                                HorizontalAlignment="Left"
+                                                                Orientation="Horizontal">
+                                                                <Image
+                                                                    Height="15"
+                                                                    Margin="0,0,5,0"
+                                                                    VerticalAlignment="Center"
+                                                                    Source="/Resources/Logo/database.png" />
+                                                                <TextBlock
+                                                                    Margin="0,0,10,0"
+                                                                    VerticalAlignment="Center"
+                                                                    Foreground="#666666"
+                                                                    Text="任务配置数据库" />
+                                                            </StackPanel>
+                                                        </Button>
+
+                                                        <Button
+                                                            Height="34"
+                                                            Margin="20,0,0,0"
+                                                            VerticalAlignment="Bottom"
+                                                            Background="{Binding IsTestDataSelected, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#d4e8ff|Transparent'}"
+                                                            Command="{Binding SwitchToTestDataCommand}"
+                                                            Style="{StaticResource DatabaseTabButtonStyle}">
+                                                            <StackPanel
+                                                                Margin="10,0,0,0"
+                                                                HorizontalAlignment="Left"
+                                                                Orientation="Horizontal">
+                                                                <Image
+                                                                    Height="15"
+                                                                    Margin="0,0,5,0"
+                                                                    VerticalAlignment="Center"
+                                                                    Source="/Resources/Logo/testc.png" />
+                                                                <TextBlock
+                                                                    Margin="0,0,10,0"
+                                                                    VerticalAlignment="Center"
+                                                                    Text="测试数据数据库" />
+                                                            </StackPanel>
+                                                        </Button>
+                                                    </StackPanel>
+                                                    <StackPanel
+                                                        Margin="0,0,30,0"
+                                                        HorizontalAlignment="Right"
+                                                        VerticalAlignment="Center"
+                                                        Orientation="Horizontal">
+                                                        <Image
+                                                            Height="13"
+                                                            Margin="0,0,5,0"
+                                                            Source="/Resources/Logo/version.png" />
+                                                        <TextBlock Text="当前版本：2.3.1" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+
+                                            <Border Grid.Row="1">
+                                                <ContentControl x:Name="DatabaseContainer" prism:RegionManager.RegionName="DatabaseRegion" />
+                                            </Border>
+
+
+
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                    </Border>
+
+                    <GridSplitter
+                        Grid.Row="0"
+                        Height="2"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Bottom"
+                        Background="#1c1c1c"
+                        ShowsPreview="True" />
+
+                    <Border Grid.Row="1">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="2*" />
+                                <RowDefinition Height="15*" />
+                            </Grid.RowDefinitions>
+                            <Border Background="#b2b2b2">
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Margin="10,0,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="常规" />
+                            </Border>
+                            <Border
+                                Grid.Row="1"
+                                Background="#ffffff"
+                                BorderBrush="#1c1c1c"
+                                BorderThickness="0,1.5,0,0">
+
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="4*" />
+                                        <RowDefinition Height="12*" />
+                                        <RowDefinition Height="10*" />
+                                        <RowDefinition Height="5*" />
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel
+                                        Grid.Row="0"
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Orientation="Horizontal">
+                                        <Image
+                                            Width="20"
+                                            Height="20"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Center"
+                                            Source="/Resources/Logo/warning.png" />
+                                        <TextBlock
+                                            Margin="10,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="14"
+                                            FontWeight="Black"
+                                            Text="暂无信息" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <GridSplitter
+                Grid.Column="0"
+                Width="2"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Stretch"
+                Background="#1c1c1c"
+                ShowsPreview="True" />
+
+            <!--  右侧工具树  -->
+            <Border
+                Grid.Row="0"
+                Grid.Column="1"
+                Background="#eaeaea" />
+        </Grid>
+    </Border>
+</UserControl>
