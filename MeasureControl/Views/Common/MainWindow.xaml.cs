@@ -33,7 +33,7 @@ using System.Threading.Tasks;
 namespace MeasureControl.Views.Common
 {
     /// <summary>
-    /// 主 窗口
+    /// 主窗口
     /// </summary>
     public partial class MainWindow : Window
     {
@@ -43,7 +43,7 @@ namespace MeasureControl.Views.Common
         private readonly IEventAggregator _eventAggregator;
 
         private CancellationTokenSource _singleBoardAutoTestCts;
-        private string _singleBoardAutoTestReportPath;
+        private string _singleBoardAutoTestReportPath; //
         private string _singleBoardAutoTestExcelReportPath;
         private HashSet<string> _selectedSingleBoardAutoTestItems;
         private Dictionary<string, string> _singleBoardAutoStepResults;
@@ -68,7 +68,7 @@ namespace MeasureControl.Views.Common
 
             var v = (projectItem.Tag ?? projectItem.Name)?.Trim();
             return string.Equals(v, "空气单板", StringComparison.OrdinalIgnoreCase)
-                
+                || string.Equals(v, "液压单板", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(v, "惰化单板", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(v, "加放油单板", StringComparison.OrdinalIgnoreCase);
         }
