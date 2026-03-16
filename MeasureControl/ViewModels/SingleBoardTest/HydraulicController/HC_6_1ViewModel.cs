@@ -63,13 +63,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
-        private bool _isManualTestBusy;
-        private bool _isAutoTestBusy;
         private bool _isManualTestInitializing;
         private bool _isAutoTestInitializing;
         private bool _isManualTestStopping;
         private bool _isAutoTestStopping;
         private bool _canMeasure;
+        private bool _isManualTestBusy;
+        private bool _isAutoTestBusy;
 
         private bool _measured14;
         private bool _measured182;
@@ -454,7 +454,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private async Task OnAutoTestAsync()
         {
-            if (IsAutoTestRunning)
+            if (IsAutoTestStopping)
+            {
+                return;
+            }
+
+            if (IsAutoTestRunning || IsAutoTestInitializing)
             {
                 await StopAutoTestAsync().ConfigureAwait(false);
                 return;
@@ -647,7 +652,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private async Task OnManualTestAsync()
         {
-            if (IsManualTestRunning)
+            if (IsManualTestStopping)
+            {
+                return;
+            }
+
+            if (IsManualTestRunning || IsManualTestInitializing)
             {
                 await StopManualTestAsync().ConfigureAwait(false);
                 return;
@@ -723,7 +733,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task StopManualTestAsync()
         {
             if (IsManualTestStopping)
+            {
                 return;
+            }
 
             IsManualTestInitializing = false;
             IsManualTestStopping = true;
@@ -790,7 +802,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task StopAutoTestAsync()
         {
             if (IsAutoTestStopping)
+            {
                 return;
+            }
 
             IsAutoTestInitializing = false;
             IsAutoTestStopping = true;
