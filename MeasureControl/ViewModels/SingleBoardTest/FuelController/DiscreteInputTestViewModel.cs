@@ -948,7 +948,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 try
                 {
                     // 确保7131板卡已连接并启动
-                    await _jy7131Api.EnsureConnectedAndRunningAsync(token);
+                    //await _jy7131Api.EnsureConnectedAndRunningAsync(token);
 
                     //打开前四路 485 继电器
                     AddLog("正在打开 485 继电器前 4 路...");
@@ -1016,7 +1016,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 try
                 {
-                    await _jy7131Api.EnsureConnectedAndRunningAsync(token);
+                    //await _jy7131Api.EnsureConnectedAndRunningAsync(token);
 
                     
 
