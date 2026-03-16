@@ -606,22 +606,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             }
         }
 
-        public class TestSequenceItem : BindableBase
+        public class TestSequenceItem
         {
-            private bool _isSelected = true;
-
             public TestSequenceItem(string name)
             {
                 Name = name;
             }
 
             public string Name { get; }
-
-            public bool IsSelected
-            {
-                get => _isSelected;
-                set => SetProperty(ref _isSelected, value);
-            }
         }
     }
 }
