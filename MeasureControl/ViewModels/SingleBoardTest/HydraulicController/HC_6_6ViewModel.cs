@@ -1069,7 +1069,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var normalized = text.Trim();
             if (!string.IsNullOrWhiteSpace(unit))
             {
-                normalized = normalized.Replace(unit, string.Empty, StringComparison.OrdinalIgnoreCase);
+                var unitIndex = normalized.IndexOf(unit, StringComparison.OrdinalIgnoreCase);
+                if (unitIndex >= 0)
+                {
+                    normalized = normalized.Remove(unitIndex, unit.Length);
+                }
             }
 
             normalized = normalized.Trim();
