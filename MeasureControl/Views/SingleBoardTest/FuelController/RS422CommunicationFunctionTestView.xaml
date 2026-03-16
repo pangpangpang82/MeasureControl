@@ -207,7 +207,7 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="a) 通道1收发测试" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="1" Text="J15/J16发送0xAA55，经CRM_PIN19回读并一致性比对" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap" />
+                                        <TextBlock Grid.Column="1" Text="J15/J16发送0xAA55，经CRM_PIN19回读并比对" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap" />
                                         <Border Grid.Column="2" CornerRadius="4" Margin="10,0" Padding="10,3">
                                             <Border.Style>
                                                 <Style TargetType="Border">
@@ -279,7 +279,7 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="b) 通道2收发测试" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="1" Text="J20/J21发送0xAA55，经CRM_PIN20回读并一致性比对" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap" />
+                                        <TextBlock Grid.Column="1" Text="J20/J21发送0xAA55，经CRM_PIN20回读并比对" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap" />
                                         <Border Grid.Column="2" CornerRadius="4" Margin="10,0" Padding="10,3">
                                             <Border.Style>
                                                 <Style TargetType="Border">
@@ -351,7 +351,7 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="c) 通道1回环测试" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="1" Text="CRM_PIN9发送0xAA55，经J17/J18回读并一致性比对" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap" />
+                                        <TextBlock Grid.Column="1" Text="CRM_PIN9发送0xAA55，经J17/J18回读并比对" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap" />
                                         <Border Grid.Column="2" CornerRadius="4" Margin="10,0" Padding="10,3">
                                             <Border.Style>
                                                 <Style TargetType="Border">
@@ -423,7 +423,7 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="d) 通道2回环测试" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="1" Text="CRM_PIN10发送0xAA55，经J22/J23回读并一致性比对" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap" />
+                                        <TextBlock Grid.Column="1" Text="CRM_PIN10发送0xAA55，经J22/J23回读并比对" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap" />
                                         <Border Grid.Column="2" CornerRadius="4" Margin="10,0" Padding="10,3">
                                             <Border.Style>
                                                 <Style TargetType="Border">
