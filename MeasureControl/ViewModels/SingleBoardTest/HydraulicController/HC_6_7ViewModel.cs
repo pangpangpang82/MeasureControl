@@ -103,6 +103,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private bool _manualAborted;
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
+        private bool _isManualTestInitializing;
+        private bool _isAutoTestInitializing;
+        private bool _isManualTestStopping;
+        private bool _isAutoTestStopping;
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
         private string _previousTestTime = "--";
@@ -132,6 +136,66 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
 
+        public bool IsManualTestBusy => IsManualTestInitializing || IsManualTestStopping;
+
+        public bool IsAutoTestBusy => IsAutoTestInitializing || IsAutoTestStopping;
+
+        public bool IsManualTestInitializing
+        {
+            get => _isManualTestInitializing;
+            private set
+            {
+                if (SetProperty(ref _isManualTestInitializing, value))
+                {
+                    RaisePropertyChanged(nameof(IsManualTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsAutoTestInitializing
+        {
+            get => _isAutoTestInitializing;
+            private set
+            {
+                if (SetProperty(ref _isAutoTestInitializing, value))
+                {
+                    RaisePropertyChanged(nameof(IsAutoTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsManualTestStopping
+        {
+            get => _isManualTestStopping;
+            private set
+            {
+                if (SetProperty(ref _isManualTestStopping, value))
+                {
+                    RaisePropertyChanged(nameof(IsManualTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsAutoTestStopping
+        {
+            get => _isAutoTestStopping;
+            private set
+            {
+                if (SetProperty(ref _isAutoTestStopping, value))
+                {
+                    RaisePropertyChanged(nameof(IsAutoTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
         public bool IsManualTestRunning
         {
             get => _isManualTestRunning;
@@ -140,6 +204,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (SetProperty(ref _isManualTestRunning, value))
                 {
                     RaisePropertyChanged(nameof(CanMeasure14));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
                     Measure14Command?.RaiseCanExecuteChanged();
                 }
             }
@@ -153,6 +219,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (SetProperty(ref _isAutoTestRunning, value))
                 {
                     RaisePropertyChanged(nameof(CanMeasure14));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
                     Measure14Command?.RaiseCanExecuteChanged();
                 }
             }
@@ -172,6 +240,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         }
 
         public bool CanMeasure14 => IsManualTestRunning && CanMeasure && !_measured14;
+        public bool CanStartManualTest => !IsManualTestBusy && !IsAutoTestBusy && !IsAutoTestRunning;
+        public bool CanStartAutoTest => !IsManualTestBusy && !IsAutoTestBusy && !IsManualTestRunning;
 
         public string CurrentTestResult
         {
@@ -283,6 +353,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
+                IsAutoTestInitializing = false;
                 _autoCts?.Dispose();
                 _autoCts = null;
             }
@@ -300,7 +371,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await StopAutoTestAsync().ConfigureAwait(false);
 
             ResetMeasurementState();
-            IsManualTestRunning = true;
+            IsManualTestInitializing = true;
+            IsManualTestStopping = false;
             _manualCts?.Cancel();
             _manualCts?.Dispose();
             _manualCts = new CancellationTokenSource();
@@ -321,6 +393,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await StartAtpRequestAsync(_manualCts.Token).ConfigureAwait(false);
                 await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
 
+                IsManualTestInitializing = false;
+                IsManualTestRunning = true;
                 CanMeasure = true;
                 Log("手动测试初始化完成，可执行采集");
             }
@@ -340,6 +414,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             if (IsManualTestRunning)
                 await StopManualTestAsync().ConfigureAwait(false);
+
+            ResetMeasurementState();
+            IsAutoTestInitializing = true;
+            IsAutoTestStopping = false;
 
             _autoCts?.Cancel();
             _autoCts?.Dispose();
@@ -361,6 +439,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
+                IsAutoTestInitializing = false;
                 _autoCts?.Dispose();
                 _autoCts = null;
             }
@@ -369,7 +448,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
         {
             ResetMeasurementState();
-            IsAutoTestRunning = true;
 
             Log("开始自动测试");
 
@@ -382,6 +460,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
                 await StartAtpRequestAsync(cancellationToken).ConfigureAwait(false);
                 await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = true;
 
                 var success = await MeasureDiscreteAsync(cancellationToken).ConfigureAwait(false);
                 if (!IsAutoTestRunning)
@@ -547,20 +628,44 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task StopManualTestAsync()
         {
+            IsManualTestStopping = true;
+            IsManualTestInitializing = false;
             try { CanMeasure = false; _manualCts?.Cancel(); } catch { }
             Log("手动测试停止/结束，正在释放电源、MT532、7131 与 429...");
-            await CleanupIoAsync().ConfigureAwait(false);
-            IsManualTestRunning = false;
-            Log("手动测试已结束");
+            try
+            {
+                await CleanupIoAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                IsManualTestInitializing = false;
+                IsManualTestRunning = false;
+                IsManualTestStopping = false;
+                RaisePropertyChanged(nameof(CanStartManualTest));
+                RaisePropertyChanged(nameof(CanStartAutoTest));
+                Log("手动测试已结束");
+            }
         }
 
         private async Task StopAutoTestAsync()
         {
+            IsAutoTestStopping = true;
+            IsAutoTestInitializing = false;
             try { _autoCts?.Cancel(); } catch { }
             Log("自动测试停止/结束，正在释放电源、MT532、7131 与 429...");
-            await CleanupIoAsync().ConfigureAwait(false);
-            IsAutoTestRunning = false;
-            Log("自动测试已结束");
+            try
+            {
+                await CleanupIoAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = false;
+                IsAutoTestStopping = false;
+                RaisePropertyChanged(nameof(CanStartManualTest));
+                RaisePropertyChanged(nameof(CanStartAutoTest));
+                Log("自动测试已结束");
+            }
         }
 
         private void LoadLastTestResultFromProject()
@@ -650,6 +755,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private bool IsPinPass(int pin)
         {
+            if (pin == 89 || pin == 90)
+            {
+                return string.Equals(GetPinText(pin), "0", StringComparison.OrdinalIgnoreCase);
+            }
             return string.Equals(GetPinText(pin), "1", StringComparison.OrdinalIgnoreCase);
         }
 
@@ -799,7 +908,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             uint mask = 0;
             for (var doIndex = 0; doIndex <= 26; doIndex++) {
-                if (doIndex == 15 || doIndex == 24)
+                if (doIndex == 24)
                 {
                     continue;
                 }
@@ -853,22 +962,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
 
-            if (UsePeriodicAtpRequest)
-            {
-                StartAtpRequestLoop(cancellationToken);
-                Log("已启动ATP请求周期发送(100ms)");
-                return;
-            }
-
-            await SendAtpRequestSingleAsync(true, cancellationToken).ConfigureAwait(false);
-            Log("已发送ATP单次请求");
-        }
-
-        private void StartAtpRequestLoop(CancellationToken parentToken)
-        {
             _atpRequestLoopCts?.Cancel();
             _atpRequestLoopCts?.Dispose();
-            _atpRequestLoopCts = CancellationTokenSource.CreateLinkedTokenSource(parentToken);
+            _atpRequestLoopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
             _ = Task.Run(async () =>
             {
@@ -884,6 +980,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                 }
             }, _atpRequestLoopCts.Token);
+
+            Log("已启动ATP请求周期发送(100ms)");
         }
 
         private async Task StopAtpRequestAsync(bool sendRelease, CancellationToken cancellationToken)
