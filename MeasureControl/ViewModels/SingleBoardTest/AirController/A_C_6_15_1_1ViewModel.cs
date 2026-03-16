@@ -24,6 +24,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
 
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private static readonly byte[] Pwm100Command8 = { 0x21, 0x03, 0x04, 0x03, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] Pwm50Command8 = { 0x21, 0x03, 0x04, 0x02, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] Pwm0Command8 = { 0x21, 0x03, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00 };
@@ -44,8 +47,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private CancellationTokenSource _autoTestCts;
 
-        private string _testTxChannel = "CH0";
-        private string _testRxChannel = "CH2";
+        private string _testTxChannel = FixedTxChannel;
+        private string _testRxChannel = FixedRxChannel;
 
         private string _oscilloscopeIpAddress = "192.168.1.18";
         private string _frequencyCounterIpAddress = "192.168.1.14";
@@ -305,6 +308,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
+        private void EnsureManualArincChannels()
+        {
+            TestTxChannel = FixedTxChannel;
+            TestRxChannel = FixedRxChannel;
+        }
+
         private async Task RunManualTestAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -312,6 +321,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsBusy)
                     return;
+
+                EnsureManualArincChannels();
 
                 IsBusy = true;
                 try
@@ -404,6 +415,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsBusy)
                     return;
+
+                EnsureManualArincChannels();
 
                 IsBusy = true;
                 IsAutoTestRunning = true;

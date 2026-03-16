@@ -31,6 +31,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private const string MatrixIp = "192.168.1.3";
 
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private readonly A_C_6_17_2_2Simulation _simulation = new A_C_6_17_2_2Simulation();
 
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
@@ -46,8 +49,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private TcpClient _scopeTcpClient;
         private NetworkStream _scopeTcpStream;
 
-        private string _testTxChannel = "CH0";
-        private string _testRxChannel = "CH2";
+        private string _testTxChannel = FixedTxChannel;
+        private string _testRxChannel = FixedRxChannel;
         private double _arincRate = 100000.0;
 
         private string _oscilloscopeIpAddress = "192.168.1.18";
@@ -73,6 +76,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _lastTestResult = "--";
         private string _previousTestTime = "--";
         private string _previousTestResult = "--";
+
+        private void EnsureManualArincChannels()
+        {
+            TestTxChannel = FixedTxChannel;
+            TestRxChannel = FixedRxChannel;
+        }
 
         public A_C_6_17_2_2ViewModel()
         {
@@ -317,6 +326,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (IsBusy)
                     return;
 
+                EnsureManualArincChannels();
+
                 IsBusy = true;
                 try
                 {
@@ -391,6 +402,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsBusy)
                     return;
+
+                EnsureManualArincChannels();
 
                 IsBusy = true;
                 IsAutoTestRunning = true;

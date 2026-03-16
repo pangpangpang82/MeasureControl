@@ -31,6 +31,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const double QualifyDutyTargetPct = 50.0;
         private const double QualifyDutyTolPct = 5.0;
 
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private readonly A_C_6_17_4_1Simulation _simulation = new A_C_6_17_4_1Simulation();
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
@@ -46,8 +49,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private CancellationTokenSource _autoTestCts;
 
-        private string _testTxChannel = "CH0";
-        private string _testRxChannel = "CH2";
+        private string _testTxChannel = FixedTxChannel;
+        private string _testRxChannel = FixedRxChannel;
 
         private string _oscilloscopeIpAddress = "192.168.1.18";
 
@@ -102,13 +105,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string TestTxChannel
         {
             get => _testTxChannel;
-            set => SetProperty(ref _testTxChannel, value);
         }
 
         public string TestRxChannel
         {
             get => _testRxChannel;
-            set => SetProperty(ref _testRxChannel, value);
         }
 
         public string OscilloscopeIpAddress
@@ -183,6 +184,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _previousTestResult, value);
         }
 
+        private void EnsureManualArincChannels()
+        {
+            SetProperty(ref _testTxChannel, FixedTxChannel);
+            SetProperty(ref _testRxChannel, FixedRxChannel);
+        }
+
         private void OnManualTest()
         {
             if (IsManualTestRunning)
@@ -212,6 +219,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsBusy)
                     return;
+
+                EnsureManualArincChannels();
 
                 IsBusy = true;
                 try
@@ -291,6 +300,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsBusy)
                     return;
+
+                EnsureManualArincChannels();
 
                 IsBusy = true;
                 IsAutoTestRunning = true;

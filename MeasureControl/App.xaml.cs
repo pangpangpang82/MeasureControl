@@ -288,6 +288,8 @@ namespace MeasureControl
 
             containerRegistry.Register<A_C_8_1ViewModel>();
 
+            containerRegistry.Register<A_C_7_1ViewModel>();
+
 
 
 

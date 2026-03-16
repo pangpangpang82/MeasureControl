@@ -1361,7 +1361,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Update="Views\**\*.xaml.cs">
-      <DependentUpon>%(Filename)</DependentUpon>
+      <DependentUpon>%(Filename).xaml</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -1375,8 +1375,6 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
   </ItemGroup>
   <Target Name="CopyLibsToOutput" AfterTargets="CopyFilesToOutputDirectory">
     <ItemGroup>

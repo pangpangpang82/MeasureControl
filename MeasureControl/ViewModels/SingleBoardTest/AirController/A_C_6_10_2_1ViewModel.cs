@@ -42,6 +42,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
     {
 
+        private const string FixedTxChannel = "429_CH0";
+
+        private const string FixedRxChannel = "429_CH2";
+
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
@@ -182,9 +186,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         {
 
-            _testTxChannel = "CH0";
+            _testTxChannel = FixedTxChannel;
 
-            _testRxChannel = "CH2";
+            _testRxChannel = FixedRxChannel;
 
 
 
@@ -471,50 +475,42 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public string TestTxChannel
         {
-            get => _testTxChannel;
-            set => SetProperty(ref _testTxChannel, value);
+            get => FixedTxChannel;
         }
 
         public string TestRxChannel
         {
-            get => _testRxChannel;
-            set => SetProperty(ref _testRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public string ControllerPressureTestTxChannel
         {
-            get => _controllerPressureTestTxChannel;
-            set => SetProperty(ref _controllerPressureTestTxChannel, value);
+            get => FixedTxChannel;
         }
 
         public string PressureTelemetryRxChannel
         {
-            get => _pressureTelemetryRxChannel;
-            set => SetProperty(ref _pressureTelemetryRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public string EnterAtpTxChannel
         {
-            get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
+            get => FixedTxChannel;
         }
 
         public string EnterAtpRxChannel
         {
-            get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public string ExitAtpTxChannel
         {
-            get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
+            get => FixedTxChannel;
         }
 
         public string ExitAtpRxChannel
         {
-            get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public double ArincRate
@@ -696,23 +692,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private void EnsureManualArincChannels()
         {
-            var tx = FirstNonEmpty(EnterAtpTxChannel, ExitAtpTxChannel, ControllerPressureTestTxChannel, TestTxChannel);
-
-            var rx = FirstNonEmpty(EnterAtpRxChannel, ExitAtpRxChannel, PressureTelemetryRxChannel, TestRxChannel);
-
-            tx ??= "CH0";
-            rx ??= "CH2";
-
-            TestTxChannel = tx;
-            TestRxChannel = rx;
-
-            EnterAtpTxChannel ??= tx;
-            EnterAtpRxChannel ??= rx;
-            ExitAtpTxChannel ??= tx;
-            ExitAtpRxChannel ??= rx;
-
-            ControllerPressureTestTxChannel ??= tx;
-            PressureTelemetryRxChannel ??= rx;
         }
 
         private void AddLog(string message)

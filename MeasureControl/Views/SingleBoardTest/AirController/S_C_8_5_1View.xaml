@@ -9,24 +9,6 @@
     d:DesignWidth="970"
     mc:Ignorable="d">
     <UserControl.Resources>
-        <x:Array x:Key="Arinc429Channels" Type="sys:String">
-            <sys:String>429_CH0</sys:String>
-            <sys:String>429_CH1</sys:String>
-            <sys:String>429_CH2</sys:String>
-            <sys:String>429_CH3</sys:String>
-            <sys:String>429_CH4</sys:String>
-            <sys:String>429_CH5</sys:String>
-            <sys:String>429_CH6</sys:String>
-            <sys:String>429_CH7</sys:String>
-            <sys:String>429_CH8</sys:String>
-            <sys:String>429_CH9</sys:String>
-            <sys:String>429_CH10</sys:String>
-            <sys:String>429_CH11</sys:String>
-            <sys:String>429_CH12</sys:String>
-            <sys:String>429_CH13</sys:String>
-            <sys:String>429_CH14</sys:String>
-            <sys:String>429_CH15</sys:String>
-        </x:Array>
         <x:Array x:Key="CanChannels" Type="sys:String">
             <sys:String>CH0</sys:String>
             <sys:String>CH1</sys:String>

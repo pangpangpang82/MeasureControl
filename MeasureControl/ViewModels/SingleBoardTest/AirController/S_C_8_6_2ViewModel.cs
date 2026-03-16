@@ -18,6 +18,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public class S_C_8_6_2ViewModel : BindableBase, IDisposable
     {
+        private const string FixedTxChannel = "429_CH1";
+        private const string FixedRxChannel = "429_CH0";
+
         private const byte DefaultLabel = 0x6A;
 
         private static readonly byte[] TestCommand = { 0x15, 0x01, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
@@ -30,12 +33,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public S_C_8_6_2ViewModel()
         {
-            _enterAtpTxChannel = "429_CH0";
-            _enterAtpRxChannel = "429_CH1";
-            _controllerTemperatureTestTxChannel = "429_CH0";
-            _temperatureTelemetryRxChannel = "429_CH1";
-            _exitAtpTxChannel = "429_CH0";
-            _exitAtpRxChannel = "429_CH1";
+            _enterAtpTxChannel = FixedTxChannel;
+            _enterAtpRxChannel = FixedRxChannel;
+            _controllerTemperatureTestTxChannel = FixedTxChannel;
+            _temperatureTelemetryRxChannel = FixedRxChannel;
+            _exitAtpTxChannel = FixedTxChannel;
+            _exitAtpRxChannel = FixedRxChannel;
 
             _enterAtpRxDataText = "--";
             _temperatureTelemetryRxDataText = "--";
@@ -175,14 +178,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public string EnterAtpTxChannel
         {
-            get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
+            get => FixedTxChannel;
         }
 
         public string EnterAtpRxChannel
         {
-            get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public string EnterAtpRxDataText
@@ -229,14 +230,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public string ControllerTemperatureTestTxChannel
         {
-            get => _controllerTemperatureTestTxChannel;
-            set => SetProperty(ref _controllerTemperatureTestTxChannel, value);
+            get => FixedTxChannel;
         }
 
         public string TemperatureTelemetryRxChannel
         {
-            get => _temperatureTelemetryRxChannel;
-            set => SetProperty(ref _temperatureTelemetryRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public string TemperatureTelemetryRxDataText
@@ -247,14 +246,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public string ExitAtpTxChannel
         {
-            get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
+            get => FixedTxChannel;
         }
 
         public string ExitAtpRxChannel
         {
-            get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public string ExitAtpRxDataText
