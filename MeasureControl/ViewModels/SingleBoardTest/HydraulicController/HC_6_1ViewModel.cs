@@ -468,6 +468,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             IsAutoTestInitializing = true;
             IsAutoTestStopping = false;
+            IsAutoTestRunning = true;
             CanMeasure = false;
 
             CurrentTestResult = "--";
@@ -502,6 +503,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
+                if (IsAutoTestInitializing)
+                {
+                    IsAutoTestRunning = false;
+                }
                 IsAutoTestInitializing = false;
                 _autoCts?.Dispose();
                 _autoCts = null;
@@ -510,6 +515,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
         {
+            IsAutoTestRunning = true;
             CanMeasure = false;
 
             CurrentTestResult = "--";
@@ -535,7 +541,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 Log("万用表连接成功");
 
                 IsAutoTestInitializing = false;
-                IsAutoTestRunning = true;
 
                 var ok14 = await MeasureResistanceAsync(
                         name: "通道1(1-4)",
@@ -649,6 +654,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             IsAutoTestRunning = false;
+            IsManualTestRunning = true;
             IsManualTestInitializing = true;
             IsManualTestStopping = false;
             CanMeasure = false;
@@ -685,7 +691,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 Log("万用表连接成功");
 
                 IsManualTestInitializing = false;
-                IsManualTestRunning = true;
                 CanMeasure = true;
             }
             catch (Exception ex)

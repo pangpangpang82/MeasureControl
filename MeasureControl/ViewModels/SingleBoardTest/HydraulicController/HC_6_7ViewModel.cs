@@ -755,6 +755,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private bool IsPinPass(int pin)
         {
+            if (pin == 89 || pin == 90)
+            {
+                return string.Equals(GetPinText(pin), "0", StringComparison.OrdinalIgnoreCase);
+            }
             return string.Equals(GetPinText(pin), "1", StringComparison.OrdinalIgnoreCase);
         }
 
@@ -904,7 +908,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             uint mask = 0;
             for (var doIndex = 0; doIndex <= 26; doIndex++) {
-                if (doIndex == 15 || doIndex == 24)
+                if (doIndex == 24)
                 {
                     continue;
                 }
@@ -958,33 +962,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
 
-            if (UsePeriodicAtpRequest)
+            _atpRequestLoopCts?.Cancel();
+            _atpRequestLoopCts?.Dispose();
+            _atpRequestLoopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            _ = Task.Run(async () =>
             {
-                _atpRequestLoopCts?.Cancel();
-                _atpRequestLoopCts?.Dispose();
-                _atpRequestLoopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                try
+                {
+                    while (!_atpRequestLoopCts.IsCancellationRequested)
+                    {
+                        await SendAtpRequestSingleAsync(true, _atpRequestLoopCts.Token).ConfigureAwait(false);
+                        await Task.Delay(AtpRequestPeriodMs, _atpRequestLoopCts.Token).ConfigureAwait(false);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            }, _atpRequestLoopCts.Token);
 
-                uint data19 = 0x1u;
-                var label = GetAtpLabelForTx();
-                var word = _arinc.BuildRawWord(label, 0, data19, SsmNormal, true);
-                Log($"ATP：True,raw=0x{word:X8}");
-                await _arinc.SendWordsPeriodAsync(TxChannelIndex, new[] { word }, AtpRequestPeriodMs, 0, Art4229Parity.Odd, _atpRequestLoopCts.Token).ConfigureAwait(false);
-                Log("已启动ATP请求周期发送(100ms)");
-                return;
-            }
-
-            await SendAtpRequestSingleAsync(true, cancellationToken).ConfigureAwait(false);
-            Log("已发送ATP单次请求");
+            Log("已启动ATP请求周期发送(100ms)");
         }
 
         private async Task StopAtpRequestAsync(bool sendRelease, CancellationToken cancellationToken)
         {
             try { _atpRequestLoopCts?.Cancel(); } catch { }
-
-            if (_arinc != null && _txOpened)
-            {
-                try { await _arinc.StopTxAsync(TxChannelIndex, cancellationToken).ConfigureAwait(false); } catch { }
-            }
 
             if (sendRelease && _arinc != null)
             {

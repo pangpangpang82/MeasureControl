@@ -46,6 +46,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double Current4mA = 4.0;
         private const double Current20mA = 20.0;
         private const double Current10mA = 10.0;
+        private const double CustomCurrentMinmA = 0.0;
+        private const double CustomCurrentMaxmA = 42.0;
         private const double Range4mAMin = 0.0;
         private const double Range4mAMax = 3.4;
         private const double Range20mAMin = 121.5;
@@ -763,7 +765,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             if (!TryGetValidatedCustomCurrent(out var currentmA))
             {
-                Log("自定义电流输入无效，请输入 4~20mA，且最多 1 位小数");
+                Log("自定义电流输入无效，请输入 0~42mA，且最多 1 位小数");
                 RefreshMeasureCommand();
                 return;
             }
@@ -1552,7 +1554,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return false;
 
             currentmA = Math.Truncate(currentmA * 10d) / 10d;
-            return currentmA >= Current4mA && currentmA <= Current20mA;
+            return currentmA >= CustomCurrentMinmA && currentmA <= CustomCurrentMaxmA;
         }
 
         private void Log(string message)
