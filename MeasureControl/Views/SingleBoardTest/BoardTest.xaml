@@ -320,14 +320,19 @@
                                                 </ListBox.ItemContainerStyle>
                                                 <ListBox.ItemTemplate>
                                                     <DataTemplate>
-                                                        <TextBlock
-                                                            Margin="30,0,8,0"
-                                                            HorizontalAlignment="Left"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="14"
-                                                            FontWeight="Bold"
-                                                            Text="{Binding Name}"
-                                                            TextTrimming="CharacterEllipsis" />
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <CheckBox
+                                                                Margin="8,0,8,0"
+                                                                VerticalAlignment="Center"
+                                                                IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+                                                            <TextBlock
+                                                                HorizontalAlignment="Left"
+                                                                VerticalAlignment="Center"
+                                                                FontSize="14"
+                                                                FontWeight="Bold"
+                                                                Text="{Binding Name}"
+                                                                TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
                                                     </DataTemplate>
                                                 </ListBox.ItemTemplate>
                                             </ListBox>

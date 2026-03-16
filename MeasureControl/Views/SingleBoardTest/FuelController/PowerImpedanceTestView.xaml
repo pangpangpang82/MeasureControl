@@ -257,7 +257,7 @@
                         </Border>
                         
                         <!-- 测试项目表格 -->
-                        <Border Margin="0,5,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="6">
+                        <Border Margin="0,15,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="6">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>

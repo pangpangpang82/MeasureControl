@@ -444,18 +444,32 @@ namespace MeasureControl.Services.HardwareApis
             var periodArr = new uint[data.Length];
             var countArr = new uint[data.Length];
             var intervalArr = new uint[data.Length];
+            var normalizedRepeatCount = repeatCount == 0 ? uint.MaxValue : repeatCount;
 
             for (int i = 0; i < data.Length; i++)
             {
                 parityArr[i] = (uint)parity;
                 periodArr[i] = periodMs;           // 发送周期（毫秒）
-                countArr[i] = repeatCount;         // 重复次数，0表示无限循环
-                intervalArr[i] = 0;                // 字间隔（通常为0）
+                countArr[i] = normalizedRepeatCount;
+                intervalArr[i] = 4;                // 字间隔（与界面默认值一致）
             }
 
             await _ioLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                var openOk = await _driver.OpenTxChannelAsync(txChannelIndex).ConfigureAwait(false);
+                if (!openOk)
+                    throw new InvalidOperationException($"OpenTxChannelAsync failed (tx={txChannelIndex})");
+
+                var cfgOk = await _driver.ConfigureTxChannelAsync(
+                    txChannelIndex,
+                    rate: 100000,
+                    sendMode: (int)Art4229TxMode.Period,
+                    parity: (int)parity,
+                    wordFormat: (int)Art4229WordFormat.Standard429).ConfigureAwait(false);
+                if (!cfgOk)
+                    throw new InvalidOperationException($"ConfigureTxChannelAsync failed (tx={txChannelIndex})");
+
                 var ok = await _driver.SendDataPeriodAsync(txChannelIndex, data, periodArr, countArr, intervalArr, parityArr).ConfigureAwait(false);
                 if (!ok)
                     throw new InvalidOperationException($"SendDataPeriodAsync failed (tx={txChannelIndex}, count={data.Length})");

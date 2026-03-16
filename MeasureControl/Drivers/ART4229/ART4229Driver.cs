@@ -959,6 +959,34 @@ namespace MeasureControl.Drivers.ART4229
                     return false;
                 }
 
+                if (data429 == null || data429.Length == 0)
+                {
+                    Debug.WriteLine($"[ART4229Driver] Period发送失败：数据为空");
+                    return false;
+                }
+
+                if (period == null || period.Length != data429.Length ||
+                    count == null || count.Length != data429.Length ||
+                    interval == null || interval.Length != data429.Length ||
+                    parity == null || parity.Length != data429.Length)
+                {
+                    Debug.WriteLine($"[ART4229Driver] Period发送失败：参数数组长度不匹配 dataLen={data429.Length}, periodLen={(period == null ? -1 : period.Length)}, countLen={(count == null ? -1 : count.Length)}, intervalLen={(interval == null ? -1 : interval.Length)}, parityLen={(parity == null ? -1 : parity.Length)}");
+                    return false;
+                }
+
+                for (int i = 0; i < interval.Length; i++)
+                {
+                    var v = interval[i];
+                    if (v == 0 || v < 4 || v > 64)
+                        interval[i] = 4;
+                }
+
+                for (int i = 0; i < count.Length; i++)
+                {
+                    if (count[i] == 0)
+                        count[i] = uint.MaxValue;
+                }
+
                 uint dataCount = (uint)data429.Length;
                 uint realWrited = 0;
 
