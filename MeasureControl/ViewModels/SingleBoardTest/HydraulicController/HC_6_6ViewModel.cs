@@ -311,6 +311,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _pin3031FreqText, value);
         }
 
+        public bool IsPin3031FreqPass => TryParseMeasurementValue(_pin3031FreqText, "Hz", out var value)
+            && value >= ExcitationFreqMinHz
+            && value <= ExcitationFreqMaxHz;
+
         public bool IsPin3031Pass => _passedExc1;
 
         public string Pin3031VoltText
@@ -319,11 +323,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _pin3031VoltText, value);
         }
 
+        public bool IsPin3031VoltPass => TryParseMeasurementValue(_pin3031VoltText, "Vrms", out var value)
+            && value >= ExcitationVoltMinVrms
+            && value <= ExcitationVoltMaxVrms;
+
         public string Pin3334FreqText
         {
             get => _pin3334FreqText;
             private set => SetProperty(ref _pin3334FreqText, value);
         }
+
+        public bool IsPin3334FreqPass => TryParseMeasurementValue(_pin3334FreqText, "Hz", out var value)
+            && value >= ExcitationFreqMinHz
+            && value <= ExcitationFreqMaxHz;
 
         public bool IsPin3334Pass => _passedExc2;
 
@@ -332,6 +344,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             get => _pin3334VoltText;
             private set => SetProperty(ref _pin3334VoltText, value);
         }
+
+        public bool IsPin3334VoltPass => TryParseMeasurementValue(_pin3334VoltText, "Vrms", out var value)
+            && value >= ExcitationVoltMinVrms
+            && value <= ExcitationVoltMaxVrms;
 
         public string PointLowSys1Text
         {
@@ -1040,6 +1056,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             var normalized = text.Trim().Replace("%", string.Empty);
             return double.TryParse(normalized, out value);
+        }
+
+        private static bool TryParseMeasurementValue(string text, string unit, out double value)
+        {
+            value = 0;
+            if (string.IsNullOrWhiteSpace(text) || string.Equals(text.Trim(), "--", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var normalized = text.Trim();
+            if (!string.IsNullOrWhiteSpace(unit))
+            {
+                normalized = normalized.Replace(unit, string.Empty, StringComparison.OrdinalIgnoreCase);
+            }
+
+            normalized = normalized.Trim();
+            return double.TryParse(normalized, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value)
+                || double.TryParse(normalized, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out value);
         }
 
         private async Task ApplyQuantityOutputsAsync(double quantityPercent, CancellationToken cancellationToken)

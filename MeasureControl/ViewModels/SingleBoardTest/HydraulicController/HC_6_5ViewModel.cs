@@ -632,6 +632,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureMtx532Async(_autoCts.Token).ConfigureAwait(false);
                 await EnsurePowerAsync(_autoCts.Token).ConfigureAwait(false);
 
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = true;
+
                 var ok4 = await MeasureGroupAsync("4mA", Current4mA, Set4mA, _autoCts.Token).ConfigureAwait(false);
                 if (!IsAutoTestRunning)
                     return;
