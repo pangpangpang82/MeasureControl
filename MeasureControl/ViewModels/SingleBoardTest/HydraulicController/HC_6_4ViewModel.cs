@@ -788,13 +788,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
                 await Task.Delay(PostSwitchRxFlushMs, cancellationToken).ConfigureAwait(false);
 
-                var ok1 = await MeasureSingleSystemAsync($"{title}-SYS1", sdi: 1, setSys1, setV1, cancellationToken).ConfigureAwait(false);
-                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
-                var ok2 = await MeasureSingleSystemAsync($"{title}-SYS2", sdi: 2, setSys2, setV2, cancellationToken).ConfigureAwait(false);
-                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
-                var ok3 = await MeasureSingleSystemAsync($"{title}-SYS3", sdi: 3, setSys3, setV3, cancellationToken).ConfigureAwait(false);
-
-                return ok1 && ok2 && ok3;
+                return await MeasureAllSystemsAsync(
+                    title,
+                    setSys1,
+                    setSys2,
+                    setSys3,
+                    setV1,
+                    setV2,
+                    setV3,
+                    cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -815,16 +817,45 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        private async Task<bool> MeasureSingleSystemAsync(
+        private sealed class PressureMeasureState
+        {
+            public PressureMeasureState(string title, byte sdi, Action<string> setText, Action<double?> setValue)
+            {
+                Title = title;
+                Sdi = sdi;
+                SetText = setText;
+                SetValue = setValue;
+            }
+
+            public string Title { get; }
+            public byte Sdi { get; }
+            public Action<string> SetText { get; }
+            public Action<double?> SetValue { get; }
+            public List<double> Samples { get; } = new List<double>(SamplesPerMeasure);
+            public bool Completed { get; set; }
+        }
+
+        private async Task<bool> MeasureAllSystemsAsync(
             string title,
-            byte sdi,
-            Action<string> setText,
-            Action<double?> setValue,
+            Action<string> setSys1,
+            Action<string> setSys2,
+            Action<string> setSys3,
+            Action<double?> setV1,
+            Action<double?> setV2,
+            Action<double?> setV3,
             CancellationToken cancellationToken)
         {
-            Log($"{title}: 开始接收压力，Label=174(oct) SDI={sdi}");
+            var states = new[]
+            {
+                new PressureMeasureState($"{title}-SYS1", 1, setSys1, setV1),
+                new PressureMeasureState($"{title}-SYS2", 2, setSys2, setV2),
+                new PressureMeasureState($"{title}-SYS3", 3, setSys3, setV3),
+            };
 
-            var samples = new List<double>(SamplesPerMeasure);
+            foreach (var state in states)
+                Log($"{state.Title}: 开始接收压力，Label=174(oct) SDI={state.Sdi}");
+
+            var stateBySdi = states.ToDictionary(x => x.Sdi);
             var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
 
             while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
@@ -836,53 +867,56 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     foreach (var w in words)
                     {
-                        //if (!_arinc.VerifyOddParity(w.Data429))
-                        //    continue;
-
                         _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out var ssm);
 
                         if (!IsExpectedLabel(label))
                             continue;
 
-                        if (wordSdi != sdi)
+                        if (!stateBySdi.TryGetValue(wordSdi, out var state) || state.Completed)
                             continue;
 
                         if (ssm != SsmNormal)
                             continue;
 
-                        var v = DecodePressure(data19);
-                        samples.Add(v);
+                        var value = DecodePressure(data19);
+                        state.Samples.Add(value);
 
-                        var avg = samples.Average();
-                        setText($"{v:0.0}");
+                        var avg = state.Samples.Average();
+                        state.SetText($"{value:0.0}");
 
-                        if (samples.Count >= SamplesPerMeasure)
+                        if (state.Samples.Count >= SamplesPerMeasure)
                         {
-                            setValue(avg);
-                            setText($"{avg:0.0}");
-                            Log($"{title}: 完成，平均压力={avg:0.###}");
-                            return true;
+                            state.SetValue(avg);
+                            state.SetText($"{avg:0.0}");
+                            state.Completed = true;
+                            Log($"{state.Title}: 完成，平均压力={avg:0.###}");
                         }
                     }
+
+                    if (states.All(x => x.Completed))
+                        return true;
                 }
 
                 await Task.Delay(10, cancellationToken).ConfigureAwait(false);
             }
 
-            setText("超时");
-            setValue(null);
-
-            if (IsManualTestRunning)
+            foreach (var state in states.Where(x => !x.Completed))
             {
-                Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效压力数据");
-                Log($"{title}: 本次测量按超时结束处理，结果保留为--，不可重复点击");
-            }
-            else if (IsAutoTestRunning)
-            {
-                Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效压力数据");
+                state.SetText("超时");
+                state.SetValue(null);
+
+                if (IsManualTestRunning)
+                {
+                    Log($"{state.Title}: 接收超时，未获取到{SamplesPerMeasure}帧有效压力数据");
+                    Log($"{state.Title}: 本次测量按超时结束处理，结果保留为--，不可重复点击");
+                }
+                else if (IsAutoTestRunning)
+                {
+                    Log($"{state.Title}: 接收超时，未获取到{SamplesPerMeasure}帧有效压力数据");
+                }
             }
 
-            return false;
+            return states.All(x => x.Completed);
         }
 
         private bool IsExpectedLabel(byte label)

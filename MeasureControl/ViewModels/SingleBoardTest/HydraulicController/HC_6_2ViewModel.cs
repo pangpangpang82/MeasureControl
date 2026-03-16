@@ -1097,28 +1097,45 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
 
+            // 周期发送接口版本（如需测试，取消下面注释，并注释掉后面的“单次发送循环版本”）
+            // _atpRequestLoopCts?.Cancel();
+            // _atpRequestLoopCts?.Dispose();
+            // _atpRequestLoopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            //
+            // uint data19 = 0x1u;
+            // var label = GetAtpLabelForTx();
+            // var word = _arinc.BuildRawWord(label, 0, data19, AtpSsmNormal, true);
+            // Log($"ATP：True,raw=0x{word:X8}");
+            // await _arinc.SendWordsPeriodAsync(TxChannelIndex, new[] { word }, AtpRequestPeriodMs, 0, Art4229Parity.Odd, _atpRequestLoopCts.Token).ConfigureAwait(false);
+            // Log("已启动ATP请求周期发送(100ms)");
+            // return;
+
+            // 单次发送循环版本（默认启用）
             _atpRequestLoopCts?.Cancel();
             _atpRequestLoopCts?.Dispose();
             _atpRequestLoopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-            uint data19 = 0x1u;
-            var label = GetAtpLabelForTx();
-            var word = _arinc.BuildRawWord(label, 0, data19, AtpSsmNormal, true);
-            Log($"ATP：True,raw=0x{word:X8}");
-            await _arinc.SendWordsPeriodAsync(TxChannelIndex, new[] { word }, AtpRequestPeriodMs, 0, Art4229Parity.Odd, _atpRequestLoopCts.Token).ConfigureAwait(false);
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    while (!_atpRequestLoopCts.IsCancellationRequested)
+                    {
+                        await SendAtpRequestSingleAsync(true, _atpRequestLoopCts.Token).ConfigureAwait(false);
+                        await Task.Delay(AtpRequestPeriodMs, _atpRequestLoopCts.Token).ConfigureAwait(false);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            }, _atpRequestLoopCts.Token);
 
-            
             Log("已启动ATP请求周期发送(100ms)");
         }
 
         private async Task StopAtpRequestAsync(bool sendRelease, CancellationToken cancellationToken)
         {
             try { _atpRequestLoopCts?.Cancel(); } catch { }
-
-            if (_arinc != null && _txOpened)
-            {
-                try { await _arinc.StopTxAsync(TxChannelIndex, cancellationToken).ConfigureAwait(false); } catch { }
-            }
 
             if (sendRelease && _arinc != null)
             {

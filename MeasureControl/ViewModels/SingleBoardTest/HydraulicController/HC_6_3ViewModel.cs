@@ -806,6 +806,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!IsManualTestRunning || _manualAborted) return;
             _measured1 = true;
             RefreshMeasureCommands();
+            await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -825,6 +826,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!IsManualTestRunning || _manualAborted) return;
             _measured2 = true;
             RefreshMeasureCommands();
+            await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -844,6 +846,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!IsManualTestRunning || _manualAborted) return;
             _measured3 = true;
             RefreshMeasureCommands();
+            await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
         private async Task OnMeasureCustomPointAsync()

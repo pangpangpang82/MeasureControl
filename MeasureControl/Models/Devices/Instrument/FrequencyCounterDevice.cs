@@ -7,140 +7,140 @@ using MeasureControl.Models.Devices.DeviceCategories;
 namespace MeasureControl.Models.Devices
 {
     /// <summary>
-    /// Ƶ�ʼƲ���ģʽö��
+    /// 频率计测量模式枚举
     /// </summary>
     public enum FrequencyCounterMeasurementMode
     {
-        Frequency,          // Ƶ�ʲ���
-        Period,             // ���ڲ���
-        TimeInterval,       // ʱ��������
-        PulseWidth,         // ������Ȳ���
-        DutyCycle,          // ռ�ձȲ���
-        RiseTime,           // ����ʱ�����
-        FallTime,           // �½�ʱ�����
-        Phase,              // ��λ����
-        Ratio,              // Ƶ�ʱȲ���
-        TotalizeCount       // �ۼƼ���
+        Frequency,          // 频率测量
+        Period,             // 周期测量
+        TimeInterval,       // 时间间隔测量
+        PulseWidth,         // 脉冲宽度测量
+        DutyCycle,          // 占空比测量
+        RiseTime,           // 上升时间测量
+        FallTime,           // 下降时间测量
+        Phase,              // 相位测量
+        Ratio,              // 频率比测量
+        TotalizeCount       // 累计计数
     }
 
     /// <summary>
-    /// ������ʽö��
+    /// 触发方式枚举
     /// </summary>
     public enum FrequencyCounterTriggerMode
     {
-        Auto,               // �Զ�����
-        Manual,             // �ֶ�����
-        External,           // �ⲿ����
-        Bus,                // ���ߴ���
-        Gated               // �ſش���
+        Auto,               // 自动触发
+        Manual,             // 手动触发
+        External,           // 外部触发
+        Bus,                // 总线触发
+        Gated               // 门控触发
     }
 
     /// <summary>
-    /// ������ƽ����ö��
+    /// 触发电平类型枚举
     /// </summary>
     public enum TriggerLevelType
     {
-        Auto,               // �Զ���ƽ
-        Manual,             // �ֶ���ƽ
-        TTL,                // TTL��ƽ
-        ECL,                // ECL��ƽ
-        CMOS,               // CMOS��ƽ
-        NIM                 // NIM��ƽ
+        Auto,               // 自动电平
+        Manual,             // 手动电平
+        TTL,                // TTL电平
+        ECL,                // ECL电平
+        CMOS,               // CMOS电平
+        NIM                 // NIM电平
     }
 
     /// <summary>
-    /// ������Ϸ�ʽö��
+    /// 输入耦合方式枚举
     /// </summary>
     public enum FrequencyCounterCoupling
     {
-        DC,                 // DC���
-        AC,                 // AC���
-        LowPass,            // ��ͨ�˲�
-        HighPass            // ��ͨ�˲�
+        DC,                 // DC耦合
+        AC,                 // AC耦合
+        LowPass,            // 低通滤波
+        HighPass            // 高通滤波
     }
 
     /// <summary>
-    /// �����迹ö��
+    /// 输入阻抗枚举
     /// </summary>
     public enum FrequencyCounterImpedance
     {
-        Ohm50,              // 50��
-        Ohm1M               // 1M��
+        Ohm50,              // 50Ω
+        Ohm1M               // 1MΩ
     }
 
     /// <summary>
-    /// ͳ�Ʒ�������ö��
+    /// 统计分析功能枚举
     /// </summary>
     public enum StatisticsFunction
     {
-        Mean,               // ƽ��ֵ
-        StdDev,             // ��׼��
-        Min,                // ��Сֵ
-        Max,                // ���ֵ
-        AllanDeviation,     // Allanƫ��
-        Jitter,             // ����
-        Histogram           // ֱ��ͼ
+        Mean,               // 平均值
+        StdDev,             // 标准差
+        Min,                // 最小值
+        Max,                // 最大值
+        AllanDeviation,     // Allan偏差
+        Jitter,             // 抖动
+        Histogram           // 直方图
     }
 
     /// <summary>
-    /// Ƶ�ʼ�����/��ʱ���豸�ࣨ���� Keysight 53200A ϵ�У�
+    /// 频率计数器/定时器设备类（基于 Keysight 53200A 系列）
     /// </summary>
     public class FrequencyCounterDevice : InstrumentDeviceBase
     {
-        #region ˽���ֶ�
+        #region 私有字段
 
-        // ��������
+        // 基本参数
         private int _channelCount;
         private string _maxFrequency;
         private string _timeIntervalResolution;
         private int _frequencyResolution;
         private string _gateTime;
 
-        // ��������
+        // 测量功能
         private FrequencyCounterMeasurementMode _measurementMode;
         private bool _singleShotCapable;
         private bool _continuousMeasurement;
         private int _measurementSpeed;
 
-        // �ֱ��ʲ���
+        // 分辨率参数
         private string _singleShotResolution;
         private string _continuousResolution;
         private int _digitsPerSecond;
 
-        // Ƶ�ʲ���
+        // 频率测量
         private string _frequencyRange;
         private string _frequencyAccuracy;
         private string _frequencySensitivity;
         private string _rfFrequencyRange;
 
-        // ʱ��������
+        // 时间间隔测量
         private string _timeIntervalRange;
         private string _timeIntervalAccuracy;
         private string _timeIntervalJitter;
         private bool _singleShotTimeInterval;
 
-        // ��������
+        // 触发设置
         private FrequencyCounterTriggerMode _triggerMode;
         private TriggerLevelType _triggerLevelType;
         private double _triggerLevel;
         private string _triggerSlope;
         private double _triggerHysteresis;
 
-        // ��������
+        // 输入特性
         private FrequencyCounterCoupling _inputCoupling;
         private FrequencyCounterImpedance _inputImpedance;
         private string _inputVoltageRange;
         private string _inputSensitivity;
         private bool _inputAttenuator;
 
-        // �ſغͲ���
+        // 门控和采样
         private string _minGateTime;
         private string _maxGateTime;
         private double _gateTimeValue;
         private int _samplesPerMeasurement;
         private int _bufferSize;
 
-        // ��������
+        // 分析功能
         private bool _builtInAnalysis;
         private bool _statisticsSupport;
         private bool _trendPlotting;
@@ -148,13 +148,13 @@ namespace MeasureControl.Models.Devices
         private bool _allanDeviation;
         private string _analysisTypes;
 
-        // ��ʾ�ͻ�ͼ
+        // 显示和绘图
         private bool _colorDisplay;
         private bool _graphicalDisplay;
         private string _displayResolution;
         private bool _realTimePlotting;
 
-        // ʱ���Ͳο�
+        // 时基和参考
         private string _timeBaseType;
         private string _timeBaseAccuracy;
         private string _timeBaseStability;
@@ -162,7 +162,7 @@ namespace MeasureControl.Models.Devices
         private string _extRefFrequency;
         private bool _internalOvenOscillator;
 
-        // �ӿں�ͨ��
+        // 接口和通信
         private bool _gpibInterface;
         private bool _lanInterface;
         private bool _usbInterface;
@@ -170,66 +170,66 @@ namespace MeasureControl.Models.Devices
         private bool _scpiProgramming;
         private string _remoteInterfaces;
 
-        // ϵͳ����
+        // 系统参数
         private string _powerRequirement;
         private string _operatingTemp;
         private string _storageTemp;
         private string _humidity;
         private string _altitude;
 
-        // �����ߴ�
+        // 物理尺寸
         private string _dimensions;
         private double _weight;
         private bool _rackMountabel;
         private string _formFactor;
 
-        // ��չ����
+        // 扩展功能
         private bool _mathFunctions;
         private bool _limitTesting;
         private bool _passFailTest;
         private string _dataLogging;
         private int _memoryDepth;
 
-        // ����������չ
+        // 测量功能扩展
         private string _timeStampResolution;
         private bool _timeStampSupport;
 
-        // ͨ������
+        // 通道配置
         private bool _ch3Available;
         private string _ch3FrequencyRange;
 
-        // �������Բ���
+        // 输入特性补充
         private string _inputDamageLevel;
         private string _ch1Ch2InputRange;
         private string _ch3InputRange;
 
-        // �������Բ���
+        // 触发特性补充
         private string _autoTriggerLevel;
         private string _externalGateDelay;
 
-        // ͨ�Žӿڲ���
+        // 通信接口补充
         private string _lxiCompliance;
         private bool _webInterface;
         private bool _usbTmcSupport;
 
-        // ����֧��
+        // 软件支持
         private bool _benchVueSupport;
         private string _dataExportFormats;
 
-        // ������֧��
+        // 保修与支持
         private string _warrantyPeriod;
         private string _calibrationInterval;
 
-        // ѡ���
+        // 选配件
         private bool _ocxoOption;
         private bool _batteryOption;
 
         #endregion
 
-        #region ��������
+        #region 公共属性
 
         /// <summary>
-        /// ͨ������
+        /// 通道数量
         /// </summary>
         public int ChannelCount
         {
@@ -238,7 +238,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ���Ƶ�� (����: "350 MHz", "15 GHz")
+        /// 最大频率 (例如: "350 MHz", "15 GHz")
         /// </summary>
         public string MaxFrequency
         {
@@ -247,7 +247,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ʱ�����ֱ��� (����: "20 ps", "100 ps")
+        /// 时间间隔分辨率 (例如: "20 ps", "100 ps")
         /// </summary>
         public string TimeIntervalResolution
         {
@@ -256,7 +256,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// Ƶ�ʷֱ��� (λ/��)
+        /// 频率分辨率 (位/秒)
         /// </summary>
         public int FrequencyResolution
         {
@@ -265,7 +265,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ��ʱ�� (����: "1 s", "100 ms")
+        /// 门时间 (例如: "1 s", "100 ms")
         /// </summary>
         public string GateTime
         {
@@ -274,7 +274,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ����ģʽ
+        /// 测量模式
         /// </summary>
         public FrequencyCounterMeasurementMode MeasurementMode
         {
@@ -283,7 +283,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ���β�������
+        /// 单次测量能力
         /// </summary>
         public bool SingleShotCapable
         {
@@ -292,7 +292,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ��������
+        /// 连续测量
         /// </summary>
         public bool ContinuousMeasurement
         {
@@ -301,7 +301,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �����ٶ� (����/��)
+        /// 测量速度 (测量/秒)
         /// </summary>
         public int MeasurementSpeed
         {
@@ -310,7 +310,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ���ηֱ���
+        /// 单次分辨率
         /// </summary>
         public string SingleShotResolution
         {
@@ -319,7 +319,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �����ֱ���
+        /// 连续分辨率
         /// </summary>
         public string ContinuousResolution
         {
@@ -328,7 +328,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// λ/��
+        /// 位/秒
         /// </summary>
         public int DigitsPerSecond
         {
@@ -337,7 +337,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// Ƶ�ʷ�Χ
+        /// 频率范围
         /// </summary>
         public string FrequencyRange
         {
@@ -346,7 +346,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// Ƶ�ʾ���
+        /// 频率精度
         /// </summary>
         public string FrequencyAccuracy
         {
@@ -355,7 +355,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// Ƶ��������
+        /// 频率灵敏度
         /// </summary>
         public string FrequencySensitivity
         {
@@ -364,7 +364,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// RFƵ�ʷ�Χ
+        /// RF频率范围
         /// </summary>
         public string RfFrequencyRange
         {
@@ -373,7 +373,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ʱ������Χ
+        /// 时间间隔范围
         /// </summary>
         public string TimeIntervalRange
         {
@@ -382,7 +382,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ʱ��������
+        /// 时间间隔精度
         /// </summary>
         public string TimeIntervalAccuracy
         {
@@ -391,7 +391,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ʱ��������
+        /// 时间间隔抖动
         /// </summary>
         public string TimeIntervalJitter
         {
@@ -400,7 +400,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ����ʱ��������
+        /// 单次时间间隔测量
         /// </summary>
         public bool SingleShotTimeInterval
         {
@@ -409,7 +409,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ����ģʽ
+        /// 触发模式
         /// </summary>
         public FrequencyCounterTriggerMode TriggerMode
         {
@@ -418,7 +418,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ������ƽ����
+        /// 触发电平类型
         /// </summary>
         public TriggerLevelType TriggerLevelType
         {
@@ -427,7 +427,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ������ƽ (V)
+        /// 触发电平 (V)
         /// </summary>
         public double TriggerLevel
         {
@@ -436,7 +436,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ����б�� (Positive/Negative)
+        /// 触发斜率 (Positive/Negative)
         /// </summary>
         public string TriggerSlope
         {
@@ -445,7 +445,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �������� (V)
+        /// 触发迟滞 (V)
         /// </summary>
         public double TriggerHysteresis
         {
@@ -454,7 +454,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �������
+        /// 输入耦合
         /// </summary>
         public FrequencyCounterCoupling InputCoupling
         {
@@ -463,7 +463,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �����迹
+        /// 输入阻抗
         /// </summary>
         public FrequencyCounterImpedance InputImpedance
         {
@@ -472,7 +472,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �����ѹ��Χ
+        /// 输入电压范围
         /// </summary>
         public string InputVoltageRange
         {
@@ -481,7 +481,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ����������
+        /// 输入灵敏度
         /// </summary>
         public string InputSensitivity
         {
@@ -490,7 +490,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ����˥����
+        /// 输入衰减器
         /// </summary>
         public bool InputAttenuator
         {
@@ -499,7 +499,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ��С��ʱ��
+        /// 最小门时间
         /// </summary>
         public string MinGateTime
         {
@@ -508,7 +508,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �����ʱ��
+        /// 最大门时间
         /// </summary>
         public string MaxGateTime
         {
@@ -517,7 +517,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ��ʱ��ֵ (��)
+        /// 门时间值 (秒)
         /// </summary>
         public double GateTimeValue
         {
@@ -526,7 +526,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ÿ�β���������
+        /// 每次测量采样数
         /// </summary>
         public int SamplesPerMeasurement
         {
@@ -535,7 +535,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ��������С
+        /// 缓冲区大小
         /// </summary>
         public int BufferSize
         {
@@ -544,7 +544,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ���÷�������
+        /// 内置分析功能
         /// </summary>
         public bool BuiltInAnalysis
         {
@@ -553,7 +553,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ͳ��֧��
+        /// 统计支持
         /// </summary>
         public bool StatisticsSupport
         {
@@ -562,7 +562,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ���ƻ�ͼ
+        /// 趋势绘图
         /// </summary>
         public bool TrendPlotting
         {
@@ -571,7 +571,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ֱ��ͼ����
+        /// 直方图分析
         /// </summary>
         public bool HistogramAnalysis
         {
@@ -580,7 +580,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// Allanƫ�����
+        /// Allan偏差分析
         /// </summary>
         public bool AllanDeviation
         {
@@ -589,7 +589,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �������� (���ŷָ�)
+        /// 分析类型 (逗号分隔)
         /// </summary>
         public string AnalysisTypes
         {
@@ -598,7 +598,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ��ɫ��ʾ��
+        /// 彩色显示屏
         /// </summary>
         public bool ColorDisplay
         {
@@ -607,7 +607,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ͼ�λ���ʾ
+        /// 图形化显示
         /// </summary>
         public bool GraphicalDisplay
         {
@@ -616,7 +616,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ��ʾ�ֱ���
+        /// 显示分辨率
         /// </summary>
         public string DisplayResolution
         {
@@ -625,7 +625,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ʵʱ��ͼ
+        /// 实时绘图
         /// </summary>
         public bool RealTimePlotting
         {
@@ -634,7 +634,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ʱ������ (OCXO, TCXO, Rubidium, etc.)
+        /// 时基类型 (OCXO, TCXO, Rubidium, etc.)
         /// </summary>
         public string TimeBaseType
         {
@@ -643,7 +643,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ʱ������
+        /// 时基精度
         /// </summary>
         public string TimeBaseAccuracy
         {
@@ -652,7 +652,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ʱ���ȶ���
+        /// 时基稳定性
         /// </summary>
         public string TimeBaseStability
         {
@@ -661,7 +661,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �ⲿ�ο�����
+        /// 外部参考输入
         /// </summary>
         public bool ExternalRefInput
         {
@@ -670,7 +670,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �ⲿ�ο�Ƶ��
+        /// 外部参考频率
         /// </summary>
         public string ExtRefFrequency
         {
@@ -679,7 +679,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ���ú��¾���
+        /// 内置恒温晶振
         /// </summary>
         public bool InternalOvenOscillator
         {
@@ -688,7 +688,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// GPIB�ӿ�
+        /// GPIB接口
         /// </summary>
         public bool GpibInterface
         {
@@ -697,7 +697,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// LAN�ӿ�
+        /// LAN接口
         /// </summary>
         public bool LanInterface
         {
@@ -706,7 +706,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// USB�ӿ�
+        /// USB接口
         /// </summary>
         public bool UsbInterface
         {
@@ -715,7 +715,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ����I/O
+        /// 数字I/O
         /// </summary>
         public bool DigitalIO
         {
@@ -724,7 +724,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// SCPI���֧��
+        /// SCPI编程支持
         /// </summary>
         public bool ScpiProgramming
         {
@@ -733,7 +733,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// Զ�̽ӿ� (���ŷָ�)
+        /// 远程接口 (逗号分隔)
         /// </summary>
         public string RemoteInterfaces
         {
@@ -742,7 +742,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ��ԴҪ��
+        /// 电源要求
         /// </summary>
         public string PowerRequirement
         {
@@ -751,7 +751,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �����¶�
+        /// 工作温度
         /// </summary>
         public string OperatingTemp
         {
@@ -760,7 +760,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �洢�¶�
+        /// 存储温度
         /// </summary>
         public string StorageTemp
         {
@@ -769,7 +769,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ʪ��
+        /// 湿度
         /// </summary>
         public string Humidity
         {
@@ -778,7 +778,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ���θ߶�
+        /// 海拔高度
         /// </summary>
         public string Altitude
         {
@@ -787,7 +787,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �ߴ� (W��H��D)
+        /// 尺寸 (W×H×D)
         /// </summary>
         public string Dimensions
         {
@@ -796,7 +796,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ���� (kg)
+        /// 重量 (kg)
         /// </summary>
         public double Weight
         {
@@ -805,7 +805,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �ɻ��ܰ�װ
+        /// 可机架安装
         /// </summary>
         public bool RackMountabel
         {
@@ -814,7 +814,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �������� (����: "1U Rack")
+        /// 外形因子 (例如: "1U Rack")
         /// </summary>
         public string FormFactor
         {
@@ -823,7 +823,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ��ѧ����
+        /// 数学函数
         /// </summary>
         public bool MathFunctions
         {
@@ -832,7 +832,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ��ֵ����
+        /// 限值测试
         /// </summary>
         public bool LimitTesting
         {
@@ -841,7 +841,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �ϸ�/���ϸ����
+        /// 合格/不合格测试
         /// </summary>
         public bool PassFailTest
         {
@@ -850,7 +850,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ���ݼ�¼
+        /// 数据记录
         /// </summary>
         public string DataLogging
         {
@@ -859,7 +859,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �洢���
+        /// 存储深度
         /// </summary>
         public int MemoryDepth
         {
@@ -868,7 +868,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ʱ����ֱ���
+        /// 时间戳分辨率
         /// </summary>
         public string TimeStampResolution
         {
@@ -877,7 +877,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ʱ�������֧��
+        /// 时间戳功能支持
         /// </summary>
         public bool TimeStampSupport
         {
@@ -886,7 +886,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// CH3��ѡͨ��
+        /// CH3可选通道
         /// </summary>
         public bool Ch3Available
         {
@@ -895,7 +895,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// CH3Ƶ�ʷ�Χ
+        /// CH3频率范围
         /// </summary>
         public string Ch3FrequencyRange
         {
@@ -904,7 +904,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �������˵�ƽ
+        /// 输入损伤电平
         /// </summary>
         public string InputDamageLevel
         {
@@ -913,7 +913,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// CH1/CH2���뷶Χ
+        /// CH1/CH2输入范围
         /// </summary>
         public string Ch1Ch2InputRange
         {
@@ -922,7 +922,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// CH3���뷶Χ
+        /// CH3输入范围
         /// </summary>
         public string Ch3InputRange
         {
@@ -931,7 +931,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �Զ�������ƽ��Χ
+        /// 自动触发电平范围
         /// </summary>
         public string AutoTriggerLevel
         {
@@ -940,7 +940,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �ⲿ�ſ��ӳ�
+        /// 外部门控延迟
         /// </summary>
         public string ExternalGateDelay
         {
@@ -949,7 +949,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// LXI������
+        /// LXI兼容性
         /// </summary>
         public string LxiCompliance
         {
@@ -958,7 +958,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// Web����֧��
+        /// Web界面支持
         /// </summary>
         public bool WebInterface
         {
@@ -967,7 +967,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// USBTMCЭ��֧��
+        /// USBTMC协议支持
         /// </summary>
         public bool UsbTmcSupport
         {
@@ -976,7 +976,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// BenchVue����֧��
+        /// BenchVue软件支持
         /// </summary>
         public bool BenchVueSupport
         {
@@ -985,7 +985,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ���ݵ�����ʽ
+        /// 数据导出格式
         /// </summary>
         public string DataExportFormats
         {
@@ -994,7 +994,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ������
+        /// 保修期
         /// </summary>
         public string WarrantyPeriod
         {
@@ -1003,7 +1003,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// У׼���
+        /// 校准间隔
         /// </summary>
         public string CalibrationInterval
         {
@@ -1012,7 +1012,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// OCXO���ȶ�ʱ��ѡ��
+        /// OCXO高稳定时基选配
         /// </summary>
         public bool OcxoOption
         {
@@ -1021,7 +1021,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ��ر�Я��Դѡ��
+        /// 电池便携电源选配
         /// </summary>
         public bool BatteryOption
         {
@@ -1029,27 +1029,25 @@ namespace MeasureControl.Models.Devices
             set => SetProperty(ref _batteryOption, value);
         }
 
-        public override string DeviceTypeName => "Ƶ�ʼ�����";
+        public override string DeviceTypeName => "频率计数器";
 
         #endregion
 
-        #region ���캯��
+        #region 构造函数
 
         public FrequencyCounterDevice() : base()
         {
-            DeviceType = "Ƶ�ʼ�����";
-            Name = "Ƶ�ʼ�����";
+            DeviceType = "频率计数器";
+            Name = "频率计数器";
             Model = "Keysight 53200A";
         }
 
         public FrequencyCounterDevice(string deviceName, string slotPosition)
-            : base()
+            : base(deviceName, "", deviceName, slotPosition)
         {
-            DeviceType = "Ƶ�ʼ�����";
+            DeviceType = "频率计数器";
 
-            ParseDeviceName(deviceName);
-            SlotPosition = slotPosition;
-
+            Model = "53220A";
             // 默认参数
             ChannelCount = 2;
             MaxFrequency = "350 MHz";
@@ -1057,161 +1055,161 @@ namespace MeasureControl.Models.Devices
             FrequencyResolution = 12;
             GateTime = "1 s";
 
-            // ��������
+            // 测量功能
             MeasurementMode = FrequencyCounterMeasurementMode.Frequency;
             SingleShotCapable = true;
             ContinuousMeasurement = true;
             MeasurementSpeed = 1000;
 
-            // ��������
+            // 分析功能
             BuiltInAnalysis = true;
             StatisticsSupport = true;
             TrendPlotting = true;
             HistogramAnalysis = true;
             AllanDeviation = false;
 
-            // ��ʾ
+            // 显示
             ColorDisplay = true;
             GraphicalDisplay = true;
             RealTimePlotting = true;
 
-            // �ӿ�
+            // 接口
             GpibInterface = true;
             LanInterface = true;
             UsbInterface = true;
             ScpiProgramming = true;
             RemoteInterfaces = "GPIB, LAN, USB";
 
-            // ��������
-            Dimensions = "213 mm �� 88 mm �� 348 mm";
+            // 物理参数
+            Dimensions = "213 mm × 88 mm × 348 mm";
             Weight = 4.0;
             RackMountabel = true;
             FormFactor = "1U Rack";
 
-            // ��������
+            // 环境参数
             PowerRequirement = "AC 100-240 V, 50/60 Hz";
-            OperatingTemp = "0��C ~ 55��C";
-            StorageTemp = "-40��C ~ 70��C";
-            Humidity = "5% ~ 95% RH (������)";
+            OperatingTemp = "0°C ~ 55°C";
+            StorageTemp = "-40°C ~ 70°C";
+            Humidity = "5% ~ 95% RH (非冷凝)";
             Altitude = "< 3000 m";
 
-            // ����
+            // 触发
             TriggerMode = FrequencyCounterTriggerMode.Auto;
             TriggerLevelType = TriggerLevelType.Auto;
             TriggerSlope = "Positive";
 
-            // ����
+            // 输入
             InputCoupling = FrequencyCounterCoupling.DC;
             InputImpedance = FrequencyCounterImpedance.Ohm1M;
 
-            Status = "����";
+            Status = "正常";
         }
 
         #endregion
 
-        #region ���÷���
+        #region 配置方法
 
         /// <summary>
-        /// ����Ϊ Keysight 53220A (ͨ����)
+        /// 配置为 Keysight 53220A (通用型)
         /// </summary>
         public void ConfigureAs53220A()
         {
             Model = "Keysight 53220A";
             ChannelCount = 2;
             MaxFrequency = "350 MHz";
-            TimeIntervalResolution = "20 ps";  // ����: 500 ps �� 20 ps (����)
-            FrequencyResolution = 12;  // 12λ/�� (1����ʱ��); 10λ (100ms)
-            SingleShotResolution = "20 ps";  // ����: 500 ps �� 20 ps
-            ContinuousResolution = "100 ps";  // ����
+            TimeIntervalResolution = "20 ps";  // 修正: 500 ps → 20 ps (单次)
+            FrequencyResolution = 12;  // 12位/秒 (1秒门时间); 10位 (100ms)
+            SingleShotResolution = "20 ps";  // 修正: 500 ps → 20 ps
+            ContinuousResolution = "100 ps";  // 新增
 
             FrequencyRange = "DC ~ 350 MHz";
-            FrequencyAccuracy = "��(���� + ʱ���׼���); ʱ���׼ ��1.5 ppm";  // ����
-            FrequencySensitivity = "20 mVrms (����, <100 MHz); 40 mVrms (<350 MHz)";  // ����
+            FrequencyAccuracy = "±(精度 + 时间基准误差); 时间基准 ±1.5 ppm";  // 修正
+            FrequencySensitivity = "20 mVrms (典型, <100 MHz); 40 mVrms (<350 MHz)";  // 修正
 
             TimeIntervalRange = "2 ns ~ 1000 s";
-            TimeIntervalAccuracy = "��20 ps + ʱ�����";  // ����
+            TimeIntervalAccuracy = "±20 ps + 时基误差";  // 修正
             SingleShotTimeInterval = true;
 
-            // �������� - ����
-            InputVoltageRange = "��51 Vpk (1 M��); ��2.4 Vpk (50 ��)";  // ����
-            InputSensitivity = "20 mVrms (����, <100 MHz); 40 mVrms (<350 MHz)";  // ����
+            // 输入特性 - 修正
+            InputVoltageRange = "±51 Vpk (1 MΩ); ±2.4 Vpk (50 Ω)";  // 修正
+            InputSensitivity = "20 mVrms (典型, <100 MHz); 40 mVrms (<350 MHz)";  // 修正
             InputAttenuator = false;
 
-            // �����ֶ�
-            InputDamageLevel = "+27 V (1 M��); 5 Vrms (50 ��)";
-            Ch1Ch2InputRange = "��51 Vpk (1 M��); ��2.4 Vpk (50 ��)";
+            // 新增字段
+            InputDamageLevel = "+27 V (1 MΩ); 5 Vrms (50 Ω)";
+            Ch1Ch2InputRange = "±51 Vpk (1 MΩ); ±2.4 Vpk (50 Ω)";
 
-            // ʱ�������
+            // 时间戳功能
             TimeStampResolution = "100 ps";
             TimeStampSupport = true;
 
-            // CH3��ѡ
+            // CH3可选
             Ch3Available = true;
             Ch3FrequencyRange = "100 MHz ~ 350 MHz";
-            Ch3InputRange = "��2.4 Vpk";
+            Ch3InputRange = "±2.4 Vpk";
 
-            // ʱ������ - ����
-            TimeBaseType = "����: TCXO; ��ѡ: OCXO";
-            TimeBaseAccuracy = "��1.5 ppm (����); ��50 ppb (��ѡOCXO)";  // ����
-            TimeBaseStability = "��0.5 ppm/��";
-            InternalOvenOscillator = false;  // �����ޣ���ѡ��
+            // 时基参数 - 修正
+            TimeBaseType = "标配: TCXO; 可选: OCXO";
+            TimeBaseAccuracy = "±1.5 ppm (标配); ±50 ppb (可选OCXO)";  // 修正
+            TimeBaseStability = "±0.5 ppm/年";
+            InternalOvenOscillator = false;  // 标配无，可选有
             ExternalRefInput = true;
-            ExtRefFrequency = "10 MHz (�ο�����/���)";
-            OcxoOption = true;  // ��ѡ��
+            ExtRefFrequency = "10 MHz (参考输入/输出)";
+            OcxoOption = true;  // 可选配
 
-            // ��������
-            AutoTriggerLevel = "10% ~ 90% (Ƶ�� >10 Hz)";
+            // 触发特性
+            AutoTriggerLevel = "10% ~ 90% (频率 >10 Hz)";
             ExternalGateDelay = "<200 ns";
 
-            // �ſ� - ����
-            MinGateTime = "1 ms";  // ����: 10 ms �� 1 ms
+            // 门控 - 修正
+            MinGateTime = "1 ms";  // 修正: 10 ms → 1 ms
             MaxGateTime = "1000 s";
             GateTimeValue = 1.0;
-            BufferSize = 1000000;  // 1M �Ķ�/ͨ��
+            BufferSize = 1000000;  // 1M 阅读/通道
 
-            // ��������
-            AllanDeviation = true;  // 53220A ֧�� Allan ƫ��
-            AnalysisTypes = "ͳ��(ƽ������׼�Allanƫ��), ����ͼ, ֱ��ͼ";
+            // 分析功能
+            AllanDeviation = true;  // 53220A 支持 Allan 偏差
+            AnalysisTypes = "统计(平均、标准差、Allan偏差), 趋势图, 直方图";
 
-            // ��ʾ - ����
-            DisplayResolution = "4.3Ӣ���ɫ TFT";  // ����: "320 �� 240" �� "4.3Ӣ���ɫ TFT"
+            // 显示 - 修正
+            DisplayResolution = "4.3英寸彩色 TFT";  // 修正: "320 × 240" → "4.3英寸彩色 TFT"
 
-            // �ӿ�
+            // 接口
             DigitalIO = false;
             LxiCompliance = "LXI Class C";
-            WebInterface = true;  // Web ����
-            UsbTmcSupport = true;  // USBTMC Э��
+            WebInterface = true;  // Web 界面
+            UsbTmcSupport = true;  // USBTMC 协议
 
-            // ����֧��
+            // 软件支持
             BenchVueSupport = true;
             DataExportFormats = "CSV/USB";
-            MathFunctions = true;  // ƽ�������š��˲�
+            MathFunctions = true;  // 平滑、缩放、滤波
             LimitTesting = true;
             PassFailTest = true;
-            DataLogging = "1M �Ķ�/ͨ�� (����/ֱ��ͼ)";
-            MemoryDepth = 1000000;  // 1M �Ķ�/ͨ��
+            DataLogging = "1M 阅读/通道 (趋势/直方图)";
+            MemoryDepth = 1000000;  // 1M 阅读/通道
 
-            // �������� - ����
-            Dimensions = "212.6 mm �� 88.3 mm �� 348.3 mm (�����)";  // ����
-            Weight = 3.8;  // ����: 4.0 �� 3.8
-            FormFactor = "�����";  // ����
+            // 物理参数 - 修正
+            Dimensions = "212.6 mm × 88.3 mm × 348.3 mm (半机架)";  // 修正
+            Weight = 3.8;  // 修正: 4.0 → 3.8
+            FormFactor = "半机架";  // 修正
 
-            // �������� - ����
-            PowerRequirement = "AC 100-240 V, 50/60 Hz, <30 W";  // ���书��
-            StorageTemp = "-30��C ~ 70��C";  // ����: -40��C �� -30��C
+            // 环境参数 - 修正
+            PowerRequirement = "AC 100-240 V, 50/60 Hz, <30 W";  // 补充功耗
+            StorageTemp = "-30°C ~ 70°C";  // 修正: -40°C → -30°C
 
-            // ������֧��
-            WarrantyPeriod = "3�� (���ϼ����죬������)";
-            CalibrationInterval = "�Ƽ� 1 ��";
+            // 保修与支持
+            WarrantyPeriod = "3年 (材料及制造，出厂起)";
+            CalibrationInterval = "推荐 1 年";
 
-            // ѡ���
-            BatteryOption = true;  // ��ر�Я��Դ����ѡ��
+            // 选配件
+            BatteryOption = true;  // 电池便携电源（可选）
 
             BuildSpecifications();
         }
 
         /// <summary>
-        /// ����Ϊ Keysight 53230A (��������)
+        /// 配置为 Keysight 53230A (高性能型)
         /// </summary>
         public void ConfigureAs53230A()
         {
@@ -1223,21 +1221,21 @@ namespace MeasureControl.Models.Devices
             SingleShotResolution = "20 ps";
 
             FrequencyRange = "DC ~ 350 MHz";
-            FrequencyAccuracy = "��0.05 ppm";
-            FrequencySensitivity = "15 mVrms (����)";
+            FrequencyAccuracy = "±0.05 ppm";
+            FrequencySensitivity = "15 mVrms (典型)";
 
             TimeIntervalRange = "2 ns ~ 1000 s";
-            TimeIntervalAccuracy = "��20 ps + ʱ�����";
+            TimeIntervalAccuracy = "±20 ps + 时基误差";
             TimeIntervalJitter = "< 20 ps RMS";
             SingleShotTimeInterval = true;
 
-            InputVoltageRange = "��5 V";
+            InputVoltageRange = "±5 V";
             InputSensitivity = "15 mVrms (DC ~ 100 MHz)";
             InputAttenuator = true;
 
             TimeBaseType = "OCXO";
-            TimeBaseAccuracy = "��0.05 ppm (0��C ~ 55��C)";
-            TimeBaseStability = "��0.05 ppm/��";
+            TimeBaseAccuracy = "±0.05 ppm (0°C ~ 55°C)";
+            TimeBaseStability = "±0.05 ppm/年";
             InternalOvenOscillator = true;
             ExternalRefInput = true;
             ExtRefFrequency = "1, 5, 10 MHz";
@@ -1248,48 +1246,48 @@ namespace MeasureControl.Models.Devices
             BufferSize = 10000000;
 
             AllanDeviation = true;
-            AnalysisTypes = "ͳ��, ����, ֱ��ͼ, Allanƫ��, ����";
-            DisplayResolution = "640 �� 480";
+            AnalysisTypes = "统计, 趋势, 直方图, Allan偏差, 抖动";
+            DisplayResolution = "640 × 480";
 
             DigitalIO = true;
             MathFunctions = true;
             LimitTesting = true;
             PassFailTest = true;
-            DataLogging = "USB�洢, ����";
+            DataLogging = "USB存储, 网络";
             MemoryDepth = 10000000;
 
             BuildSpecifications();
         }
 
         /// <summary>
-        /// ����Ϊ Keysight 53231A (��RFͨ��)
+        /// 配置为 Keysight 53231A (带RF通道)
         /// </summary>
         public void ConfigureAs53231A()
         {
             Model = "Keysight 53231A";
-            ChannelCount = 3; // 2����׼ͨ�� + 1��RFͨ��
+            ChannelCount = 3; // 2个标准通道 + 1个RF通道
             MaxFrequency = "350 MHz";
             TimeIntervalResolution = "20 ps";
             FrequencyResolution = 12;
             SingleShotResolution = "20 ps";
 
-            FrequencyRange = "DC ~ 350 MHz (��׼), DC ~ 20 GHz (RF)";
+            FrequencyRange = "DC ~ 350 MHz (标准), DC ~ 20 GHz (RF)";
             RfFrequencyRange = "DC ~ 20 GHz";
-            FrequencyAccuracy = "��0.05 ppm";
-            FrequencySensitivity = "15 mVrms (��׼), -20 dBm (RF)";
+            FrequencyAccuracy = "±0.05 ppm";
+            FrequencySensitivity = "15 mVrms (标准), -20 dBm (RF)";
 
             TimeIntervalRange = "2 ns ~ 1000 s";
-            TimeIntervalAccuracy = "��20 ps + ʱ�����";
+            TimeIntervalAccuracy = "±20 ps + 时基误差";
             TimeIntervalJitter = "< 20 ps RMS";
             SingleShotTimeInterval = true;
 
-            InputVoltageRange = "��5 V (��׼), -30 ~ +20 dBm (RF)";
-            InputSensitivity = "15 mVrms (��׼), -20 dBm (RF)";
+            InputVoltageRange = "±5 V (标准), -30 ~ +20 dBm (RF)";
+            InputSensitivity = "15 mVrms (标准), -20 dBm (RF)";
             InputAttenuator = true;
 
             TimeBaseType = "OCXO";
-            TimeBaseAccuracy = "��0.05 ppm (0��C ~ 55��C)";
-            TimeBaseStability = "��0.05 ppm/��";
+            TimeBaseAccuracy = "±0.05 ppm (0°C ~ 55°C)";
+            TimeBaseStability = "±0.05 ppm/年";
             InternalOvenOscillator = true;
             ExternalRefInput = true;
             ExtRefFrequency = "1, 5, 10 MHz";
@@ -1300,14 +1298,14 @@ namespace MeasureControl.Models.Devices
             BufferSize = 10000000;
 
             AllanDeviation = true;
-            AnalysisTypes = "ͳ��, ����, ֱ��ͼ, Allanƫ��, ����";
-            DisplayResolution = "640 �� 480";
+            AnalysisTypes = "统计, 趋势, 直方图, Allan偏差, 抖动";
+            DisplayResolution = "640 × 480";
 
             DigitalIO = true;
             MathFunctions = true;
             LimitTesting = true;
             PassFailTest = true;
-            DataLogging = "USB�洢, ����";
+            DataLogging = "USB存储, 网络";
             MemoryDepth = 10000000;
 
             BuildSpecifications();
@@ -1315,10 +1313,10 @@ namespace MeasureControl.Models.Devices
 
         #endregion
 
-        #region �������÷���
+        #region 测量配置方法
 
         /// <summary>
-        /// ����Ƶ�ʲ���
+        /// 配置频率测量
         /// </summary>
         public void ConfigureFrequencyMeasurement(double gateTime = 1.0)
         {
@@ -1329,7 +1327,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ����ʱ��������
+        /// 配置时间间隔测量
         /// </summary>
         public void ConfigureTimeIntervalMeasurement(bool singleShot = false)
         {
@@ -1339,7 +1337,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ���ô���
+        /// 配置触发
         /// </summary>
         public void ConfigureTrigger(FrequencyCounterTriggerMode mode, double level = 0.0, string slope = "Positive")
         {
@@ -1358,7 +1356,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ��������
+        /// 配置输入
         /// </summary>
         public void ConfigureInput(FrequencyCounterCoupling coupling, FrequencyCounterImpedance impedance)
         {
@@ -1367,7 +1365,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ����ͳ�Ʒ���
+        /// 启用统计分析
         /// </summary>
         public void EnableStatistics(bool enable = true)
         {
@@ -1377,7 +1375,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ����Allanƫ����� (���߶��ͺ�)
+        /// 启用Allan偏差分析 (仅高端型号)
         /// </summary>
         public void EnableAllanDeviation(bool enable = true)
         {
@@ -1389,36 +1387,36 @@ namespace MeasureControl.Models.Devices
 
         #endregion
 
-        #region ��д����
+        #region 重写方法
 
         public override void InitializeChildren()
         {
             Children.Clear();
 
-            // ��Ϊ��������ͨ���ڵ�
+            // 简化为单个计数通道节点
             var counterNode = new FrequencyCounterInputNode
             {
-                Name = "����ͨ��",
-                ParentNode = "Ƶ�ʼ�����",
-                Model = "����A",  // 53220A ��Ҫ��������
+                Name = "计数通道",
+                ParentNode = "频率计数器",
+                Model = "输入A",  // 53220A 主要计数输入
                 SlotPosition = "COUNTER",
-                Status = "����"
+                Status = "正常"
             };
             Children.Add(counterNode);
         }
 
-        // ����ԭ�е���ϸ��ʼ�������������Ҫ�л�������
+        // 保留原有的详细初始化方法（如果需要切换回来）
         private void InitializeDetailedChildren()
         {
             Children.Clear();
 
-            // ����ͨ���ڵ�
+            // 创建通道节点
             for (int i = 1; i <= ChannelCount; i++)
             {
-                string channelType = "��׼";
+                string channelType = "标准";
                 string maxFreq = MaxFrequency;
 
-                // �����53231A�ĵ�3��ͨ�������ΪRFͨ��
+                // 如果是53231A的第3个通道，标记为RF通道
                 if (Model.Contains("53231A") && i == 3)
                 {
                     channelType = "RF";
@@ -1428,7 +1426,7 @@ namespace MeasureControl.Models.Devices
                 var channelNode = new FrequencyCounterChannelNode(i, channelType, maxFreq, Model)
                 {
                     SlotPosition = SlotPosition ?? "N/A",
-                    Status = "����"
+                    Status = "正常"
                 };
                 Children.Add(channelNode);
             }
@@ -1438,14 +1436,14 @@ namespace MeasureControl.Models.Devices
         {
             var items = new ObservableCollection<DeviceInfoItem>();
 
-            // ʹ��FromDevice��̬�����������豸��Ϣ��
+            // 使用FromDevice静态方法创建主设备信息项
             var mainDeviceInfo = DeviceInfoItem.FromDevice(this, false);
             if (mainDeviceInfo != null)
             {
                 items.Add(mainDeviceInfo);
             }
 
-            // ���������ӽڵ���Ϣ
+            // 添加所有子节点信息
             foreach (var child in Children)
             {
                 var subNodeInfo = DeviceInfoItem.FromDevice(child, true);
@@ -1462,186 +1460,186 @@ namespace MeasureControl.Models.Devices
         {
             var specs = new DeviceSpecification();
 
-            // ��������
-            specs.Add("�ͺ�", Model, "��������");
-            specs.Add("������", "Keysight Technologies", "��������");
-            specs.Add("ͨ����", $"{ChannelCount} ����ͨ�� (CH1��CH2)", "��������");
+            // 基本参数
+            specs.Add("型号", Model, "基本参数");
+            specs.Add("制造商", "Keysight Technologies", "基本参数");
+            specs.Add("通道数", $"{ChannelCount} 输入通道 (CH1、CH2)", "基本参数");
             if (Ch3Available)
             {
-                specs.Add("��ѡͨ��", $"CH3 ({Ch3FrequencyRange})", "��������");
+                specs.Add("可选通道", $"CH3 ({Ch3FrequencyRange})", "基本参数");
             }
-            specs.Add("���Ƶ��", MaxFrequency, "��������");
-            specs.Add("Ƶ�ʷֱ���", $"{FrequencyResolution} λ/�� (1����ʱ��); 10λ (100ms)", "��������");
+            specs.Add("最大频率", MaxFrequency, "基本参数");
+            specs.Add("频率分辨率", $"{FrequencyResolution} 位/秒 (1秒门时间); 10位 (100ms)", "基本参数");
 
-            // �����ֱ����뾫��
-            specs.Add("Ƶ�ʷ�Χ", FrequencyRange, "�����ֱ����뾫��");
-            specs.Add("RFƵ�ʷ�Χ", RfFrequencyRange, "�����ֱ����뾫��");
-            specs.Add("Ƶ�ʾ���", FrequencyAccuracy, "�����ֱ����뾫��");
-            specs.Add("ʱ�����ֱ���", $"{TimeIntervalResolution} (����)", "�����ֱ����뾫��");
+            // 测量分辨率与精度
+            specs.Add("频率范围", FrequencyRange, "测量分辨率与精度");
+            specs.Add("RF频率范围", RfFrequencyRange, "测量分辨率与精度");
+            specs.Add("频率精度", FrequencyAccuracy, "测量分辨率与精度");
+            specs.Add("时间间隔分辨率", $"{TimeIntervalResolution} (单次)", "测量分辨率与精度");
             if (!string.IsNullOrEmpty(ContinuousResolution))
             {
-                specs.Add("���������ֱ���", ContinuousResolution, "�����ֱ����뾫��");
+                specs.Add("连续测量分辨率", ContinuousResolution, "测量分辨率与精度");
             }
-            specs.Add("ʱ������Χ", TimeIntervalRange, "�����ֱ����뾫��");
-            specs.Add("ʱ��������", TimeIntervalAccuracy, "�����ֱ����뾫��");
+            specs.Add("时间间隔范围", TimeIntervalRange, "测量分辨率与精度");
+            specs.Add("时间间隔精度", TimeIntervalAccuracy, "测量分辨率与精度");
 
             if (SingleShotTimeInterval)
             {
-                specs.Add("����ʱ�����ֱ���", SingleShotResolution, "�����ֱ����뾫��");
+                specs.Add("单次时间间隔分辨率", SingleShotResolution, "测量分辨率与精度");
             }
 
             if (TimeStampSupport)
             {
-                specs.Add("ʱ����ֱ���", TimeStampResolution, "�����ֱ����뾫��");
+                specs.Add("时间戳分辨率", TimeStampResolution, "测量分辨率与精度");
             }
 
-            // ����ͨ�����
-            specs.Add("CH1/CH2Ƶ�ʷ�Χ", FrequencyRange, "����ͨ�����");
+            // 输入通道规格
+            specs.Add("CH1/CH2频率范围", FrequencyRange, "输入通道规格");
             if (Ch3Available)
             {
-                specs.Add("CH3Ƶ�ʷ�Χ", Ch3FrequencyRange, "����ͨ�����");
+                specs.Add("CH3频率范围", Ch3FrequencyRange, "输入通道规格");
             }
-            specs.Add("�����迹", "1 M�� (CH1/CH2)", "����ͨ�����");
-            specs.Add("CH1/CH2���뷶Χ", Ch1Ch2InputRange, "����ͨ�����");
+            specs.Add("输入阻抗", "1 MΩ (CH1/CH2)", "输入通道规格");
+            specs.Add("CH1/CH2输入范围", Ch1Ch2InputRange, "输入通道规格");
             if (Ch3Available && !string.IsNullOrEmpty(Ch3InputRange))
             {
-                specs.Add("CH3���뷶Χ", Ch3InputRange, "����ͨ�����");
+                specs.Add("CH3输入范围", Ch3InputRange, "输入通道规格");
             }
-            specs.Add("����������", InputSensitivity, "����ͨ�����");
-            specs.Add("�������", "AC/DC (CH1/CH2); AC (CH3)", "����ͨ�����");
-            specs.Add("����б��", "��/��", "����ͨ�����");
+            specs.Add("输入灵敏度", InputSensitivity, "输入通道规格");
+            specs.Add("输入耦合", "AC/DC (CH1/CH2); AC (CH3)", "输入通道规格");
+            specs.Add("触发斜率", "正/负", "输入通道规格");
             if (!string.IsNullOrEmpty(AutoTriggerLevel))
             {
-                specs.Add("�Զ���ƽ", AutoTriggerLevel, "����ͨ�����");
+                specs.Add("自动电平", AutoTriggerLevel, "输入通道规格");
             }
-            specs.Add("���˵�ƽ", InputDamageLevel, "����ͨ�����");
+            specs.Add("损伤电平", InputDamageLevel, "输入通道规格");
 
-            // �������ſ�
+            // 触发与门控
             if (!string.IsNullOrEmpty(AutoTriggerLevel))
             {
-                specs.Add("�Զ�������ƽ��Χ", AutoTriggerLevel, "�������ſ�");
+                specs.Add("自动触发电平范围", AutoTriggerLevel, "触发与门控");
             }
-            specs.Add("����Դ", "�ڲ����ⲿ������ (GPIB/LAN/USB)���ֶ�", "�������ſ�");
-            specs.Add("�ſ�ģʽ", "ʱ�䡢���֡��ⲿ", "�������ſ�");
-            specs.Add("�ⲿ�ſ�����", "TTL ����", "�������ſ�");
+            specs.Add("触发源", "内部、外部、总线 (GPIB/LAN/USB)、手动", "触发与门控");
+            specs.Add("门控模式", "时间、数字、外部", "触发与门控");
+            specs.Add("外部门控输入", "TTL 兼容", "触发与门控");
             if (!string.IsNullOrEmpty(ExternalGateDelay))
             {
-                specs.Add("�ⲿ�ſ��ӳ�", ExternalGateDelay, "�������ſ�");
+                specs.Add("外部门控延迟", ExternalGateDelay, "触发与门控");
             }
-            specs.Add("�߼�����", "��ֵ���ͺ󡢱���", "�������ſ�");
-            specs.Add("��С��ʱ��", MinGateTime, "�������ſ�");
-            specs.Add("�����ʱ��", MaxGateTime, "�������ſ�");
+            specs.Add("高级触发", "限值、滞后、保持", "触发与门控");
+            specs.Add("最小门时间", MinGateTime, "触发与门控");
+            specs.Add("最大门时间", MaxGateTime, "触发与门控");
 
-            // ʱ���ο�
-            specs.Add("ʱ������", TimeBaseType, "ʱ���ο�");
-            specs.Add("ʱ������", TimeBaseAccuracy, "ʱ���ο�");
-            specs.Add("ʱ���ȶ���", TimeBaseStability, "ʱ���ο�");
-            specs.Add("���ú��¾���", InternalOvenOscillator ? "�� (OCXO)" : "������ (��ѡOCXO)", "ʱ���ο�");
-            specs.Add("�ⲿ�ο�����", ExternalRefInput ? "֧��" : "��֧��", "ʱ���ο�");
-            specs.Add("�ο�Ƶ��", ExtRefFrequency, "ʱ���ο�");
+            // 时基参考
+            specs.Add("时基类型", TimeBaseType, "时基参考");
+            specs.Add("时基精度", TimeBaseAccuracy, "时基参考");
+            specs.Add("时基稳定性", TimeBaseStability, "时基参考");
+            specs.Add("内置恒温晶振", InternalOvenOscillator ? "有 (OCXO)" : "标配无 (可选OCXO)", "时基参考");
+            specs.Add("外部参考输入", ExternalRefInput ? "支持" : "不支持", "时基参考");
+            specs.Add("参考频率", ExtRefFrequency, "时基参考");
 
-            // ���ݼ�¼�����
-            specs.Add("���ݼ�¼", DataLogging, "���ݼ�¼�����");
-            specs.Add("��������С", $"1M �Ķ�/ͨ��", "���ݼ�¼�����");
-            specs.Add("�洢���", $"{MemoryDepth} ��/ͨ��", "���ݼ�¼�����");
-            specs.Add("���÷���", BuiltInAnalysis ? "֧��" : "��֧��", "���ݼ�¼�����");
-            specs.Add("ͳ�Ʒ���", StatisticsSupport ? "֧�� (ƽ������׼�Allanƫ��)" : "��֧��", "���ݼ�¼�����");
-            specs.Add("���ƻ�ͼ", TrendPlotting ? "֧��" : "��֧��", "���ݼ�¼�����");
-            specs.Add("ֱ��ͼ����", HistogramAnalysis ? "֧��" : "��֧��", "���ݼ�¼�����");
-            specs.Add("Allanƫ�����", AllanDeviation ? "֧�� (�����ȶ���)" : "��֧��", "���ݼ�¼�����");
-            specs.Add("��������", AnalysisTypes, "���ݼ�¼�����");
+            // 数据记录与分析
+            specs.Add("数据记录", DataLogging, "数据记录与分析");
+            specs.Add("缓冲区大小", $"1M 阅读/通道", "数据记录与分析");
+            specs.Add("存储深度", $"{MemoryDepth} 点/通道", "数据记录与分析");
+            specs.Add("内置分析", BuiltInAnalysis ? "支持" : "不支持", "数据记录与分析");
+            specs.Add("统计分析", StatisticsSupport ? "支持 (平均、标准差、Allan偏差)" : "不支持", "数据记录与分析");
+            specs.Add("趋势绘图", TrendPlotting ? "支持" : "不支持", "数据记录与分析");
+            specs.Add("直方图分析", HistogramAnalysis ? "支持" : "不支持", "数据记录与分析");
+            specs.Add("Allan偏差分析", AllanDeviation ? "支持 (长期稳定性)" : "不支持", "数据记录与分析");
+            specs.Add("分析类型", AnalysisTypes, "数据记录与分析");
 
-            // ��ѧ����
+            // 数学函数
             if (MathFunctions)
             {
-                specs.Add("��ѧ����", "ƽ�������š��˲�", "��ѧ����");
-                specs.Add("��ֵ����", LimitTesting ? "֧��" : "��֧��", "��ѧ����");
-                specs.Add("�ϸ�/���ϸ����", PassFailTest ? "֧��" : "��֧��", "��ѧ����");
+                specs.Add("数学函数", "平滑、缩放、滤波", "数学函数");
+                specs.Add("限值测试", LimitTesting ? "支持" : "不支持", "数学函数");
+                specs.Add("合格/不合格测试", PassFailTest ? "支持" : "不支持", "数学函数");
             }
 
-            // ��ʾ��
-            specs.Add("��ʾ��", DisplayResolution, "��ʾ��");
-            specs.Add("��ʾ����", ColorDisplay ? "��ɫ TFT" : "��ɫLCD", "��ʾ��");
-            specs.Add("ͼ�λ���ʾ", GraphicalDisplay ? "֧�� (����ͼ/ֱ��ͼ)" : "��֧��", "��ʾ��");
-            specs.Add("ʵʱ��ͼ", RealTimePlotting ? "֧��" : "��֧��", "��ʾ��");
+            // 显示屏
+            specs.Add("显示屏", DisplayResolution, "显示屏");
+            specs.Add("显示类型", ColorDisplay ? "彩色 TFT" : "单色LCD", "显示屏");
+            specs.Add("图形化显示", GraphicalDisplay ? "支持 (趋势图/直方图)" : "不支持", "显示屏");
+            specs.Add("实时绘图", RealTimePlotting ? "支持" : "不支持", "显示屏");
 
-            // �ӿ���ͨ��
-            specs.Add("GPIB�ӿ�", GpibInterface ? "���� (IEEE-488.2)" : "��ѡ", "�ӿ���ͨ��");
-            specs.Add("LAN�ӿ�", LanInterface ? "����" : "��", "�ӿ���ͨ��");
+            // 接口与通信
+            specs.Add("GPIB接口", GpibInterface ? "标配 (IEEE-488.2)" : "可选", "接口与通信");
+            specs.Add("LAN接口", LanInterface ? "标配" : "无", "接口与通信");
             if (!string.IsNullOrEmpty(LxiCompliance))
             {
-                specs.Add("LXI������", LxiCompliance, "�ӿ���ͨ��");
+                specs.Add("LXI兼容性", LxiCompliance, "接口与通信");
             }
-            specs.Add("USB�ӿ�", UsbInterface ? "����" : "��", "�ӿ���ͨ��");
+            specs.Add("USB接口", UsbInterface ? "标配" : "无", "接口与通信");
             if (UsbTmcSupport)
             {
-                specs.Add("USBЭ��", "USBTMC", "�ӿ���ͨ��");
+                specs.Add("USB协议", "USBTMC", "接口与通信");
             }
-            specs.Add("����I/O", DigitalIO ? "��" : "��", "�ӿ���ͨ��");
-            specs.Add("SCPI���", ScpiProgramming ? "֧��" : "��֧��", "�ӿ���ͨ��");
+            specs.Add("数字I/O", DigitalIO ? "有" : "无", "接口与通信");
+            specs.Add("SCPI编程", ScpiProgramming ? "支持" : "不支持", "接口与通信");
             if (WebInterface)
             {
-                specs.Add("Web����", "֧�� (����ͼʵʱ��ʾ)", "�ӿ���ͨ��");
+                specs.Add("Web界面", "支持 (趋势图实时显示)", "接口与通信");
             }
-            specs.Add("I/O�ӿ�", "�ο�����/��� (10 MHz)���ⲿ�ſ�", "�ӿ���ͨ��");
+            specs.Add("I/O接口", "参考输入/输出 (10 MHz)、外部门控", "接口与通信");
 
-            // ����֧��
+            // 软件支持
             if (BenchVueSupport || !string.IsNullOrEmpty(DataExportFormats))
             {
-                specs.Add("Զ�̱��", "SCPI ���֧�����в���", "����֧��");
+                specs.Add("远程编程", "SCPI 命令，支持所有测量", "软件支持");
                 if (BenchVueSupport)
                 {
-                    specs.Add("��������", "BenchVue��Keysight IO Libraries", "����֧��");
+                    specs.Add("配套软件", "BenchVue、Keysight IO Libraries", "软件支持");
                 }
-                specs.Add("����֧��", "VISA��IVI-COM", "����֧��");
+                specs.Add("驱动支持", "VISA、IVI-COM", "软件支持");
                 if (!string.IsNullOrEmpty(DataExportFormats))
                 {
-                    specs.Add("���ݵ���", DataExportFormats, "����֧��");
+                    specs.Add("数据导出", DataExportFormats, "软件支持");
                 }
             }
 
-            // ��������
-            specs.Add("�ߴ� (W��H��D)", Dimensions, "��������");
-            specs.Add("����", $"{Weight} kg", "��������");
-            specs.Add("��������", FormFactor, "��������");
-            specs.Add("���ܰ�װ", RackMountabel ? "֧��" : "��֧��", "��������");
+            // 物理参数
+            specs.Add("尺寸 (W×H×D)", Dimensions, "物理参数");
+            specs.Add("重量", $"{Weight} kg", "物理参数");
+            specs.Add("外形因子", FormFactor, "物理参数");
+            specs.Add("机架安装", RackMountabel ? "支持" : "不支持", "物理参数");
 
-            // ��������
-            specs.Add("��Դ����", PowerRequirement, "��������");
-            specs.Add("�����¶�", OperatingTemp, "��������");
-            specs.Add("�洢�¶�", StorageTemp, "��������");
-            specs.Add("����ʪ��", Humidity, "��������");
-            specs.Add("���θ߶�", Altitude, "��������");
+            // 环境参数
+            specs.Add("电源输入", PowerRequirement, "环境参数");
+            specs.Add("工作温度", OperatingTemp, "环境参数");
+            specs.Add("存储温度", StorageTemp, "环境参数");
+            specs.Add("工作湿度", Humidity, "环境参数");
+            specs.Add("海拔高度", Altitude, "环境参数");
 
-            // ������֧��
+            // 保修与支持
             if (!string.IsNullOrEmpty(WarrantyPeriod))
             {
-                specs.Add("������", WarrantyPeriod, "������֧��");
+                specs.Add("保修期", WarrantyPeriod, "保修与支持");
             }
             if (!string.IsNullOrEmpty(CalibrationInterval))
             {
-                specs.Add("У׼���", CalibrationInterval, "������֧��");
+                specs.Add("校准间隔", CalibrationInterval, "保修与支持");
             }
-            specs.Add("����֧��", "Keysight Technologies; www.keysight.com", "������֧��");
+            specs.Add("技术支持", "Keysight Technologies; www.keysight.com", "保修与支持");
 
-            // ѡ���
+            // 选配件
             if (Ch3Available || OcxoOption || BatteryOption)
             {
                 if (Ch3Available)
                 {
-                    specs.Add("��ѡCH3", "350 MHz RF ͨ��", "ѡ���");
+                    specs.Add("可选CH3", "350 MHz RF 通道", "选配件");
                 }
                 if (OcxoOption)
                 {
-                    specs.Add("��ѡOCXO", "���ȶ�ʱ��׼ (��50 ppb)", "ѡ���");
+                    specs.Add("可选OCXO", "高稳定时基准 (±50 ppb)", "选配件");
                 }
                 if (BatteryOption)
                 {
-                    specs.Add("��ѡ���", "��Я��Դ", "ѡ���");
+                    specs.Add("可选电池", "便携电源", "选配件");
                 }
                 if (GpibInterface == false)
                 {
-                    specs.Add("��ѡGPIB", "����ӿ�", "ѡ���");
+                    specs.Add("可选GPIB", "额外接口", "选配件");
                 }
             }
 
@@ -1672,10 +1670,10 @@ namespace MeasureControl.Models.Devices
 
         #endregion
 
-        #region ��������
+        #region 辅助方法
 
         /// <summary>
-        /// ��ȡ����ģʽ����
+        /// 获取测量模式描述
         /// </summary>
         public string GetMeasurementModeDescription()
         {
@@ -1683,32 +1681,32 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ��ȡ����ģʽ��������̬��
+        /// 获取测量模式描述（静态）
         /// </summary>
         public static string GetMeasurementModeDescription(FrequencyCounterMeasurementMode mode)
         {
             switch (mode)
             {
                 case FrequencyCounterMeasurementMode.Frequency:
-                    return "Ƶ�ʲ���";
+                    return "频率测量";
                 case FrequencyCounterMeasurementMode.Period:
-                    return "���ڲ���";
+                    return "周期测量";
                 case FrequencyCounterMeasurementMode.TimeInterval:
-                    return "ʱ��������";
+                    return "时间间隔测量";
                 case FrequencyCounterMeasurementMode.PulseWidth:
-                    return "������Ȳ���";
+                    return "脉冲宽度测量";
                 case FrequencyCounterMeasurementMode.DutyCycle:
-                    return "ռ�ձȲ���";
+                    return "占空比测量";
                 case FrequencyCounterMeasurementMode.RiseTime:
-                    return "����ʱ�����";
+                    return "上升时间测量";
                 case FrequencyCounterMeasurementMode.FallTime:
-                    return "�½�ʱ�����";
+                    return "下降时间测量";
                 case FrequencyCounterMeasurementMode.Phase:
-                    return "��λ����";
+                    return "相位测量";
                 case FrequencyCounterMeasurementMode.Ratio:
-                    return "Ƶ�ʱȲ���";
+                    return "频率比测量";
                 case FrequencyCounterMeasurementMode.TotalizeCount:
-                    return "�ۼƼ���";
+                    return "累计计数";
                 default:
                     return mode.ToString();
             }
@@ -1718,18 +1716,18 @@ namespace MeasureControl.Models.Devices
     }
 
     /// <summary>
-    /// Ƶ�ʼ�����ڵ㣨�򻯰棩
+    /// 频率计输入节点（简化版）
     /// </summary>
     public class FrequencyCounterInputNode : DeviceBase
     {
-        public override string DeviceTypeName => "����ͨ��";
+        public override string DeviceTypeName => "计数通道";
 
         public FrequencyCounterInputNode()
         {
             DeviceType = "SubNode";
-            ParentNode = "Ƶ�ʼ�����";
+            ParentNode = "频率计数器";
             SlotPosition = "COUNTER";
-            Status = "����";
+            Status = "正常";
         }
 
         public override void InitializeChildren()
@@ -1751,7 +1749,7 @@ namespace MeasureControl.Models.Devices
     }
 
     /// <summary>
-    /// Ƶ�ʼ�ͨ���ڵ㣨��ϸ�棩
+    /// 频率计通道节点（详细版）
     /// </summary>
     public class FrequencyCounterChannelNode : DeviceBase
     {
@@ -1765,7 +1763,7 @@ namespace MeasureControl.Models.Devices
         private string _triggerSlope;
 
         /// <summary>
-        /// ͨ�����
+        /// 通道编号
         /// </summary>
         public int ChannelNumber
         {
@@ -1774,7 +1772,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ͨ������ (��׼/RF)
+        /// 通道类型 (标准/RF)
         /// </summary>
         public string ChannelType
         {
@@ -1783,7 +1781,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ���Ƶ��
+        /// 最大频率
         /// </summary>
         public string MaxFrequency
         {
@@ -1792,7 +1790,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ͨ���Ƿ�����
+        /// 通道是否启用
         /// </summary>
         public bool IsEnabled
         {
@@ -1801,7 +1799,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ��Ϸ�ʽ
+        /// 耦合方式
         /// </summary>
         public FrequencyCounterCoupling Coupling
         {
@@ -1810,7 +1808,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// �����迹
+        /// 输入阻抗
         /// </summary>
         public FrequencyCounterImpedance Impedance
         {
@@ -1819,7 +1817,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ������ƽ (V)
+        /// 触发电平 (V)
         /// </summary>
         public double TriggerLevel
         {
@@ -1828,7 +1826,7 @@ namespace MeasureControl.Models.Devices
         }
 
         /// <summary>
-        /// ����б��
+        /// 触发斜率
         /// </summary>
         public string TriggerSlope
         {
@@ -1836,7 +1834,7 @@ namespace MeasureControl.Models.Devices
             set => SetProperty(ref _triggerSlope, value);
         }
 
-        public override string DeviceTypeName => "Ƶ�ʼ�ͨ��";
+        public override string DeviceTypeName => "频率计通道";
 
         public FrequencyCounterChannelNode() : base()
         {
@@ -1855,13 +1853,13 @@ namespace MeasureControl.Models.Devices
             MaxFrequency = maxFrequency;
             Name = channelType == "RF" ? $"CH{channelNumber} (RF)" : $"CH{channelNumber}";
             Model = parentModel;
-            ParentNode = "Ƶ�ʼ�����";
-            Status = "����";
+            ParentNode = "频率计数器";
+            Status = "正常";
         }
 
         public override void InitializeChildren()
         {
-            // ͨ���ڵ�û���ӽڵ�
+            // 通道节点没有子节点
             Children.Clear();
         }
 
