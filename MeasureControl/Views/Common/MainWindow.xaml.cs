@@ -33,7 +33,7 @@ using System.Threading.Tasks;
 namespace MeasureControl.Views.Common
 {
     /// <summary>
-    /// 主窗口
+    /// 主 窗口
     /// </summary>
     public partial class MainWindow : Window
     {
