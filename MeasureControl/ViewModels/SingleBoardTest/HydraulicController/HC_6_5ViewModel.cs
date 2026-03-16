@@ -94,7 +94,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private const string TestItemName = "压差传感器信号采集测试";
 
+        private bool _isManualTestRunning;
+        private bool _isAutoTestRunning;
+        private bool _isManualTestInitializing;
+        private bool _isAutoTestInitializing;
+        private bool _isManualTestStopping;
+        private bool _isAutoTestStopping;
         private bool _canMeasure;
+
         private bool _measured4mA;
         private bool _measured20mA;
         private bool _measured10mA;
@@ -103,12 +110,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private bool _passed10mA;
         private bool _manualAborted;
         private bool _historyLoaded;
-        private bool _isManualTestRunning;
-        private bool _isAutoTestRunning;
-        private bool _isManualTestInitializing;
-        private bool _isAutoTestInitializing;
-        private bool _isManualTestStopping;
-        private bool _isAutoTestStopping;
         private int _selectedTabIndex;
 
         private string _lastTestTime = "--";
@@ -540,7 +541,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnManualTestAsync()
         {
-            if (IsManualTestRunning)
+            if (IsManualTestStopping)
+            {
+                return;
+            }
+
+            if (IsManualTestRunning || IsManualTestInitializing)
             {
                 await StopManualTestAsync().ConfigureAwait(false);
                 return;
@@ -595,7 +601,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnAutoTestAsync()
         {
-            if (IsAutoTestRunning)
+            if (IsAutoTestStopping)
+            {
+                return;
+            }
+
+            if (IsAutoTestRunning || IsAutoTestInitializing)
             {
                 await StopAutoTestAsync().ConfigureAwait(false);
                 return;
@@ -1074,6 +1085,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task StopManualTestAsync()
         {
+            if (IsManualTestStopping)
+            {
+                return;
+            }
+
             IsManualTestStopping = true;
             IsManualTestInitializing = false;
             try
@@ -1108,6 +1124,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task StopAutoTestAsync()
         {
+            if (IsAutoTestStopping)
+            {
+                return;
+            }
+
             IsAutoTestStopping = true;
             IsAutoTestInitializing = false;
             try

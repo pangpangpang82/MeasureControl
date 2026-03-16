@@ -96,18 +96,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private const string TestItemName = "二次电源测试";
 
-        private bool _canMeasure;
-        private bool _measured5v;
-        private bool _measured15v;
-        private bool _measuredM15v;
-        private bool _manualAborted;
-
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private bool _isManualTestInitializing;
         private bool _isAutoTestInitializing;
         private bool _isManualTestStopping;
         private bool _isAutoTestStopping;
+        private bool _canMeasure;
+
+        private bool _measured5v;
+        private bool _measured15v;
+        private bool _measuredM15v;
+        private bool _manualAborted;
 
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
@@ -398,7 +398,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnManualTestAsync()
         {
-            if (IsManualTestRunning)
+            if (IsManualTestStopping)
+            {
+                return;
+            }
+
+            if (IsManualTestRunning || IsManualTestInitializing)
             {
                 await StopManualTestAsync().ConfigureAwait(false);
                 return;
@@ -505,7 +510,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnAutoTestAsync()
         {
-            if (IsAutoTestRunning)
+            if (IsAutoTestStopping)
+            {
+                return;
+            }
+
+            if (IsAutoTestRunning || IsAutoTestInitializing)
             {
                 await StopAutoTestAsync().ConfigureAwait(false);
                 return;
