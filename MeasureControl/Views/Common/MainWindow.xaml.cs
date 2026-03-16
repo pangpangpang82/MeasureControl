@@ -43,11 +43,7 @@ namespace MeasureControl.Views.Common
         private readonly IEventAggregator _eventAggregator;
 
         private CancellationTokenSource _singleBoardAutoTestCts;
-<<<<<<< HEAD
-        private string _singleBoardAutoTestReportPath; //
-=======
-        private string _singleBoardAutoTestReportPath; 
->>>>>>> afef4c170b30869c5688fe37e1d43b8ad139d505
+        private string _singleBoardAutoTestReportPath;
         private string _singleBoardAutoTestExcelReportPath;
         private HashSet<string> _selectedSingleBoardAutoTestItems;
         private Dictionary<string, string> _singleBoardAutoStepResults;
