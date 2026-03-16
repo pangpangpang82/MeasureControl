@@ -68,7 +68,7 @@ namespace MeasureControl.Views.Common
 
             var v = (projectItem.Tag ?? projectItem.Name)?.Trim();
             return string.Equals(v, "空气单板", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(v, "液压单板", StringComparison.OrdinalIgnoreCase)
+                
                 || string.Equals(v, "惰化单板", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(v, "加放油单板", StringComparison.OrdinalIgnoreCase);
         }
