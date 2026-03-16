@@ -46,6 +46,7 @@ namespace MeasureControl.Views.Common
         private string _singleBoardAutoTestReportPath;
         private string _singleBoardAutoTestExcelReportPath;
         private HashSet<string> _selectedSingleBoardAutoTestItems;
+        private Dictionary<string, string> _singleBoardAutoStepResults;
 
         #endregion
 
@@ -1049,6 +1050,7 @@ namespace MeasureControl.Views.Common
                     }
 
                     AppendSingleBoardReportLine($"STEP | {steps[i].Name} | {NormalizeResult(result)}");
+                    _singleBoardAutoStepResults[steps[i].Name] = NormalizeResult(result);
 
                     done++;
                     vm.Progress = done;
@@ -1111,6 +1113,7 @@ namespace MeasureControl.Views.Common
                 _singleBoardAutoTestCts?.Dispose();
                 _singleBoardAutoTestCts = null;
                 _selectedSingleBoardAutoTestItems = null;
+                _singleBoardAutoStepResults = null;
             }
         }
 
@@ -1157,6 +1160,7 @@ namespace MeasureControl.Views.Common
         {
             _singleBoardAutoTestReportPath = null;
             _singleBoardAutoTestExcelReportPath = null;
+            _singleBoardAutoStepResults = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
 
         private sealed class SingleBoardExcelReportConfig
@@ -1264,19 +1268,21 @@ namespace MeasureControl.Views.Common
                 {
                     if (IsSingleBoardStepSelected("电源阻抗测试"))
                     {
-                        SetExcelCellValue(cells, 4, 5, vm61.Resistance14Text);
-                        SetExcelCellValue(cells, 5, 5, vm61.Resistance182Text);
+                        var hc61Executed = DidSingleBoardStepExecute("电源阻抗测试");
+                        SetExcelCellValue(cells, 4, 5, hc61Executed ? vm61.Resistance14Text : "--");
+                        SetExcelCellValue(cells, 5, 5, hc61Executed ? vm61.Resistance182Text : "--");
 
-                        SetExcelCellValue(cells, 4, 6, vm61.IsResistance14Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 5, 6, vm61.IsResistance182Pass ? "合格" : "不合格");
+                        SetExcelCellValue(cells, 4, 6, hc61Executed ? (vm61.IsResistance14Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 5, 6, hc61Executed ? (vm61.IsResistance182Pass ? "合格" : "不合格") : "--");
 
-                        SetExcelCellFontColor(cells, 4, 6, vm61.IsResistance14Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 5, 6, vm61.IsResistance182Pass ? null : 255);
+                        SetExcelCellFontColor(cells, 4, 6, hc61Executed && !vm61.IsResistance14Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 5, 6, hc61Executed && !vm61.IsResistance182Pass ? 255 : (int?)null);
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G4:G5" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
-                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm61.CurrentTestResult });
-                        SetRangeFontColor(range, string.Equals(vm61.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        var hc61Result = GetSingleBoardStepResult("电源阻抗测试", vm61.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc61Result });
+                        SetRangeFontColor(range, string.Equals(hc61Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
@@ -1296,29 +1302,31 @@ namespace MeasureControl.Views.Common
                 {
                     if (IsSingleBoardStepSelected("二次电源测试"))
                     {
-                        SetExcelCellValue(cells, 5, 5, FormatNullableNumber(vm62.Voltage5VValue));
-                        SetExcelCellValue(cells, 6, 5, FormatNullableNumber(vm62.Voltage15VValue));
-                        SetExcelCellValue(cells, 7, 5, FormatNullableNumber(vm62.VoltageM15VValue));
+                        var hc62Executed = DidSingleBoardStepExecute("二次电源测试");
+                        SetExcelCellValue(cells, 6, 5, hc62Executed ? FormatNullableNumber(vm62.Voltage5VValue) : "--");
+                        SetExcelCellValue(cells, 7, 5, hc62Executed ? FormatNullableNumber(vm62.Voltage15VValue) : "--");
+                        SetExcelCellValue(cells, 8, 5, hc62Executed ? FormatNullableNumber(vm62.VoltageM15VValue) : "--");
 
-                        SetExcelCellValue(cells, 5, 6, vm62.IsVoltage5VPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 6, 6, vm62.IsVoltage15VPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 7, 6, vm62.IsVoltageM15VPass ? "合格" : "不合格");
+                        SetExcelCellValue(cells, 6, 6, hc62Executed ? (vm62.IsVoltage5VPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 7, 6, hc62Executed ? (vm62.IsVoltage15VPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 8, 6, hc62Executed ? (vm62.IsVoltageM15VPass ? "合格" : "不合格") : "--");
 
-                        SetExcelCellFontColor(cells, 5, 6, vm62.IsVoltage5VPass ? null : 255);
-                        SetExcelCellFontColor(cells, 6, 6, vm62.IsVoltage15VPass ? null : 255);
-                        SetExcelCellFontColor(cells, 7, 6, vm62.IsVoltageM15VPass ? null : 255);
+                        SetExcelCellFontColor(cells, 6, 6, hc62Executed && !vm62.IsVoltage5VPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 7, 6, hc62Executed && !vm62.IsVoltage15VPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 8, 6, hc62Executed && !vm62.IsVoltageM15VPass ? 255 : (int?)null);
 
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G5:G7" });
-                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm62.CurrentTestResult });
-                        SetRangeFontColor(range, string.Equals(vm62.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G6:G8" });
+                        var hc62Result = GetSingleBoardStepResult("二次电源测试", vm62.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc62Result });
+                        SetRangeFontColor(range, string.Equals(hc62Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
                     else
                     {
-                        FillUntestedCells(cells, 5, 5, 7);
-                        FillUntestedCells(cells, 5, 6, 7);
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G5:G7" });
+                        FillUntestedCells(cells, 6, 5, 8);
+                        FillUntestedCells(cells, 6, 6, 8);
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G6:G8" });
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
                         ReleaseComObject(range);
                         range = null;
@@ -1329,38 +1337,40 @@ namespace MeasureControl.Views.Common
                 {
                     if (IsSingleBoardStepSelected("温度采集测试"))
                     {
-                        SetExcelCellValue(cells, 8, 5, FormatNullableNumber(vm63.Temp1Value));
-                        SetExcelCellValue(cells, 9, 5, FormatNullableNumber(vm63.Temp1BValue));
-                        SetExcelCellValue(cells, 10, 5, FormatNullableNumber(vm63.Temp2Value));
-                        SetExcelCellValue(cells, 11, 5, FormatNullableNumber(vm63.Temp2BValue));
-                        SetExcelCellValue(cells, 12, 5, FormatNullableNumber(vm63.Temp3Value));
-                        SetExcelCellValue(cells, 13, 5, FormatNullableNumber(vm63.Temp3BValue));
+                        var hc63Executed = DidSingleBoardStepExecute("温度采集测试");
+                        SetExcelCellValue(cells, 9, 5, hc63Executed ? FormatNullableNumber(vm63.Temp1Value) : "--");
+                        SetExcelCellValue(cells, 10, 5, hc63Executed ? FormatNullableNumber(vm63.Temp1BValue) : "--");
+                        SetExcelCellValue(cells, 11, 5, hc63Executed ? FormatNullableNumber(vm63.Temp2Value) : "--");
+                        SetExcelCellValue(cells, 12, 5, hc63Executed ? FormatNullableNumber(vm63.Temp2BValue) : "--");
+                        SetExcelCellValue(cells, 13, 5, hc63Executed ? FormatNullableNumber(vm63.Temp3Value) : "--");
+                        SetExcelCellValue(cells, 14, 5, hc63Executed ? FormatNullableNumber(vm63.Temp3BValue) : "--");
 
-                        SetExcelCellValue(cells, 8, 6, vm63.IsTemp1Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 9, 6, vm63.IsTemp1BPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 10, 6, vm63.IsTemp2Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 11, 6, vm63.IsTemp2BPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 12, 6, vm63.IsTemp3Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 13, 6, vm63.IsTemp3BPass ? "合格" : "不合格");
+                        SetExcelCellValue(cells, 9, 6, hc63Executed ? (vm63.IsTemp1Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 10, 6, hc63Executed ? (vm63.IsTemp1BPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 11, 6, hc63Executed ? (vm63.IsTemp2Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 12, 6, hc63Executed ? (vm63.IsTemp2BPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 13, 6, hc63Executed ? (vm63.IsTemp3Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 14, 6, hc63Executed ? (vm63.IsTemp3BPass ? "合格" : "不合格") : "--");
 
-                        SetExcelCellFontColor(cells, 8, 6, vm63.IsTemp1Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 9, 6, vm63.IsTemp1BPass ? null : 255);
-                        SetExcelCellFontColor(cells, 10, 6, vm63.IsTemp2Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 11, 6, vm63.IsTemp2BPass ? null : 255);
-                        SetExcelCellFontColor(cells, 12, 6, vm63.IsTemp3Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 13, 6, vm63.IsTemp3BPass ? null : 255);
+                        SetExcelCellFontColor(cells, 9, 6, hc63Executed && !vm63.IsTemp1Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 10, 6, hc63Executed && !vm63.IsTemp1BPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 11, 6, hc63Executed && !vm63.IsTemp2Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 12, 6, hc63Executed && !vm63.IsTemp2BPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 13, 6, hc63Executed && !vm63.IsTemp3Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 14, 6, hc63Executed && !vm63.IsTemp3BPass ? 255 : (int?)null);
 
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G8:G13" });
-                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm63.CurrentTestResult });
-                        SetRangeFontColor(range, string.Equals(vm63.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G9:G14" });
+                        var hc63Result = GetSingleBoardStepResult("温度采集测试", vm63.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc63Result });
+                        SetRangeFontColor(range, string.Equals(hc63Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
                     else
                     {
-                        FillUntestedCells(cells, 8, 5, 13);
-                        FillUntestedCells(cells, 8, 6, 13);
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G8:G13" });
+                        FillUntestedCells(cells, 9, 5, 14);
+                        FillUntestedCells(cells, 9, 6, 14);
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G9:G14" });
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
                         ReleaseComObject(range);
                         range = null;
@@ -1371,47 +1381,49 @@ namespace MeasureControl.Views.Common
                 {
                     if (IsSingleBoardStepSelected("压力传感器信号采集测试"))
                     {
-                        SetExcelCellValue(cells, 14, 5, FormatNullableNumber(vm64.PressurePoint1Sys1Value));
-                        SetExcelCellValue(cells, 15, 5, FormatNullableNumber(vm64.PressurePoint1Sys2Value));
-                        SetExcelCellValue(cells, 16, 5, FormatNullableNumber(vm64.PressurePoint1Sys3Value));
-                        SetExcelCellValue(cells, 17, 5, FormatNullableNumber(vm64.PressurePoint2Sys1Value));
-                        SetExcelCellValue(cells, 18, 5, FormatNullableNumber(vm64.PressurePoint2Sys2Value));
-                        SetExcelCellValue(cells, 19, 5, FormatNullableNumber(vm64.PressurePoint2Sys3Value));
-                        SetExcelCellValue(cells, 20, 5, FormatNullableNumber(vm64.PressurePoint3Sys1Value));
-                        SetExcelCellValue(cells, 21, 5, FormatNullableNumber(vm64.PressurePoint3Sys2Value));
-                        SetExcelCellValue(cells, 22, 5, FormatNullableNumber(vm64.PressurePoint3Sys3Value));
+                        var hc64Executed = DidSingleBoardStepExecute("压力传感器信号采集测试");
+                        SetExcelCellValue(cells, 15, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint1Sys1Value) : "--");
+                        SetExcelCellValue(cells, 16, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint1Sys2Value) : "--");
+                        SetExcelCellValue(cells, 17, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint1Sys3Value) : "--");
+                        SetExcelCellValue(cells, 18, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint2Sys1Value) : "--");
+                        SetExcelCellValue(cells, 19, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint2Sys2Value) : "--");
+                        SetExcelCellValue(cells, 20, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint2Sys3Value) : "--");
+                        SetExcelCellValue(cells, 21, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint3Sys1Value) : "--");
+                        SetExcelCellValue(cells, 22, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint3Sys2Value) : "--");
+                        SetExcelCellValue(cells, 23, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint3Sys3Value) : "--");
 
-                        SetExcelCellValue(cells, 14, 6, vm64.IsPressurePoint1Sys1Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 15, 6, vm64.IsPressurePoint1Sys2Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 16, 6, vm64.IsPressurePoint1Sys3Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 17, 6, vm64.IsPressurePoint2Sys1Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 18, 6, vm64.IsPressurePoint2Sys2Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 19, 6, vm64.IsPressurePoint2Sys3Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 20, 6, vm64.IsPressurePoint3Sys1Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 21, 6, vm64.IsPressurePoint3Sys2Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 22, 6, vm64.IsPressurePoint3Sys3Pass ? "合格" : "不合格");
+                        SetExcelCellValue(cells, 15, 6, hc64Executed ? (vm64.IsPressurePoint1Sys1Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 16, 6, hc64Executed ? (vm64.IsPressurePoint1Sys2Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 17, 6, hc64Executed ? (vm64.IsPressurePoint1Sys3Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 18, 6, hc64Executed ? (vm64.IsPressurePoint2Sys1Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 19, 6, hc64Executed ? (vm64.IsPressurePoint2Sys2Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 20, 6, hc64Executed ? (vm64.IsPressurePoint2Sys3Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 21, 6, hc64Executed ? (vm64.IsPressurePoint3Sys1Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 22, 6, hc64Executed ? (vm64.IsPressurePoint3Sys2Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 23, 6, hc64Executed ? (vm64.IsPressurePoint3Sys3Pass ? "合格" : "不合格") : "--");
 
-                        SetExcelCellFontColor(cells, 14, 6, vm64.IsPressurePoint1Sys1Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 15, 6, vm64.IsPressurePoint1Sys2Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 16, 6, vm64.IsPressurePoint1Sys3Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 17, 6, vm64.IsPressurePoint2Sys1Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 18, 6, vm64.IsPressurePoint2Sys2Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 19, 6, vm64.IsPressurePoint2Sys3Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 20, 6, vm64.IsPressurePoint3Sys1Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 21, 6, vm64.IsPressurePoint3Sys2Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 22, 6, vm64.IsPressurePoint3Sys3Pass ? null : 255);
+                        SetExcelCellFontColor(cells, 15, 6, hc64Executed && !vm64.IsPressurePoint1Sys1Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 16, 6, hc64Executed && !vm64.IsPressurePoint1Sys2Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 17, 6, hc64Executed && !vm64.IsPressurePoint1Sys3Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 18, 6, hc64Executed && !vm64.IsPressurePoint2Sys1Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 19, 6, hc64Executed && !vm64.IsPressurePoint2Sys2Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 20, 6, hc64Executed && !vm64.IsPressurePoint2Sys3Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 21, 6, hc64Executed && !vm64.IsPressurePoint3Sys1Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 22, 6, hc64Executed && !vm64.IsPressurePoint3Sys2Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 23, 6, hc64Executed && !vm64.IsPressurePoint3Sys3Pass ? 255 : (int?)null);
 
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G14:G22" });
-                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm64.CurrentTestResult });
-                        SetRangeFontColor(range, string.Equals(vm64.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G15:G23" });
+                        var hc64Result = GetSingleBoardStepResult("压力传感器信号采集测试", vm64.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc64Result });
+                        SetRangeFontColor(range, string.Equals(hc64Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
                     else
                     {
-                        FillUntestedCells(cells, 14, 5, 22);
-                        FillUntestedCells(cells, 14, 6, 22);
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G14:G22" });
+                        FillUntestedCells(cells, 15, 5, 23);
+                        FillUntestedCells(cells, 15, 6, 23);
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G15:G23" });
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
                         ReleaseComObject(range);
                         range = null;
@@ -1422,80 +1434,82 @@ namespace MeasureControl.Views.Common
                 {
                     if (IsSingleBoardStepSelected("压差传感器信号采集测试"))
                     {
-                        SetExcelCellValue(cells, 23, 5, FormatNullableNumber(vm65.DptEdp24mAValue));
-                        SetExcelCellValue(cells, 24, 5, FormatNullableNumber(vm65.DptEmp2B4mAValue));
-                        SetExcelCellValue(cells, 25, 5, FormatNullableNumber(vm65.DptEmp3B4mAValue));
-                        SetExcelCellValue(cells, 26, 5, FormatNullableNumber(vm65.DptSys14mAValue));
-                        SetExcelCellValue(cells, 27, 5, FormatNullableNumber(vm65.DptSys24mAValue));
-                        SetExcelCellValue(cells, 28, 5, FormatNullableNumber(vm65.DptSys34mAValue));
+                        var hc65Executed = DidSingleBoardStepExecute("压差传感器信号采集测试");
+                        SetExcelCellValue(cells, 24, 5, hc65Executed ? FormatNullableNumber(vm65.DptEdp24mAValue) : "--");
+                        SetExcelCellValue(cells, 25, 5, hc65Executed ? FormatNullableNumber(vm65.DptEmp2B4mAValue) : "--");
+                        SetExcelCellValue(cells, 26, 5, hc65Executed ? FormatNullableNumber(vm65.DptEmp3B4mAValue) : "--");
+                        SetExcelCellValue(cells, 27, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys14mAValue) : "--");
+                        SetExcelCellValue(cells, 28, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys24mAValue) : "--");
+                        SetExcelCellValue(cells, 29, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys34mAValue) : "--");
 
-                        SetExcelCellValue(cells, 29, 5, FormatNullableNumber(vm65.DptEdp2A20mAValue));
-                        SetExcelCellValue(cells, 30, 5, FormatNullableNumber(vm65.DptEmp2B20mAValue));
-                        SetExcelCellValue(cells, 31, 5, FormatNullableNumber(vm65.DptEmp3B20mAValue));
-                        SetExcelCellValue(cells, 32, 5, FormatNullableNumber(vm65.DptSys120mAValue));
-                        SetExcelCellValue(cells, 33, 5, FormatNullableNumber(vm65.DptSys220mAValue));
-                        SetExcelCellValue(cells, 34, 5, FormatNullableNumber(vm65.DptSys320mAValue));
+                        SetExcelCellValue(cells, 30, 5, hc65Executed ? FormatNullableNumber(vm65.DptEdp2A20mAValue) : "--");
+                        SetExcelCellValue(cells, 31, 5, hc65Executed ? FormatNullableNumber(vm65.DptEmp2B20mAValue) : "--");
+                        SetExcelCellValue(cells, 32, 5, hc65Executed ? FormatNullableNumber(vm65.DptEmp3B20mAValue) : "--");
+                        SetExcelCellValue(cells, 33, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys120mAValue) : "--");
+                        SetExcelCellValue(cells, 34, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys220mAValue) : "--");
+                        SetExcelCellValue(cells, 35, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys320mAValue) : "--");
 
-                        SetExcelCellValue(cells, 35, 5, FormatNullableNumber(vm65.DptEdp2A10mAValue));
-                        SetExcelCellValue(cells, 36, 5, FormatNullableNumber(vm65.DptEmp2B10mAValue));
-                        SetExcelCellValue(cells, 37, 5, FormatNullableNumber(vm65.DptEmp3B10mAValue));
-                        SetExcelCellValue(cells, 38, 5, FormatNullableNumber(vm65.DptSys110mAValue));
-                        SetExcelCellValue(cells, 39, 5, FormatNullableNumber(vm65.DptSys210mAValue));
-                        SetExcelCellValue(cells, 40, 5, FormatNullableNumber(vm65.DptSys310mAValue));
+                        SetExcelCellValue(cells, 36, 5, hc65Executed ? FormatNullableNumber(vm65.DptEdp2A10mAValue) : "--");
+                        SetExcelCellValue(cells, 37, 5, hc65Executed ? FormatNullableNumber(vm65.DptEmp2B10mAValue) : "--");
+                        SetExcelCellValue(cells, 38, 5, hc65Executed ? FormatNullableNumber(vm65.DptEmp3B10mAValue) : "--");
+                        SetExcelCellValue(cells, 39, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys110mAValue) : "--");
+                        SetExcelCellValue(cells, 40, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys210mAValue) : "--");
+                        SetExcelCellValue(cells, 41, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys310mAValue) : "--");
 
-                        SetExcelCellValue(cells, 23, 6, vm65.IsDptEdp24mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 24, 6, vm65.IsDptEmp2B4mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 25, 6, vm65.IsDptEmp3B4mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 26, 6, vm65.IsDptSys14mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 27, 6, vm65.IsDptSys24mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 28, 6, vm65.IsDptSys34mAPass ? "合格" : "不合格");
+                        SetExcelCellValue(cells, 24, 6, hc65Executed ? (vm65.IsDptEdp24mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 25, 6, hc65Executed ? (vm65.IsDptEmp2B4mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 26, 6, hc65Executed ? (vm65.IsDptEmp3B4mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 27, 6, hc65Executed ? (vm65.IsDptSys14mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 28, 6, hc65Executed ? (vm65.IsDptSys24mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 29, 6, hc65Executed ? (vm65.IsDptSys34mAPass ? "合格" : "不合格") : "--");
 
-                        SetExcelCellValue(cells, 29, 6, vm65.IsDptEdp2A20mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 30, 6, vm65.IsDptEmp2B20mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 31, 6, vm65.IsDptEmp3B20mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 32, 6, vm65.IsDptSys120mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 33, 6, vm65.IsDptSys220mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 34, 6, vm65.IsDptSys320mAPass ? "合格" : "不合格");
+                        SetExcelCellValue(cells, 30, 6, hc65Executed ? (vm65.IsDptEdp2A20mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 31, 6, hc65Executed ? (vm65.IsDptEmp2B20mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 32, 6, hc65Executed ? (vm65.IsDptEmp3B20mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 33, 6, hc65Executed ? (vm65.IsDptSys120mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 34, 6, hc65Executed ? (vm65.IsDptSys220mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 35, 6, hc65Executed ? (vm65.IsDptSys320mAPass ? "合格" : "不合格") : "--");
 
-                        SetExcelCellValue(cells, 35, 6, vm65.IsDptEdp2A10mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 36, 6, vm65.IsDptEmp2B10mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 37, 6, vm65.IsDptEmp3B10mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 38, 6, vm65.IsDptSys110mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 39, 6, vm65.IsDptSys210mAPass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 40, 6, vm65.IsDptSys310mAPass ? "合格" : "不合格");
+                        SetExcelCellValue(cells, 36, 6, hc65Executed ? (vm65.IsDptEdp2A10mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 37, 6, hc65Executed ? (vm65.IsDptEmp2B10mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 38, 6, hc65Executed ? (vm65.IsDptEmp3B10mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 39, 6, hc65Executed ? (vm65.IsDptSys110mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 40, 6, hc65Executed ? (vm65.IsDptSys210mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 41, 6, hc65Executed ? (vm65.IsDptSys310mAPass ? "合格" : "不合格") : "--");
 
-                        SetExcelCellFontColor(cells, 23, 6, vm65.IsDptEdp24mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 24, 6, vm65.IsDptEmp2B4mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 25, 6, vm65.IsDptEmp3B4mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 26, 6, vm65.IsDptSys14mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 27, 6, vm65.IsDptSys24mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 28, 6, vm65.IsDptSys34mAPass ? null : 255);
+                        SetExcelCellFontColor(cells, 24, 6, hc65Executed && !vm65.IsDptEdp24mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 25, 6, hc65Executed && !vm65.IsDptEmp2B4mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 26, 6, hc65Executed && !vm65.IsDptEmp3B4mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 27, 6, hc65Executed && !vm65.IsDptSys14mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 28, 6, hc65Executed && !vm65.IsDptSys24mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 29, 6, hc65Executed && !vm65.IsDptSys34mAPass ? 255 : (int?)null);
 
-                        SetExcelCellFontColor(cells, 29, 6, vm65.IsDptEdp2A20mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 30, 6, vm65.IsDptEmp2B20mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 31, 6, vm65.IsDptEmp3B20mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 32, 6, vm65.IsDptSys120mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 33, 6, vm65.IsDptSys220mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 34, 6, vm65.IsDptSys320mAPass ? null : 255);
+                        SetExcelCellFontColor(cells, 30, 6, hc65Executed && !vm65.IsDptEdp2A20mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 31, 6, hc65Executed && !vm65.IsDptEmp2B20mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 32, 6, hc65Executed && !vm65.IsDptEmp3B20mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 33, 6, hc65Executed && !vm65.IsDptSys120mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 34, 6, hc65Executed && !vm65.IsDptSys220mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 35, 6, hc65Executed && !vm65.IsDptSys320mAPass ? 255 : (int?)null);
 
-                        SetExcelCellFontColor(cells, 35, 6, vm65.IsDptEdp2A10mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 36, 6, vm65.IsDptEmp2B10mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 37, 6, vm65.IsDptEmp3B10mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 38, 6, vm65.IsDptSys110mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 39, 6, vm65.IsDptSys210mAPass ? null : 255);
-                        SetExcelCellFontColor(cells, 40, 6, vm65.IsDptSys310mAPass ? null : 255);
+                        SetExcelCellFontColor(cells, 36, 6, hc65Executed && !vm65.IsDptEdp2A10mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 37, 6, hc65Executed && !vm65.IsDptEmp2B10mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 38, 6, hc65Executed && !vm65.IsDptEmp3B10mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 39, 6, hc65Executed && !vm65.IsDptSys110mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 40, 6, hc65Executed && !vm65.IsDptSys210mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 41, 6, hc65Executed && !vm65.IsDptSys310mAPass ? 255 : (int?)null);
 
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G23:G40" });
-                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm65.CurrentTestResult });
-                        SetRangeFontColor(range, string.Equals(vm65.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G24:G41" });
+                        var hc65Result = GetSingleBoardStepResult("压差传感器信号采集测试", vm65.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc65Result });
+                        SetRangeFontColor(range, string.Equals(hc65Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
                     else
                     {
-                        FillUntestedCells(cells, 23, 5, 40);
-                        FillUntestedCells(cells, 23, 6, 40);
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G23:G40" });
+                        FillUntestedCells(cells, 24, 5, 41);
+                        FillUntestedCells(cells, 24, 6, 41);
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G24:G41" });
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
                         ReleaseComObject(range);
                         range = null;
@@ -1506,51 +1520,53 @@ namespace MeasureControl.Views.Common
                 {
                     if (IsSingleBoardStepSelected("油量传感器信号采集测试"))
                     {
-                        SetExcelCellValue(cells, 41, 5, vm66.Pin3031FreqText);
-                        SetExcelCellValue(cells, 42, 5, vm66.Pin3334FreqText);
-                        SetExcelCellValue(cells, 43, 5, vm66.Pin3031VoltText);
-                        SetExcelCellValue(cells, 44, 5, vm66.Pin3334VoltText);
-                        SetExcelCellValue(cells, 45, 5, vm66.PointLowSys1Text);
-                        SetExcelCellValue(cells, 46, 5, vm66.PointLowSys2Text);
-                        SetExcelCellValue(cells, 47, 5, vm66.PointMidSys1Text);
-                        SetExcelCellValue(cells, 48, 5, vm66.PointMidSys2Text);
-                        SetExcelCellValue(cells, 49, 5, vm66.PointHighSys1Text);
-                        SetExcelCellValue(cells, 50, 5, vm66.PointHighSys2Text);
+                        var hc66Executed = DidSingleBoardStepExecute("油量传感器信号采集测试");
+                        SetExcelCellValue(cells, 42, 5, hc66Executed ? vm66.Pin3031FreqText : "--");
+                        SetExcelCellValue(cells, 43, 5, hc66Executed ? vm66.Pin3334FreqText : "--");
+                        SetExcelCellValue(cells, 44, 5, hc66Executed ? vm66.Pin3031VoltText : "--");
+                        SetExcelCellValue(cells, 45, 5, hc66Executed ? vm66.Pin3334VoltText : "--");
+                        SetExcelCellValue(cells, 46, 5, hc66Executed ? vm66.PointLowSys1Text : "--");
+                        SetExcelCellValue(cells, 47, 5, hc66Executed ? vm66.PointLowSys2Text : "--");
+                        SetExcelCellValue(cells, 48, 5, hc66Executed ? vm66.PointMidSys1Text : "--");
+                        SetExcelCellValue(cells, 49, 5, hc66Executed ? vm66.PointMidSys2Text : "--");
+                        SetExcelCellValue(cells, 50, 5, hc66Executed ? vm66.PointHighSys1Text : "--");
+                        SetExcelCellValue(cells, 51, 5, hc66Executed ? vm66.PointHighSys2Text : "--");
 
-                        SetExcelCellValue(cells, 41, 6, vm66.IsPin3031Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 42, 6, vm66.IsPin3334Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 43, 6, vm66.IsPin3031Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 44, 6, vm66.IsPin3334Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 45, 6, vm66.IsPointLowSys1Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 46, 6, vm66.IsPointLowSys2Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 47, 6, vm66.IsPointMidSys1Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 48, 6, vm66.IsPointMidSys2Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 49, 6, vm66.IsPointHighSys1Pass ? "合格" : "不合格");
-                        SetExcelCellValue(cells, 50, 6, vm66.IsPointHighSys2Pass ? "合格" : "不合格");
+                        SetExcelCellValue(cells, 42, 6, hc66Executed ? (vm66.IsPin3031Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 43, 6, hc66Executed ? (vm66.IsPin3334Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 44, 6, hc66Executed ? (vm66.IsPin3031Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 45, 6, hc66Executed ? (vm66.IsPin3334Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 46, 6, hc66Executed ? (vm66.IsPointLowSys1Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 47, 6, hc66Executed ? (vm66.IsPointLowSys2Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 48, 6, hc66Executed ? (vm66.IsPointMidSys1Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 49, 6, hc66Executed ? (vm66.IsPointMidSys2Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 50, 6, hc66Executed ? (vm66.IsPointHighSys1Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 51, 6, hc66Executed ? (vm66.IsPointHighSys2Pass ? "合格" : "不合格") : "--");
 
-                        SetExcelCellFontColor(cells, 41, 6, vm66.IsPin3031Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 42, 6, vm66.IsPin3334Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 43, 6, vm66.IsPin3031Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 44, 6, vm66.IsPin3334Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 45, 6, vm66.IsPointLowSys1Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 46, 6, vm66.IsPointLowSys2Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 47, 6, vm66.IsPointMidSys1Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 48, 6, vm66.IsPointMidSys2Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 49, 6, vm66.IsPointHighSys1Pass ? null : 255);
-                        SetExcelCellFontColor(cells, 50, 6, vm66.IsPointHighSys2Pass ? null : 255);
+                        SetExcelCellFontColor(cells, 42, 6, hc66Executed && !vm66.IsPin3031Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 43, 6, hc66Executed && !vm66.IsPin3334Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 44, 6, hc66Executed && !vm66.IsPin3031Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 45, 6, hc66Executed && !vm66.IsPin3334Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 46, 6, hc66Executed && !vm66.IsPointLowSys1Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 47, 6, hc66Executed && !vm66.IsPointLowSys2Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 48, 6, hc66Executed && !vm66.IsPointMidSys1Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 49, 6, hc66Executed && !vm66.IsPointMidSys2Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 50, 6, hc66Executed && !vm66.IsPointHighSys1Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 51, 6, hc66Executed && !vm66.IsPointHighSys2Pass ? 255 : (int?)null);
 
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G41:G50" });
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G42:G51" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
-                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm66.CurrentTestResult });
-                        SetRangeFontColor(range, string.Equals(vm66.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        var hc66Result = GetSingleBoardStepResult("油量传感器信号采集测试", vm66.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc66Result });
+                        SetRangeFontColor(range, string.Equals(hc66Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
                     else
                     {
-                        FillUntestedCells(cells, 41, 5, 50);
-                        FillUntestedCells(cells, 41, 6, 50);
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G41:G50" });
+                        FillUntestedCells(cells, 42, 5, 51);
+                        FillUntestedCells(cells, 42, 6, 51);
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G42:G51" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
                         ReleaseComObject(range);
@@ -1562,6 +1578,7 @@ namespace MeasureControl.Views.Common
                 {
                     if (IsSingleBoardStepSelected("离散量采集测试"))
                     {
+                        var hc67Executed = DidSingleBoardStepExecute("离散量采集测试");
                         var hc67Values = new[]
                         {
                             vm67.Pin49Text, vm67.Pin50Text, vm67.Pin51Text, vm67.Pin52Text, vm67.Pin53Text, vm67.Pin54Text, vm67.Pin55Text,
@@ -1580,24 +1597,25 @@ namespace MeasureControl.Views.Common
 
                         for (var i = 0; i < hc67Values.Length; i++)
                         {
-                            var row = 51 + i;
-                            SetExcelCellValue(cells, row, 5, hc67Values[i]);
-                            SetExcelCellValue(cells, row, 6, hc67Passes[i] ? "合格" : "不合格");
-                            SetExcelCellFontColor(cells, row, 6, hc67Passes[i] ? null : 255);
+                            var row = 52 + i;
+                            SetExcelCellValue(cells, row, 5, hc67Executed ? hc67Values[i] : "--");
+                            SetExcelCellValue(cells, row, 6, hc67Executed ? (hc67Passes[i] ? "合格" : "不合格") : "--");
+                            SetExcelCellFontColor(cells, row, 6, hc67Executed && !hc67Passes[i] ? 255 : (int?)null);
                         }
 
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G51:G77" });
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G52:G78" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
-                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm67.CurrentTestResult });
-                        SetRangeFontColor(range, string.Equals(vm67.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        var hc67Result = GetSingleBoardStepResult("离散量采集测试", vm67.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc67Result });
+                        SetRangeFontColor(range, string.Equals(hc67Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
                     else
                     {
-                        FillUntestedCells(cells, 51, 5, 77);
-                        FillUntestedCells(cells, 51, 6, 77);
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G51:G77" });
+                        FillUntestedCells(cells, 52, 5, 78);
+                        FillUntestedCells(cells, 52, 6, 78);
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G52:G78" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
                         ReleaseComObject(range);
@@ -1609,6 +1627,7 @@ namespace MeasureControl.Views.Common
                 {
                     if (IsSingleBoardStepSelected("离散量输出测试"))
                     {
+                        var hc68Executed = DidSingleBoardStepExecute("离散量输出测试");
                         var hc68OpenValues = new[]
                         {
                             vm68.OpenPin9Text, vm68.OpenPin10Text, vm68.OpenPin11Text, vm68.OpenPin12Text,
@@ -1635,32 +1654,33 @@ namespace MeasureControl.Views.Common
 
                         for (var i = 0; i < hc68OpenValues.Length; i++)
                         {
-                            var row = 78 + i;
-                            SetExcelCellValue(cells, row, 5, hc68OpenValues[i]);
-                            SetExcelCellValue(cells, row, 6, hc68OpenPasses[i] ? "合格" : "不合格");
-                            SetExcelCellFontColor(cells, row, 6, hc68OpenPasses[i] ? null : 255);
+                            var row = 79 + i;
+                            SetExcelCellValue(cells, row, 5, hc68Executed ? hc68OpenValues[i] : "--");
+                            SetExcelCellValue(cells, row, 6, hc68Executed ? (hc68OpenPasses[i] ? "合格" : "不合格") : "--");
+                            SetExcelCellFontColor(cells, row, 6, hc68Executed && !hc68OpenPasses[i] ? 255 : (int?)null);
                         }
 
                         for (var i = 0; i < hc68CloseValues.Length; i++)
                         {
-                            var row = 85 + i;
-                            SetExcelCellValue(cells, row, 5, hc68CloseValues[i]);
-                            SetExcelCellValue(cells, row, 6, hc68ClosePasses[i] ? "合格" : "不合格");
-                            SetExcelCellFontColor(cells, row, 6, hc68ClosePasses[i] ? null : 255);
+                            var row = 86 + i;
+                            SetExcelCellValue(cells, row, 5, hc68Executed ? hc68CloseValues[i] : "--");
+                            SetExcelCellValue(cells, row, 6, hc68Executed ? (hc68ClosePasses[i] ? "合格" : "不合格") : "--");
+                            SetExcelCellFontColor(cells, row, 6, hc68Executed && !hc68ClosePasses[i] ? 255 : (int?)null);
                         }
 
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G85:G91" });
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G79:G92" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
-                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { vm68.CurrentTestResult });
-                        SetRangeFontColor(range, string.Equals(vm68.CurrentTestResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        var hc68Result = GetSingleBoardStepResult("离散量输出测试", vm68.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc68Result });
+                        SetRangeFontColor(range, string.Equals(hc68Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
                     else
                     {
-                        FillUntestedCells(cells, 78, 5, 91);
-                        FillUntestedCells(cells, 78, 6, 91);
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G85:G91" });
+                        FillUntestedCells(cells, 79, 5, 92);
+                        FillUntestedCells(cells, 79, 6, 92);
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G79:G92" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
                         ReleaseComObject(range);
@@ -1691,6 +1711,21 @@ namespace MeasureControl.Views.Common
         private bool IsSingleBoardStepSelected(string stepName)
         {
             return _selectedSingleBoardAutoTestItems == null || _selectedSingleBoardAutoTestItems.Contains(stepName);
+        }
+
+        private bool DidSingleBoardStepExecute(string stepName)
+        {
+            return _singleBoardAutoStepResults != null && _singleBoardAutoStepResults.ContainsKey(stepName);
+        }
+
+        private string GetSingleBoardStepResult(string stepName, string fallback)
+        {
+            if (_singleBoardAutoStepResults != null && _singleBoardAutoStepResults.TryGetValue(stepName, out var result))
+            {
+                return NormalizeResult(result);
+            }
+
+            return NormalizeResult(fallback);
         }
 
         private static void FillUntestedCells(object cells, int startRow, int column, int endRow)
