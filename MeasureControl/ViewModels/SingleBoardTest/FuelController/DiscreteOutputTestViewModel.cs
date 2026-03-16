@@ -1120,7 +1120,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 try
                 {
                     // 确保7131板卡已连接并启动
-                    await _jy7131Api.EnsureConnectedAndRunningAsync(token);
+                    //await _jy7131Api.EnsureConnectedAndRunningAsync(token);
                     if (!_jy7131Api.IsRunning)
                     {
                         AddLog("警告: 7131板卡启动失败");
