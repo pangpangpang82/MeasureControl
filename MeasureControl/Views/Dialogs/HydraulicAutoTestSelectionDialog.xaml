@@ -134,7 +134,7 @@
                         BorderThickness="0"
                         Click="CloseButton_Click"
                         Content="✖"
-                        FontSize="18"
+                        FontSize="16"
                         Foreground="White"
                         Style="{StaticResource DialogButtonStyle}" />
 
