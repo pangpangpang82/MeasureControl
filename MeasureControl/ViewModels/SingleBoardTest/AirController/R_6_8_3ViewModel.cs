@@ -32,11 +32,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public R_6_8_3ViewModel()
         {
             _enterAtpTxChannel = "429_CH0";
-            _enterAtpRxChannel = "429_CH1";
+            _enterAtpRxChannel = "429_CH2";
             _controllerTemperatureTestTxChannel = "429_CH0";
-            _temperatureTelemetryRxChannel = "429_CH1";
+            _temperatureTelemetryRxChannel = "429_CH2";
             _exitAtpTxChannel = "429_CH0";
-            _exitAtpRxChannel = "429_CH1";
+            _exitAtpRxChannel = "429_CH2";
 
             _enterAtpRxDataText = "--";
             _temperatureTelemetryRxDataText = "--";
@@ -177,13 +177,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
         }
 
         public string EnterAtpRxDataText
@@ -231,13 +229,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string ControllerTemperatureTestTxChannel
         {
             get => _controllerTemperatureTestTxChannel;
-            set => SetProperty(ref _controllerTemperatureTestTxChannel, value);
         }
 
         public string TemperatureTelemetryRxChannel
         {
             get => _temperatureTelemetryRxChannel;
-            set => SetProperty(ref _temperatureTelemetryRxChannel, value);
         }
 
         public string TemperatureTelemetryRxDataText
@@ -249,13 +245,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
         }
 
         public string ExitAtpRxDataText

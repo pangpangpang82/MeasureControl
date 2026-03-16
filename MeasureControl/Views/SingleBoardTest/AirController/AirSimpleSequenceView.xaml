@@ -12,16 +12,6 @@
     <UserControl.Resources>
         <helpers:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <helpers:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
-        <x:Array x:Key="Arinc429Channels" Type="sys:String">
-            <sys:String>429_CH0</sys:String>
-            <sys:String>429_CH1</sys:String>
-            <sys:String>429_CH2</sys:String>
-            <sys:String>429_CH3</sys:String>
-            <sys:String>429_CH4</sys:String>
-            <sys:String>429_CH5</sys:String>
-            <sys:String>429_CH6</sys:String>
-            <sys:String>429_CH7</sys:String>
-        </x:Array>
         <x:Array x:Key="DmmChannels" Type="sys:String">
             <sys:String>Port1</sys:String>
             <sys:String>Port2</sys:String>
@@ -277,35 +267,21 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="TX" />
-                            <Grid Width="100" Height="28" Margin="5,0,0,0" HorizontalAlignment="Left">
-                                <ComboBox
-                                    Height="28"
+                            <Border
+                                Width="100"
+                                Height="28"
+                                Margin="5,0,0,0"
+                                HorizontalAlignment="Left"
+                                Background="AliceBlue"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
-                                    ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                    ItemsSource="{StaticResource Arinc429Channels}"
-                                    SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}"
-                                    SelectionChanged="ComboBox_SelectionChanged"
-                                    Visibility="{Binding IsFixedArincChannels, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                                    <ComboBox.Style>
-                                        <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                            <Setter Property="Opacity" Value="1" />
-                                        </Style>
-                                    </ComboBox.Style>
-                                </ComboBox>
-                                <Border
-                                    Height="28"
-                                    Background="AliceBlue"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3"
-                                    Visibility="{Binding IsFixedArincChannels, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{Binding EnterAtpTxChannel, Mode=OneWay}" />
-                                </Border>
-                            </Grid>
+                                    Text="{Binding EnterAtpTxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="180"
@@ -367,34 +343,21 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="RX" />
-                            <Grid Width="100" Height="28" Margin="5,0,0,0" HorizontalAlignment="Left">
-                                <ComboBox
-                                    Height="28"
+                            <Border
+                                Width="100"
+                                Height="28"
+                                Margin="5,0,0,0"
+                                HorizontalAlignment="Left"
+                                Background="AliceBlue"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
-                                    ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                    ItemsSource="{StaticResource Arinc429Channels}"
-                                    SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}"
-                                    Visibility="{Binding IsFixedArincChannels, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                                    <ComboBox.Style>
-                                        <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                            <Setter Property="Opacity" Value="1" />
-                                        </Style>
-                                    </ComboBox.Style>
-                                </ComboBox>
-                                <Border
-                                    Height="28"
-                                    Background="AliceBlue"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3"
-                                    Visibility="{Binding IsFixedArincChannels, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{Binding EnterAtpRxChannel, Mode=OneWay}" />
-                                </Border>
-                            </Grid>
+                                    Text="{Binding EnterAtpRxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="180"
@@ -428,34 +391,21 @@
                             VerticalAlignment="Center"
                             FontSize="14"
                             Text="TX" />
-                        <Grid Width="100" Height="28" Margin="5,0,0,0" HorizontalAlignment="Left">
-                            <ComboBox
-                                Height="28"
+                        <Border
+                            Width="100"
+                            Height="28"
+                            Margin="5,0,0,0"
+                            HorizontalAlignment="Left"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
                                 FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding SetVoltageTxChannel, Mode=TwoWay}"
-                                Visibility="{Binding IsFixedArincChannels, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
-                            <Border
-                                Height="28"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3"
-                                Visibility="{Binding IsFixedArincChannels, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <TextBlock
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding SetVoltageTxChannel, Mode=OneWay}" />
-                            </Border>
-                        </Grid>
+                                Text="{Binding SetVoltageTxChannel}" />
+                        </Border>
 
                         <Border
                             Width="180"
@@ -574,35 +524,21 @@
                             VerticalAlignment="Center"
                             FontSize="14"
                             Text="RX" />
-
-                        <Grid Width="100" Height="28" Margin="5,0,0,0" HorizontalAlignment="Left">
-                            <ComboBox
-                                Height="28"
+                        <Border
+                            Width="100"
+                            Height="28"
+                            Margin="5,0,0,0"
+                            HorizontalAlignment="Left"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
                                 FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding TelemetryRxChannel, Mode=TwoWay}"
-                                Visibility="{Binding IsFixedArincChannels, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
-                            <Border
-                                Height="28"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3"
-                                Visibility="{Binding IsFixedArincChannels, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <TextBlock
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding TelemetryRxChannel, Mode=OneWay}" />
-                            </Border>
-                        </Grid>
+                                Text="{Binding TelemetryRxChannel}" />
+                        </Border>
                         <Border
                             Width="100"
                             Height="28"
@@ -650,34 +586,21 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="TX" />
-                            <Grid Width="100" Height="28" Margin="5,0,0,0" HorizontalAlignment="Left">
-                                <ComboBox
-                                    Height="28"
+                            <Border
+                                Width="100"
+                                Height="28"
+                                Margin="5,0,0,0"
+                                HorizontalAlignment="Left"
+                                Background="AliceBlue"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
-                                    ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                    ItemsSource="{StaticResource Arinc429Channels}"
-                                    SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}"
-                                    Visibility="{Binding IsFixedArincChannels, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                                    <ComboBox.Style>
-                                        <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                            <Setter Property="Opacity" Value="1" />
-                                        </Style>
-                                    </ComboBox.Style>
-                                </ComboBox>
-                                <Border
-                                    Height="28"
-                                    Background="AliceBlue"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3"
-                                    Visibility="{Binding IsFixedArincChannels, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{Binding ExitAtpTxChannel, Mode=OneWay}" />
-                                </Border>
-                            </Grid>
+                                    Text="{Binding ExitAtpTxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="180"
@@ -740,34 +663,21 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="RX" />
-                            <Grid Width="100" Height="28" Margin="5,0,0,0" HorizontalAlignment="Left">
-                                <ComboBox
-                                    Height="28"
+                            <Border
+                                Width="100"
+                                Height="28"
+                                Margin="5,0,0,0"
+                                HorizontalAlignment="Left"
+                                Background="AliceBlue"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
-                                    ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                    ItemsSource="{StaticResource Arinc429Channels}"
-                                    SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}"
-                                    Visibility="{Binding IsFixedArincChannels, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                                    <ComboBox.Style>
-                                        <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                            <Setter Property="Opacity" Value="1" />
-                                        </Style>
-                                    </ComboBox.Style>
-                                </ComboBox>
-                                <Border
-                                    Height="28"
-                                    Background="AliceBlue"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3"
-                                    Visibility="{Binding IsFixedArincChannels, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{Binding ExitAtpRxChannel, Mode=OneWay}" />
-                                </Border>
-                            </Grid>
+                                    Text="{Binding ExitAtpRxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="180"

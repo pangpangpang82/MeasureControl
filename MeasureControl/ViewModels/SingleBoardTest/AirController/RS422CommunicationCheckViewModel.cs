@@ -24,6 +24,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private const byte DefaultLabel = 0x6A;
 
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private static readonly byte[] AtpR = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] AtpEnterOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] AtpE = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
@@ -91,28 +94,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public RS422CommunicationCheckViewModel(Rs422CommTestMode mode = Rs422CommTestMode.All)
         {
             _mode = mode;
-            if (mode == Rs422CommTestMode.All)
-            {
-                _enterAtpTxChannel = "CH1";
-                _enterAtpRxChannel = "CH0";
-                _exitAtpTxChannel = "CH1";
-                _exitAtpRxChannel = "CH0";
-                _rs422TransmitTxChannel = "CH1";
-                _rs422TransmitRxChannel = "CH0";
-                _rs422ReceiveTxChannel = "CH1";
-                _rs422ReceiveRxChannel = "CH0";
-            }
-            else
-            {
-                _enterAtpTxChannel = "CH0";
-                _enterAtpRxChannel = "CH2";
-                _exitAtpTxChannel = "CH0";
-                _exitAtpRxChannel = "CH2";
-                _rs422TransmitTxChannel = "CH0";
-                _rs422TransmitRxChannel = "CH2";
-                _rs422ReceiveTxChannel = "CH0";
-                _rs422ReceiveRxChannel = "CH2";
-            }
+
+            _enterAtpTxChannel = FixedTxChannel;
+            _enterAtpRxChannel = FixedRxChannel;
+            _exitAtpTxChannel = FixedTxChannel;
+            _exitAtpRxChannel = FixedRxChannel;
+            _rs422TransmitTxChannel = FixedTxChannel;
+            _rs422TransmitRxChannel = FixedRxChannel;
+            _rs422ReceiveTxChannel = FixedTxChannel;
+            _rs422ReceiveRxChannel = FixedRxChannel;
 
             EnterAtpRxDataText = "--";
             ExitAtpRxDataText = "--";
@@ -180,49 +170,49 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
+            set => SetProperty(ref _enterAtpTxChannel, FixedTxChannel);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
+            set => SetProperty(ref _enterAtpRxChannel, FixedRxChannel);
         }
 
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
+            set => SetProperty(ref _exitAtpTxChannel, FixedTxChannel);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
+            set => SetProperty(ref _exitAtpRxChannel, FixedRxChannel);
         }
 
         public string Rs422TransmitTxChannel
         {
             get => _rs422TransmitTxChannel;
-            set => SetProperty(ref _rs422TransmitTxChannel, value);
+            set => SetProperty(ref _rs422TransmitTxChannel, FixedTxChannel);
         }
 
         public string Rs422TransmitRxChannel
         {
             get => _rs422TransmitRxChannel;
-            set => SetProperty(ref _rs422TransmitRxChannel, value);
+            set => SetProperty(ref _rs422TransmitRxChannel, FixedRxChannel);
         }
 
         public string Rs422ReceiveTxChannel
         {
             get => _rs422ReceiveTxChannel;
-            set => SetProperty(ref _rs422ReceiveTxChannel, value);
+            set => SetProperty(ref _rs422ReceiveTxChannel, FixedTxChannel);
         }
 
         public string Rs422ReceiveRxChannel
         {
             get => _rs422ReceiveRxChannel;
-            set => SetProperty(ref _rs422ReceiveRxChannel, value);
+            set => SetProperty(ref _rs422ReceiveRxChannel, FixedRxChannel);
         }
 
         public string EnterAtpRxDataText
