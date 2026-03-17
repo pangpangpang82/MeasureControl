@@ -508,6 +508,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 var stopped = await TryStopCurrentTestAsync().ConfigureAwait(false);
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
+                    _isStoppingCurrentTest = false;
+
                     if (stopped)
                     {
                         onCompleted?.Invoke();
@@ -519,7 +521,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             }
             catch
             {
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => onFailed?.Invoke());
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    _isStoppingCurrentTest = false;
+                    onFailed?.Invoke();
+                });
             }
             finally
             {

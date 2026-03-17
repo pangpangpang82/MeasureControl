@@ -38,7 +38,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const byte AtpLabelDec = 16; // 十进制
         private const byte AtpStatusLabelDec = 20;
         private const byte AtpStatusLabelDec2 = 102;
-        private const byte PbitLabelDec = 20;
+        private const byte PbitLabelDec = 21;
         private const byte SsmNormal = 0;
         private const bool UsePeriodicAtpRequest = true;
         private const string TestItemName = "离散量采集测试";
@@ -788,7 +788,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return;
 
             var bit12 = ((data19 >> 2) & 0x1u) == 1u;
-            var pinValue = bit12 ? "1" : "0";
+            var pinValue = bit12 ? "0" : "1";
             
             values[99] = pinValue;
             values[100] = pinValue;

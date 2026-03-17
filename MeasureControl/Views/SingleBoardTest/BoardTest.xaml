@@ -321,11 +321,8 @@
                                                 <ListBox.ItemTemplate>
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                            <CheckBox
-                                                                Margin="8,0,8,0"
-                                                                VerticalAlignment="Center"
-                                                                IsChecked="{Binding IsSelected, Mode=TwoWay}" />
                                                             <TextBlock
+                                                                Margin="30,0,8,0"
                                                                 HorizontalAlignment="Left"
                                                                 VerticalAlignment="Center"
                                                                 FontSize="14"
