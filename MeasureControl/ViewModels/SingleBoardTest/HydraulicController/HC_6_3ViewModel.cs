@@ -95,6 +95,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
+        private bool _isManualTestInitializing;
+        private bool _isAutoTestInitializing;
+        private bool _isManualTestStopping;
+        private bool _isAutoTestStopping;
 
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
@@ -109,6 +113,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _temp1BText = "--";
         private string _temp2BText = "--";
         private string _temp3BText = "--";
+        private string _tempCustomText = "--";
+        private string _tempCustomBText = "--";
+        private string _customResistanceInput = "1154.4";
         private double? _temp1;
         private double? _temp2;
         private double? _temp3;
@@ -127,6 +134,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             MeasurePoint1Command = new DelegateCommand(async () => await OnMeasurePoint1Async(), () => CanMeasurePoint1);
             MeasurePoint2Command = new DelegateCommand(async () => await OnMeasurePoint2Async(), () => CanMeasurePoint2);
             MeasurePoint3Command = new DelegateCommand(async () => await OnMeasurePoint3Async(), () => CanMeasurePoint3);
+            MeasureCustomPointCommand = new DelegateCommand(async () => await OnMeasureCustomPointAsync(), () => CanMeasureCustomPoint);
 
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
@@ -185,10 +193,71 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public DelegateCommand MeasurePoint1Command { get; }
         public DelegateCommand MeasurePoint2Command { get; }
         public DelegateCommand MeasurePoint3Command { get; }
+        public DelegateCommand MeasureCustomPointCommand { get; }
 
         public DelegateCommand ClearLogCommand { get; }
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
+
+        public bool IsManualTestBusy => IsManualTestInitializing || IsManualTestStopping;
+
+        public bool IsAutoTestBusy => IsAutoTestInitializing || IsAutoTestStopping;
+
+        public bool IsManualTestInitializing
+        {
+            get => _isManualTestInitializing;
+            private set
+            {
+                if (SetProperty(ref _isManualTestInitializing, value))
+                {
+                    RaisePropertyChanged(nameof(IsManualTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsAutoTestInitializing
+        {
+            get => _isAutoTestInitializing;
+            private set
+            {
+                if (SetProperty(ref _isAutoTestInitializing, value))
+                {
+                    RaisePropertyChanged(nameof(IsAutoTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsManualTestStopping
+        {
+            get => _isManualTestStopping;
+            private set
+            {
+                if (SetProperty(ref _isManualTestStopping, value))
+                {
+                    RaisePropertyChanged(nameof(IsManualTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsAutoTestStopping
+        {
+            get => _isAutoTestStopping;
+            private set
+            {
+                if (SetProperty(ref _isAutoTestStopping, value))
+                {
+                    RaisePropertyChanged(nameof(IsAutoTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
 
         public bool IsManualTestRunning
         {
@@ -200,9 +269,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     RaisePropertyChanged(nameof(CanMeasurePoint1));
                     RaisePropertyChanged(nameof(CanMeasurePoint2));
                     RaisePropertyChanged(nameof(CanMeasurePoint3));
+                    RaisePropertyChanged(nameof(CanMeasureCustomPoint));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
                     MeasurePoint1Command?.RaiseCanExecuteChanged();
                     MeasurePoint2Command?.RaiseCanExecuteChanged();
                     MeasurePoint3Command?.RaiseCanExecuteChanged();
+                    MeasureCustomPointCommand?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -217,9 +290,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     RaisePropertyChanged(nameof(CanMeasurePoint1));
                     RaisePropertyChanged(nameof(CanMeasurePoint2));
                     RaisePropertyChanged(nameof(CanMeasurePoint3));
+                    RaisePropertyChanged(nameof(CanMeasureCustomPoint));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
                     MeasurePoint1Command?.RaiseCanExecuteChanged();
                     MeasurePoint2Command?.RaiseCanExecuteChanged();
                     MeasurePoint3Command?.RaiseCanExecuteChanged();
+                    MeasureCustomPointCommand?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -234,9 +311,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     RaisePropertyChanged(nameof(CanMeasurePoint1));
                     RaisePropertyChanged(nameof(CanMeasurePoint2));
                     RaisePropertyChanged(nameof(CanMeasurePoint3));
+                    RaisePropertyChanged(nameof(CanMeasureCustomPoint));
                     MeasurePoint1Command?.RaiseCanExecuteChanged();
                     MeasurePoint2Command?.RaiseCanExecuteChanged();
                     MeasurePoint3Command?.RaiseCanExecuteChanged();
+                    MeasureCustomPointCommand?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -244,15 +323,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public bool CanMeasurePoint1 => IsManualTestRunning && CanMeasure && !_measured1;
         public bool CanMeasurePoint2 => IsManualTestRunning && CanMeasure && !_measured2;
         public bool CanMeasurePoint3 => IsManualTestRunning && CanMeasure && !_measured3;
+        public bool CanMeasureCustomPoint => IsManualTestRunning && CanMeasure && TryGetValidatedCustomResistance(out _);
+        public bool CanStartManualTest => !IsManualTestBusy && !IsAutoTestBusy && !IsAutoTestRunning;
+        public bool CanStartAutoTest => !IsManualTestBusy && !IsAutoTestBusy && !IsManualTestRunning;
 
         private void RefreshMeasureCommands()
         {
             RaisePropertyChanged(nameof(CanMeasurePoint1));
             RaisePropertyChanged(nameof(CanMeasurePoint2));
             RaisePropertyChanged(nameof(CanMeasurePoint3));
+            RaisePropertyChanged(nameof(CanMeasureCustomPoint));
             MeasurePoint1Command?.RaiseCanExecuteChanged();
             MeasurePoint2Command?.RaiseCanExecuteChanged();
             MeasurePoint3Command?.RaiseCanExecuteChanged();
+            MeasureCustomPointCommand?.RaiseCanExecuteChanged();
         }
 
         /// <summary>
@@ -282,6 +366,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
+                IsAutoTestInitializing = false;
                 _autoCts?.Dispose();
                 _autoCts = null;
             }
@@ -321,6 +406,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             get => _temp3BText;
             private set => SetProperty(ref _temp3BText, value);
+        }
+
+        public string TempCustomText
+        {
+            get => _tempCustomText;
+            private set => SetProperty(ref _tempCustomText, value);
+        }
+
+        public string TempCustomBText
+        {
+            get => _tempCustomBText;
+            private set => SetProperty(ref _tempCustomBText, value);
+        }
+
+        public string CustomResistanceInput
+        {
+            get => _customResistanceInput;
+            set
+            {
+                var normalized = NormalizeResistanceInput(value);
+                if (SetProperty(ref _customResistanceInput, normalized))
+                {
+                    RaisePropertyChanged(nameof(CanMeasureCustomPoint));
+                    MeasureCustomPointCommand?.RaiseCanExecuteChanged();
+                }
+            }
         }
 
         public double? Temp1Value => _temp1;
@@ -405,7 +516,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await StopAutoTestAsync().ConfigureAwait(false);
             }
 
-            IsManualTestRunning = true;
+            IsManualTestInitializing = true;
+            IsManualTestStopping = false;
             CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
@@ -426,6 +538,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Temp1BText = "--";
             Temp2BText = "--";
             Temp3BText = "--";
+            TempCustomText = "--";
+            TempCustomBText = "--";
 
             _manualCts?.Cancel();
             _manualCts?.Dispose();
@@ -442,8 +556,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureArincRxAsync(_manualCts.Token).ConfigureAwait(false);
                 await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
                 await EnsureResistanceAsync(_manualCts.Token).ConfigureAwait(false);
+                IsManualTestInitializing = false;
+                IsManualTestRunning = true;
                 CanMeasure = true;
-                Log("手动测试初始化完成，可分别点击三档电阻测量温度");
+                Log("手动测试初始化完成，可分别点击三档固定电阻或输入自定义阻值测量温度");
             }
             catch (Exception ex)
             {
@@ -453,7 +569,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
         {
-            IsAutoTestRunning = true;
             CanMeasure = false;
             _manualAborted = false;
 
@@ -473,6 +588,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Temp1BText = "--";
             Temp2BText = "--";
             Temp3BText = "--";
+            TempCustomText = "--";
+            TempCustomBText = "--";
 
             Log("开始自动测试");
             Log($"点1: R={R1_Ohm:0.###}Ω SDI=2对应112~114, SDI=3对应116~118 温度[{T1_Min:0.###},{T1_Max:0.###}]℃");
@@ -486,6 +603,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
                 await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
                 await EnsureResistanceAsync(cancellationToken).ConfigureAwait(false);
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = true;
 
                 await MeasurePointAsync(
                         "点1",
@@ -564,7 +683,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await StopManualTestAsync().ConfigureAwait(false);
             }
 
-            IsAutoTestRunning = true;
+            IsAutoTestInitializing = true;
+            IsAutoTestStopping = false;
             CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
@@ -585,6 +705,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Temp1BText = "--";
             Temp2BText = "--";
             Temp3BText = "--";
+            TempCustomText = "--";
+            TempCustomBText = "--";
 
             _autoCts?.Cancel();
             _autoCts?.Dispose();
@@ -602,6 +724,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureArincRxAsync(_autoCts.Token).ConfigureAwait(false);
                 await EnsurePowerAsync(_autoCts.Token).ConfigureAwait(false);
                 await EnsureResistanceAsync(_autoCts.Token).ConfigureAwait(false);
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = true;
 
                 await MeasurePointAsync(
                         "点1",
@@ -725,6 +849,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
+        private async Task OnMeasureCustomPointAsync()
+        {
+            if (!TryGetValidatedCustomResistance(out var resistanceOhm))
+            {
+                Log("自定义电阻输入无效，请输入 2~6700Ω，且最多 1 位小数");
+                RefreshMeasureCommands();
+                return;
+            }
+
+            var ok = await MeasurePointAsync(
+                    $"自定义点({resistanceOhm:0.0}Ω)",
+                    resistanceOhm,
+                    setTextA: t => TempCustomText = t,
+                    setValueA: v => { },
+                    setTextB: t => TempCustomBText = t,
+                    setValueB: v => { },
+                    _manualCts?.Token ?? CancellationToken.None)
+                .ConfigureAwait(false);
+
+            if (!IsManualTestRunning || _manualAborted || !ok)
+                return;
+
+            Log($"自定义电阻测量完成: {resistanceOhm:0.0}Ω，可继续修改阻值并重复测量");
+        }
+
         /// <summary>
         /// 测量一个测试点（核心测量方法）
         /// 流程：
@@ -834,7 +983,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (IsManualTestRunning)
                 {
                     Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效温度数据");
-                    Log($"{title}: 本次测量按超时结束处理，结果保留为--，不可重复点击");
+                    Log($"{title}: 本次测量按超时结束处理，结果保留为--");
                 }
                 else if (IsAutoTestRunning)
                 {
@@ -920,11 +1069,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log($"判据: 点2[{T2_Min:0.###},{T2_Max:0.###}] => {FormatBool(p2)}");
             Log($"判据: 点3[{T3_Min:0.###},{T3_Max:0.###}] => {FormatBool(p3)}");
             Log($"最终结果: {resultText}");
-
-            if (IsManualTestRunning)
-            {
-                await StopManualTestAsync().ConfigureAwait(false);
-            }
         }
 
         /// <summary>
@@ -956,6 +1100,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private async Task StopManualTestAsync()
         {
+            IsManualTestStopping = true;
+            IsManualTestInitializing = false;
             try
             {
                 CanMeasure = false;
@@ -966,9 +1112,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             Log("手动测试停止/结束，正在按反序断开电阻箱、28V、429、DO27、485继电器...");
-            await CleanupIoAsync().ConfigureAwait(false);
-            IsManualTestRunning = false;
-            Log("手动测试已结束");
+            try
+            {
+                await CleanupIoAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                IsManualTestInitializing = false;
+                IsManualTestRunning = false;
+                IsManualTestStopping = false;
+                RaisePropertyChanged(nameof(CanStartManualTest));
+                RaisePropertyChanged(nameof(CanStartAutoTest));
+                Log("手动测试已结束");
+            }
         }
 
         /// <summary>
@@ -976,6 +1132,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private async Task StopAutoTestAsync()
         {
+            IsAutoTestStopping = true;
+            IsAutoTestInitializing = false;
             try
             {
                 _autoCts?.Cancel();
@@ -985,9 +1143,73 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             Log("自动测试停止/结束，正在按反序断开电阻箱、28V、429、DO27、485继电器...");
-            await CleanupIoAsync().ConfigureAwait(false);
-            IsAutoTestRunning = false;
-            Log("自动测试已结束");
+            try
+            {
+                await CleanupIoAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = false;
+                IsAutoTestStopping = false;
+                RaisePropertyChanged(nameof(CanStartManualTest));
+                RaisePropertyChanged(nameof(CanStartAutoTest));
+                Log("自动测试已结束");
+            }
+        }
+
+        private string NormalizeResistanceInput(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            var sanitized = value.Replace("Ω", string.Empty).Replace("ω", string.Empty).Trim();
+            sanitized = sanitized.Replace(',', '.');
+
+            var chars = new List<char>(sanitized.Length);
+            var hasDot = false;
+            var decimalCount = 0;
+            foreach (var ch in sanitized)
+            {
+                if (char.IsDigit(ch))
+                {
+                    if (hasDot)
+                    {
+                        if (decimalCount >= 1)
+                            continue;
+
+                        decimalCount++;
+                    }
+
+                    chars.Add(ch);
+                    continue;
+                }
+
+                if (ch == '.' && !hasDot)
+                {
+                    hasDot = true;
+                    chars.Add(ch);
+                }
+            }
+
+            return new string(chars.ToArray());
+        }
+
+        private bool TryGetValidatedCustomResistance(out double resistanceOhm)
+        {
+            resistanceOhm = 0;
+            var text = NormalizeResistanceInput(CustomResistanceInput);
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            if (text.EndsWith(".", StringComparison.Ordinal))
+                text = text.TrimEnd('.');
+
+            if (!double.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out resistanceOhm))
+                return false;
+
+            resistanceOhm = Math.Truncate(resistanceOhm * 10d) / 10d;
+            return resistanceOhm >= 2d && resistanceOhm <= 6700d;
         }
 
         /// <summary>
