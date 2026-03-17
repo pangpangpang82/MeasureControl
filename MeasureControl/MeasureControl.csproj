@@ -384,7 +384,8 @@
     <Compile Include="Views\TestTask\TestContent\TestSequence.xaml.cs"><DependentUpon>TestSequence.xaml</DependentUpon></Compile>
     <Compile Include="Drivers\**\*.cs" />
     <Compile Include="Events\**\*.cs" />
-    <Compile Include="Helpers\**\*.cs" />
+    <Compile Include="Helpers\**\*.cs" Exclude="Helpers\OleMessageFilter.cs" />
+    <Compile Include="Helpers\OleMessageFilter.cs" />
     <Compile Include="Models\**\*.cs" />
     <Compile Include="Services\**\*.cs" />
     <Compile Include="Simulations\**\*.cs" />
