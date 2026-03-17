@@ -55,7 +55,15 @@ namespace MeasureControl.Views.Common
         private HC_6_6ViewModel _hydraulicAutoTestVm66;
         private HC_6_7ViewModel _hydraulicAutoTestVm67;
         private HC_6_8ViewModel _hydraulicAutoTestVm68;
-        private HashSet<string> _executedFuelTestStepNames;
+
+        private PowerImpedanceTestViewModel _fuelAutoTestVm1;
+        private SecondaryPowerTestViewModel _fuelAutoTestVm2;
+        private LowVoltageAlarmTestViewModel _fuelAutoTestVm3;
+        private TemperatureAcquisitionTestViewModel _fuelAutoTestVm4;
+        private DiscreteInputTestViewModel _fuelAutoTestVm5;
+        private DiscreteOutputTestViewModel _fuelAutoTestVm6;
+        private RS422CommunicationFunctionTestViewModel _fuelAutoTestVm7;
+        private RS422SelfCheckTestViewModel _fuelAutoTestVm8;
 
         #endregion
 
@@ -889,19 +897,6 @@ namespace MeasureControl.Views.Common
             }
 
             _selectedSingleBoardAutoTestItems = null;
-            HashSet<string> selectedStepNames = null;
-            if (boardType == "加放油单板")
-            {
-                selectedStepNames = GetSelectedFuelTestStepNames(boardName);
-                _executedFuelTestStepNames = selectedStepNames != null
-                    ? new HashSet<string>(selectedStepNames, StringComparer.OrdinalIgnoreCase)
-                    : null;
-            }
-            else
-            {
-                _executedFuelTestStepNames = null;
-            }
-
             (string Name, Func<CancellationToken, Task<string>> Run)[] steps;
             if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
             {
@@ -927,13 +922,36 @@ namespace MeasureControl.Views.Common
                 _selectedSingleBoardAutoTestItems = new HashSet<string>(selectedItems, StringComparer.OrdinalIgnoreCase);
                 steps = allHydraulicSteps.Where(x => _selectedSingleBoardAutoTestItems.Contains(x.Name)).ToArray();
             }
+            else if (string.Equals(boardType, "加放油单板", StringComparison.OrdinalIgnoreCase))
+            {
+                var allFuelSteps = BuildFuelSteps();
+                var dialog = new FuelAutoTestSelectionDialog
+                {
+                    Owner = this
+                };
+                dialog.Initialize(allFuelSteps.Select(x => x.Name).ToArray());
+                var confirmed = dialog.ShowDialog();
+                if (confirmed != true)
+                {
+                    return;
+                }
+
+                var selectedItems = dialog.SelectedItems ?? Array.Empty<string>();
+                if (selectedItems.Length == 0)
+                {
+                    ReMessageBox.Show("请至少勾选一个测试项", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                _selectedSingleBoardAutoTestItems = new HashSet<string>(selectedItems, StringComparer.OrdinalIgnoreCase);
+                steps = allFuelSteps.Where(x => _selectedSingleBoardAutoTestItems.Contains(x.Name)).ToArray();
+            }
             else
             {
                 steps = boardType switch
                 {
                     "空气单板" => BuildAirSteps(),
                     "惰化单板" => BuildInertingSteps(),
-                    "加放油单板" => BuildFuelSteps(selectedStepNames),
                     _ => null
                 };
             }
@@ -946,7 +964,7 @@ namespace MeasureControl.Views.Common
 
             if (steps.Length == 0)
             {
-                ReMessageBox.Show($"{boardType}整板自动测试未实现或没有选中任何测试项", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                ReMessageBox.Show($"{boardType}整板自动测试未实现", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -974,14 +992,6 @@ namespace MeasureControl.Views.Common
             {
                 PrepareSingleBoardReport(boardName);
                 AppendSingleBoardReportLine($"START | {boardName} | {boardType}");
-
-                if (string.Equals(boardType, "加放油单板", StringComparison.OrdinalIgnoreCase))
-                {
-                    var selected = _executedFuelTestStepNames == null
-                        ? "ALL"
-                        : (_executedFuelTestStepNames.Count == 0 ? "NONE" : string.Join(",", _executedFuelTestStepNames));
-                    AppendSingleBoardReportLine($"SELECTED | {selected}");
-                }
 
                 // 整板自动测试期间禁用主窗口操作
                 IsEnabled = false;
@@ -1045,7 +1055,6 @@ namespace MeasureControl.Views.Common
                 dialog.Show();
 
                 int done = 0;
-                bool hasAnyFailed = false;
                 for (int i = 0; i < steps.Length; i++)
                 {
                     token.ThrowIfCancellationRequested();
@@ -1080,7 +1089,10 @@ namespace MeasureControl.Views.Common
                     }
 
                     AppendSingleBoardReportLine($"STEP | {steps[i].Name} | {NormalizeResult(result)}");
-                    _singleBoardAutoStepResults[steps[i].Name] = NormalizeResult(result);
+                    if (_singleBoardAutoStepResults != null)
+                    {
+                        _singleBoardAutoStepResults[steps[i].Name] = NormalizeResult(result);
+                    }
 
                     done++;
                     vm.Progress = done;
@@ -1176,239 +1188,42 @@ namespace MeasureControl.Views.Common
             return Array.Empty<(string Name, Func<CancellationToken, Task<string>> Run)>();
         }
 
-        private static HashSet<string> GetSelectedFuelTestStepNames()
-        {
-            try
-            {
-                return GetSelectedFuelTestStepNames(null);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static HashSet<string> GetSelectedFuelTestStepNames(string expectedTestTaskName)
-        {
-            try
-            {
-                var regionManager = ContainerLocator.Container.Resolve<Prism.Regions.IRegionManager>();
-                if (regionManager == null)
-                    return null;
-
-                BoardTestViewModel TryGetVmFromView(object view, string expectedName)
-                {
-                    if (view is not FrameworkElement fe)
-                        return null;
-
-                    if (fe.DataContext is not BoardTestViewModel vm)
-                        return null;
-
-                    if (!string.Equals(vm.BoardType, "加放油单板", StringComparison.OrdinalIgnoreCase))
-                        return null;
-
-                    if (!string.IsNullOrWhiteSpace(expectedName)
-                        && !string.Equals(vm.TestTaskName, expectedName, StringComparison.OrdinalIgnoreCase))
-                        return null;
-
-                    return vm;
-                }
-
-                BoardTestViewModel FindVmInRegion(string regionName, string expectedName)
-                {
-                    if (string.IsNullOrWhiteSpace(regionName))
-                        return null;
-
-                    if (!regionManager.Regions.ContainsRegionWithName(regionName))
-                        return null;
-
-                    var region = regionManager.Regions[regionName];
-                    foreach (var v in region.Views)
-                    {
-                        var vm = TryGetVmFromView(v, expectedName);
-                        if (vm != null)
-                            return vm;
-                    }
-
-                    foreach (var v in region.ActiveViews)
-                    {
-                        var vm = TryGetVmFromView(v, expectedName);
-                        if (vm != null)
-                            return vm;
-                    }
-
-                    return null;
-                }
-
-                var boardTestVm = FindVmInRegion("MainRegion", expectedTestTaskName)
-                               ?? FindVmInRegion("FloatingRegion", expectedTestTaskName);
-
-                if (boardTestVm == null && !string.IsNullOrWhiteSpace(expectedTestTaskName))
-                {
-                    boardTestVm = FindVmInRegion("MainRegion", null)
-                               ?? FindVmInRegion("FloatingRegion", null);
-                }
-
-                if (boardTestVm == null)
-                {
-                    foreach (var region in regionManager.Regions)
-                    {
-                        foreach (var v in region.Views)
-                        {
-                            var vm = TryGetVmFromView(v, expectedTestTaskName);
-                            if (vm != null)
-                            {
-                                boardTestVm = vm;
-                                break;
-                            }
-                        }
-
-                        if (boardTestVm != null)
-                            break;
-
-                        foreach (var v in region.ActiveViews)
-                        {
-                            var vm = TryGetVmFromView(v, expectedTestTaskName);
-                            if (vm != null)
-                            {
-                                boardTestVm = vm;
-                                break;
-                            }
-                        }
-
-                        if (boardTestVm != null)
-                            break;
-                    }
-                }
-
-                if (boardTestVm == null && !string.IsNullOrWhiteSpace(expectedTestTaskName))
-                {
-                    foreach (var region in regionManager.Regions)
-                    {
-                        foreach (var v in region.Views)
-                        {
-                            var vm = TryGetVmFromView(v, null);
-                            if (vm != null)
-                            {
-                                boardTestVm = vm;
-                                break;
-                            }
-                        }
-
-                        if (boardTestVm != null)
-                            break;
-                    }
-                }
-
-                if (boardTestVm == null)
-                    return null;
-
-                var selectedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var item in boardTestVm.TestSequenceItems)
-                {
-                    if (item.IsSelected)
-                        selectedNames.Add(item.Name);
-                }
-
-                return selectedNames;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
         private static (string Name, Func<CancellationToken, Task<string>> Run)[] BuildInertingSteps()
         {
             return Array.Empty<(string Name, Func<CancellationToken, Task<string>> Run)>();
         }
 
-        private static (string Name, Func<CancellationToken, Task<string>> Run)[] BuildFuelSteps(HashSet<string> selectedStepNames = null)
+        private (string Name, Func<CancellationToken, Task<string>> Run)[] BuildFuelSteps()
         {
-            var vm1 = ContainerLocator.Container.Resolve<PowerImpedanceTestViewModel>();
-            var vm2 = ContainerLocator.Container.Resolve<SecondaryPowerTestViewModel>();
-            var vm3 = ContainerLocator.Container.Resolve<TemperatureAcquisitionTestViewModel>();
-            var vm4 = ContainerLocator.Container.Resolve<LowVoltageAlarmTestViewModel>();
-            var vm5 = ContainerLocator.Container.Resolve<DiscreteInputTestViewModel>();
-            var vm6 = ContainerLocator.Container.Resolve<DiscreteOutputTestViewModel>();
-            var vm7 = ContainerLocator.Container.Resolve<RS422CommunicationFunctionTestViewModel>();
-            var vm8 = ContainerLocator.Container.Resolve<RS422SelfCheckTestViewModel>();
+            _fuelAutoTestVm1 = ContainerLocator.Container.Resolve<PowerImpedanceTestViewModel>();
+            _fuelAutoTestVm2 = ContainerLocator.Container.Resolve<SecondaryPowerTestViewModel>();
+            _fuelAutoTestVm3 = ContainerLocator.Container.Resolve<LowVoltageAlarmTestViewModel>();
+            _fuelAutoTestVm4 = ContainerLocator.Container.Resolve<TemperatureAcquisitionTestViewModel>();
+            _fuelAutoTestVm5 = ContainerLocator.Container.Resolve<DiscreteInputTestViewModel>();
+            _fuelAutoTestVm6 = ContainerLocator.Container.Resolve<DiscreteOutputTestViewModel>();
+            _fuelAutoTestVm7 = ContainerLocator.Container.Resolve<RS422CommunicationFunctionTestViewModel>();
+            _fuelAutoTestVm8 = ContainerLocator.Container.Resolve<RS422SelfCheckTestViewModel>();
 
-            var allSteps = new (string Name, Func<CancellationToken, Task<string>> Run)[]
+            var Vm1 = _fuelAutoTestVm1;
+            var Vm2 = _fuelAutoTestVm2;
+            var Vm3 = _fuelAutoTestVm3;
+            var Vm4 = _fuelAutoTestVm4;
+            var Vm5 = _fuelAutoTestVm5;
+            var Vm6 = _fuelAutoTestVm6;
+            var Vm7 = _fuelAutoTestVm7;
+            var Vm8 = _fuelAutoTestVm8;
+
+            return new (string Name, Func<CancellationToken, Task<string>> Run)[]
             {
-                ("电源阻抗测试", ct => RunFuelAutoTestAsync(vm1?.AutoTestCommand, () => vm1?.IsAutoTestRunning ?? false, () => vm1?.OverallResult, ct)),
-                ("二次电源测试", ct => RunFuelAutoTestAsync(vm2?.AutoTestCommand, () => vm2?.IsAutoTestRunning ?? false, () => vm2?.OverallResult, ct)),
-                ("低电压告警功能测试", ct => RunFuelAutoTestAsync(vm4?.AutoTestCommand, () => vm4?.IsAutoTestRunning ?? false, () => vm4?.OverallResult, ct)),
-                ("温度采集功能", ct => RunFuelAutoTestAsync(vm3?.AutoTestCommand, () => vm3?.IsAutoTestRunning ?? false, () => vm3?.OverallResult, ct)),
-                ("离散量采集功能测试", ct => RunFuelAutoTestAsync(vm5?.AutoTestCommand, () => vm5?.IsAutoTestRunning ?? false, () => vm5?.OverallResult, ct)),
-                ("离散量输出功能测试", ct => RunFuelAutoTestAsync(vm6?.AutoTestCommand, () => vm6?.IsAutoTestRunning ?? false, () => vm6?.OverallResult, ct)),
-                ("RS422通信功能测试", ct => RunFuelAutoTestAsync(vm7?.AutoTestCommand, () => vm7?.IsAutoTestRunning ?? false, () => vm7?.OverallResult, ct)),
-                ("RS422通信自检测功能测试", ct => RunFuelAutoTestAsync(vm8?.AutoTestCommand, () => vm8?.IsAutoTestRunning ?? false, () => vm8?.OverallResult, ct)),
+                ("电源阻抗测试", ct => Vm1.RunOnceAsync(ct)),
+                ("二次电源测试", ct => Vm2.RunOnceAsync(ct)),
+                ("低电压告警功能测试", ct => Vm3.RunOnceAsync(ct)),
+                ("温度采集功能测试", ct => Vm4.RunOnceAsync(ct)),
+                ("离散量采集功能测试", ct => Vm5.RunOnceAsync(ct)),
+                ("离散量输出功能测试", ct => Vm6.RunOnceAsync(ct)),
+                ("RS422通信功能测试", ct => Vm7.RunOnceAsync(ct)),
+                ("RS422通信自检功能测试", ct => Vm8.RunOnceAsync(ct)),
             };
-
-            if (selectedStepNames == null)
-                return allSteps;
-
-            return allSteps.Where(s => selectedStepNames.Contains(s.Name)).ToArray();
-        }
-
-        private static async Task<string> RunFuelAutoTestAsync(
-            System.Windows.Input.ICommand autoTestCommand,
-            Func<bool> isAutoTestRunning,
-            Func<string> getOverallResult,
-            CancellationToken cancellationToken)
-        {
-            if (autoTestCommand == null)
-                throw new InvalidOperationException("AutoTestCommand is null");
-
-            const int startTimeoutMs = 2000;
-            const int runTimeoutMs = 30 * 60 * 1000;
-
-            await Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                if (autoTestCommand.CanExecute(null))
-                    autoTestCommand.Execute(null);
-            });
-
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            while (!cancellationToken.IsCancellationRequested && sw.ElapsedMilliseconds < startTimeoutMs)
-            {
-                if (isAutoTestRunning != null && isAutoTestRunning())
-                    break;
-                await Task.Delay(50, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (!cancellationToken.IsCancellationRequested && !(isAutoTestRunning?.Invoke() ?? false))
-            {
-                return "不合格";
-            }
-
-            sw.Restart();
-            while (!cancellationToken.IsCancellationRequested && (isAutoTestRunning?.Invoke() ?? false) && sw.ElapsedMilliseconds < runTimeoutMs)
-            {
-                await Task.Delay(200, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (!cancellationToken.IsCancellationRequested && (isAutoTestRunning?.Invoke() ?? false))
-            {
-                try
-                {
-                    await Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        if (autoTestCommand.CanExecute(null))
-                            autoTestCommand.Execute(null);
-                    });
-                }
-                catch
-                {
-                }
-                return "不合格";
-            }
-
-            var r = (getOverallResult?.Invoke() ?? string.Empty).Trim();
-            if (string.Equals(r, "PASS", StringComparison.OrdinalIgnoreCase) || string.Equals(r, "合格", StringComparison.OrdinalIgnoreCase))
-                return "合格";
-            return "不合格";
         }
 
         private void PrepareSingleBoardReport(string boardName)
@@ -1423,6 +1238,14 @@ namespace MeasureControl.Views.Common
             _hydraulicAutoTestVm66 = null;
             _hydraulicAutoTestVm67 = null;
             _hydraulicAutoTestVm68 = null;
+            _fuelAutoTestVm1 = null;
+            _fuelAutoTestVm2 = null;
+            _fuelAutoTestVm3 = null;
+            _fuelAutoTestVm4 = null;
+            _fuelAutoTestVm5 = null;
+            _fuelAutoTestVm6 = null;
+            _fuelAutoTestVm7 = null;
+            _fuelAutoTestVm8 = null;
             try
             {
                 var baseDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "TestResults");
@@ -2120,14 +1943,14 @@ namespace MeasureControl.Views.Common
 
         private void FillFuelBoardExcelReport(string reportPath)
         {
-            var vm1 = ContainerLocator.Container.Resolve<PowerImpedanceTestViewModel>();
-            var vm2 = ContainerLocator.Container.Resolve<SecondaryPowerTestViewModel>();
-            var vm3 = ContainerLocator.Container.Resolve<TemperatureAcquisitionTestViewModel>();
-            var vm4 = ContainerLocator.Container.Resolve<LowVoltageAlarmTestViewModel>();
-            var vm5 = ContainerLocator.Container.Resolve<DiscreteInputTestViewModel>();
-            var vm6 = ContainerLocator.Container.Resolve<DiscreteOutputTestViewModel>();
-            var vm7 = ContainerLocator.Container.Resolve<RS422CommunicationFunctionTestViewModel>();
-            var vm8 = ContainerLocator.Container.Resolve<RS422SelfCheckTestViewModel>();
+            var vm1 = _fuelAutoTestVm1 ?? ContainerLocator.Container.Resolve<PowerImpedanceTestViewModel>();
+            var vm2 = _fuelAutoTestVm2 ?? ContainerLocator.Container.Resolve<SecondaryPowerTestViewModel>();
+            var vm3 = _fuelAutoTestVm3 ?? ContainerLocator.Container.Resolve<LowVoltageAlarmTestViewModel>();
+            var vm4 = _fuelAutoTestVm4 ?? ContainerLocator.Container.Resolve<TemperatureAcquisitionTestViewModel>();
+            var vm5 = _fuelAutoTestVm5 ?? ContainerLocator.Container.Resolve<DiscreteInputTestViewModel>();
+            var vm6 = _fuelAutoTestVm6 ?? ContainerLocator.Container.Resolve<DiscreteOutputTestViewModel>();
+            var vm7 = _fuelAutoTestVm7 ?? ContainerLocator.Container.Resolve<RS422CommunicationFunctionTestViewModel>();
+            var vm8 = _fuelAutoTestVm8 ?? ContainerLocator.Container.Resolve<RS422SelfCheckTestViewModel>();
             if (vm1 == null && vm2 == null && vm3 == null && vm4 == null && vm5 == null && vm6 == null && vm7 == null && vm8 == null)
             {
                 return;
@@ -2244,43 +2067,17 @@ namespace MeasureControl.Views.Common
                 }
 
                 var valueCol = FindColumnByHeader("测试值") ?? 4;
-                var resultCol = FindColumnByHeader("测试结果") ?? 6;
-                var remarkCol = FindColumnByHeader("备注") ?? 7;
+                var singleResultCol = FindColumnByHeader("单项-测试结果") ?? 5;
+                var overallResultCol = FindColumnByHeader("测试结果") ?? 6;
+                var timeCol = FindColumnByHeader("测试时间") ?? 7;
 
-                void WriteRow(int row, string value, string result, string remark)
+                void WriteCell(int row, int col, string value, bool isFailResult = false)
                 {
-                    if (!string.IsNullOrWhiteSpace(value))
-                        SetExcelCellValue(cells, row, valueCol, value);
-                    if (!string.IsNullOrWhiteSpace(result))
-                    {
-                        SetExcelCellValue(cells, row, resultCol, result);
-                        SetExcelCellFontColor(cells, row, resultCol, string.Equals(result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
-                    }
-                    if (!string.IsNullOrWhiteSpace(remark))
-                        SetExcelCellValue(cells, row, remarkCol, remark);
-                }
-
-                string MapFuelTemplateStepToUiStep(string templateStepName)
-                {
-                    var n = (templateStepName ?? string.Empty).Trim();
-                    return n switch
-                    {
-                        "二次供电测试" => "二次电源测试",
-                        "温度采集测试" => "温度采集功能",
-                        "低供电告警功能测试" => "低电压告警功能测试",
-                        "离散量采集测试" => "离散量采集功能测试",
-                        "离散量输出测试" => "离散量输出功能测试",
-                        "RS422通信自检功能测试" => "RS422通信自检测功能测试",
-                        _ => n
-                    };
-                }
-
-                bool IsStepExecuted(string stepName)
-                {
-                    if (_executedFuelTestStepNames == null)
-                        return true;
-                    var uiName = MapFuelTemplateStepToUiStep(stepName);
-                    return _executedFuelTestStepNames.Contains(uiName);
+                    if (string.IsNullOrWhiteSpace(value))
+                        return;
+                    SetExcelCellValue(cells, row, col, value);
+                    if (isFailResult && string.Equals(value, "不合格", StringComparison.OrdinalIgnoreCase))
+                        SetExcelCellFontColor(cells, row, col, 255);
                 }
 
                 void FillStep(string stepName, Action<int> fillRows)
@@ -2288,10 +2085,7 @@ namespace MeasureControl.Views.Common
                     var row = FindRowByText(stepName);
                     if (row.HasValue)
                     {
-                        if (IsStepExecuted(stepName))
-                        {
-                            fillRows(row.Value);
-                        }
+                        fillRows(row.Value);
                     }
                     else
                     {
@@ -2299,75 +2093,89 @@ namespace MeasureControl.Views.Common
                     }
                 }
 
+                var testTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
                 FillStep("电源阻抗测试", row =>
                 {
                     if (vm1 == null)
                         return;
 
-                    var values = new[]
-                    {
-                        FormatNullableNumber(vm1.ImpedanceA),
-                        FormatNullableNumber(vm1.ImpedanceB),
-                        FormatNullableNumber(vm1.ImpedanceC),
-                        FormatNullableNumber(vm1.ImpedanceD)
-                    };
+                    WriteCell(row, valueCol, FormatNullableNumber(vm1.ImpedanceA));
+                    WriteCell(row, singleResultCol, NormalizeFuelStepResult(vm1.ResultA), true);
+                    WriteCell(row + 1, valueCol, FormatNullableNumber(vm1.ImpedanceB));
+                    WriteCell(row + 1, singleResultCol, NormalizeFuelStepResult(vm1.ResultB), true);
+                    WriteCell(row + 2, valueCol, FormatNullableNumber(vm1.ImpedanceC));
+                    WriteCell(row + 2, singleResultCol, NormalizeFuelStepResult(vm1.ResultC), true);
+                    WriteCell(row + 3, valueCol, FormatNullableNumber(vm1.ImpedanceD));
+                    WriteCell(row + 3, singleResultCol, NormalizeFuelStepResult(vm1.ResultD), true);
 
-                    var results = new[]
-                    {
-                        NormalizeFuelStepResult(vm1.ResultA),
-                        NormalizeFuelStepResult(vm1.ResultB),
-                        NormalizeFuelStepResult(vm1.ResultC),
-                        NormalizeFuelStepResult(vm1.ResultD)
-                    };
-
-                    for (var i = 0; i < values.Length; i++)
-                    {
-                        WriteRow(row + i, values[i], results[i], null);
-                    }
-
-                    WriteRow(row, null, NormalizeFuelOverall(vm1.OverallResult), null);
+                    WriteCell(row, overallResultCol, NormalizeFuelOverall(vm1.OverallResult), true);
+                    WriteCell(row, timeCol, testTime);
                 });
 
-                FillStep("二次供电测试", row =>
+                FillStep("二次电源测试", row =>
                 {
                     if (vm2 == null)
                         return;
 
-                    WriteRow(row, FormatNullableNumber(vm2.VoltageValue), NormalizeFuelOverall(vm2.OverallResult), null);
+                    WriteCell(row, valueCol, FormatNullableNumber(vm2.VoltageValue));
+                    WriteCell(row, singleResultCol, NormalizeFuelStepResult(vm2.TestResult), true);
+                    WriteCell(row, overallResultCol, NormalizeFuelOverall(vm2.OverallResult), true);
+                    WriteCell(row, timeCol, testTime);
                 });
 
-                FillStep("温度采集测试", row =>
+                FillStep("低电压告警功能测试", row =>
                 {
                     if (vm3 == null)
                         return;
 
-                    WriteRow(row, FormatNullableNumber(vm3.TemperatureValue), NormalizeFuelOverall(vm3.OverallResult), null);
+                    WriteCell(row, valueCol, FormatNullableNumber(vm3.FlipVoltage));
+                    WriteCell(row, singleResultCol, NormalizeFuelStepResult(vm3.TestResult), true);
+                    WriteCell(row, overallResultCol, NormalizeFuelOverall(vm3.OverallResult), true);
+                    WriteCell(row, timeCol, testTime);
                 });
 
-                FillStep("低供电告警功能测试", row =>
+                FillStep("温度采集功能测试", row =>
                 {
                     if (vm4 == null)
                         return;
 
-                    WriteRow(row, FormatNullableNumber(vm4.FlipVoltage), NormalizeFuelOverall(vm4.OverallResult), null);
+                    WriteCell(row, valueCol, FormatNullableNumber(vm4.TemperatureValue));
+                    WriteCell(row, singleResultCol, NormalizeFuelStepResult(vm4.TestResult), true);
+                    WriteCell(row, overallResultCol, NormalizeFuelOverall(vm4.OverallResult), true);
+                    WriteCell(row, timeCol, testTime);
                 });
 
-                FillStep("离散量采集测试", row =>
+                FillStep("离散量采集功能测试", row =>
                 {
                     if (vm5 == null)
                         return;
 
-                    var remark = $"接地[{vm5.Bank0GroundedResults}] [{vm5.Bank1GroundedResults}] 开路[{vm5.Bank0OpenResults}] [{vm5.Bank1OpenResults}]";
-                    WriteRow(row, null, NormalizeFuelOverall(vm5.OverallResult), remark);
+                    WriteCell(row, singleResultCol, NormalizeFuelStepResult(vm5.GroundedTestResult), true);
+                    var openRow = FindRowByText("开路测试");
+                    if (openRow.HasValue)
+                        WriteCell(openRow.Value, singleResultCol, NormalizeFuelStepResult(vm5.OpenTestResult), true);
+                    WriteCell(row, overallResultCol, NormalizeFuelOverall(vm5.OverallResult), true);
+                    WriteCell(row, timeCol, testTime);
                 });
 
-                FillStep("离散量输出测试", row =>
+                FillStep("离散量输出功能测试", row =>
                 {
                     if (vm6 == null)
                         return;
 
-                    var remark = $"GND={FormatNullableNumber(vm6.ImpedanceGrounded)} OPEN={FormatNullableNumber(vm6.ImpedanceOpen)} J14={FormatNullableNumber(vm6.J14Voltage)}";
-                    WriteRow(row, null, NormalizeFuelOverall(vm6.OverallResult), remark);
+                    WriteCell(row, singleResultCol, NormalizeFuelStepResult(vm6.StepAResult), true);
+                    var openRow = FindRowByText("开路测试：J6对地阻抗");
+                    if (openRow.HasValue)
+                        WriteCell(openRow.Value, singleResultCol, NormalizeFuelStepResult(vm6.StepBResult), true);
+                    var voltageRow = FindRowByText("电压测试：J4电压");
+                    if (voltageRow.HasValue)
+                    {
+                        WriteCell(voltageRow.Value, valueCol, FormatNullableNumber(vm6.J14Voltage));
+                        WriteCell(voltageRow.Value, singleResultCol, NormalizeFuelStepResult(vm6.StepCResult), true);
+                    }
+                    WriteCell(row, overallResultCol, NormalizeFuelOverall(vm6.OverallResult), true);
+                    WriteCell(row, timeCol, testTime);
                 });
 
                 FillStep("RS422通信功能测试", row =>
@@ -2375,11 +2183,12 @@ namespace MeasureControl.Views.Common
                     if (vm7 == null)
                         return;
 
-                    WriteRow(row + 0, null, NormalizeFuelStepResult(vm7.StepAResult), vm7.StepARxData);
-                    WriteRow(row + 1, null, NormalizeFuelStepResult(vm7.StepBResult), vm7.StepBRxData);
-                    WriteRow(row + 2, null, NormalizeFuelStepResult(vm7.StepCResult), vm7.StepCRxData);
-                    WriteRow(row + 3, null, NormalizeFuelStepResult(vm7.StepDResult), vm7.StepDRxData);
-                    WriteRow(row, null, NormalizeFuelOverall(vm7.OverallResult), null);
+                    WriteCell(row, singleResultCol, NormalizeFuelStepResult(vm7.StepAResult), true);
+                    WriteCell(row + 1, singleResultCol, NormalizeFuelStepResult(vm7.StepBResult), true);
+                    WriteCell(row + 2, singleResultCol, NormalizeFuelStepResult(vm7.StepCResult), true);
+                    WriteCell(row + 3, singleResultCol, NormalizeFuelStepResult(vm7.StepDResult), true);
+                    WriteCell(row, overallResultCol, NormalizeFuelOverall(vm7.OverallResult), true);
+                    WriteCell(row, timeCol, testTime);
                 });
 
                 FillStep("RS422通信自检功能测试", row =>
@@ -2387,9 +2196,10 @@ namespace MeasureControl.Views.Common
                     if (vm8 == null)
                         return;
 
-                    WriteRow(row + 0, null, NormalizeFuelStepResult(vm8.StepAResult), vm8.StepARxData);
-                    WriteRow(row + 1, null, NormalizeFuelStepResult(vm8.StepBResult), vm8.StepBRxData);
-                    WriteRow(row, null, NormalizeFuelOverall(vm8.OverallResult), null);
+                    WriteCell(row, singleResultCol, NormalizeFuelStepResult(vm8.StepAResult), true);
+                    WriteCell(row + 1, singleResultCol, NormalizeFuelStepResult(vm8.StepBResult), true);
+                    WriteCell(row, overallResultCol, NormalizeFuelOverall(vm8.OverallResult), true);
+                    WriteCell(row, timeCol, testTime);
                 });
 
                 workbook.GetType().InvokeMember("Save", BindingFlags.InvokeMethod, null, workbook, null);

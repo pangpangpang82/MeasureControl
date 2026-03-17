@@ -427,75 +427,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             });
         }
 
-        private void StartAutoTest()
+        private async void StartAutoTest()
         {
             _opCts?.Cancel();
             _opCts = new CancellationTokenSource();
-            var token = _opCts.Token;
 
-            IsAutoTestRunning = true;
-            ClearResults();
-            AddLog("自动测试开始");
-
-            Task.Run(async () =>
+            try
             {
-                try
-                {
-                    AddLog("步骤1: 初始化硬件设备...");
-                    await InitializeHardwareWithTimeoutAsync(token);
-                    if (token.IsCancellationRequested) return;
-
-                    AddLog("步骤2: 设置初始供电电压17V...");
-                    await SetInitialVoltageAsync(token);
-                    if (token.IsCancellationRequested) return;
-
-                    AddLog("步骤3: 开始梯度降压测试...");
-                    await RunGradientTestAsync(token);
-                    if (token.IsCancellationRequested) return;
-
-                    AddLog("步骤4: 判定测试结果...");
-                    EvaluateTestResult();
-
-                    AddLog("步骤5: 复位硬件...");
-                    await ResetHardwareAsync(token);
-
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                        IsAutoTestRunning = false;
-                    });
-
-                    AddLog($"自动测试完成，结果: {TestResult}");
-                }
-                catch (TimeoutException ex)
-                {
-                    AddLog($"超时: {ex.Message}");
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        ReMessageBox.Show(ex.Message, "超时提示",
-                            MessageBoxButton.OK, MessageBoxImage.Warning);
-                    });
-                    try { await ResetHardwareAsync(CancellationToken.None); } catch { }
-                    Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
-                }
-                catch (OperationCanceledException)
-                {
-                    AddLog("测试已取消");
-                    try { await ResetHardwareAsync(CancellationToken.None); } catch { }
-                    Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"错误: {ex.Message}");
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        ReMessageBox.Show($"测试出错: {ex.Message}", "错误",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
-                    });
-                    try { await ResetHardwareAsync(CancellationToken.None); } catch { }
-                    Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
-                }
-            });
+                await ExecuteAutoTestAsync(_opCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // 已在 ExecuteAutoTestAsync 中处理
+            }
+            catch (Exception ex)
+            {
+                AddLog($"自动测试异常: {ex.Message}");
+            }
+            finally
+            {
+                _opCts?.Dispose();
+                _opCts = null;
+            }
         }
 
         private void StopAutoTest()
@@ -518,6 +471,78 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
                 }
             });
+        }
+
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                _opCts?.Cancel();
+                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            _opCts?.Cancel();
+            _opCts?.Dispose();
+            _opCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                return await ExecuteAutoTestAsync(_opCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
+
+        private async Task<string> ExecuteAutoTestAsync(CancellationToken token)
+        {
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsAutoTestRunning = true;
+                ClearResults();
+            });
+            AddLog("自动测试开始");
+
+            try
+            {
+                AddLog("步骤1: 初始化硬件设备...");
+                await InitializeHardwareWithTimeoutAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                AddLog("步骤2: 设置初始电压（28V）...");
+                await SetInitialVoltageAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                AddLog("步骤3: 开始梯度降压测试...");
+                await RunGradientTestAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                AddLog("步骤4: 判定测试结果...");
+                EvaluateTestResult();
+
+                AddLog("步骤5: 复位硬件...");
+                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                AddLog($"自动测试完成，结果: {OverallResult}");
+
+                return OverallResult;
+            }
+            catch (OperationCanceledException)
+            {
+                AddLog("自动测试已取消");
+                try { await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                throw;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"自动测试异常: {ex.Message}");
+                try { await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                return "不合格";
+            }
         }
 
         #endregion
