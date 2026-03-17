@@ -17,6 +17,7 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
         private static readonly byte[] A_TransmitCommand8 = { 0x04, 0x01, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] B_ReceiveCommand8 = { 0x04, 0x01, 0x02, 0x03, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] TestData4 = { 0x7F, 0x00, 0xAA, 0x55 };
+        private static readonly byte[] TestPayload8 = { 0x7F, 0x00, 0xAA, 0x55, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
         private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
@@ -57,6 +58,9 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
                     foreach (var item in list)
                     {
                         if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
+                            continue;
+
+                        if (sdi != 0)
                             continue;
 
                         if (EnableFrameLogging && rxLogCount < maxRxLog)
@@ -211,6 +215,9 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
                 if (!TryParseWord(item.Data429, out byte label, out byte sdi, out ushort payload))
                     continue;
 
+                if (sdi != 0)
+                    continue;
+
                 if (!assembler.TryAddFragment(label, payload, DateTime.UtcNow, out var cmd8) || cmd8 == null)
                     continue;
 
@@ -234,7 +241,7 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
                 {
                     log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到A发送指令 -> A通道发送测试数据");
                     _cachedLoopbackData4 = TestData4.ToArray();
-                    await SendTwoFrameOnChannelAsync(simTxIndex, ProductTxFragmentLabels[0], ProductTxFragmentLabels[1], TestData4, log, token);
+                    await SendMultiLabelFrameOnChannelAsync(simTxIndex, ProductTxFragmentLabels, TestPayload8, log, token);
                     continue;
                 }
 
@@ -242,7 +249,12 @@ namespace MeasureControl.Simulations.A_C_6_5_1_2
                 {
                     var data = _cachedLoopbackData4 ?? TestData4.ToArray();
                     log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到B接收回传指令 -> 回传缓存数据");
-                    await SendTwoFrameOnChannelAsync(simTxIndex, ProductTxFragmentLabels[0], ProductTxFragmentLabels[1], data, log, token);
+                    var payload8 = new byte[8];
+                    payload8[0] = data[0];
+                    payload8[1] = data[1];
+                    payload8[2] = data[2];
+                    payload8[3] = data[3];
+                    await SendMultiLabelFrameOnChannelAsync(simTxIndex, ProductTxFragmentLabels, payload8, log, token);
                     continue;
                 }
             }

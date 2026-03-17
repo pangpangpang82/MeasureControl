@@ -28,6 +28,33 @@ namespace MeasureControl.Simulations.A_C_6_5_2_3
         private DateTime _dataFirstSeenUtc;
         private byte[] _cachedReceivedData4;
 
+        public async Task SendBenchWord32Async(string benchTxChannel, uint word32, Action<string> log, CancellationToken token)
+        {
+            if (!_started || _arincDriver == null)
+                throw new InvalidOperationException("Simulation not started");
+
+            int txIndex = ParseChannelIndex(benchTxChannel);
+            uint raw = word32 & 0x7FFFFFFF;
+            uint sendWord = ApplyParity(raw);
+
+            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送32位: tx={txIndex}, word32=0x{raw:X8}");
+
+            var data429 = new[] { sendWord };
+            var parity = new uint[] { 1 };
+
+            await _arincIoLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                var ok = await _arincDriver.SendDataSingleAsync(txIndex, data429, parity);
+                if (!ok)
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 32位发送失败: tx={txIndex}");
+            }
+            finally
+            {
+                _arincIoLock.Release();
+            }
+        }
+
         public async Task SendBenchCommandOnlyAsync(string benchTxChannel, byte[] command8, Action<string> log, CancellationToken token)
         {
             if (!_started || _arincDriver == null)
@@ -213,6 +240,22 @@ namespace MeasureControl.Simulations.A_C_6_5_2_3
             {
                 if (!TryParseWord(item.Data429, out byte label, out byte sdi, out ushort payload))
                     continue;
+
+                // 32位ARINC429数据：当不是命令分片(label=0x31..0x34)也不是旧的2帧拼包数据(label=0x09/0x0A)时，直接缓存完整32位数据
+                if (label != BenchTxFragmentLabels[0] && label != BenchTxFragmentLabels[1] && label != BenchTxFragmentLabels[2] && label != BenchTxFragmentLabels[3]
+                    && label != ProductTxFragmentLabels[0] && label != ProductTxFragmentLabels[1] && label != ProductTxFragmentLabels[2] && label != ProductTxFragmentLabels[3])
+                {
+                    uint raw = item.Data429 & 0x7FFFFFFF;
+                    var b = new byte[4];
+                    b[0] = (byte)((raw >> 24) & 0xFF);
+                    b[1] = (byte)((raw >> 16) & 0xFF);
+                    b[2] = (byte)((raw >> 8) & 0xFF);
+                    b[3] = (byte)(raw & 0xFF);
+
+                    _cachedReceivedData4 = b;
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到32位测试数据并缓存: word32=0x{raw:X8}");
+                    continue;
+                }
 
                 var now = DateTime.UtcNow;
 

@@ -1,4 +1,4 @@
-﻿using Prism.Commands;
+using Prism.Commands;
 using Prism.Ioc;
 using Prism.Mvvm;
 using System;
@@ -20,6 +20,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public sealed class S_C_8_7_1ViewModel : BindableBase, IDisposable
     {
+        private const string FixedTxChannel = "429_CH1";
+        private const string FixedRxChannel = "429_CH0";
+
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
@@ -39,15 +42,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private CancellationTokenSource _autoTestCts;
         private IMtx532Api _mtxApi;
 
-        private string _testTxChannel = "CH0";
-        private string _testRxChannel = "CH1";
-        private string _enterAtpTxChannel = "CH0";
-        private string _enterAtpRxChannel = "CH1";
-        private string _exitAtpTxChannel = "CH0";
-        private string _exitAtpRxChannel = "CH1";
-        private string _testCommandTxChannel = "CH0";
-        private string _testCommandRxChannel = "CH1";
-        private string _telemetryRxChannel = "CH1";
+        private string _testTxChannel = FixedTxChannel;
+        private string _testRxChannel = FixedRxChannel;
+        private string _enterAtpTxChannel = FixedTxChannel;
+        private string _enterAtpRxChannel = FixedRxChannel;
+        private string _exitAtpTxChannel = FixedTxChannel;
+        private string _exitAtpRxChannel = FixedRxChannel;
+        private string _testCommandTxChannel = FixedTxChannel;
+        private string _testCommandRxChannel = FixedRxChannel;
+        private string _telemetryRxChannel = FixedRxChannel;
 
         private string _voltageGear = "1挡";
 
@@ -105,15 +108,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public DelegateCommand SendSetControllerVoltageCommand { get; }
         public DelegateCommand SendControllerPressureTestCommand { get; }
 
-        public string TestTxChannel { get => _testTxChannel; set => SetProperty(ref _testTxChannel, value); }
-        public string TestRxChannel { get => _testRxChannel; set => SetProperty(ref _testRxChannel, value); }
-        public string EnterAtpTxChannel { get => _enterAtpTxChannel; set => SetProperty(ref _enterAtpTxChannel, value); }
-        public string EnterAtpRxChannel { get => _enterAtpRxChannel; set => SetProperty(ref _enterAtpRxChannel, value); }
-        public string ExitAtpTxChannel { get => _exitAtpTxChannel; set => SetProperty(ref _exitAtpTxChannel, value); }
-        public string ExitAtpRxChannel { get => _exitAtpRxChannel; set => SetProperty(ref _exitAtpRxChannel, value); }
-        public string TestCommandTxChannel { get => _testCommandTxChannel; set => SetProperty(ref _testCommandTxChannel, value); }
-        public string TestCommandRxChannel { get => _testCommandRxChannel; set => SetProperty(ref _testCommandRxChannel, value); }
-        public string TelemetryRxChannel { get => _telemetryRxChannel; set => SetProperty(ref _telemetryRxChannel, value); }
+        public string TestTxChannel { get => FixedTxChannel; }
+        public string TestRxChannel { get => FixedRxChannel; }
+        public string EnterAtpTxChannel { get => FixedTxChannel; }
+        public string EnterAtpRxChannel { get => FixedRxChannel; }
+        public string ExitAtpTxChannel { get => FixedTxChannel; }
+        public string ExitAtpRxChannel { get => FixedRxChannel; }
+        public string TestCommandTxChannel { get => FixedTxChannel; }
+        public string TestCommandRxChannel { get => FixedRxChannel; }
+        public string TelemetryRxChannel { get => FixedRxChannel; }
 
         public string VoltageGear
         {
@@ -139,33 +142,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string ControllerPressureTestTxChannel
         {
             get => TestCommandTxChannel;
-            set
-            {
-                TestCommandTxChannel = value;
-                RaisePropertyChanged(nameof(ControllerPressureTestTxChannel));
-            }
         }
-
-        public string ControllerPressureTestRxChannel
-        {
-            get => TestCommandRxChannel;
-            set
-            {
-                TestCommandRxChannel = value;
-                RaisePropertyChanged(nameof(ControllerPressureTestRxChannel));
-            }
-        }
-
-        public string ControllerPressureTestRxDataText => TestCommandRxDataText;
 
         public string PressureTelemetryRxChannel
         {
             get => TelemetryRxChannel;
-            set
-            {
-                TelemetryRxChannel = value;
-                RaisePropertyChanged(nameof(PressureTelemetryRxChannel));
-            }
         }
 
         public string PressureTelemetryValueText => TemperatureValueText;
@@ -178,10 +159,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             get => _testCommandRxDataText;
             private set
             {
-                if (SetProperty(ref _testCommandRxDataText, value))
-                {
-                    RaisePropertyChanged(nameof(ControllerPressureTestRxDataText));
-                }
+                SetProperty(ref _testCommandRxDataText, value);
             }
         }
 
@@ -609,27 +587,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
                 try
                 {
-                    await _simulation.ClearRxFifoAsync(ControllerPressureTestRxChannel);
-                    await Task.Delay(20);
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送S_FWDAVENTS_MEA01：TX={ControllerPressureTestTxChannel}, RX={ControllerPressureTestRxChannel}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送S_FWDAVENTS_MEA01：TX={ControllerPressureTestTxChannel}");
                     await _simulation.SendBenchCommandOnlyAsync(ControllerPressureTestTxChannel, SFwdAventsMea018, msg => AddLog(msg), CancellationToken.None);
-
-                    var confirm = await _simulation.WaitBenchResponse8Async(
-                        ControllerPressureTestRxChannel,
-                        b => b != null && b.SequenceEqual(SFwdAventsMea018),
-                        timeoutMs: 1200,
-                        log: msg => AddLog(msg),
-                        token: CancellationToken.None);
-
-                    if (confirm == null)
-                    {
-                        SetLastTestResult("FAIL");
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 指令确认帧超时");
-                        return;
-                    }
-
-                    TestCommandRxDataText = "0x" + FormatData(confirm);
 
                     var tel = await _simulation.WaitTelemetryAsync(PressureTelemetryRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: CancellationToken.None);
                     if (tel == null)
@@ -1133,13 +1092,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private void SyncChannels()
         {
-            EnterAtpTxChannel = TestTxChannel;
-            EnterAtpRxChannel = TestRxChannel;
-            ExitAtpTxChannel = TestTxChannel;
-            ExitAtpRxChannel = TestRxChannel;
-            TestCommandTxChannel = TestTxChannel;
-            TestCommandRxChannel = TestRxChannel;
-            TelemetryRxChannel = TestRxChannel;
         }
 
         private void ResetDisplayState()

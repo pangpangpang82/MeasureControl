@@ -102,11 +102,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _projectService = projectService;
             _eventAggregator = eventAggregator;
             _enterAtpTxChannel = "429_CH0";
-            _enterAtpRxChannel = "429_CH1";
-            _setVoltageTxChannel = "429_CH2";
-            _telemetryRxChannel = "429_CH3";
-            _exitAtpTxChannel = "429_CH8";
-            _exitAtpRxChannel = "429_CH9";
+            _enterAtpRxChannel = "429_CH2";
+            _setVoltageTxChannel = "429_CH0";
+            _telemetryRxChannel = "429_CH2";
+            _exitAtpTxChannel = "429_CH0";
+            _exitAtpRxChannel = "429_CH2";
 
             DmmVoltageText = "--";
             TelemetryVoltageText = "--";
@@ -902,9 +902,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 catch { }
 
-                // 自动测试使用固定通道：TX=429_CH0, RX=429_CH1
+                // 自动测试使用固定通道：TX=429_CH0, RX=429_CH2
                 const string autoTxChannel = "429_CH0";
-                const string autoRxChannel = "429_CH1";
+                const string autoRxChannel = "429_CH2";
                 const int stepTimeoutMs = 30000;
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");

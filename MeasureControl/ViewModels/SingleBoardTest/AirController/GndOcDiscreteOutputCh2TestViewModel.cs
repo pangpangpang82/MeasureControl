@@ -1,4 +1,4 @@
-﻿using Prism.Commands;
+using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -12,6 +12,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
     public class GndOcDiscreteOutputCh2TestViewModel : BindableBase
     {
         private const byte DefaultLabel = 0x6A;
+        private const string FixedTxChannelDisplay = "429_CH0";
+        private const string FixedRxChannelDisplay = "429_CH2";
 
         private static readonly byte[] EnterAtpCommand = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
@@ -51,12 +53,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _ocDsi34RxDataText = "--";
         private string _exitAtpRxDataText = "--";
 
-        private string _enterAtpTxChannelDisplay = "CH0";
-        private string _enterAtpRxChannelDisplay = "CH1";
-        private string _testTxChannelDisplay = "CH2";
-        private string _testRxChannelDisplay = "CH3";
-        private string _exitAtpTxChannelDisplay = "CH8";
-        private string _exitAtpRxChannelDisplay = "CH9";
+        private string _enterAtpTxChannelDisplay = FixedTxChannelDisplay;
+        private string _enterAtpRxChannelDisplay = FixedRxChannelDisplay;
+        private string _testTxChannelDisplay = FixedTxChannelDisplay;
+        private string _testRxChannelDisplay = FixedRxChannelDisplay;
+        private string _exitAtpTxChannelDisplay = FixedTxChannelDisplay;
+        private string _exitAtpRxChannelDisplay = FixedRxChannelDisplay;
 
         public GndOcDiscreteOutputCh2TestViewModel()
         {
@@ -96,40 +98,48 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string EnterAtpTxChannelDisplay
         {
             get => _enterAtpTxChannelDisplay;
-            set => SetProperty(ref _enterAtpTxChannelDisplay, value);
+            set => SetProperty(ref _enterAtpTxChannelDisplay, FixedTxChannelDisplay);
         }
 
         public string EnterAtpRxChannelDisplay
         {
             get => _enterAtpRxChannelDisplay;
-            set => SetProperty(ref _enterAtpRxChannelDisplay, value);
+            set => SetProperty(ref _enterAtpRxChannelDisplay, FixedRxChannelDisplay);
         }
 
         public string TestTxChannelDisplay
         {
             get => _testTxChannelDisplay;
-            set => SetProperty(ref _testTxChannelDisplay, value);
+            set => SetProperty(ref _testTxChannelDisplay, FixedTxChannelDisplay);
         }
 
         public string TestRxChannelDisplay
         {
             get => _testRxChannelDisplay;
-            set => SetProperty(ref _testRxChannelDisplay, value);
+            set => SetProperty(ref _testRxChannelDisplay, FixedRxChannelDisplay);
         }
 
         public string ExitAtpTxChannelDisplay
         {
             get => _exitAtpTxChannelDisplay;
-            set => SetProperty(ref _exitAtpTxChannelDisplay, value);
+            set => SetProperty(ref _exitAtpTxChannelDisplay, FixedTxChannelDisplay);
         }
 
         public string ExitAtpRxChannelDisplay
         {
             get => _exitAtpRxChannelDisplay;
-            set => SetProperty(ref _exitAtpRxChannelDisplay, value);
+            set => SetProperty(ref _exitAtpRxChannelDisplay, FixedRxChannelDisplay);
         }
 
-        private static string ToSimChannel(string display) => display?.Replace("CH", "429_CH") ?? "429_CH0";
+        private static string ToSimChannel(string display)
+        {
+            if (string.IsNullOrWhiteSpace(display))
+                return "429_CH0";
+            var trimmed = display.Trim();
+            if (trimmed.StartsWith("429_CH", StringComparison.OrdinalIgnoreCase))
+                return trimmed;
+            return trimmed.Replace("CH", "429_CH");
+        }
 
         public string EnterAtpRxDataText
         {

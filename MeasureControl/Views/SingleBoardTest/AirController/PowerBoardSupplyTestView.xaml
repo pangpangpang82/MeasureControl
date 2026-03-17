@@ -9,16 +9,6 @@
     d:DesignWidth="970"
     mc:Ignorable="d">
     <UserControl.Resources>
-        <x:Array x:Key="Arinc429Channels" Type="sys:String">
-            <sys:String>429_CH0</sys:String>
-            <sys:String>429_CH1</sys:String>
-            <sys:String>429_CH2</sys:String>
-            <sys:String>429_CH3</sys:String>
-            <sys:String>429_CH4</sys:String>
-            <sys:String>429_CH5</sys:String>
-            <sys:String>429_CH6</sys:String>
-            <sys:String>429_CH7</sys:String>
-        </x:Array>
         <x:Array x:Key="DmmChannels" Type="sys:String">
             <sys:String>Port1</sys:String>
             <sys:String>Port2</sys:String>
@@ -285,12 +275,16 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="TX" />
+
                             <ComboBox
                                 Width="100"
                                 Height="28"
                                 Margin="5,0,0,0"
                                 HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
                                 FontSize="12"
+                                IsEnabled="{Binding CanEditStepControls}"
+                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                                 ItemsSource="{StaticResource Arinc429Channels}"
                                 SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
                             <Border
@@ -328,12 +322,16 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="RX" />
+
                             <ComboBox
                                 Width="100"
                                 Height="28"
                                 Margin="5,0,0,0"
                                 HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
                                 FontSize="12"
+                                IsEnabled="{Binding CanEditStepControls}"
+                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                                 ItemsSource="{StaticResource Arinc429Channels}"
                                 SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
                             <Border
@@ -369,12 +367,16 @@
                             VerticalAlignment="Center"
                             FontSize="14"
                             Text="TX" />
+
                         <ComboBox
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
                             HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
                             FontSize="12"
+                            IsEnabled="{Binding CanEditStepControls}"
+                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
                             SelectedItem="{Binding CommandTxChannel, Mode=TwoWay}" />
                         <Border
@@ -433,9 +435,6 @@
                                 FontSize="14"
                                 Text="{Binding DmmVoltageText}" />
                         </Border>
-
-
-
                     </StackPanel>
 
                     <StackPanel
@@ -452,12 +451,16 @@
                             VerticalAlignment="Center"
                             FontSize="14"
                             Text="RX" />
+
                         <ComboBox
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
                             HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
                             FontSize="12"
+                            IsEnabled="{Binding CanEditStepControls}"
+                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
                             SelectedItem="{Binding TelemetryRxChannel, Mode=TwoWay}" />
                         <Border
@@ -511,12 +514,16 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="TX" />
+
                             <ComboBox
                                 Width="100"
                                 Height="28"
                                 Margin="5,0,0,0"
                                 HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
                                 FontSize="12"
+                                IsEnabled="{Binding CanEditStepControls}"
+                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                                 ItemsSource="{StaticResource Arinc429Channels}"
                                 SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
                             <Border
@@ -554,12 +561,16 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="RX" />
+
                             <ComboBox
                                 Width="100"
                                 Height="28"
                                 Margin="5,0,0,0"
                                 HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
                                 FontSize="12"
+                                IsEnabled="{Binding CanEditStepControls}"
+                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                                 ItemsSource="{StaticResource Arinc429Channels}"
                                 SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}" />
                             <Border
