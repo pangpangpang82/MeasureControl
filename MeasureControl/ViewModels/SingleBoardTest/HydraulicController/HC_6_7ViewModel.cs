@@ -38,7 +38,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const byte AtpLabelDec = 16; // 十进制
         private const byte AtpStatusLabelDec = 20;
         private const byte AtpStatusLabelDec2 = 102;
-        private const byte PbitLabelDec = 20;
+        private const byte PbitLabelDec = 21;
         private const byte SsmNormal = 0;
         private const bool UsePeriodicAtpRequest = true;
         private const string TestItemName = "离散量采集测试";
@@ -98,15 +98,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private bool _isRelay485On;
         private bool _txOpened;
         private CancellationTokenSource _atpRequestLoopCts;
-        private bool _canMeasure;
-        private bool _measured14;
-        private bool _manualAborted;
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private bool _isManualTestInitializing;
         private bool _isAutoTestInitializing;
         private bool _isManualTestStopping;
         private bool _isAutoTestStopping;
+        private bool _canMeasure;
+        private bool _measured14;
+        private bool _manualAborted;
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
         private string _previousTestTime = "--";
@@ -361,7 +361,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnManualTestAsync()
         {
-            if (IsManualTestRunning)
+            if (IsManualTestStopping)
+            {
+                return;
+            }
+
+            if (IsManualTestRunning || IsManualTestInitializing)
             {
                 await StopManualTestAsync().ConfigureAwait(false);
                 return;
@@ -406,7 +411,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnAutoTestAsync()
         {
-            if (IsAutoTestRunning)
+            if (IsAutoTestStopping)
+            {
+                return;
+            }
+
+            if (IsAutoTestRunning || IsAutoTestInitializing)
             {
                 await StopAutoTestAsync().ConfigureAwait(false);
                 return;
@@ -628,6 +638,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task StopManualTestAsync()
         {
+            if (IsManualTestStopping)
+            {
+                return;
+            }
+
             IsManualTestStopping = true;
             IsManualTestInitializing = false;
             try { CanMeasure = false; _manualCts?.Cancel(); } catch { }
@@ -649,6 +664,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task StopAutoTestAsync()
         {
+            if (IsAutoTestStopping)
+            {
+                return;
+            }
+
             IsAutoTestStopping = true;
             IsAutoTestInitializing = false;
             try { _autoCts?.Cancel(); } catch { }
@@ -768,7 +788,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return;
 
             var bit12 = ((data19 >> 2) & 0x1u) == 1u;
-            var pinValue = bit12 ? "1" : "0";
+            var pinValue = bit12 ? "0" : "1";
             
             values[99] = pinValue;
             values[100] = pinValue;
