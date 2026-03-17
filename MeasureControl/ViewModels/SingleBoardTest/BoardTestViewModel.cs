@@ -60,15 +60,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "6.5.2.5A控制通道ARINC接收通道5测试", () => new A_C_6_5_2_5View() },
                         { "6.5.2.6A控制通道ARINC接收通道6测试", () => new A_C_6_5_2_6View() },
                         { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
-                        { "8.3.2 S安全通道ARINC429接收通道1测试", () => new S_C_8_3_2View() },
-                        { "8.3.3 S安全通道ARINC429接收通道2测试", () => new S_C_8_3_3View() },
-                        { "8.10.1 S通道OFV/TRV直流电机驱动模块速度控制测试", () => new S_C_8_10_1View() },
                         { "7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试", () => new A_C_7_3_1_1_2View() },
                         { "7.3.1.2 A控制通道功率板RATA直流电机驱动模块速度控制测试", () => new A_C_7_3_1_2View() },
                         { "7.3.1.3 A控制通道功率板RATA直流电机驱动模块方向控制测试", () => new A_C_7_3_1_3View() },
                         { "7.3.2.2 A控制通道功率板AVV直流电机驱动模块速度控制测试", () => new A_C_7_3_2_2View() },
                         { "7.3.3.2 B控制通道PWM/FPGA速度控制测试", () => new B_C_7_3_3_2View() },
                         { "7.4.1.1A控制通道功率板TCV步进电机驱动模块输出测试", () => new A_C_7_4_1_1View() },
+                        { "7.4.1.2 A控制通道功率板TCV步进电机驱动模块方向测试", () => new A_C_7_4_1_2View() },
                         { "7.5.1.1.2 A控制通道功率板FAV力矩电机驱动模块测试", () => new A_C_7_5_1_1_2View() },
                         { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
                         { "6.2.1A控制通道供电测试", () => new AirSimpleSequenceView("6.2.1A控制通道供电测试") },
@@ -195,6 +193,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "7.1功率板电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
                         { "7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试", "\t a) 接入50±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS；\r\n\t b) 接入12±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS。" },
                         { "7.4.1.1A控制通道功率板TCV步进电机驱动模块输出测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J96与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.1.2 A控制通道功率板TCV步进电机驱动模块方向测试", "\t a) 发送DIR高电平指令(0A 55 02 07 05)；\r\n\t b) 检测J96(第一相)与J98(第二相)输出波形并判断相位差；\r\n\t c) 发送DIR低电平指令(0A 55 02 07 0D)；\r\n\t d) 检测J96(第一相)与J98(第二相)输出波形并判断相位差；\r\n\t e) DIR高电平：J98相位落后J96约90°±20°为PASS；DIR低电平：J98相位落后J96约270°±20°为PASS。" },
                         { "7.5.1.1.2 A控制通道功率板FAV力矩电机驱动模块测试", "\t a) 电流设定0mA：DMM测量电压在[0.0，0.41]V且电流回采在[0.0，0.03]A为PASS；\r\n\t b) 电流设定400mA：DMM测量电压在[15.21，16.81]V且电流回采在[0.37，0.43]A为PASS。" },
                         { "6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
                         { "6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
@@ -640,6 +639,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("7.3.2.2 A控制通道功率板AVV直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.3.3.2 B控制通道PWM/FPGA速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.4.1.1A控制通道功率板TCV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.1.2 A控制通道功率板TCV步进电机驱动模块方向测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.5.1.1.2 A控制通道功率板FAV力矩电机驱动模块测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.1控制通道PDTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.2控制通道MIXTS传感器测试"));
