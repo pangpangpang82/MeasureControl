@@ -19,8 +19,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
     {
         private const string FixedATxChannel = "429_CH3";
         private const string FixedARxChannel = "429_CH1";
-        private const string FixedBTxChannel = "429_CH2";
-        private const string FixedBRxChannel = "429_CH0";
+        private const string FixedBTxChannel = "429_CH3";
+        private const string FixedBRxChannel = "429_CH1";
 
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
@@ -451,13 +451,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送A通道发送指令：{FormatBytes(A_TransmitCommand8)}");
                     await _simulation.SendBenchCommandOnlyAsync(ATxChannel, A_TransmitCommand8, msg => AddLog(msg), token);
 
-                    var data4 = await _simulation.WaitBenchResponse4Async(ARxChannel, timeoutMs: 1200, log: msg => AddLog(msg), token: token);
-                    if (data4 == null)
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待接收4包数据(LABEL=0x09/0x0A/0x0B/0x0C)...");
+                    var resp8 = await _simulation.WaitBenchResponse8Async(ARxChannel, isExpected: null, timeoutMs: 1200, log: msg => AddLog(msg), token: token);
+                    if (resp8 == null || resp8.Length != 8)
                     {
                         AddLog($"[{DateTime.Now:HH:mm:ss}] A通道测试数据超时");
                         CurrentStepImage = CreateImageSource("/Resources/Logo/warning.png");
                         return;
                     }
+
+                    var data4 = resp8.Take(4).ToArray();
 
                     ARxDataText = $"0x{FormatBytesHex(data4)}";
                     AddLog($"[{DateTime.Now:HH:mm:ss}] A通道收到测试数据");
@@ -498,13 +501,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送B通道接收回传指令：{FormatBytes(B_ReceiveCommand8)}");
                     await _simulation.SendBenchCommandOnlyAsync(BTxChannel, B_ReceiveCommand8, msg => AddLog(msg), token);
 
-                    var data4 = await _simulation.WaitBenchResponse4Async(BRxChannel, timeoutMs: 1200, log: msg => AddLog(msg), token: token);
-                    if (data4 == null)
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待接收4包数据(LABEL=0x09/0x0A/0x0B/0x0C)...");
+                    var resp8 = await _simulation.WaitBenchResponse8Async(BRxChannel, isExpected: null, timeoutMs: 1200, log: msg => AddLog(msg), token: token);
+                    if (resp8 == null || resp8.Length != 8)
                     {
                         AddLog($"[{DateTime.Now:HH:mm:ss}] B通道回传数据超时");
                         CurrentStepImage = CreateImageSource("/Resources/Logo/warning.png");
                         return;
                     }
+
+                    var data4 = resp8.Take(4).ToArray();
 
                     BRxDataText = $"0x{FormatBytesHex(data4)}";
                     AddLog($"[{DateTime.Now:HH:mm:ss}] B通道收到回传数据");
@@ -674,8 +680,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     await Task.Delay(20, token);
                     await _simulation.SendBenchCommandOnlyAsync(ATxChannel, A_TransmitCommand8, msg => AddLog(msg), token);
 
-                    var aData4 = await _simulation.WaitBenchResponse4Async(ARxChannel, timeoutMs: 1200, log: msg => AddLog(msg), token: token);
-                    if (aData4 == null)
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待接收4包数据(LABEL=0x09/0x0A/0x0B/0x0C)...");
+                    var aResp8 = await _simulation.WaitBenchResponse8Async(ARxChannel, isExpected: null, timeoutMs: 1200, log: msg => AddLog(msg), token: token);
+                    if (aResp8 == null || aResp8.Length != 8)
                     {
                         SetLastTestResult("FAIL");
                         CurrentStepImage = CreateImageSource("/Resources/Logo/warning.png");
@@ -683,6 +690,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         return;
                     }
 
+                    var aData4 = aResp8.Take(4).ToArray();
                     ARxDataText = $"0x{FormatBytesHex(aData4)}";
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：B通道回传接收数据");
@@ -691,8 +699,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     await Task.Delay(20, token);
                     await _simulation.SendBenchCommandOnlyAsync(BTxChannel, B_ReceiveCommand8, msg => AddLog(msg), token);
 
-                    var bData4 = await _simulation.WaitBenchResponse4Async(BRxChannel, timeoutMs: 1200, log: msg => AddLog(msg), token: token);
-                    if (bData4 == null)
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待接收4包数据(LABEL=0x09/0x0A/0x0B/0x0C)...");
+                    var bResp8 = await _simulation.WaitBenchResponse8Async(BRxChannel, isExpected: null, timeoutMs: 1200, log: msg => AddLog(msg), token: token);
+                    if (bResp8 == null || bResp8.Length != 8)
                     {
                         SetLastTestResult("FAIL");
                         CurrentStepImage = CreateImageSource("/Resources/Logo/warning.png");
@@ -700,6 +709,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         return;
                     }
 
+                    var bData4 = bResp8.Take(4).ToArray();
                     BRxDataText = $"0x{FormatBytesHex(bData4)}";
 
                     bool pass = aData4.SequenceEqual(TestData4) && bData4.SequenceEqual(TestData4);

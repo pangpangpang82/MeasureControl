@@ -22,44 +22,6 @@
 
             </ResourceDictionary.MergedDictionaries>
 
-
-
-            <x:Array x:Key="Arinc429Channels" Type="sys:String">
-
-                <sys:String>CH0</sys:String>
-
-                <sys:String>CH1</sys:String>
-
-                <sys:String>CH2</sys:String>
-
-                <sys:String>CH3</sys:String>
-
-                <sys:String>CH4</sys:String>
-
-                <sys:String>CH5</sys:String>
-
-                <sys:String>CH6</sys:String>
-
-                <sys:String>CH7</sys:String>
-
-                <sys:String>CH8</sys:String>
-
-                <sys:String>CH9</sys:String>
-
-                <sys:String>CH10</sys:String>
-
-                <sys:String>CH11</sys:String>
-
-                <sys:String>CH12</sys:String>
-
-                <sys:String>CH13</sys:String>
-
-                <sys:String>CH14</sys:String>
-
-                <sys:String>CH15</sys:String>
-
-            </x:Array>
-
         </ResourceDictionary>
 
     </UserControl.Resources>
@@ -486,16 +448,22 @@
                             FontSize="14"
                             Text="TX" />
 
-                        <ComboBox
+                        <Border
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding EnterAtpTxChannel}" />
+                        </Border>
 
 
 
@@ -596,16 +564,22 @@
                             FontSize="14"
                             Text="RX" />
 
-                        <ComboBox
+                        <Border
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding EnterAtpRxChannel}" />
+                        </Border>
 
 
 
@@ -791,16 +765,22 @@
                             FontSize="14"
                             Text="TX" />
 
-                        <ComboBox
+                        <Border
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding FingerTestTxChannel, Mode=TwoWay}" />
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding FingerTestTxChannel}" />
+                        </Border>
 
 
 
@@ -890,51 +870,6 @@
 
 
 
-                    <StackPanel
-                        Grid.Row="1"
-                        Grid.Column="1"
-                        Margin="0"
-                        Orientation="Horizontal">
-
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="RX" />
-
-                        <ComboBox
-                            Width="100"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding FingerTestRxChannel, Mode=TwoWay}" />
-
-
-
-                        <Border
-                            Width="180"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="AliceBlue"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding FingerTestRxDataText}" />
-
-                        </Border>
-
-                    </StackPanel>
-
                 </Grid>
 
 
@@ -958,16 +893,22 @@
                         FontSize="14"
                         Text="RX" />
 
-                    <ComboBox
+                    <Border
                         Width="100"
                         Height="28"
                         Margin="5,0,0,0"
-                        HorizontalAlignment="Left"
-                        FontSize="12"
-                        IsEnabled="{Binding CanEditStepControls}"
-                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                        ItemsSource="{StaticResource Arinc429Channels}"
-                        SelectedItem="{Binding FingerTelemetryRxChannel, Mode=TwoWay}" />
+                        VerticalAlignment="Center"
+                        Background="AliceBlue"
+                        BorderBrush="#D9D9D9"
+                        BorderThickness="1"
+                        CornerRadius="3">
+                        <TextBlock
+                            Margin="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Text="{Binding FingerTelemetryRxChannel}" />
+                    </Border>
 
 
 
@@ -1119,16 +1060,22 @@
                             FontSize="14"
                             Text="TX" />
 
-                        <ComboBox
+                        <Border
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding ExitAtpTxChannel}" />
+                        </Border>
 
 
 
@@ -1229,16 +1176,22 @@
                             FontSize="14"
                             Text="RX" />
 
-                        <ComboBox
+                        <Border
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}" />
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding ExitAtpRxChannel}" />
+                        </Border>
 
 
 

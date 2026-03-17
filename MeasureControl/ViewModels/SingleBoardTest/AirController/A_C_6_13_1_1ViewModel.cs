@@ -1,4 +1,4 @@
-﻿using Prism.Commands;
+using Prism.Commands;
 
 using Prism.Mvvm;
 
@@ -61,6 +61,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
         private const string AoChannel = "AO1";
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
 
 
 
@@ -190,33 +192,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         {
 
-            _testTxChannel = "CH0";
+            _testTxChannel = FixedTxChannel;
 
-            _testRxChannel = "CH1";
+            _testRxChannel = FixedRxChannel;
 
-
-
-            _controllerPressureTestTxChannel = null;
-
-            _controllerPressureTestRxChannel = null;
+            // 固定通道显示/使用（与 6.13.2 一致：界面下拉框禁用，仅做固定展示）
+            _enterAtpTxChannel = _testTxChannel;
+            _enterAtpRxChannel = _testRxChannel;
+            _controllerPressureTestTxChannel = _testTxChannel;
+            _controllerPressureTestRxChannel = _testRxChannel;
+            _pressureTelemetryRxChannel = _testRxChannel;
+            _exitAtpTxChannel = _testTxChannel;
+            _exitAtpRxChannel = _testRxChannel;
 
             _controllerPressureTestRxDataText = "--";
-
-
-
-            _pressureTelemetryRxChannel = null;
-
-
-
-            _enterAtpTxChannel = null;
-
-            _enterAtpRxChannel = null;
-
-            _exitAtpTxChannel = null;
-
-            _exitAtpRxChannel = null;
-
-
 
             VoltageSetValueText = "--";
 
@@ -1547,13 +1536,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         {
 
-            var tx = FirstNonEmpty(EnterAtpTxChannel, ExitAtpTxChannel, ControllerPressureTestTxChannel, TestTxChannel);
+            var tx = FixedTxChannel;
 
-            var rx = FirstNonEmpty(EnterAtpRxChannel, ExitAtpRxChannel, ControllerPressureTestRxChannel, PressureTelemetryRxChannel, TestRxChannel);
-
-            tx ??= "CH0";
-
-            rx ??= "CH1";
+            var rx = FixedRxChannel;
 
 
 
@@ -1563,21 +1548,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            EnterAtpTxChannel ??= tx;
+            EnterAtpTxChannel = tx;
 
-            EnterAtpRxChannel ??= rx;
+            EnterAtpRxChannel = rx;
 
-            ExitAtpTxChannel ??= tx;
+            ExitAtpTxChannel = tx;
 
-            ExitAtpRxChannel ??= rx;
+            ExitAtpRxChannel = rx;
 
 
 
-            ControllerPressureTestTxChannel ??= tx;
+            ControllerPressureTestTxChannel = tx;
 
-            ControllerPressureTestRxChannel ??= rx;
+            ControllerPressureTestRxChannel = rx;
 
-            PressureTelemetryRxChannel ??= rx;
+            PressureTelemetryRxChannel = rx;
 
         }
 

@@ -13,27 +13,7 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="/Styles/ScrollBarStyles.xaml" />
-                <ResourceDictionary Source="/Styles/ComboBoxStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
-
-            <x:Array x:Key="Arinc429Channels" Type="sys:String">
-                <sys:String>CH0</sys:String>
-                <sys:String>CH1</sys:String>
-                <sys:String>CH2</sys:String>
-                <sys:String>CH3</sys:String>
-                <sys:String>CH4</sys:String>
-                <sys:String>CH5</sys:String>
-                <sys:String>CH6</sys:String>
-                <sys:String>CH7</sys:String>
-                <sys:String>CH8</sys:String>
-                <sys:String>CH9</sys:String>
-                <sys:String>CH10</sys:String>
-                <sys:String>CH11</sys:String>
-                <sys:String>CH12</sys:String>
-                <sys:String>CH13</sys:String>
-                <sys:String>CH14</sys:String>
-                <sys:String>CH15</sys:String>
-            </x:Array>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -351,26 +331,11 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Margin="5" Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            Text="进入ATP模式：" />
-                        <TextBlock
-                            Margin="0,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="TX" />
-                        <ComboBox
-                            Width="80"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding TestTxChannel, Mode=TwoWay}"
-                            Style="{StaticResource CustomComboBoxStyle}" />
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="进入ATP模式：" />
+                        <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                        <Border Width="80" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TestTxChannel}" />
+                        </Border>
 
                         <Border
                             Width="220"
@@ -429,25 +394,11 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="1"
-                        Margin="115,5,5,5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="RX" />
-                        <ComboBox
-                            Width="80"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding TestRxChannel, Mode=TwoWay}"
-                            Style="{StaticResource CustomComboBoxStyle}" />
+                    <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="RX" />
+                        <Border Width="80" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TestRxChannel}" />
+                        </Border>
 
                         <Border
                             Width="220"
@@ -482,26 +433,11 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Margin="5" Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            Text="PH引脚高电平：" />
-                        <TextBlock
-                            Margin="0,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="TX" />
-                        <ComboBox
-                            Width="80"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding TestTxChannel, Mode=TwoWay}"
-                            Style="{StaticResource CustomComboBoxStyle}" />
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="PH引脚高电平：" />
+                        <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                        <Border Width="80" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TestTxChannel}" />
+                        </Border>
 
                         <Border
                             Width="220"
@@ -586,30 +522,12 @@
                         </Border>
                     </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="2"
-                        Margin="5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            Text="PH引脚低电平：" />
-                        <TextBlock
-                            Margin="0,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="TX" />
-                        <ComboBox
-                            Width="80"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding TestTxChannel, Mode=TwoWay}"
-                            Style="{StaticResource CustomComboBoxStyle}" />
+                    <StackPanel Grid.Row="2" Margin="5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="PH引脚低电平：" />
+                        <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                        <Border Width="80" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TestTxChannel}" />
+                        </Border>
 
                         <Border
                             Width="220"
@@ -694,30 +612,12 @@
                         </Border>
                     </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="4"
-                        Margin="5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            Text="退出ATP模式：" />
-                        <TextBlock
-                            Margin="0,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="TX" />
-                        <ComboBox
-                            Width="80"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding TestTxChannel, Mode=TwoWay}"
-                            Style="{StaticResource CustomComboBoxStyle}" />
+                    <StackPanel Grid.Row="4" Margin="5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="退出ATP模式：" />
+                        <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                        <Border Width="80" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TestTxChannel}" />
+                        </Border>
 
                         <Border
                             Width="220"
@@ -775,25 +675,11 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="5"
-                        Margin="115,5,5,5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="RX" />
-                        <ComboBox
-                            Width="80"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding TestRxChannel, Mode=TwoWay}"
-                            Style="{StaticResource CustomComboBoxStyle}" />
+                    <StackPanel Grid.Row="5" Margin="115,5,5,5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="RX" />
+                        <Border Width="80" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TestRxChannel}" />
+                        </Border>
 
                         <Border
                             Width="220"
