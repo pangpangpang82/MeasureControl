@@ -567,17 +567,17 @@
                                 FontSize="14"
                                 Text="Mode Code：" />
                             <Border
-    BorderBrush="#D9D9D9"
-    BorderThickness="1"
-    CornerRadius="3">
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
                                 <TextBox
-        Width="100"
-        Height="26"
-        Margin="1"
-        VerticalAlignment="Center"
-        BorderThickness="0"
-                                Style="{StaticResource TextBoxStyle}"
-                                Text="{Binding ModeCode, UpdateSourceTrigger=PropertyChanged}">
+                                    Width="100"
+                                    Height="26"
+                                    Margin="1"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Style="{StaticResource TextBoxStyle}"
+                                    Text="{Binding ModeCode, UpdateSourceTrigger=PropertyChanged}">
                                     <TextBox.ToolTip>
                                         <ToolTip Content="0-31" />
                                     </TextBox.ToolTip>

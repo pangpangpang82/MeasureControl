@@ -178,6 +178,29 @@ namespace MeasureControl.Drivers
             }
         }
 
+        public void SetEnabledChannels(IEnumerable<string> enabledAoChannels)
+        {
+            foreach (var key in _channelConfigs.Keys.ToList())
+            {
+                _channelConfigs[key].Enabled = false;
+            }
+
+            if (enabledAoChannels == null)
+                return;
+
+            foreach (var rawChannel in enabledAoChannels)
+            {
+                if (string.IsNullOrWhiteSpace(rawChannel))
+                    continue;
+
+                var channelId = rawChannel.Trim();
+                if (_channelConfigs.TryGetValue(channelId, out var config))
+                {
+                    config.Enabled = true;
+                }
+            }
+        }
+
         /// <summary>
         /// 连接到 MT-X532 硬件设备
         /// 

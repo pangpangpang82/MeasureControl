@@ -184,7 +184,13 @@
                         Text="测试步骤（组件下电状态）" />
 
                     <StackPanel Grid.Row="1" Margin="10,5,10,5">
-                        <Border Margin="0,0,0,0" Background="#fef3c7" BorderBrush="#f59e0b" BorderThickness="1" CornerRadius="6" Padding="6">
+                        <Border
+                            Margin="0,0,0,0"
+                            Padding="6"
+                            Background="#fef3c7"
+                            BorderBrush="#f59e0b"
+                            BorderThickness="1"
+                            CornerRadius="6">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
@@ -192,9 +198,23 @@
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="前置条件：" FontWeight="Bold" VerticalAlignment="Center" Foreground="#92400e" />
-                                <TextBlock Grid.Column="1" Text="组件下电，通过动作继电器将产品与试验台隔离" VerticalAlignment="Center" Foreground="#92400e" Margin="5,0" />
-                                <Border Grid.Column="2" CornerRadius="4" Padding="8,3" Margin="5,0">
+                                <TextBlock
+                                    Grid.Column="0"
+                                    VerticalAlignment="Center"
+                                    FontWeight="Bold"
+                                    Foreground="#92400e"
+                                    Text="前置条件：" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Margin="5,0"
+                                    VerticalAlignment="Center"
+                                    Foreground="#92400e"
+                                    Text="组件下电，通过动作继电器将产品与试验台隔离" />
+                                <Border
+                                    Grid.Column="2"
+                                    Margin="5,0"
+                                    Padding="8,3"
+                                    CornerRadius="4">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="#fecaca" />
@@ -205,7 +225,10 @@
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
-                                    <TextBlock Text="{Binding PowerStatus}" FontWeight="Bold" VerticalAlignment="Center">
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        FontWeight="Bold"
+                                        Text="{Binding PowerStatus}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="#dc2626" />
@@ -218,7 +241,11 @@
                                         </TextBlock.Style>
                                     </TextBlock>
                                 </Border>
-                                <Button Grid.Column="3" Command="{Binding ToggleRelayCommand}" Height="28" Margin="5,0,0,0">
+                                <Button
+                                    Grid.Column="3"
+                                    Height="28"
+                                    Margin="5,0,0,0"
+                                    Command="{Binding ToggleRelayCommand}">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Content" Value="激活" />
@@ -228,7 +255,10 @@
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="Button">
-                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="12,3">
+                                                        <Border
+                                                            Padding="12,3"
+                                                            Background="{TemplateBinding Background}"
+                                                            CornerRadius="4">
                                                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Border>
                                                     </ControlTemplate>
@@ -252,7 +282,13 @@
                             </Grid>
                         </Border>
 
-                        <Border Margin="0,5,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="6">
+                        <Border
+                            Margin="0,5,0,0"
+                            Padding="6"
+                            Background="#f8fafc"
+                            BorderBrush="#e2e8f0"
+                            BorderThickness="1"
+                            CornerRadius="6">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -271,18 +307,78 @@
                                     <ColumnDefinition Width="90" />
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="序号" Margin="5" />
-                                <TextBlock Grid.Row="0" Grid.Column="1" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="测试项目" Margin="5" />
-                                <TextBlock Grid.Row="0" Grid.Column="2" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="测量值(Ω)" Margin="5" />
-                                <TextBlock Grid.Row="0" Grid.Column="3" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="结果" Margin="5" />
-                                <TextBlock Grid.Row="0" Grid.Column="4" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="操作" Margin="5" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontWeight="Bold"
+                                    Text="序号" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontWeight="Bold"
+                                    Text="测试项目" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="2"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontWeight="Bold"
+                                    Text="测量值(Ω)" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="3"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontWeight="Bold"
+                                    Text="结果" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="4"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontWeight="Bold"
+                                    Text="操作" />
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="a)" Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <TextBlock Grid.Row="1" Grid.Column="1" Text="28V_IN 对地阻抗" Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <Border Grid.Row="1" Grid.Column="2" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="5" Padding="5,3">
-                                    <TextBlock Text="{Binding ImpedanceA, StringFormat={}{0:F1}}" HorizontalAlignment="Center" />
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Grid.Column="0"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Text="a)" />
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Grid.Column="1"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Text="28V_IN 对地阻抗" />
+                                <Border
+                                    Grid.Row="1"
+                                    Grid.Column="2"
+                                    Margin="5"
+                                    Padding="5,3"
+                                    Background="White"
+                                    BorderBrush="#d1d5db"
+                                    BorderThickness="1"
+                                    CornerRadius="4">
+                                    <TextBlock HorizontalAlignment="Center" Text="{Binding ImpedanceA, StringFormat={}{0:F1}}" />
                                 </Border>
-                                <Border Grid.Row="1" Grid.Column="3" CornerRadius="4" Margin="5" Padding="5,3">
+                                <Border
+                                    Grid.Row="1"
+                                    Grid.Column="3"
+                                    Margin="5"
+                                    Padding="5,3"
+                                    CornerRadius="4">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="#f3f4f6" />
@@ -296,7 +392,10 @@
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
-                                    <TextBlock Text="{Binding ResultA}" HorizontalAlignment="Center" FontWeight="Bold">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        FontWeight="Bold"
+                                        Text="{Binding ResultA}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="#6b7280" />
@@ -312,7 +411,13 @@
                                         </TextBlock.Style>
                                     </TextBlock>
                                 </Border>
-                                <Button Grid.Row="1" Grid.Column="4" Content="测量" Margin="5" Command="{Binding MeasureACommand}" Height="26">
+                                <Button
+                                    Grid.Row="1"
+                                    Grid.Column="4"
+                                    Height="26"
+                                    Margin="5"
+                                    Command="{Binding MeasureACommand}"
+                                    Content="测量">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Background" Value="#3b82f6" />
@@ -321,7 +426,10 @@
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="Button">
-                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="10,3">
+                                                        <Border
+                                                            Padding="10,3"
+                                                            Background="{TemplateBinding Background}"
+                                                            CornerRadius="4">
                                                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Border>
                                                     </ControlTemplate>
@@ -339,12 +447,37 @@
                                     </Button.Style>
                                 </Button>
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="b)" Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <TextBlock Grid.Row="2" Grid.Column="1" Text="+15V 对地阻抗" Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <Border Grid.Row="2" Grid.Column="2" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="5" Padding="5,3">
-                                    <TextBlock Text="{Binding ImpedanceB, StringFormat={}{0:F1}}" HorizontalAlignment="Center" />
+                                <TextBlock
+                                    Grid.Row="2"
+                                    Grid.Column="0"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Text="b)" />
+                                <TextBlock
+                                    Grid.Row="2"
+                                    Grid.Column="1"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Text="+15V 对地阻抗" />
+                                <Border
+                                    Grid.Row="2"
+                                    Grid.Column="2"
+                                    Margin="5"
+                                    Padding="5,3"
+                                    Background="White"
+                                    BorderBrush="#d1d5db"
+                                    BorderThickness="1"
+                                    CornerRadius="4">
+                                    <TextBlock HorizontalAlignment="Center" Text="{Binding ImpedanceB, StringFormat={}{0:F1}}" />
                                 </Border>
-                                <Border Grid.Row="2" Grid.Column="3" CornerRadius="4" Margin="5" Padding="5,3">
+                                <Border
+                                    Grid.Row="2"
+                                    Grid.Column="3"
+                                    Margin="5"
+                                    Padding="5,3"
+                                    CornerRadius="4">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="#f3f4f6" />
@@ -358,7 +491,10 @@
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
-                                    <TextBlock Text="{Binding ResultB}" HorizontalAlignment="Center" FontWeight="Bold">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        FontWeight="Bold"
+                                        Text="{Binding ResultB}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="#6b7280" />
@@ -374,7 +510,13 @@
                                         </TextBlock.Style>
                                     </TextBlock>
                                 </Border>
-                                <Button Grid.Row="2" Grid.Column="4" Content="测量" Margin="5" Command="{Binding MeasureBCommand}" Height="26">
+                                <Button
+                                    Grid.Row="2"
+                                    Grid.Column="4"
+                                    Height="26"
+                                    Margin="5"
+                                    Command="{Binding MeasureBCommand}"
+                                    Content="测量">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Background" Value="#3b82f6" />
@@ -383,7 +525,10 @@
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="Button">
-                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="10,3">
+                                                        <Border
+                                                            Padding="10,3"
+                                                            Background="{TemplateBinding Background}"
+                                                            CornerRadius="4">
                                                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Border>
                                                     </ControlTemplate>
@@ -401,12 +546,37 @@
                                     </Button.Style>
                                 </Button>
 
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="c)" Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <TextBlock Grid.Row="3" Grid.Column="1" Text="-15V 对地阻抗" Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <Border Grid.Row="3" Grid.Column="2" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="5" Padding="5,3">
-                                    <TextBlock Text="{Binding ImpedanceC, StringFormat={}{0:F1}}" HorizontalAlignment="Center" />
+                                <TextBlock
+                                    Grid.Row="3"
+                                    Grid.Column="0"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Text="c)" />
+                                <TextBlock
+                                    Grid.Row="3"
+                                    Grid.Column="1"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Text="-15V 对地阻抗" />
+                                <Border
+                                    Grid.Row="3"
+                                    Grid.Column="2"
+                                    Margin="5"
+                                    Padding="5,3"
+                                    Background="White"
+                                    BorderBrush="#d1d5db"
+                                    BorderThickness="1"
+                                    CornerRadius="4">
+                                    <TextBlock HorizontalAlignment="Center" Text="{Binding ImpedanceC, StringFormat={}{0:F1}}" />
                                 </Border>
-                                <Border Grid.Row="3" Grid.Column="3" CornerRadius="4" Margin="5" Padding="5,3">
+                                <Border
+                                    Grid.Row="3"
+                                    Grid.Column="3"
+                                    Margin="5"
+                                    Padding="5,3"
+                                    CornerRadius="4">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="#f3f4f6" />
@@ -420,7 +590,10 @@
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
-                                    <TextBlock Text="{Binding ResultC}" HorizontalAlignment="Center" FontWeight="Bold">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        FontWeight="Bold"
+                                        Text="{Binding ResultC}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="#6b7280" />
@@ -436,7 +609,13 @@
                                         </TextBlock.Style>
                                     </TextBlock>
                                 </Border>
-                                <Button Grid.Row="3" Grid.Column="4" Content="测量" Margin="5" Command="{Binding MeasureCCommand}" Height="26">
+                                <Button
+                                    Grid.Row="3"
+                                    Grid.Column="4"
+                                    Height="26"
+                                    Margin="5"
+                                    Command="{Binding MeasureCCommand}"
+                                    Content="测量">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Background" Value="#3b82f6" />
@@ -445,7 +624,10 @@
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="Button">
-                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="10,3">
+                                                        <Border
+                                                            Padding="10,3"
+                                                            Background="{TemplateBinding Background}"
+                                                            CornerRadius="4">
                                                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Border>
                                                     </ControlTemplate>
@@ -463,12 +645,37 @@
                                     </Button.Style>
                                 </Button>
 
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="d)" Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <TextBlock Grid.Row="4" Grid.Column="1" Text="5V 对地阻抗" Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <Border Grid.Row="4" Grid.Column="2" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="5" Padding="5,3">
-                                    <TextBlock Text="{Binding ImpedanceD, StringFormat={}{0:F1}}" HorizontalAlignment="Center" />
+                                <TextBlock
+                                    Grid.Row="4"
+                                    Grid.Column="0"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Text="d)" />
+                                <TextBlock
+                                    Grid.Row="4"
+                                    Grid.Column="1"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Text="5V 对地阻抗" />
+                                <Border
+                                    Grid.Row="4"
+                                    Grid.Column="2"
+                                    Margin="5"
+                                    Padding="5,3"
+                                    Background="White"
+                                    BorderBrush="#d1d5db"
+                                    BorderThickness="1"
+                                    CornerRadius="4">
+                                    <TextBlock HorizontalAlignment="Center" Text="{Binding ImpedanceD, StringFormat={}{0:F1}}" />
                                 </Border>
-                                <Border Grid.Row="4" Grid.Column="3" CornerRadius="4" Margin="5" Padding="5,3">
+                                <Border
+                                    Grid.Row="4"
+                                    Grid.Column="3"
+                                    Margin="5"
+                                    Padding="5,3"
+                                    CornerRadius="4">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="#f3f4f6" />
@@ -482,7 +689,10 @@
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
-                                    <TextBlock Text="{Binding ResultD}" HorizontalAlignment="Center" FontWeight="Bold">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        FontWeight="Bold"
+                                        Text="{Binding ResultD}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="#6b7280" />
@@ -498,7 +708,13 @@
                                         </TextBlock.Style>
                                     </TextBlock>
                                 </Border>
-                                <Button Grid.Row="4" Grid.Column="4" Content="测量" Margin="5" Command="{Binding MeasureDCommand}" Height="26">
+                                <Button
+                                    Grid.Row="4"
+                                    Grid.Column="4"
+                                    Height="26"
+                                    Margin="5"
+                                    Command="{Binding MeasureDCommand}"
+                                    Content="测量">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Background" Value="#3b82f6" />
@@ -507,7 +723,10 @@
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="Button">
-                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="10,3">
+                                                        <Border
+                                                            Padding="10,3"
+                                                            Background="{TemplateBinding Background}"
+                                                            CornerRadius="4">
                                                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Border>
                                                     </ControlTemplate>
@@ -525,12 +744,37 @@
                                     </Button.Style>
                                 </Button>
 
-                                <TextBlock Grid.Row="5" Grid.Column="0" Text="e)" Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <TextBlock Grid.Row="5" Grid.Column="1" Text="3.3V 对地阻抗" Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <Border Grid.Row="5" Grid.Column="2" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="5" Padding="5,3">
-                                    <TextBlock Text="{Binding ImpedanceE, StringFormat={}{0:F1}}" HorizontalAlignment="Center" />
+                                <TextBlock
+                                    Grid.Row="5"
+                                    Grid.Column="0"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Text="e)" />
+                                <TextBlock
+                                    Grid.Row="5"
+                                    Grid.Column="1"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Text="3.3V 对地阻抗" />
+                                <Border
+                                    Grid.Row="5"
+                                    Grid.Column="2"
+                                    Margin="5"
+                                    Padding="5,3"
+                                    Background="White"
+                                    BorderBrush="#d1d5db"
+                                    BorderThickness="1"
+                                    CornerRadius="4">
+                                    <TextBlock HorizontalAlignment="Center" Text="{Binding ImpedanceE, StringFormat={}{0:F1}}" />
                                 </Border>
-                                <Border Grid.Row="5" Grid.Column="3" CornerRadius="4" Margin="5" Padding="5,3">
+                                <Border
+                                    Grid.Row="5"
+                                    Grid.Column="3"
+                                    Margin="5"
+                                    Padding="5,3"
+                                    CornerRadius="4">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="#f3f4f6" />
@@ -544,7 +788,10 @@
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
-                                    <TextBlock Text="{Binding ResultE}" HorizontalAlignment="Center" FontWeight="Bold">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        FontWeight="Bold"
+                                        Text="{Binding ResultE}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="#6b7280" />
@@ -560,7 +807,13 @@
                                         </TextBlock.Style>
                                     </TextBlock>
                                 </Border>
-                                <Button Grid.Row="5" Grid.Column="4" Content="测量" Margin="5" Command="{Binding MeasureECommand}" Height="26">
+                                <Button
+                                    Grid.Row="5"
+                                    Grid.Column="4"
+                                    Height="26"
+                                    Margin="5"
+                                    Command="{Binding MeasureECommand}"
+                                    Content="测量">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Background" Value="#3b82f6" />
@@ -569,7 +822,10 @@
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="Button">
-                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="10,3">
+                                                        <Border
+                                                            Padding="10,3"
+                                                            Background="{TemplateBinding Background}"
+                                                            CornerRadius="4">
                                                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Border>
                                                     </ControlTemplate>
@@ -587,12 +843,37 @@
                                     </Button.Style>
                                 </Button>
 
-                                <TextBlock Grid.Row="6" Grid.Column="0" Text="f)" Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <TextBlock Grid.Row="6" Grid.Column="1" Text="1.5V 对地阻抗" Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <Border Grid.Row="6" Grid.Column="2" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="5" Padding="5,3">
-                                    <TextBlock Text="{Binding ImpedanceF, StringFormat={}{0:F1}}" HorizontalAlignment="Center" />
+                                <TextBlock
+                                    Grid.Row="6"
+                                    Grid.Column="0"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Text="f)" />
+                                <TextBlock
+                                    Grid.Row="6"
+                                    Grid.Column="1"
+                                    Margin="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Text="1.5V 对地阻抗" />
+                                <Border
+                                    Grid.Row="6"
+                                    Grid.Column="2"
+                                    Margin="5"
+                                    Padding="5,3"
+                                    Background="White"
+                                    BorderBrush="#d1d5db"
+                                    BorderThickness="1"
+                                    CornerRadius="4">
+                                    <TextBlock HorizontalAlignment="Center" Text="{Binding ImpedanceF, StringFormat={}{0:F1}}" />
                                 </Border>
-                                <Border Grid.Row="6" Grid.Column="3" CornerRadius="4" Margin="5" Padding="5,3">
+                                <Border
+                                    Grid.Row="6"
+                                    Grid.Column="3"
+                                    Margin="5"
+                                    Padding="5,3"
+                                    CornerRadius="4">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="#f3f4f6" />
@@ -606,7 +887,10 @@
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
-                                    <TextBlock Text="{Binding ResultF}" HorizontalAlignment="Center" FontWeight="Bold">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        FontWeight="Bold"
+                                        Text="{Binding ResultF}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="#6b7280" />
@@ -622,7 +906,13 @@
                                         </TextBlock.Style>
                                     </TextBlock>
                                 </Border>
-                                <Button Grid.Row="6" Grid.Column="4" Content="测量" Margin="5" Command="{Binding MeasureFCommand}" Height="26">
+                                <Button
+                                    Grid.Row="6"
+                                    Grid.Column="4"
+                                    Height="26"
+                                    Margin="5"
+                                    Command="{Binding MeasureFCommand}"
+                                    Content="测量">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Background" Value="#3b82f6" />
@@ -631,7 +921,10 @@
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="Button">
-                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="10,3">
+                                                        <Border
+                                                            Padding="10,3"
+                                                            Background="{TemplateBinding Background}"
+                                                            CornerRadius="4">
                                                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Border>
                                                     </ControlTemplate>
@@ -651,10 +944,22 @@
                             </Grid>
                         </Border>
 
-                        <Border Margin="0,10,0,0" Background="#f0fdf4" BorderBrush="#22c55e" BorderThickness="1" CornerRadius="6" Padding="6">
+                        <Border
+                            Margin="0,10,0,0"
+                            Padding="6"
+                            Background="#f0fdf4"
+                            BorderBrush="#22c55e"
+                            BorderThickness="1"
+                            CornerRadius="6">
                             <StackPanel>
-                                <TextBlock FontWeight="Bold" Foreground="#166534" Text="测试判据：" />
-                                <TextBlock Margin="0,5,0,0" Foreground="#166534" Text="电源的对地阻抗应不小于200Ω。" />
+                                <TextBlock
+                                    FontWeight="Bold"
+                                    Foreground="#166534"
+                                    Text="测试判据：" />
+                                <TextBlock
+                                    Margin="0,5,0,0"
+                                    Foreground="#166534"
+                                    Text="电源的对地阻抗应不小于200Ω。" />
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -677,7 +982,11 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Margin="10,10,0,5" FontSize="16" FontWeight="Bold" Text="测试日志" />
+                                <TextBlock
+                                    Margin="10,10,0,5"
+                                    FontSize="16"
+                                    FontWeight="Bold"
+                                    Text="测试日志" />
                                 <Button
                                     Grid.Column="1"
                                     Width="80"
@@ -688,7 +997,10 @@
                                     Command="{Binding ClearLogCommand}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="4">
                                                 <TextBlock
                                                     HorizontalAlignment="Center"
                                                     VerticalAlignment="Center"
@@ -712,12 +1024,22 @@
                                     </Button.Template>
                                 </Button>
                             </Grid>
-                            <Border Grid.Row="1" Margin="5" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4">
+                            <Border
+                                Grid.Row="1"
+                                Margin="5"
+                                Background="White"
+                                BorderBrush="#d1d5db"
+                                BorderThickness="1"
+                                CornerRadius="4">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding Logs}" Margin="5">
+                                    <ItemsControl Margin="5" ItemsSource="{Binding Logs}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" Margin="0,1" />
+                                                <TextBlock
+                                                    Margin="0,1"
+                                                    FontSize="12"
+                                                    Text="{Binding}"
+                                                    TextWrapping="Wrap" />
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -735,9 +1057,18 @@
                 BorderBrush="#D9D9D9"
                 BorderThickness="1.5"
                 CornerRadius="8">
-                <StackPanel Orientation="Horizontal" Margin="10,5">
-                    <TextBlock Text="综合结果：" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding OverallResult}" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" Margin="5,0,0,0">
+                <StackPanel Margin="10,5" Orientation="Horizontal">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Text="综合结果：" />
+                    <TextBlock
+                        Margin="5,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Text="{Binding OverallResult}">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Foreground" Value="#6b7280" />
@@ -752,8 +1083,15 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
-                    <TextBlock Text="上次测试时间：" FontSize="14" VerticalAlignment="Center" Margin="20,0,5,0" />
-                    <TextBlock Text="{Binding LastTestTime}" FontSize="14" VerticalAlignment="Center" />
+                    <TextBlock
+                        Margin="20,0,5,0"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="上次测试时间：" />
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="{Binding LastTestTime}" />
                 </StackPanel>
             </Border>
         </Grid>

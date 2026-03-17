@@ -51,8 +51,7 @@
     <Grid
         x:Name="RootGrid"
         Background="White"
-        Focusable="True"
-        PreviewMouseDown="RootGrid_PreviewMouseDown">
+        Focusable="True">
         <Grid.RowDefinitions>
             <RowDefinition Height="0.8*" />
             <RowDefinition Height="6*" />
@@ -73,8 +72,7 @@
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center"
                     FontSize="24"
-                    FontWeight="Bold"
-                    ><Run Language="zh-cn" Text="6.10.6A控制通道PIFS传感器测试"/></TextBlock>
+                    FontWeight="Bold"><Run Language="zh-cn" Text="6.10.6A控制通道PIFS传感器测试" /></TextBlock>
 
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                     <Button
@@ -254,15 +252,19 @@
                 </Grid.ColumnDefinitions>
 
                 <TextBlock
+                    Grid.ColumnSpan="2"
+                    Height="26"
                     Margin="10,0,0,0"
                     VerticalAlignment="Center"
                     FontSize="20"
                     FontWeight="Bold"
-                    Text="测试步骤"
-                    Height="26"
-                    Grid.ColumnSpan="2" />
+                    Text="测试步骤" />
 
-                <Grid Grid.Row="1" Margin="0,0,0,69" Grid.RowSpan="2" Grid.ColumnSpan="2">
+                <Grid
+                    Grid.Row="1"
+                    Grid.RowSpan="2"
+                    Grid.ColumnSpan="2"
+                    Margin="0,0,0,69">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
@@ -354,6 +356,7 @@
                                 </ControlTemplate>
                             </Button.Template>
                         </Button>
+
                     </StackPanel>
 
                     <StackPanel Grid.Row="1" Grid.Column="1" Margin="0" Orientation="Horizontal">
@@ -394,22 +397,24 @@
                     </StackPanel>
                 </Grid>
 
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Grid.ColumnSpan="2">
+                <StackPanel
+                    Grid.Row="2"
+                    Grid.ColumnSpan="2"
+                    Orientation="Horizontal">
                     <TextBlock
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
-                        FontSize="16"
-                        ><Run Text="2.接入电"/><Run Language="zh-cn" Text="压"/><Run Text="："/></TextBlock>
+                        FontSize="16"><Run Text="2.接入电" /><Run Language="zh-cn" Text="压" /><Run Text="：" /></TextBlock>
                     <ComboBox
                         Width="100"
                         Height="28"
                         Margin="0,0,0,0"
                         HorizontalAlignment="Left"
                         FontSize="12"
-                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                        SelectedValuePath="Content"
                         IsEnabled="{Binding CanEditStepControls}"
-                        SelectedValue="{Binding VoltageGear, Mode=TwoWay}">
+                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                        SelectedValue="{Binding VoltageGear, Mode=TwoWay}"
+                        SelectedValuePath="Content">
                         <ComboBoxItem Content="1挡" />
                         <ComboBoxItem Content="2挡" />
                         <ComboBoxItem Content="3挡" />
@@ -423,7 +428,12 @@
                         BorderBrush="#D9D9D9"
                         BorderThickness="1"
                         CornerRadius="3">
-                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding VoltageSetValueText}" />
+                        <TextBlock
+                            Margin="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Text="{Binding VoltageSetValueText}" />
                     </Border>
 
                     <Button
@@ -466,7 +476,11 @@
                     </Button>
                 </StackPanel>
 
-                <Grid Grid.Row="2" Margin="0,69,0,0" Grid.RowSpan="2" Grid.ColumnSpan="2">
+                <Grid
+                    Grid.Row="2"
+                    Grid.RowSpan="2"
+                    Grid.ColumnSpan="2"
+                    Margin="0,69,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
@@ -481,8 +495,7 @@
                         Grid.Column="0"
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
-                        FontSize="16"
-                        ><Run Text="3.控制器"/><Run Language="zh-cn" Text="压力"/><Run Text="测试："/></TextBlock>
+                        FontSize="16"><Run Text="3.控制器" /><Run Language="zh-cn" Text="压力" /><Run Text="测试：" /></TextBlock>
 
                     <StackPanel Grid.Row="0" Grid.Column="1" Margin="0" Orientation="Horizontal">
                         <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
@@ -560,9 +573,50 @@
                         </Button>
                     </StackPanel>
 
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0" Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
+                        <Border
+                            Width="100"
+                            Height="28"
+                            Margin="5,0,0,0"
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding ControllerPressureTestRxChannel}" />
+                        </Border>
+
+                        <Border
+                            Width="180"
+                            Height="28"
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding ControllerPressureTestRxDataText}" />
+                        </Border>
+                    </StackPanel>
                 </Grid>
 
-                <StackPanel Grid.Row="3" Margin="0,69,0,0" Orientation="Horizontal" Grid.RowSpan="2" Grid.ColumnSpan="2">
+                <StackPanel
+                    Grid.Row="3"
+                    Grid.RowSpan="2"
+                    Grid.ColumnSpan="2"
+                    Margin="0,69,0,0"
+                    Orientation="Horizontal">
                     <TextBlock
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
@@ -594,7 +648,12 @@
                         BorderBrush="#D9D9D9"
                         BorderThickness="1"
                         CornerRadius="3">
-                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="{Binding PressureTelemetryValueText}" />
+                        <TextBlock
+                            Margin="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="{Binding PressureTelemetryValueText}" />
                     </Border>
 
                     <Border
@@ -606,11 +665,19 @@
                         BorderBrush="#D9D9D9"
                         BorderThickness="1"
                         CornerRadius="3">
-                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding PressureTelemetryRxDataText}" />
+                        <TextBlock
+                            Margin="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Text="{Binding PressureTelemetryRxDataText}" />
                     </Border>
                 </StackPanel>
 
-                <Grid Grid.Row="5" Margin="2,2,2,12" Grid.ColumnSpan="2">
+                <Grid
+                    Grid.Row="5"
+                    Grid.ColumnSpan="2"
+                    Margin="2,2,2,12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
@@ -702,6 +769,7 @@
                                 </ControlTemplate>
                             </Button.Template>
                         </Button>
+
                     </StackPanel>
 
                     <StackPanel Grid.Row="1" Grid.Column="1" Margin="0" Orientation="Horizontal">
@@ -744,10 +812,10 @@
 
                 <StackPanel
                     Grid.Row="0"
+                    Grid.RowSpan="2"
                     Grid.Column="2"
                     Margin="0,0,0,69"
-                    Orientation="Horizontal"
-                    Grid.RowSpan="2">
+                    Orientation="Horizontal">
                     <TextBlock
                         VerticalAlignment="Center"
                         FontSize="22"
@@ -795,8 +863,8 @@
 
                 <Border
                     Grid.Row="1"
-                    Grid.Column="2"
                     Grid.RowSpan="5"
+                    Grid.Column="2"
                     Width="350"
                     Height="350"
                     HorizontalAlignment="Center"
@@ -811,7 +879,7 @@
                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                         ScrollViewer.VerticalScrollBarVisibility="Auto">
                         <ListBox.Resources>
-                            <Style TargetType="ScrollViewer" BasedOn="{StaticResource SimpleScrollViewerStyle}" />
+                            <Style BasedOn="{StaticResource SimpleScrollViewerStyle}" TargetType="ScrollViewer" />
                         </ListBox.Resources>
                         <ListBox.ItemTemplate>
                             <DataTemplate>

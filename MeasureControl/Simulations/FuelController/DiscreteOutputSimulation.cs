@@ -149,10 +149,10 @@ namespace MeasureControl.Simulations.FuelController
         public async Task<bool> ConnectMatrixJ14Async(Action<string> log, CancellationToken token = default)
         {
             var svc = MatrixControlService.Instance;
-            bool ok2601 = await svc.ConnectNodesAsync(Matrix2601J14.In, Matrix2601J14.Out, MatrixSlot2601J14, MatrixIpAddress);
-            bool ok3022 = await svc.ConnectNodesAsync(Matrix3022J14.In, Matrix3022J14.Out, MatrixSlot3022J14, MatrixIpAddress, MatrixTcpBasePort3022);
-            log?.Invoke($"[SIM] J14电压通路: 2601(1)={Matrix2601J14.In}->{Matrix2601J14.Out}(slot{MatrixSlot2601J14}) 3022(10)={Matrix3022J14.In}->{Matrix3022J14.Out}(slot{MatrixSlot3022J14},basePort{MatrixTcpBasePort3022}), ok={ok2601 && ok3022}");
-            return ok2601 && ok3022;
+            bool okDo = await svc.ConnectNodesAsync("I1", "O20", MatrixSlotDo, MatrixIpAddress);
+            bool okDmm = await svc.ConnectNodesAsync("I4", "O2", MatrixSlotDmmDo, MatrixIpAddress);
+            log?.Invoke($"[SIM] J14电压通路: 2601(2)=I1->O20(slot{MatrixSlotDo}) 2601(1)=I4->O2(slot{MatrixSlotDmmDo}), ok={okDo && okDmm}");
+            return okDo && okDmm;
         }
 
         /// <summary>
@@ -161,8 +161,8 @@ namespace MeasureControl.Simulations.FuelController
         public async Task DisconnectMatrixJ14Async(Action<string> log, CancellationToken token = default)
         {
             var svc = MatrixControlService.Instance;
-            await svc.DisconnectNodesAsync(Matrix2601J14.In, Matrix2601J14.Out, MatrixSlot2601J14, MatrixIpAddress);
-            await svc.DisconnectNodesAsync(Matrix3022J14.In, Matrix3022J14.Out, MatrixSlot3022J14, MatrixIpAddress, MatrixTcpBasePort3022);
+            await svc.DisconnectNodesAsync("I1", "O20", MatrixSlotDo, MatrixIpAddress);
+            await svc.DisconnectNodesAsync("I4", "O2", MatrixSlotDmmDo, MatrixIpAddress);
             log?.Invoke("[SIM] J14电压通路已断开");
         }
 
