@@ -712,6 +712,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+
+        {
+
+            try
+
+            {
+
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+
+                if (api != null)
+
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+
+            }
+
+            catch
+
+            {
+
+            }
+
+        }
+
 
 
         private async Task StartManualTestAsync()
@@ -811,18 +835,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
 
             }
-
             finally
-
             {
-
                 _manualTestLock.Release();
-
             }
-
         }
-
-
 
         private async Task StopManualTestAsync()
 
@@ -899,6 +916,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             finally
 
             {
+
+                try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
                 _manualTestLock.Release();
 
@@ -1662,7 +1681,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     }
 
-
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
                     IsAutoTestRunning = false;
 
@@ -1675,6 +1694,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             finally
 
             {
+
+                try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
                 _autoTestLock.Release();
 
@@ -1713,6 +1734,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             finally
 
             {
+
+                try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
                 _autoTestLock.Release();
 
