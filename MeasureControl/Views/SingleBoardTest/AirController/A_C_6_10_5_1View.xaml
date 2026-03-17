@@ -11,25 +11,6 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <x:Array x:Key="Arinc429Channels" Type="sys:String">
-            <sys:String>CH0</sys:String>
-            <sys:String>CH1</sys:String>
-            <sys:String>CH2</sys:String>
-            <sys:String>CH3</sys:String>
-            <sys:String>CH4</sys:String>
-            <sys:String>CH5</sys:String>
-            <sys:String>CH6</sys:String>
-            <sys:String>CH7</sys:String>
-            <sys:String>CH8</sys:String>
-            <sys:String>CH9</sys:String>
-            <sys:String>CH10</sys:String>
-            <sys:String>CH11</sys:String>
-            <sys:String>CH12</sys:String>
-            <sys:String>CH13</sys:String>
-            <sys:String>CH14</sys:String>
-            <sys:String>CH15</sys:String>
-        </x:Array>
-
         <Style x:Key="EnableCheckBoxStyle" TargetType="CheckBox">
             <Setter Property="Template">
                 <Setter.Value>

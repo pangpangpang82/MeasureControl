@@ -27,6 +27,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private static readonly byte[] AbA429Arx1ReceiveCommand8 = { 0x04, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] AbA429Arx1ReceiveOkPrefix4 = { 0x04, 0x02, 0x02, 0x02 };
+        private const uint TestWord32 = 0x01010101;
         private static readonly byte[] TestData4 = { 0x01, 0x01, 0x01, 0x01 };
 
         private static readonly byte[] ExpectedReceiveResp8 = { 0x04, 0x02, 0x02, 0x02, 0x01, 0x01, 0x01, 0x01 };
@@ -420,7 +421,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送测试信息：{FormatBytes(TestData4)}");
 
-                    await _simulation.SendBenchData4Async(TestTxChannel, TestData4, msg => AddLog(msg), CancellationToken.None);
+                    await _simulation.SendBenchWord32Async(TestTxChannel, TestWord32, msg => AddLog(msg), CancellationToken.None);
                 }
                 finally
                 {
@@ -630,7 +631,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤2：发送测试信息01010101");
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
-                    await _simulation.SendBenchData4Async(TestTxChannel, TestData4, msg => AddLog(msg), token);
+                    await _simulation.SendBenchWord32Async(TestTxChannel, TestWord32, msg => AddLog(msg), token);
                     await Task.Delay(30, token);
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：发送接收指令并等待回传");
