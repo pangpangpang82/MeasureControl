@@ -25,6 +25,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const double ImpedanceThreshold = 200.0;
         private const string RelayControlChannel = "DO9";
 
+        private const string RelayPowerSupplyIpAddress = "192.168.1.16";
+        private const PowerSupplyChannel RelayPowerChannel = PowerSupplyChannel.CH2;
+        private const double RelayPowerVoltage = 24.0;
+        private const double RelayPowerCurrentLimit = 1.0;
+
         private const int DefaultTimeoutMs = 3000;
         private const int DmmTimeoutMs = 2000;
         private const int RelayTimeoutMs = 2000;
@@ -37,6 +42,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private readonly IPxiChassisService _pxiChassisService;
         private IJy7131Api _jy7131Api;
         private readonly IDmmApi _dmmApi;
+
+        private IPowerSupplyApi _relayPowerSupply;
 
         private readonly A_C_8_1Simulation _simulation;
 
@@ -669,23 +676,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
-                if (_componentPowerStateApi != null)
-                {
-                    AddLog("正在开启继电器供电（24V）...");
-                    await _componentPowerStateApi.ApplyRelayPowerAsync(timeoutCts.Token);
-                    _relaySupplyOn = true;
-                    AddLog("继电器供电已上电");
-                }
-                else
-                {
-                    AddLog("继电器供电API不可用，使用仿真模式");
-                    await Task.Delay(200, timeoutCts.Token);
-                    _relaySupplyOn = true;
-                }
+                AddLog($"正在开启继电器供电（24V）：电源2 {RelayPowerSupplyIpAddress} CH2...");
+                _relayPowerSupply ??= new PowerSupplySocketApi();
+                if (!_relayPowerSupply.IsConnected)
+                    await _relayPowerSupply.ConnectAsync(RelayPowerSupplyIpAddress, timeoutCts.Token);
+
+                await _relayPowerSupply.ApplyAsync(RelayPowerChannel, RelayPowerVoltage, RelayPowerCurrentLimit, timeoutCts.Token);
+                await _relayPowerSupply.SetOutputEnabledAsync(RelayPowerChannel, true, timeoutCts.Token);
+                await Task.Delay(200, timeoutCts.Token);
+
+                _relaySupplyOn = true;
+                AddLog($"继电器供电已上电：电源2 {RelayPowerSupplyIpAddress} CH2 {RelayPowerVoltage:0.###}V/{RelayPowerCurrentLimit:0.###}A");
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
             {
                 throw new TimeoutException($"继电器供电上电超时（{RelayPowerTimeoutMs}ms）");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"继电器供电上电失败: {ex.Message}，使用仿真模式");
+                await Task.Delay(200, timeoutCts.Token);
+                _relaySupplyOn = true;
             }
         }
 
@@ -696,11 +707,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             try
             {
-                if (_componentPowerStateApi != null)
+                if (_relayPowerSupply != null)
                 {
-                    await _componentPowerStateApi.DisableRelayPowerAsync(token);
-                    AddLog("继电器供电已关闭");
+                    try { await _relayPowerSupply.SetOutputEnabledAsync(RelayPowerChannel, false, token); } catch { }
+                    try { await _relayPowerSupply.DisconnectAsync(token); } catch { }
+                    try { await _relayPowerSupply.DisposeAsync(); } catch { }
+                    _relayPowerSupply = null;
                 }
+
+                AddLog("继电器供电已关闭");
             }
             catch (Exception ex)
             {

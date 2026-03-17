@@ -66,13 +66,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _lastTestResult = "--";
 
         private string _enterAtpTxChannel = "429_CH0";
-        private string _enterAtpRxChannel = "429_CH1";
+        private string _enterAtpRxChannel = "429_CH2";
 
-        private string _supplyTxChannel = "429_CH2";
-        private string _potSupRxChannel = "429_CH3";
+        private string _supplyTxChannel = "429_CH0";
+        private string _potSupRxChannel = "429_CH2";
 
-        private string _exitAtpTxChannel = "429_CH8";
-        private string _exitAtpRxChannel = "429_CH9";
+        private string _exitAtpTxChannel = "429_CH0";
+        private string _exitAtpRxChannel = "429_CH2";
 
         private string _enterAtpRxDataText = "--";
         private string _dmmVoltageText = "--";
@@ -203,37 +203,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
         }
 
         public string SupplyTxChannel
         {
             get => _supplyTxChannel;
-            set => SetProperty(ref _supplyTxChannel, value);
         }
 
         public string PotSupRxChannel
         {
             get => _potSupRxChannel;
-            set => SetProperty(ref _potSupRxChannel, value);
         }
 
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
         }
 
         public string EnterAtpRxDataText
