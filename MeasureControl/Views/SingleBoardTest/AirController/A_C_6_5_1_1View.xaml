@@ -485,8 +485,6 @@
                             </Border>
 
                             <Border
-<<<<<<< HEAD
-=======
                                 Width="220"
                                 Height="28"
                                 Margin="10,0,0,0"
@@ -504,7 +502,6 @@
                             </Border>
 
                             <Border
->>>>>>> upstream/master
                                 Width="140"
                                 Height="28"
                                 Margin="10,0,0,0"

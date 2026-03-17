@@ -383,7 +383,7 @@
                                         </ControlTemplate>
                                     </Button.Template>
                                 </Button>
-                            </StackPanel>
+                            </Grid>
 
                             <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
                                 <TextBlock
