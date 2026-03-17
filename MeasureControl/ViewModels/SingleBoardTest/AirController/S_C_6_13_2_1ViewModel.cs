@@ -57,7 +57,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public S_C_6_13_2_1ViewModel()
         {
             TestTxChannel = "CH0";
-            TestRxChannel = "CH1";
+            TestRxChannel = "CH2";
 
             EnterAtpTxChannel = TestTxChannel;
             EnterAtpRxChannel = TestRxChannel;
@@ -346,7 +346,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (string.IsNullOrWhiteSpace(TestTxChannel))
                 TestTxChannel = "CH0";
             if (string.IsNullOrWhiteSpace(TestRxChannel))
-                TestRxChannel = "CH1";
+                TestRxChannel = "CH2";
 
             if (string.IsNullOrWhiteSpace(EnterAtpTxChannel))
                 EnterAtpTxChannel = TestTxChannel;

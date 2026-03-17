@@ -10,25 +10,6 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <x:Array x:Key="Arinc429Channels" Type="sys:String">
-            <sys:String>CH0</sys:String>
-            <sys:String>CH1</sys:String>
-            <sys:String>CH2</sys:String>
-            <sys:String>CH3</sys:String>
-            <sys:String>CH4</sys:String>
-            <sys:String>CH5</sys:String>
-            <sys:String>CH6</sys:String>
-            <sys:String>CH7</sys:String>
-            <sys:String>CH8</sys:String>
-            <sys:String>CH9</sys:String>
-            <sys:String>CH10</sys:String>
-            <sys:String>CH11</sys:String>
-            <sys:String>CH12</sys:String>
-            <sys:String>CH13</sys:String>
-            <sys:String>CH14</sys:String>
-            <sys:String>CH15</sys:String>
-        </x:Array>
-
         <Style x:Key="PrimaryBlueButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="#3b82f6" />
             <Setter Property="Foreground" Value="White" />
@@ -310,39 +291,18 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <StackPanel
-                                    Grid.Row="0"
-                                    VerticalAlignment="Center"
-                                    Orientation="Horizontal">
-                                    <TextBlock
-                                        Width="22"
-                                        VerticalAlignment="Center"
-                                        FontSize="14"
-                                        Text="TX" />
-                                    <ComboBox
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                                    <Border Width="90" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpTxChannel}" />
+                                    </Border>
                                 </StackPanel>
 
-                                <StackPanel
-                                    Grid.Row="1"
-                                    Margin="0,6,0,0"
-                                    VerticalAlignment="Center"
-                                    Orientation="Horizontal">
-                                    <TextBlock
-                                        Width="22"
-                                        VerticalAlignment="Center"
-                                        FontSize="14"
-                                        Text="RX" />
-                                    <ComboBox
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
+                                <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
+                                    <Border Width="90" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxChannel}" />
+                                    </Border>
                                 </StackPanel>
                             </Grid>
 
@@ -424,39 +384,18 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <StackPanel
-                                    Grid.Row="0"
-                                    VerticalAlignment="Center"
-                                    Orientation="Horizontal">
-                                    <TextBlock
-                                        Width="22"
-                                        VerticalAlignment="Center"
-                                        FontSize="14"
-                                        Text="TX" />
-                                    <ComboBox
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding Rs422TransmitTxChannel, Mode=TwoWay}" />
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                                    <Border Width="90" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpTxChannel}" />
+                                    </Border>
                                 </StackPanel>
 
-                                <StackPanel
-                                    Grid.Row="1"
-                                    Margin="0,6,0,0"
-                                    VerticalAlignment="Center"
-                                    Orientation="Horizontal">
-                                    <TextBlock
-                                        Width="22"
-                                        VerticalAlignment="Center"
-                                        FontSize="14"
-                                        Text="RX" />
-                                    <ComboBox
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding Rs422TransmitRxChannel, Mode=TwoWay}" />
+                                <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
+                                    <Border Width="90" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxChannel}" />
+                                    </Border>
                                 </StackPanel>
                             </Grid>
 
@@ -539,39 +478,18 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <StackPanel
-                                    Grid.Row="0"
-                                    VerticalAlignment="Center"
-                                    Orientation="Horizontal">
-                                    <TextBlock
-                                        Width="22"
-                                        VerticalAlignment="Center"
-                                        FontSize="14"
-                                        Text="TX" />
-                                    <ComboBox
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding Rs422ReceiveTxChannel, Mode=TwoWay}" />
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                                    <Border Width="90" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpTxChannel}" />
+                                    </Border>
                                 </StackPanel>
 
-                                <StackPanel
-                                    Grid.Row="1"
-                                    Margin="0,6,0,0"
-                                    VerticalAlignment="Center"
-                                    Orientation="Horizontal">
-                                    <TextBlock
-                                        Width="22"
-                                        VerticalAlignment="Center"
-                                        FontSize="14"
-                                        Text="RX" />
-                                    <ComboBox
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding Rs422ReceiveRxChannel, Mode=TwoWay}" />
+                                <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
+                                    <Border Width="90" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxChannel}" />
+                                    </Border>
                                 </StackPanel>
                             </Grid>
 
@@ -652,39 +570,18 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <StackPanel
-                                    Grid.Row="0"
-                                    VerticalAlignment="Center"
-                                    Orientation="Horizontal">
-                                    <TextBlock
-                                        Width="22"
-                                        VerticalAlignment="Center"
-                                        FontSize="14"
-                                        Text="TX" />
-                                    <ComboBox
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                                    <Border Width="90" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpTxChannel}" />
+                                    </Border>
                                 </StackPanel>
 
-                                <StackPanel
-                                    Grid.Row="1"
-                                    Margin="0,6,0,0"
-                                    VerticalAlignment="Center"
-                                    Orientation="Horizontal">
-                                    <TextBlock
-                                        Width="22"
-                                        VerticalAlignment="Center"
-                                        FontSize="14"
-                                        Text="RX" />
-                                    <ComboBox
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}" />
+                                <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
+                                    <Border Width="90" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxChannel}" />
+                                    </Border>
                                 </StackPanel>
                             </Grid>
 

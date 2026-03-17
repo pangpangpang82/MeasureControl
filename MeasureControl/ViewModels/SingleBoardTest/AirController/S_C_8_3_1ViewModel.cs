@@ -29,6 +29,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] ExpectedData4 = { 0x7F, 0x00, 0xAA, 0x55 };
         private const byte Label50 = 0x50;
         private const byte Label51 = 0x51;
+        private const byte Label52 = 0x52;
+        private const byte Label53 = 0x53;
 
         private readonly S_C_8_3_1Simulation _simulation = new S_C_8_3_1Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
@@ -419,11 +421,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送S_ARINC429_OUT：{FormatBytes(SArinc429OutCommand8)}");
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, SArinc429OutCommand8, msg => AddLog(msg), CancellationToken.None);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待接收数据(LABEL0x{Label50:X2}/0x{Label51:X2})...");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待接收数据(LABEL0x{Label50:X2}/0x{Label51:X2}/0x{Label52:X2}/0x{Label53:X2})...");
                     var data4 = await _simulation.WaitBenchData4Async(
                         TestRxChannel,
                         Label50,
                         Label51,
+                        Label52,
+                        Label53,
                         timeoutMs: 1200,
                         log: msg => AddLog(msg),
                         token: CancellationToken.None);
@@ -598,12 +602,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, SArinc429OutCommand8, msg => AddLog(msg), token);
                     await Task.Delay(30, token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：接收两包数据(LABEL50/51)");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：接收四包数据(LABEL50/51/52/53)");
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
                     var data4 = await _simulation.WaitBenchData4Async(
                         TestRxChannel,
                         Label50,
                         Label51,
+                        Label52,
+                        Label53,
                         timeoutMs: 1200,
                         log: msg => AddLog(msg),
                         token: token);

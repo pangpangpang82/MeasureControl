@@ -184,8 +184,8 @@
       <HintPath>..\packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
     </Reference>
     <Reference Include="System.Configuration" />
-    <Reference Include="System.Drawing" />
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Core" />
     <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Memory.4.5.5\lib\net461\System.Memory.dll</HintPath>
@@ -388,7 +388,6 @@
     <Compile Include="Models\**\*.cs" />
     <Compile Include="Services\**\*.cs" />
     <Compile Include="Simulations\**\*.cs" />
-    <Compile Include="Demos\**\*.cs" />
     <Compile Include="MatrixSwitchDemo.cs" />
     <Compile Include="ViewModels\LoginViewModel.cs" />
     <Compile Include="ViewModels\ICloseGuard.cs" />
@@ -1044,7 +1043,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Update="Views\**\*.xaml.cs">
-      <DependentUpon>%(Filename)</DependentUpon>
+      <DependentUpon>%(Filename).xaml</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -1059,11 +1058,9 @@
       <SubType>Designer</SubType>
     </Page>
   </ItemGroup>
-  <ItemGroup>
-  </ItemGroup>
   <Target Name="CopyLibsToOutput" AfterTargets="CopyFilesToOutputDirectory">
     <ItemGroup>
-      <LibFiles Include="Libs\*.dll" /> 
+      <LibFiles Include="Libs\*.dll" />
     </ItemGroup>
     <Copy SourceFiles="@(LibFiles)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
   </Target>
