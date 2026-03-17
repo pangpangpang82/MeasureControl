@@ -7,17 +7,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using Ivi.Visa;
 using MeasureControl.Drivers;
 using MeasureControl.Helpers;
-using MeasureControl.Models.Devices;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
-using NationalInstruments.Visa;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
-    public sealed class A_C_7_3_1_1_2ViewModel : BindableBase, IDisposable
+    public sealed class A_C_7_5_1_1_2ViewModel : BindableBase, IDisposable
     {
         private const string DefaultFpgaIpAddress = "192.168.1.10";
         private const int DefaultFpgaPort = 5001;
@@ -27,7 +24,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private const int MatrixSlotSig = 6;
         private const int MatrixSlotDmm = 4;
-        private static readonly (string In, string Out, int Slot) MatrixPointJ216J217 = ("I1", "O8", MatrixSlotSig);
+        private static readonly (string In, string Out, int Slot) MatrixPointSig = ("I1", "O20", MatrixSlotSig);
         private static readonly (string In, string Out, int Slot) MatrixDmmH = ("I4", "O2", MatrixSlotDmm);
 
         private const string DmmIpAddress = "192.168.1.13";
@@ -35,8 +32,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private const string PowerSupply28VIpAddress = "192.168.1.15";
         private const string PowerSupply3V3IpAddress = "192.168.1.16";
-
-        private const string DefaultElectronicLoadVisaResource = "USB0::0x0A69::0x084A::6314A0011536::INSTR";
 
         private const PowerSupplyChannel PowerSupply28VCh1 = PowerSupplyChannel.CH1;
         private const PowerSupplyChannel PowerSupply28VCh2 = PowerSupplyChannel.CH2;
@@ -47,14 +42,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const double Power3V3Voltage = 3.3;
         private const double Power3V3CurrentLimit = 1.0;
 
-        private static readonly byte[] TestCommandFrame = { 0x0A, 0x55, 0x02, 0x0B, 0x07 };
+        private const int CurrentSet0mA = 0;
+        private const int CurrentSet400mA = 400;
 
-        private const double Load50Ohm = 50.0;
-        private const double Load12Ohm = 12.0;
-        private const double LoadToleranceOhm = 1.0;
+        private const double Voltage0mAMin = 0.0;
+        private const double Voltage0mAMax = 0.41;
 
-        private const double VoltageMin = 17.0;
-        private const double VoltageMax = 32.0;
+        private const double Voltage400mAMin = 15.21;
+        private const double Voltage400mAMax = 16.81;
+
+        private const double Current0mAMinA = 0.0;
+        private const double Current0mAMaxA = 0.03;
+
+        private const double Current400mAMinA = 0.37;
+        private const double Current400mAMaxA = 0.43;
+
+        private const int DefaultFpgaReplyBytes = 8;
+        private const int DefaultFpgaReplyTimeoutMs = 2000;
+
+        private static readonly byte[] CurrentTelemetryQueryFrame = { 0x0A, 0x55, 0x02, 0x0B, 0x07 };
 
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
@@ -65,11 +71,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private FpgaTcpClient _fpga;
         private IDmmApi _dmmSocket;
-
-        private ResourceManager _electronicLoadResourceManager;
-        private MessageBasedSession _electronicLoadSession;
-        private readonly SemaphoreSlim _electronicLoadIoLock = new SemaphoreSlim(1, 1);
-        private string _electronicLoadVisaResource = DefaultElectronicLoadVisaResource;
 
         private IPowerSupplyApi _powerSupply28V;
         private IPowerSupplyApi _powerSupply3V3;
@@ -88,36 +89,140 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _fpgaIpAddress = DefaultFpgaIpAddress;
         private int _fpgaPort = DefaultFpgaPort;
 
-        private string _step1LoadReadback = "--";
-        private string _step1Result = "--";
-        private string _step2Result = "--";
         private string _step3Voltage = "--";
-        private string _step3Result = "--";
-        private string _step4LoadReadback = "--";
-        private string _step4Result = "--";
-        private string _step5Result = "--";
-        private string _step6Voltage = "--";
-        private string _step6Result = "--";
+        private string _step4Current = "--";
+
+        private string _step7Voltage = "--";
+        private string _step8Current = "--";
 
         private bool _isMeasuringStep3;
-        private bool _isMeasuringStep6;
+        private bool _isMeasuringStep7;
 
         private string _lastTestTime = "--";
         private string _overallResult = "--";
 
-        public A_C_7_3_1_1_2ViewModel()
+        public A_C_7_5_1_1_2ViewModel()
         {
             ManualTestCommand = new DelegateCommand(OnManualTest, () => !IsAutoTestRunning && (!IsBusy || IsManualTestRunning));
             AutoTestCommand = new DelegateCommand(OnAutoTest, () => !IsManualTestRunning && (!IsBusy || IsAutoTestRunning));
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
-            Step1Connect50OhmCommand = new DelegateCommand(async () => await ConnectLoadAndUpdateAsync(Load50Ohm, isStep1: true));
-            Step2SendCommand = new DelegateCommand(async () => await SendTestCommandAndUpdateAsync(isStep2: true));
-            Step3MeasureVoltageCommand = new DelegateCommand(async () => await MeasureVoltageAndUpdateAsync(isStep3: true));
+            Step2Set0mACommand = new DelegateCommand(async () => await SendSetCurrentAndUpdateAsync(CurrentSet0mA, isFirst: true));
+            Step3Measure0mACommand = new DelegateCommand(async () => await MeasureVoltageAndUpdateAsync(isFirst: true));
+            Step4Readback0mACommand = new DelegateCommand(async () => await QueryCurrentReadbackAndUpdateAsync(isFirst: true));
 
-            Step4Connect12OhmCommand = new DelegateCommand(async () => await ConnectLoadAndUpdateAsync(Load12Ohm, isStep1: false));
-            Step5SendCommand = new DelegateCommand(async () => await SendTestCommandAndUpdateAsync(isStep2: false));
-            Step6MeasureVoltageCommand = new DelegateCommand(async () => await MeasureVoltageAndUpdateAsync(isStep3: false));
+            Step6Set400mACommand = new DelegateCommand(async () => await SendSetCurrentAndUpdateAsync(CurrentSet400mA, isFirst: false));
+            Step7Measure400mACommand = new DelegateCommand(async () => await MeasureVoltageAndUpdateAsync(isFirst: false));
+            Step8Readback400mACommand = new DelegateCommand(async () => await QueryCurrentReadbackAndUpdateAsync(isFirst: false));
+        }
+
+        public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
+
+        public DelegateCommand ManualTestCommand { get; }
+        public DelegateCommand AutoTestCommand { get; }
+        public DelegateCommand ClearLogCommand { get; }
+
+        public DelegateCommand Step2Set0mACommand { get; }
+        public DelegateCommand Step3Measure0mACommand { get; }
+        public DelegateCommand Step4Readback0mACommand { get; }
+
+        public DelegateCommand Step6Set400mACommand { get; }
+        public DelegateCommand Step7Measure400mACommand { get; }
+        public DelegateCommand Step8Readback400mACommand { get; }
+
+        public string FpgaIpAddress
+        {
+            get => _fpgaIpAddress;
+            set => SetProperty(ref _fpgaIpAddress, value);
+        }
+
+        public int FpgaPort
+        {
+            get => _fpgaPort;
+            set => SetProperty(ref _fpgaPort, value);
+        }
+
+        public bool IsPowerOn
+        {
+            get => _isPowerOn;
+            private set
+            {
+                if (SetProperty(ref _isPowerOn, value))
+                    RaiseAllCanExecuteChanged();
+            }
+        }
+
+        public string PowerStatus
+        {
+            get => _powerStatus;
+            private set => SetProperty(ref _powerStatus, value);
+        }
+
+        public bool IsManualTestRunning
+        {
+            get => _isManualTestRunning;
+            private set
+            {
+                if (SetProperty(ref _isManualTestRunning, value))
+                    RaiseAllCanExecuteChanged();
+            }
+        }
+
+        public bool IsAutoTestRunning
+        {
+            get => _isAutoTestRunning;
+            private set
+            {
+                if (SetProperty(ref _isAutoTestRunning, value))
+                    RaiseAllCanExecuteChanged();
+            }
+        }
+
+        public bool IsBusy
+        {
+            get => _isBusy;
+            private set
+            {
+                if (SetProperty(ref _isBusy, value))
+                    RaiseAllCanExecuteChanged();
+            }
+        }
+
+        public string Step3Voltage { get => _step3Voltage; private set => SetProperty(ref _step3Voltage, value); }
+        public string Step4Current { get => _step4Current; private set => SetProperty(ref _step4Current, value); }
+        public string Step7Voltage { get => _step7Voltage; private set => SetProperty(ref _step7Voltage, value); }
+        public string Step8Current { get => _step8Current; private set => SetProperty(ref _step8Current, value); }
+
+        public bool IsMeasuringStep3 { get => _isMeasuringStep3; private set => SetProperty(ref _isMeasuringStep3, value); }
+        public bool IsMeasuringStep7 { get => _isMeasuringStep7; private set => SetProperty(ref _isMeasuringStep7, value); }
+
+        public string LastTestTime { get => _lastTestTime; private set => SetProperty(ref _lastTestTime, value); }
+        public string OverallResult { get => _overallResult; private set => SetProperty(ref _overallResult, value); }
+
+        private void RaiseAllCanExecuteChanged()
+        {
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                ManualTestCommand?.RaiseCanExecuteChanged();
+                AutoTestCommand?.RaiseCanExecuteChanged();
+                Step2Set0mACommand?.RaiseCanExecuteChanged();
+                Step3Measure0mACommand?.RaiseCanExecuteChanged();
+                Step4Readback0mACommand?.RaiseCanExecuteChanged();
+                Step6Set400mACommand?.RaiseCanExecuteChanged();
+                Step7Measure400mACommand?.RaiseCanExecuteChanged();
+                Step8Readback400mACommand?.RaiseCanExecuteChanged();
+            });
+        }
+
+        private void AddLog(string msg)
+        {
+            var line = $"[{DateTime.Now:HH:mm:ss.fff}] {msg}";
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                Logs.Add(line);
+                while (Logs.Count > 500)
+                    Logs.RemoveAt(0);
+            });
         }
 
         private bool EnsureManualStepAllowed()
@@ -143,138 +248,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return true;
         }
 
-        public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
-
-        public DelegateCommand ManualTestCommand { get; }
-        public DelegateCommand AutoTestCommand { get; }
-        public DelegateCommand ClearLogCommand { get; }
-
-        public DelegateCommand Step1Connect50OhmCommand { get; }
-        public DelegateCommand Step2SendCommand { get; }
-        public DelegateCommand Step3MeasureVoltageCommand { get; }
-        public DelegateCommand Step4Connect12OhmCommand { get; }
-        public DelegateCommand Step5SendCommand { get; }
-        public DelegateCommand Step6MeasureVoltageCommand { get; }
-
-        public string FpgaIpAddress
-        {
-            get => _fpgaIpAddress;
-            set => SetProperty(ref _fpgaIpAddress, value);
-        }
-
-        public int FpgaPort
-        {
-            get => _fpgaPort;
-            set => SetProperty(ref _fpgaPort, value);
-        }
-
-        public string ElectronicLoadVisaResource
-        {
-            get => _electronicLoadVisaResource;
-            set => SetProperty(ref _electronicLoadVisaResource, value);
-        }
-
-        public bool IsPowerOn
-        {
-            get => _isPowerOn;
-            private set
-            {
-                if (SetProperty(ref _isPowerOn, value))
-                {
-                    RaisePropertyChanged(nameof(CanOperateSteps));
-                    RaiseAllCanExecuteChanged();
-                }
-            }
-        }
-
-        public string PowerStatus
-        {
-            get => _powerStatus;
-            private set => SetProperty(ref _powerStatus, value);
-        }
-
-        public bool IsManualTestRunning
-        {
-            get => _isManualTestRunning;
-            private set
-            {
-                if (SetProperty(ref _isManualTestRunning, value))
-                {
-                    RaisePropertyChanged(nameof(CanOperateSteps));
-                    RaiseAllCanExecuteChanged();
-                }
-            }
-        }
-
-        public bool IsAutoTestRunning
-        {
-            get => _isAutoTestRunning;
-            private set
-            {
-                if (SetProperty(ref _isAutoTestRunning, value))
-                {
-                    RaisePropertyChanged(nameof(CanOperateSteps));
-                    RaiseAllCanExecuteChanged();
-                }
-            }
-        }
-
-        public bool IsBusy
-        {
-            get => _isBusy;
-            private set
-            {
-                if (SetProperty(ref _isBusy, value))
-                {
-                    RaisePropertyChanged(nameof(CanOperateSteps));
-                    RaiseAllCanExecuteChanged();
-                }
-            }
-        }
-
-        public bool CanOperateSteps => IsManualTestRunning && IsPowerOn && !IsBusy;
-
-        public string Step1LoadReadback { get => _step1LoadReadback; private set => SetProperty(ref _step1LoadReadback, value); }
-        public string Step1Result { get => _step1Result; private set => SetProperty(ref _step1Result, value); }
-        public string Step2Result { get => _step2Result; private set => SetProperty(ref _step2Result, value); }
-        public string Step3Voltage { get => _step3Voltage; private set => SetProperty(ref _step3Voltage, value); }
-        public string Step3Result { get => _step3Result; private set => SetProperty(ref _step3Result, value); }
-        public string Step4LoadReadback { get => _step4LoadReadback; private set => SetProperty(ref _step4LoadReadback, value); }
-        public string Step4Result { get => _step4Result; private set => SetProperty(ref _step4Result, value); }
-        public string Step5Result { get => _step5Result; private set => SetProperty(ref _step5Result, value); }
-        public string Step6Voltage { get => _step6Voltage; private set => SetProperty(ref _step6Voltage, value); }
-        public string Step6Result { get => _step6Result; private set => SetProperty(ref _step6Result, value); }
-
-        public bool IsMeasuringStep3 { get => _isMeasuringStep3; private set => SetProperty(ref _isMeasuringStep3, value); }
-        public bool IsMeasuringStep6 { get => _isMeasuringStep6; private set => SetProperty(ref _isMeasuringStep6, value); }
-
-        public string LastTestTime { get => _lastTestTime; private set => SetProperty(ref _lastTestTime, value); }
-        public string OverallResult { get => _overallResult; private set => SetProperty(ref _overallResult, value); }
-
-        private void RaiseAllCanExecuteChanged()
+        private void ClearResults()
         {
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                ManualTestCommand?.RaiseCanExecuteChanged();
-                AutoTestCommand?.RaiseCanExecuteChanged();
-
-                Step1Connect50OhmCommand?.RaiseCanExecuteChanged();
-                Step2SendCommand?.RaiseCanExecuteChanged();
-                Step3MeasureVoltageCommand?.RaiseCanExecuteChanged();
-                Step4Connect12OhmCommand?.RaiseCanExecuteChanged();
-                Step5SendCommand?.RaiseCanExecuteChanged();
-                Step6MeasureVoltageCommand?.RaiseCanExecuteChanged();
+                Step3Voltage = "--";
+                Step4Current = "--";
+                Step7Voltage = "--";
+                Step8Current = "--";
+                LastTestTime = "--";
+                OverallResult = "--";
             });
         }
 
-        private void AddLog(string msg)
+        private void SetOverall(string result)
         {
-            var line = $"[{DateTime.Now:HH:mm:ss.fff}] {msg}";
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                Logs.Add(line);
-                while (Logs.Count > 500)
-                    Logs.RemoveAt(0);
+                OverallResult = result;
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
             });
         }
 
@@ -287,28 +279,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
 
             _ = StartManualTestAsync();
-        }
-
-        private async Task StopManualTestCoreAsync(bool addStoppedLog)
-        {
-            Application.Current?.Dispatcher?.Invoke(() => { IsBusy = true; });
-            try
-            {
-                await CleanupInstrumentsAsync(CancellationToken.None).ConfigureAwait(false);
-                if (IsPowerOn)
-                    await PowerOffAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-            finally
-            {
-                Application.Current?.Dispatcher?.Invoke(() =>
-                {
-                    IsManualTestRunning = false;
-                    IsBusy = false;
-                });
-
-                if (addStoppedLog)
-                    AddLog("========== 手动测试已停止 ==========");
-            }
         }
 
         private async Task StartManualTestAsync()
@@ -354,19 +324,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 Application.Current?.Dispatcher?.Invoke(() => { IsManualTestRunning = false; });
 
+                IsBusy = true;
                 try
                 {
-                    await StopManualTestCoreAsync(addStoppedLog: true).ConfigureAwait(false);
+                    await CleanupInstrumentsAsync(CancellationToken.None).ConfigureAwait(false);
+                    if (IsPowerOn)
+                        await PowerOffAsync(CancellationToken.None).ConfigureAwait(false);
                 }
-                catch (Exception ex)
+                finally
                 {
-                    AddLog($"停止手动测试异常: {ex.Message}");
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        IsManualTestRunning = false;
-                        IsBusy = false;
-                    });
+                    IsBusy = false;
                 }
+
+                AddLog("========== 手动测试已停止 ==========");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"停止手动测试异常: {ex.Message}");
             }
             finally
             {
@@ -413,29 +387,33 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog("========== 自动测试开始 ==========");
 
-                    var ok1 = await ConnectLoadAsync(Load50Ohm, token).ConfigureAwait(false);
-                    UpdateLoadStep(is50: true, ok1);
-
-                    var ok2 = await SendTestCommandAsync(token).ConfigureAwait(false);
-                    UpdateSendStep(isFirst: true, ok2);
+                    var ok2 = await SendSetCurrentAsync(CurrentSet0mA, token).ConfigureAwait(false);
+                    AddLog($"0mA设定指令: {(ok2 ? "PASS" : "FAIL")}");
 
                     await Task.Delay(500, token).ConfigureAwait(false);
-                    var (ok3, v1) = await MeasureVoltageAsync(token).ConfigureAwait(false);
-                    UpdateVoltageStep(isFirst: true, ok3, v1);
+                    var (ok3, v0) = await MeasureVoltageAsync(token).ConfigureAwait(false);
+                    var pass3 = UpdateVoltageStepAndGetPass(isFirst: true, ok3, v0);
+                    AddLog($"0mA电压判定: {(pass3 ? "PASS" : "FAIL")}");
 
-                    var ok4 = await ConnectLoadAsync(Load12Ohm, token).ConfigureAwait(false);
-                    UpdateLoadStep(is50: false, ok4);
+                    var (ok4, cur0, hex0) = await QueryCurrentTelemetryAsync(token).ConfigureAwait(false);
+                    var pass4 = UpdateCurrentStepAndGetPass(isFirst: true, ok4, cur0, hex0);
+                    AddLog($"0mA回采电流判定: {(pass4 ? "PASS" : "FAIL")}");
 
-                    var ok5 = await SendTestCommandAsync(token).ConfigureAwait(false);
-                    UpdateSendStep(isFirst: false, ok5);
+                    var ok6 = await SendSetCurrentAsync(CurrentSet400mA, token).ConfigureAwait(false);
+                    AddLog($"400mA设定指令: {(ok6 ? "PASS" : "FAIL")}");
 
                     await Task.Delay(500, token).ConfigureAwait(false);
-                    var (ok6, v2) = await MeasureVoltageAsync(token).ConfigureAwait(false);
-                    UpdateVoltageStep(isFirst: false, ok6, v2);
+                    var (ok7, v1) = await MeasureVoltageAsync(token).ConfigureAwait(false);
+                    var pass7 = UpdateVoltageStepAndGetPass(isFirst: false, ok7, v1);
+                    AddLog($"400mA电压判定: {(pass7 ? "PASS" : "FAIL")}");
 
-                    var overallOk = new[] { Step1Result, Step2Result, Step3Result, Step4Result, Step5Result, Step6Result }.All(r => r == "PASS");
+                    var (ok8, cur1, hex1) = await QueryCurrentTelemetryAsync(token).ConfigureAwait(false);
+                    var pass8 = UpdateCurrentStepAndGetPass(isFirst: false, ok8, cur1, hex1);
+                    AddLog($"400mA回采电流判定: {(pass8 ? "PASS" : "FAIL")}");
+
+                    var overallOk = ok2 && ok6 && pass3 && pass4 && pass7 && pass8;
+
                     SetOverall(overallOk ? "PASS" : "FAIL");
-
                     AddLog($"========== 自动测试完成: {(overallOk ? "PASS" : "FAIL")} ==========");
                 }
                 catch (OperationCanceledException)
@@ -462,35 +440,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private void ClearResults()
-        {
-            Application.Current?.Dispatcher?.Invoke(() =>
-            {
-                Step1LoadReadback = "--";
-                Step1Result = "--";
-                Step2Result = "--";
-                Step3Voltage = "--";
-                Step3Result = "--";
-                Step4LoadReadback = "--";
-                Step4Result = "--";
-                Step5Result = "--";
-                Step6Voltage = "--";
-                Step6Result = "--";
-                LastTestTime = "--";
-                OverallResult = "--";
-            });
-        }
-
-        private void SetOverall(string result)
-        {
-            Application.Current?.Dispatcher?.Invoke(() =>
-            {
-                OverallResult = result;
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-            });
-        }
-
-        private async Task ConnectLoadAndUpdateAsync(double ohm, bool isStep1)
+        private async Task SendSetCurrentAndUpdateAsync(int currentmA, bool isFirst)
         {
             if (!EnsureManualStepAllowed())
                 return;
@@ -506,8 +456,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
                 try
                 {
-                    var ok = await ConnectLoadAsync(ohm, CancellationToken.None).ConfigureAwait(false);
-                    UpdateLoadStep(is50: isStep1, ok);
+                    var ok = await SendSetCurrentAsync(currentmA, CancellationToken.None).ConfigureAwait(false);
+                    AddLog($"{currentmA}mA设定指令: {(ok ? "PASS" : "FAIL")}");
                 }
                 finally
                 {
@@ -520,25 +470,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private void UpdateLoadStep(bool is50, bool ok)
-        {
-            Application.Current?.Dispatcher?.Invoke(() =>
-            {
-                var result = ok ? "PASS" : "FAIL";
-                if (is50)
-                {
-                    Step1Result = result;
-                }
-                else
-                {
-                    Step4Result = result;
-                }
-            });
-        }
-
-        private async Task SendTestCommandAndUpdateAsync(bool isStep2)
+        private async Task MeasureVoltageAndUpdateAsync(bool isFirst)
         {
             if (!EnsureManualStepAllowed())
+                return;
+
+            if ((isFirst && IsMeasuringStep3) || (!isFirst && IsMeasuringStep7))
                 return;
 
             if (!await _opLock.WaitAsync(0).ConfigureAwait(false))
@@ -549,59 +486,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             try
             {
-                IsBusy = true;
-                try
-                {
-                    var ok = await SendTestCommandAsync(CancellationToken.None).ConfigureAwait(false);
-                    UpdateSendStep(isFirst: isStep2, ok);
-                }
-                finally
-                {
-                    IsBusy = false;
-                }
-            }
-            finally
-            {
-                _opLock.Release();
-            }
-        }
-
-        private void UpdateSendStep(bool isFirst, bool ok)
-        {
-            Application.Current?.Dispatcher?.Invoke(() =>
-            {
-                var result = ok ? "PASS" : "FAIL";
-                if (isFirst)
-                    Step2Result = result;
-                else
-                    Step5Result = result;
-            });
-        }
-
-        private async Task MeasureVoltageAndUpdateAsync(bool isStep3)
-        {
-            if (!EnsureManualStepAllowed())
-                return;
-
-            if ((isStep3 && IsMeasuringStep3) || (!isStep3 && IsMeasuringStep6))
-                return;
-
-            if (!await _opLock.WaitAsync(0).ConfigureAwait(false))
-            {
-                AddLog("操作进行中，请稍后再试");
-                return;
-            }
-
-            try
-            {
-                if (isStep3) IsMeasuringStep3 = true; else IsMeasuringStep6 = true;
+                if (isFirst) IsMeasuringStep3 = true; else IsMeasuringStep7 = true;
                 try
                 {
                     IsBusy = true;
                     try
                     {
                         var (ok, v) = await MeasureVoltageAsync(CancellationToken.None).ConfigureAwait(false);
-                        UpdateVoltageStep(isFirst: isStep3, ok, v);
+                        var pass = UpdateVoltageStepAndGetPass(isFirst, ok, v);
+                        AddLog($"{(isFirst ? "0mA" : "400mA")}电压判定: {(pass ? "PASS" : "FAIL")}");
                     }
                     finally
                     {
@@ -610,7 +503,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
-                    if (isStep3) IsMeasuringStep3 = false; else IsMeasuringStep6 = false;
+                    if (isFirst) IsMeasuringStep3 = false; else IsMeasuringStep7 = false;
                 }
             }
             finally
@@ -619,26 +512,75 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private void UpdateVoltageStep(bool isFirst, bool ok, double? voltage)
+        private async Task QueryCurrentReadbackAndUpdateAsync(bool isFirst)
         {
+            if (!EnsureManualStepAllowed())
+                return;
+
+            if (!await _opLock.WaitAsync(0).ConfigureAwait(false))
+            {
+                AddLog("操作进行中，请稍后再试");
+                return;
+            }
+
+            try
+            {
+                IsBusy = true;
+                try
+                {
+                    var (ok, currentA, hex) = await QueryCurrentTelemetryAsync(CancellationToken.None).ConfigureAwait(false);
+                    var pass = UpdateCurrentStepAndGetPass(isFirst, ok, currentA, hex);
+                    AddLog($"{(isFirst ? "0mA" : "400mA")}回采电流判定: {(pass ? "PASS" : "FAIL")}");
+                }
+                finally
+                {
+                    IsBusy = false;
+                }
+            }
+            finally
+            {
+                _opLock.Release();
+            }
+        }
+
+        private bool UpdateVoltageStepAndGetPass(bool isFirst, bool ok, double? voltage)
+        {
+            var absV = voltage.HasValue ? (double?)Math.Abs(voltage.Value) : null;
+            var vText = absV.HasValue ? $"{absV.Value:F3} V" : "--";
+
+            var pass = isFirst
+                ? (ok && absV.HasValue && absV.Value >= Voltage0mAMin && absV.Value <= Voltage0mAMax)
+                : (ok && absV.HasValue && absV.Value >= Voltage400mAMin && absV.Value <= Voltage400mAMax);
+
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                var absV = voltage.HasValue ? (double?)Math.Abs(voltage.Value) : null;
-                var vText = absV.HasValue ? $"{absV.Value:F3} V" : "--";
-                var pass = ok && absV.HasValue && absV.Value >= VoltageMin && absV.Value <= VoltageMax;
-                var r = pass ? "PASS" : "FAIL";
-
                 if (isFirst)
-                {
                     Step3Voltage = vText;
-                    Step3Result = r;
-                }
                 else
-                {
-                    Step6Voltage = vText;
-                    Step6Result = r;
-                }
+                    Step7Voltage = vText;
             });
+
+            return pass;
+        }
+
+        private bool UpdateCurrentStepAndGetPass(bool isFirst, bool ok, double? currentA, string replyHex)
+        {
+            var cText = currentA.HasValue ? $"{currentA.Value:F3} A" : "--";
+
+            _ = replyHex;
+            var pass = isFirst
+                ? (ok && currentA.HasValue && currentA.Value >= Current0mAMinA && currentA.Value <= Current0mAMaxA)
+                : (ok && currentA.HasValue && currentA.Value >= Current400mAMinA && currentA.Value <= Current400mAMaxA);
+
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                if (isFirst)
+                    Step4Current = cText;
+                else
+                    Step8Current = cText;
+            });
+
+            return pass;
         }
 
         private async Task PowerOnAsync(CancellationToken token)
@@ -742,172 +684,53 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private Task DisconnectFpgaAsync(CancellationToken token)
         {
             _ = token;
-            try
-            {
-                _fpga?.Dispose();
-            }
-            catch { }
+            try { _fpga?.Dispose(); } catch { }
             _fpga = null;
             return Task.CompletedTask;
         }
 
-        private async Task<bool> SendTestCommandAsync(CancellationToken token)
+        private async Task<bool> SendSetCurrentAsync(int currentmA, CancellationToken token)
         {
             try
             {
                 await EnsureFpgaConnectedAsync(token).ConfigureAwait(false);
-                AddLog($"FPGA发送指令: {FormatData(TestCommandFrame)}");
-                await _fpga.WriteAsync(TestCommandFrame, 0, TestCommandFrame.Length, token).ConfigureAwait(false);
+
+                var cmd = BuildCurrentSetCommand(currentmA);
+                AddLog($"电流设定: {currentmA}mA -> FPGA {FormatData(cmd)}");
+                await _fpga.WriteAsync(cmd, 0, cmd.Length, token).ConfigureAwait(false);
                 return true;
             }
             catch (Exception ex)
             {
-                AddLog($"FPGA发送失败: {ex.Message}");
+                AddLog($"电流设定发送失败: {ex.Message}");
                 return false;
             }
         }
 
-        private async Task<bool> ConnectLoadAsync(double targetOhm, CancellationToken token)
+        private async Task<(bool Ok, double? CurrentA, string ReplyHex)> QueryCurrentTelemetryAsync(CancellationToken token)
         {
             try
             {
-                await EnsureElectronicLoadConnectedAsync(token).ConfigureAwait(false);
+                await EnsureFpgaConnectedAsync(token).ConfigureAwait(false);
 
-                AddLog($"接入负载: 目标={targetOhm:F2}Ω (程控电子负载 CH1, CR模式)");
+                AddLog($"回采查询: FPGA发送 {FormatData(CurrentTelemetryQueryFrame)}");
+                var reply = await _fpga.RequestReplyAsync(CurrentTelemetryQueryFrame, DefaultFpgaReplyBytes, DefaultFpgaReplyTimeoutMs, token)
+                    .ConfigureAwait(false);
 
-                await WriteElectronicLoadByChannelAsync("1", "LOAD:SHOR OFF", token).ConfigureAwait(false);
-                await WriteElectronicLoadByChannelAsync("1", "MODE CRL", token).ConfigureAwait(false);
-                await WriteElectronicLoadByChannelAsync("1", $"RES:L1 {targetOhm.ToString(CultureInfo.InvariantCulture)}", token).ConfigureAwait(false);
-                await WriteElectronicLoadByChannelAsync("1", "LOAD ON", token).ConfigureAwait(false);
-
-                UpdateLoadReadback(targetOhm, targetOhm);
-                return true;
+                var hex = FormatData(reply);
+                var currentA = TryParseCurrentAFromReply(reply);
+                AddLog($"回采接收: {hex}");
+                return (true, currentA, hex);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
-                AddLog($"接入负载异常: {ex.Message}");
-                UpdateLoadReadback(targetOhm, null);
-                return false;
+                AddLog($"回采接收失败: {ex.Message}");
+                return (false, null, null);
             }
-        }
-
-        private async Task EnsureElectronicLoadConnectedAsync(CancellationToken token)
-        {
-            if (_electronicLoadSession != null)
-                return;
-
-            var res = (ElectronicLoadVisaResource ?? "").Trim();
-            if (string.IsNullOrWhiteSpace(res))
-                res = DefaultElectronicLoadVisaResource;
-
-            try
-            {
-                _electronicLoadResourceManager ??= new ResourceManager();
-            }
-            catch (DllNotFoundException ex)
-            {
-                throw new InvalidOperationException($"电子负载连接失败：未安装NI-VISA（{ex.Message}）");
-            }
-            catch (Ivi.Visa.VisaException ex)
-            {
-                throw new InvalidOperationException($"电子负载连接失败：VISA初始化失败（{ex.Message}）");
-            }
-
-            await Task.Run(() =>
-            {
-                _electronicLoadSession = (MessageBasedSession)_electronicLoadResourceManager.Open(res);
-                _electronicLoadSession.TimeoutMilliseconds = 5000;
-            }, token).ConfigureAwait(false);
-
-            try
-            {
-                _electronicLoadSession.TerminationCharacterEnabled = true;
-                _electronicLoadSession.TerminationCharacter = (byte)'\n';
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                var idn = await QueryElectronicLoadAsync("*IDN?", token).ConfigureAwait(false);
-                if (!string.IsNullOrWhiteSpace(idn))
-                    AddLog($"电子负载已连接: {idn}");
-                else
-                    AddLog("电子负载已连接");
-            }
-            catch
-            {
-                AddLog("电子负载已连接(未读回IDN)");
-            }
-        }
-
-        private async Task DisconnectElectronicLoadAsync(CancellationToken token)
-        {
-            try
-            {
-                if (_electronicLoadSession != null)
-                {
-                    try { await WriteElectronicLoadByChannelAsync("1", "LOAD:SHOR OFF", token).ConfigureAwait(false); } catch { }
-                    try { await WriteElectronicLoadByChannelAsync("1", "LOAD OFF", token).ConfigureAwait(false); } catch { }
-                }
-            }
-            catch
-            {
-            }
-            finally
-            {
-                try { _electronicLoadSession?.Dispose(); } catch { }
-                _electronicLoadSession = null;
-                try { _electronicLoadResourceManager?.Dispose(); } catch { }
-                _electronicLoadResourceManager = null;
-            }
-        }
-
-        private async Task WriteElectronicLoadByChannelAsync(string channel, string command, CancellationToken token)
-        {
-            if (_electronicLoadSession == null)
-                throw new InvalidOperationException("电子负载未连接");
-
-            await _electronicLoadIoLock.WaitAsync(token).ConfigureAwait(false);
-            try
-            {
-                _electronicLoadSession.RawIO.Write($"CHAN {channel}\n");
-                _electronicLoadSession.RawIO.Write(command.EndsWith("\n", StringComparison.Ordinal) ? command : command + "\n");
-            }
-            finally
-            {
-                _electronicLoadIoLock.Release();
-            }
-        }
-
-        private async Task<string> QueryElectronicLoadAsync(string query, CancellationToken token)
-        {
-            if (_electronicLoadSession == null)
-                throw new InvalidOperationException("电子负载未连接");
-
-            await _electronicLoadIoLock.WaitAsync(token).ConfigureAwait(false);
-            try
-            {
-                _electronicLoadSession.RawIO.Write(query.EndsWith("\n", StringComparison.Ordinal) ? query : query + "\n");
-                return _electronicLoadSession.RawIO.ReadString()?.Trim();
-            }
-            finally
-            {
-                _electronicLoadIoLock.Release();
-            }
-        }
-
-        private void UpdateLoadReadback(double targetOhm, double? readBack)
-        {
-            var text = readBack.HasValue ? $"{readBack.Value:F5} Ω" : "--";
-            Application.Current?.Dispatcher?.Invoke(() =>
-            {
-                if (Math.Abs(targetOhm - Load50Ohm) < 0.01)
-                    Step1LoadReadback = text;
-                else
-                    Step4LoadReadback = text;
-            });
         }
 
         private async Task<(bool Ok, double? Voltage)> MeasureVoltageAsync(CancellationToken token)
@@ -958,10 +781,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (_isMatrixRouted)
                 await UnrouteMatrixAsync(token).ConfigureAwait(false);
 
-            AddLog($"矩阵路由: slot{MatrixSlotDmm} {MatrixDmmH.In}-{MatrixDmmH.Out} + slot{MatrixSlotSig} {MatrixPointJ216J217.In}-{MatrixPointJ216J217.Out}");
+            AddLog($"矩阵路由: slot{MatrixSlotDmm} {MatrixDmmH.In}-{MatrixDmmH.Out} + slot{MatrixSlotSig} {MatrixPointSig.In}-{MatrixPointSig.Out}");
 
-            _matrixRoutedDmm = await matrix.ConnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-            _matrixRoutedSig = await matrix.ConnectNodesAsync(MatrixPointJ216J217.In, MatrixPointJ216J217.Out, MatrixPointJ216J217.Slot, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+            _matrixRoutedDmm = await matrix.ConnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress, MatrixTcpBasePort)
+                .ConfigureAwait(false);
+            _matrixRoutedSig = await matrix.ConnectNodesAsync(MatrixPointSig.In, MatrixPointSig.Out, MatrixPointSig.Slot, MatrixIpAddress, MatrixTcpBasePort)
+                .ConfigureAwait(false);
             _isMatrixRouted = _matrixRoutedDmm && _matrixRoutedSig;
 
             AddLog($"矩阵路由结果: DMM={(_matrixRoutedDmm ? "OK" : "FAIL")}, SIG={(_matrixRoutedSig ? "OK" : "FAIL")}");
@@ -983,14 +808,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 if (_matrixRoutedDmm)
-                    _ = await matrix.DisconnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                    _ = await matrix.DisconnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress, MatrixTcpBasePort)
+                        .ConfigureAwait(false);
             }
             catch { }
 
             try
             {
                 if (_matrixRoutedSig)
-                    _ = await matrix.DisconnectNodesAsync(MatrixPointJ216J217.In, MatrixPointJ216J217.Out, MatrixPointJ216J217.Slot, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                    _ = await matrix.DisconnectNodesAsync(MatrixPointSig.In, MatrixPointSig.Out, MatrixPointSig.Slot, MatrixIpAddress, MatrixTcpBasePort)
+                        .ConfigureAwait(false);
             }
             catch { }
 
@@ -1013,15 +840,43 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             catch { }
 
-            try { await DisconnectElectronicLoadAsync(token).ConfigureAwait(false); } catch { }
             try { await DisconnectFpgaAsync(token).ConfigureAwait(false); } catch { }
+        }
+
+        private static byte[] BuildCurrentSetCommand(int currentmA)
+        {
+            if (currentmA < 0) currentmA = 0;
+            if (currentmA > 5000) currentmA = 5000;
+
+            ushort mA = (ushort)currentmA;
+
+            return new byte[]
+            {
+                0x0A, 0x55,
+                0x04,
+                0x0C,
+                (byte)(mA >> 8), (byte)(mA & 0xFF),
+                0x00
+            };
+        }
+
+        private static double? TryParseCurrentAFromReply(byte[] reply)
+        {
+            if (reply == null || reply.Length < 2)
+                return null;
+
+            int hi = reply[reply.Length - 2];
+            int lo = reply[reply.Length - 1];
+            int mA = (hi << 8) | lo;
+
+            return mA / 1000.0;
         }
 
         private static string FormatData(byte[] data)
         {
-            if (data == null || data.Length == 0)
-                return string.Empty;
-            return string.Join(" ", data.Select(b => b.ToString("X2")));
+            if (data == null)
+                return "--";
+            return BitConverter.ToString(data).Replace("-", " ");
         }
 
         public void Dispose()
@@ -1031,7 +886,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _autoTestCts = null;
 
             try { CleanupInstrumentsAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
-
             try { if (IsPowerOn) PowerOffAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
 
             try { _powerSupply28V?.DisposeAsync().AsTask().GetAwaiter().GetResult(); } catch { }
@@ -1041,7 +895,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try { _autoTestLock.Dispose(); } catch { }
             try { _opLock.Dispose(); } catch { }
             try { _instrumentLock.Dispose(); } catch { }
-            try { _electronicLoadIoLock.Dispose(); } catch { }
         }
     }
 }
