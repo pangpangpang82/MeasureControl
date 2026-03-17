@@ -561,6 +561,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         private void OnToggleMtx532Hardware()
         {
             _ = ToggleMtx532HardwareAsync();
@@ -753,6 +766,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             finally
             {
+                try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 _manualTestLock.Release();
             }
         }
@@ -882,6 +896,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     {
                     }
 
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+
                     IsAutoTestRunning = false;
                     IsBusy = false;
                 }
@@ -907,6 +923,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             finally
             {
+                try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 _autoTestLock.Release();
             }
         }

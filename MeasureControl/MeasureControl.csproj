@@ -952,6 +952,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_7_3_1_3View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Remove="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml" />
     <Page Include="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml">
       <Generator>MSBuild:Compile</Generator>

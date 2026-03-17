@@ -276,6 +276,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试功能暂未实现");
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         private async Task StartManualTestAsync()
         {
             if (IsBusy) return;
@@ -406,6 +419,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             finally
             {
                 IsBusy = false;
+                try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 _manualTestLock.Release();
             }
         }
