@@ -12,6 +12,7 @@ using Prism.Commands;
 using Prism.Events;
 using Prism.Mvvm;
 using Prism.Regions;
+using System.Threading.Tasks;
 
 namespace MeasureControl.ViewModels.SingleBoardTest
 {
@@ -20,6 +21,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         private readonly IEventAggregator _eventAggregator;
         private readonly MeasureControl.Services.ISingleBoardTestContextService _singleBoardTestContext;
         private const string CommonBoardTypeKey = "Common";
+        private bool _isStoppingCurrentTest;
 
         private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, Func<UserControl>>> TestItemViewFactoriesByBoardType =
             new Dictionary<string, IReadOnlyDictionary<string, Func<UserControl>>>(StringComparer.OrdinalIgnoreCase)
@@ -304,9 +306,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             get => _selectedTestItem;
             set
             {
+                if (_isStoppingCurrentTest)
+                {
+                    RaisePropertyChanged(nameof(SelectedTestItem));
+                    return;
+                }
+
                 if (!ReferenceEquals(value, _selectedTestItem) && _selectedTestItem != null && IsCurrentTestRunning())
                 {
-                    ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                    var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                    if (result != System.Windows.MessageBoxResult.Yes)
+                    {
+                        RaisePropertyChanged(nameof(SelectedTestItem));
+                        return;
+                    }
+
+                    _ = StopCurrentTestAndContinueAsync(
+                        onCompleted: () => SelectedTestItem = value,
+                        onFailed: () => RaisePropertyChanged(nameof(SelectedTestItem)));
                     RaisePropertyChanged(nameof(SelectedTestItem));
                     return;
                 }
@@ -383,8 +400,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
             if (IsCurrentTestRunning())
             {
-                ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                continuationCallback(false);
+                var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                if (result != System.Windows.MessageBoxResult.Yes)
+                {
+                    continuationCallback(false);
+                    return;
+                }
+
+                _ = StopCurrentTestAndContinueAsync(
+                    onCompleted: () => continuationCallback(true),
+                    onFailed: () => continuationCallback(false));
                 return;
             }
 
@@ -395,7 +420,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         {
             if (IsCurrentTestRunning())
             {
-                ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并关闭窗口？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                if (result != System.Windows.MessageBoxResult.Yes)
+                {
+                    return false;
+                }
+
+                _ = StopCurrentTestAndContinueAsync(onCompleted: null, onFailed: null);
                 return false;
             }
 
@@ -425,6 +456,108 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 var auto = pAuto?.PropertyType == typeof(bool) && (bool)(pAuto.GetValue(dc) ?? false);
 
                 return manual || auto;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<bool> TryStopCurrentTestAsync()
+        {
+            if (RightPanelContent is not System.Windows.FrameworkElement element)
+            {
+                return true;
+            }
+
+            var dc = element.DataContext;
+            if (dc == null)
+            {
+                return true;
+            }
+
+            try
+            {
+                var type = dc.GetType();
+                var pManual = type.GetProperty("IsManualTestRunning");
+                var pAuto = type.GetProperty("IsAutoTestRunning");
+
+                var manual = pManual?.PropertyType == typeof(bool) && (bool)(pManual.GetValue(dc) ?? false);
+                var auto = pAuto?.PropertyType == typeof(bool) && (bool)(pAuto.GetValue(dc) ?? false);
+
+                if (manual)
+                {
+                    return await InvokeStopMethodAsync(dc, "StopManualTestAsync").ConfigureAwait(false);
+                }
+
+                if (auto)
+                {
+                    return await InvokeStopMethodAsync(dc, "StopAutoTestAsync").ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private async Task StopCurrentTestAndContinueAsync(Action onCompleted, Action onFailed)
+        {
+            if (_isStoppingCurrentTest)
+            {
+                onFailed?.Invoke();
+                return;
+            }
+
+            _isStoppingCurrentTest = true;
+            try
+            {
+                var stopped = await TryStopCurrentTestAsync().ConfigureAwait(false);
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (stopped)
+                    {
+                        onCompleted?.Invoke();
+                        return;
+                    }
+
+                    onFailed?.Invoke();
+                });
+            }
+            catch
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => onFailed?.Invoke());
+            }
+            finally
+            {
+                _isStoppingCurrentTest = false;
+            }
+        }
+
+        private static async Task<bool> InvokeStopMethodAsync(object target, string methodName)
+        {
+            if (target == null || string.IsNullOrWhiteSpace(methodName))
+            {
+                return false;
+            }
+
+            try
+            {
+                var method = target.GetType().GetMethod(methodName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                if (method == null)
+                {
+                    return false;
+                }
+
+                var result = method.Invoke(target, null);
+                if (result is System.Threading.Tasks.Task task)
+                {
+                    await task.ConfigureAwait(false);
+                }
+
+                return true;
             }
             catch
             {

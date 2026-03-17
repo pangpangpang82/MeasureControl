@@ -269,6 +269,9 @@
     <Compile Include="Views\Dialogs\FreqVoltageRangeDialog.xaml.cs">
       <DependentUpon>FreqVoltageRangeDialog.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\Dialogs\HydraulicAutoTestSelectionDialog.xaml.cs">
+      <DependentUpon>HydraulicAutoTestSelectionDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\Dialogs\ReMessageBox.xaml.cs">
       <DependentUpon>ReMessageBox.xaml</DependentUpon>
     </Compile>
@@ -770,6 +773,7 @@
     <Compile Include="ViewModels\Dialogs\ReMessageBoxViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\SelfInspectionDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\SignalCalibrationDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\HydraulicAutoTestSelectionDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\TestStartDialogViewModel.cs" />
     <Compile Include="ViewModels\Dialogs\TestProgressDialogViewModel.cs" />
     <Compile Include="ViewModels\TestTask\ConfigTabel\IcdConfigTabelViewModel.cs" />
@@ -833,6 +837,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\Dialogs\CreateIcdConfigTableDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\Dialogs\HydraulicAutoTestSelectionDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
