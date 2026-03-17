@@ -67,6 +67,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "7.3.1.2 A控制通道功率板RATA直流电机驱动模块速度控制测试", () => new A_C_7_3_1_2View() },
                         { "7.3.2.2 A控制通道功率板AVV直流电机驱动模块速度控制测试", () => new A_C_7_3_2_2View() },
                         { "7.3.3.2 B控制通道PWM/FPGA速度控制测试", () => new B_C_7_3_3_2View() },
+                        { "7.4.1.1A控制通道功率板TCV步进电机驱动模块输出测试", () => new A_C_7_4_1_1View() },
                         { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
                         { "6.2.1A控制通道供电测试", () => new AirSimpleSequenceView("6.2.1A控制通道供电测试") },
                         { "5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
@@ -191,6 +192,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "8.1电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
                         { "7.1功率板电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
                         { "7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试", "\t a) 接入50±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS；\r\n\t b) 接入12±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS。" },
+                        { "7.4.1.1A控制通道功率板TCV步进电机驱动模块输出测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J96与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
                         { "6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
                         { "6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
                         { "6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
@@ -633,6 +635,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("7.3.1.2 A控制通道功率板RATA直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.3.2.2 A控制通道功率板AVV直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.3.3.2 B控制通道PWM/FPGA速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.1.1A控制通道功率板TCV步进电机驱动模块输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.1控制通道PDTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.2控制通道MIXTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.3控制通道CAR_TS传感器测试"));
