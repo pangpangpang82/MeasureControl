@@ -1218,11 +1218,11 @@ namespace MeasureControl.Views.Common
                 ("电源阻抗测试", ct => Vm1.RunOnceAsync(ct)),
                 ("二次电源测试", ct => Vm2.RunOnceAsync(ct)),
                 ("低电压告警功能测试", ct => Vm3.RunOnceAsync(ct)),
-                ("温度采集功能测试", ct => Vm4.RunOnceAsync(ct)),
+                ("温度采集功能", ct => Vm4.RunOnceAsync(ct)),
                 ("离散量采集功能测试", ct => Vm5.RunOnceAsync(ct)),
                 ("离散量输出功能测试", ct => Vm6.RunOnceAsync(ct)),
                 ("RS422通信功能测试", ct => Vm7.RunOnceAsync(ct)),
-                ("RS422通信自检功能测试", ct => Vm8.RunOnceAsync(ct)),
+                ("RS422通信自检测功能测试", ct => Vm8.RunOnceAsync(ct)),
             };
         }
 
@@ -1992,13 +1992,13 @@ namespace MeasureControl.Views.Common
                 // 电源阻抗测试: 行3-6
                 // 二次电源测试: 行7
                 // 低电压告警功能测试: 行8
-                // 温度采集功能测试: 行9
+                // 温度采集功能: 行9
                 // 离散量采集功能测试: 行10-13 (接地Bank0, Bank1, 开路Bank0, Bank1)
                 // 离散量输出功能测试-接地测试: 行14-21 (J6-J13)
                 // 离散量输出功能测试-开路测试: 行22-29 (J6-J13)
                 // 电压测试J4: 行30
                 // RS422通信功能测试: 行31-34
-                // RS422通信自检功能测试: 行35-36
+                // RS422通信自检测功能测试: 行35-36
 
                 string NormalizeFuelResult(string result)
                 {
@@ -2010,28 +2010,29 @@ namespace MeasureControl.Views.Common
                     return string.IsNullOrWhiteSpace(r) || r == "--" ? "--" : r;
                 }
 
+                var testTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
                 // 电源阻抗测试 vm1 (行3-6)
                 if (vm1 != null)
                 {
                     if (IsSingleBoardStepSelected("电源阻抗测试"))
                     {
-                        var executed = DidSingleBoardStepExecute("电源阻抗测试");
                         // J3-J4阻抗 (行3)
-                        SetExcelCellValue(cells, 3, valueCol, executed ? FormatNullableNumber(vm1.ImpedanceA) : "--");
-                        SetExcelCellValue(cells, 3, singleResultCol, executed ? NormalizeFuelResult(vm1.ResultA) : "--");
-                        SetExcelCellFontColor(cells, 3, singleResultCol, executed && !string.Equals(vm1.ResultA, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm1.ResultA, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 3, valueCol, FormatNullableNumber(vm1.ImpedanceA));
+                        SetExcelCellValue(cells, 3, singleResultCol, NormalizeFuelResult(vm1.ResultA));
+                        SetExcelCellFontColor(cells, 3, singleResultCol, !string.Equals(vm1.ResultA, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm1.ResultA, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm1.ResultA) && vm1.ResultA != "--" ? 255 : (int?)null);
                         // J14-J24阻抗 (行4)
-                        SetExcelCellValue(cells, 4, valueCol, executed ? FormatNullableNumber(vm1.ImpedanceB) : "--");
-                        SetExcelCellValue(cells, 4, singleResultCol, executed ? NormalizeFuelResult(vm1.ResultB) : "--");
-                        SetExcelCellFontColor(cells, 4, singleResultCol, executed && !string.Equals(vm1.ResultB, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm1.ResultB, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 4, valueCol, FormatNullableNumber(vm1.ImpedanceB));
+                        SetExcelCellValue(cells, 4, singleResultCol, NormalizeFuelResult(vm1.ResultB));
+                        SetExcelCellFontColor(cells, 4, singleResultCol, !string.Equals(vm1.ResultB, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm1.ResultB, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm1.ResultB) && vm1.ResultB != "--" ? 255 : (int?)null);
                         // J3-J5阻抗 (行5)
-                        SetExcelCellValue(cells, 5, valueCol, executed ? FormatNullableNumber(vm1.ImpedanceC) : "--");
-                        SetExcelCellValue(cells, 5, singleResultCol, executed ? NormalizeFuelResult(vm1.ResultC) : "--");
-                        SetExcelCellFontColor(cells, 5, singleResultCol, executed && !string.Equals(vm1.ResultC, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm1.ResultC, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 5, valueCol, FormatNullableNumber(vm1.ImpedanceC));
+                        SetExcelCellValue(cells, 5, singleResultCol, NormalizeFuelResult(vm1.ResultC));
+                        SetExcelCellFontColor(cells, 5, singleResultCol, !string.Equals(vm1.ResultC, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm1.ResultC, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm1.ResultC) && vm1.ResultC != "--" ? 255 : (int?)null);
                         // J14-J5阻抗 (行6)
-                        SetExcelCellValue(cells, 6, valueCol, executed ? FormatNullableNumber(vm1.ImpedanceD) : "--");
-                        SetExcelCellValue(cells, 6, singleResultCol, executed ? NormalizeFuelResult(vm1.ResultD) : "--");
-                        SetExcelCellFontColor(cells, 6, singleResultCol, executed && !string.Equals(vm1.ResultD, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm1.ResultD, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 6, valueCol, FormatNullableNumber(vm1.ImpedanceD));
+                        SetExcelCellValue(cells, 6, singleResultCol, NormalizeFuelResult(vm1.ResultD));
+                        SetExcelCellFontColor(cells, 6, singleResultCol, !string.Equals(vm1.ResultD, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm1.ResultD, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm1.ResultD) && vm1.ResultD != "--" ? 255 : (int?)null);
                         // 综合结果 (行3, F列合并单元格)
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 3, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("电源阻抗测试", vm1.OverallResult);
@@ -2039,6 +2040,8 @@ namespace MeasureControl.Views.Common
                         SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
+                        // 测试时间 (行3, G列合并单元格)
+                        SetExcelCellValue(cells, 3, timeCol, testTime);
                     }
                     else
                     {
@@ -2056,16 +2059,16 @@ namespace MeasureControl.Views.Common
                 {
                     if (IsSingleBoardStepSelected("二次电源测试"))
                     {
-                        var executed = DidSingleBoardStepExecute("二次电源测试");
-                        SetExcelCellValue(cells, 7, valueCol, executed ? FormatNullableNumber(vm2.VoltageValue) : "--");
-                        SetExcelCellValue(cells, 7, singleResultCol, executed ? NormalizeFuelResult(vm2.TestResult) : "--");
-                        SetExcelCellFontColor(cells, 7, singleResultCol, executed && !string.Equals(vm2.TestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm2.TestResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 7, valueCol, FormatNullableNumber(vm2.VoltageValue));
+                        SetExcelCellValue(cells, 7, singleResultCol, NormalizeFuelResult(vm2.TestResult));
+                        SetExcelCellFontColor(cells, 7, singleResultCol, !string.Equals(vm2.TestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm2.TestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm2.TestResult) && vm2.TestResult != "--" ? 255 : (int?)null);
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 7, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("二次电源测试", vm2.OverallResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overallResult });
                         SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
+                        SetExcelCellValue(cells, 7, timeCol, testTime);
                     }
                     else
                     {
@@ -2080,16 +2083,16 @@ namespace MeasureControl.Views.Common
                 {
                     if (IsSingleBoardStepSelected("低电压告警功能测试"))
                     {
-                        var executed = DidSingleBoardStepExecute("低电压告警功能测试");
-                        SetExcelCellValue(cells, 8, valueCol, executed ? FormatNullableNumber(vm3.FlipVoltage) : "--");
-                        SetExcelCellValue(cells, 8, singleResultCol, executed ? NormalizeFuelResult(vm3.TestResult) : "--");
-                        SetExcelCellFontColor(cells, 8, singleResultCol, executed && !string.Equals(vm3.TestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm3.TestResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 8, valueCol, FormatNullableNumber(vm3.FlipVoltage));
+                        SetExcelCellValue(cells, 8, singleResultCol, NormalizeFuelResult(vm3.TestResult));
+                        SetExcelCellFontColor(cells, 8, singleResultCol, !string.Equals(vm3.TestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm3.TestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm3.TestResult) && vm3.TestResult != "--" ? 255 : (int?)null);
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 8, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("低电压告警功能测试", vm3.OverallResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overallResult });
                         SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
+                        SetExcelCellValue(cells, 8, timeCol, testTime);
                     }
                     else
                     {
@@ -2099,21 +2102,21 @@ namespace MeasureControl.Views.Common
                     }
                 }
 
-                // 温度采集功能测试 vm4 (行9)
+                // 温度采集功能 vm4 (行9)
                 if (vm4 != null)
                 {
                     if (IsSingleBoardStepSelected("温度采集功能"))
                     {
-                        var executed = DidSingleBoardStepExecute("温度采集功能");
-                        SetExcelCellValue(cells, 9, valueCol, executed ? FormatNullableNumber(vm4.TemperatureValue) : "--");
-                        SetExcelCellValue(cells, 9, singleResultCol, executed ? NormalizeFuelResult(vm4.TestResult) : "--");
-                        SetExcelCellFontColor(cells, 9, singleResultCol, executed && !string.Equals(vm4.TestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm4.TestResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 9, valueCol, FormatNullableNumber(vm4.TemperatureValue));
+                        SetExcelCellValue(cells, 9, singleResultCol, NormalizeFuelResult(vm4.TestResult));
+                        SetExcelCellFontColor(cells, 9, singleResultCol, !string.Equals(vm4.TestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm4.TestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm4.TestResult) && vm4.TestResult != "--" ? 255 : (int?)null);
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 9, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("温度采集功能", vm4.OverallResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overallResult });
                         SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
+                        SetExcelCellValue(cells, 9, timeCol, testTime);
                     }
                     else
                     {
@@ -2128,19 +2131,18 @@ namespace MeasureControl.Views.Common
                 {
                     if (IsSingleBoardStepSelected("离散量采集功能测试"))
                     {
-                        var executed = DidSingleBoardStepExecute("离散量采集功能测试");
                         // 接地测试 Bank0[0:6] (行10)
-                        SetExcelCellValue(cells, 10, singleResultCol, executed ? NormalizeFuelResult(vm5.GroundedTestResult) : "--");
-                        SetExcelCellFontColor(cells, 10, singleResultCol, executed && !string.Equals(vm5.GroundedTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.GroundedTestResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 10, singleResultCol, NormalizeFuelResult(vm5.GroundedTestResult));
+                        SetExcelCellFontColor(cells, 10, singleResultCol, !string.Equals(vm5.GroundedTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.GroundedTestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm5.GroundedTestResult) && vm5.GroundedTestResult != "--" ? 255 : (int?)null);
                         // 接地测试 Bank1[0:6] (行11)
-                        SetExcelCellValue(cells, 11, singleResultCol, executed ? NormalizeFuelResult(vm5.GroundedTestResult) : "--");
-                        SetExcelCellFontColor(cells, 11, singleResultCol, executed && !string.Equals(vm5.GroundedTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.GroundedTestResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 11, singleResultCol, NormalizeFuelResult(vm5.GroundedTestResult));
+                        SetExcelCellFontColor(cells, 11, singleResultCol, !string.Equals(vm5.GroundedTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.GroundedTestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm5.GroundedTestResult) && vm5.GroundedTestResult != "--" ? 255 : (int?)null);
                         // 开路测试 Bank0[0:6] (行12)
-                        SetExcelCellValue(cells, 12, singleResultCol, executed ? NormalizeFuelResult(vm5.OpenTestResult) : "--");
-                        SetExcelCellFontColor(cells, 12, singleResultCol, executed && !string.Equals(vm5.OpenTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.OpenTestResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 12, singleResultCol, NormalizeFuelResult(vm5.OpenTestResult));
+                        SetExcelCellFontColor(cells, 12, singleResultCol, !string.Equals(vm5.OpenTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.OpenTestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm5.OpenTestResult) && vm5.OpenTestResult != "--" ? 255 : (int?)null);
                         // 开路测试 Bank1[0:6] (行13)
-                        SetExcelCellValue(cells, 13, singleResultCol, executed ? NormalizeFuelResult(vm5.OpenTestResult) : "--");
-                        SetExcelCellFontColor(cells, 13, singleResultCol, executed && !string.Equals(vm5.OpenTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.OpenTestResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 13, singleResultCol, NormalizeFuelResult(vm5.OpenTestResult));
+                        SetExcelCellFontColor(cells, 13, singleResultCol, !string.Equals(vm5.OpenTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.OpenTestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm5.OpenTestResult) && vm5.OpenTestResult != "--" ? 255 : (int?)null);
                         // 综合结果 (行10, F列合并单元格)
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 10, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("离散量采集功能测试", vm5.OverallResult);
@@ -2148,6 +2150,7 @@ namespace MeasureControl.Views.Common
                         SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
+                        SetExcelCellValue(cells, 10, timeCol, testTime);
                     }
                     else
                     {
@@ -2164,35 +2167,34 @@ namespace MeasureControl.Views.Common
                 {
                     if (IsSingleBoardStepSelected("离散量输出功能测试"))
                     {
-                        var executed = DidSingleBoardStepExecute("离散量输出功能测试");
                         // 接地测试 J6-J13 (行14-21)
-                        SetExcelCellValue(cells, 14, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceJ6) : "--");
-                        SetExcelCellValue(cells, 15, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceJ7) : "--");
-                        SetExcelCellValue(cells, 16, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceJ8) : "--");
-                        SetExcelCellValue(cells, 17, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceJ9) : "--");
-                        SetExcelCellValue(cells, 18, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceJ10) : "--");
-                        SetExcelCellValue(cells, 19, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceJ11) : "--");
-                        SetExcelCellValue(cells, 20, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceJ12) : "--");
-                        SetExcelCellValue(cells, 21, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceJ13) : "--");
+                        SetExcelCellValue(cells, 14, valueCol, FormatNullableNumber(vm6.ImpedanceJ6));
+                        SetExcelCellValue(cells, 15, valueCol, FormatNullableNumber(vm6.ImpedanceJ7));
+                        SetExcelCellValue(cells, 16, valueCol, FormatNullableNumber(vm6.ImpedanceJ8));
+                        SetExcelCellValue(cells, 17, valueCol, FormatNullableNumber(vm6.ImpedanceJ9));
+                        SetExcelCellValue(cells, 18, valueCol, FormatNullableNumber(vm6.ImpedanceJ10));
+                        SetExcelCellValue(cells, 19, valueCol, FormatNullableNumber(vm6.ImpedanceJ11));
+                        SetExcelCellValue(cells, 20, valueCol, FormatNullableNumber(vm6.ImpedanceJ12));
+                        SetExcelCellValue(cells, 21, valueCol, FormatNullableNumber(vm6.ImpedanceJ13));
                         // 接地测试单项结果 (行14)
-                        SetExcelCellValue(cells, 14, singleResultCol, executed ? NormalizeFuelResult(vm6.StepAResult) : "--");
-                        SetExcelCellFontColor(cells, 14, singleResultCol, executed && !string.Equals(vm6.StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm6.StepAResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 14, singleResultCol, NormalizeFuelResult(vm6.StepAResult));
+                        SetExcelCellFontColor(cells, 14, singleResultCol, !string.Equals(vm6.StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm6.StepAResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm6.StepAResult) && vm6.StepAResult != "--" ? 255 : (int?)null);
                         // 开路测试 J6-J13 (行22-29)
-                        SetExcelCellValue(cells, 22, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceOpenJ6) : "--");
-                        SetExcelCellValue(cells, 23, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceOpenJ7) : "--");
-                        SetExcelCellValue(cells, 24, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceOpenJ8) : "--");
-                        SetExcelCellValue(cells, 25, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceOpenJ9) : "--");
-                        SetExcelCellValue(cells, 26, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceOpenJ10) : "--");
-                        SetExcelCellValue(cells, 27, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceOpenJ11) : "--");
-                        SetExcelCellValue(cells, 28, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceOpenJ12) : "--");
-                        SetExcelCellValue(cells, 29, valueCol, executed ? FormatNullableNumber(vm6.ImpedanceOpenJ13) : "--");
+                        SetExcelCellValue(cells, 22, valueCol, FormatNullableNumber(vm6.ImpedanceOpenJ6));
+                        SetExcelCellValue(cells, 23, valueCol, FormatNullableNumber(vm6.ImpedanceOpenJ7));
+                        SetExcelCellValue(cells, 24, valueCol, FormatNullableNumber(vm6.ImpedanceOpenJ8));
+                        SetExcelCellValue(cells, 25, valueCol, FormatNullableNumber(vm6.ImpedanceOpenJ9));
+                        SetExcelCellValue(cells, 26, valueCol, FormatNullableNumber(vm6.ImpedanceOpenJ10));
+                        SetExcelCellValue(cells, 27, valueCol, FormatNullableNumber(vm6.ImpedanceOpenJ11));
+                        SetExcelCellValue(cells, 28, valueCol, FormatNullableNumber(vm6.ImpedanceOpenJ12));
+                        SetExcelCellValue(cells, 29, valueCol, FormatNullableNumber(vm6.ImpedanceOpenJ13));
                         // 开路测试单项结果 (行22)
-                        SetExcelCellValue(cells, 22, singleResultCol, executed ? NormalizeFuelResult(vm6.StepBResult) : "--");
-                        SetExcelCellFontColor(cells, 22, singleResultCol, executed && !string.Equals(vm6.StepBResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm6.StepBResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 22, singleResultCol, NormalizeFuelResult(vm6.StepBResult));
+                        SetExcelCellFontColor(cells, 22, singleResultCol, !string.Equals(vm6.StepBResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm6.StepBResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm6.StepBResult) && vm6.StepBResult != "--" ? 255 : (int?)null);
                         // 电压测试 J4 (行30)
-                        SetExcelCellValue(cells, 30, valueCol, executed ? FormatNullableNumber(vm6.J14Voltage) : "--");
-                        SetExcelCellValue(cells, 30, singleResultCol, executed ? NormalizeFuelResult(vm6.StepCResult) : "--");
-                        SetExcelCellFontColor(cells, 30, singleResultCol, executed && !string.Equals(vm6.StepCResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm6.StepCResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 30, valueCol, FormatNullableNumber(vm6.J14Voltage));
+                        SetExcelCellValue(cells, 30, singleResultCol, NormalizeFuelResult(vm6.StepCResult));
+                        SetExcelCellFontColor(cells, 30, singleResultCol, !string.Equals(vm6.StepCResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm6.StepCResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm6.StepCResult) && vm6.StepCResult != "--" ? 255 : (int?)null);
                         // 综合结果 (行14, F列合并单元格)
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 14, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("离散量输出功能测试", vm6.OverallResult);
@@ -2200,6 +2202,7 @@ namespace MeasureControl.Views.Common
                         SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
+                        SetExcelCellValue(cells, 14, timeCol, testTime);
                     }
                     else
                     {
@@ -2220,19 +2223,18 @@ namespace MeasureControl.Views.Common
                 {
                     if (IsSingleBoardStepSelected("RS422通信功能测试"))
                     {
-                        var executed = DidSingleBoardStepExecute("RS422通信功能测试");
                         // 通道1收发测试 (行31)
-                        SetExcelCellValue(cells, 31, singleResultCol, executed ? NormalizeFuelResult(vm7.StepAResult) : "--");
-                        SetExcelCellFontColor(cells, 31, singleResultCol, executed && !string.Equals(vm7.StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepAResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 31, singleResultCol, NormalizeFuelResult(vm7.StepAResult));
+                        SetExcelCellFontColor(cells, 31, singleResultCol, !string.Equals(vm7.StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepAResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm7.StepAResult) && vm7.StepAResult != "--" ? 255 : (int?)null);
                         // 通道2收发测试 (行32)
-                        SetExcelCellValue(cells, 32, singleResultCol, executed ? NormalizeFuelResult(vm7.StepBResult) : "--");
-                        SetExcelCellFontColor(cells, 32, singleResultCol, executed && !string.Equals(vm7.StepBResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepBResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 32, singleResultCol, NormalizeFuelResult(vm7.StepBResult));
+                        SetExcelCellFontColor(cells, 32, singleResultCol, !string.Equals(vm7.StepBResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepBResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm7.StepBResult) && vm7.StepBResult != "--" ? 255 : (int?)null);
                         // 通道1回环测试 (行33)
-                        SetExcelCellValue(cells, 33, singleResultCol, executed ? NormalizeFuelResult(vm7.StepCResult) : "--");
-                        SetExcelCellFontColor(cells, 33, singleResultCol, executed && !string.Equals(vm7.StepCResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepCResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 33, singleResultCol, NormalizeFuelResult(vm7.StepCResult));
+                        SetExcelCellFontColor(cells, 33, singleResultCol, !string.Equals(vm7.StepCResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepCResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm7.StepCResult) && vm7.StepCResult != "--" ? 255 : (int?)null);
                         // 通道2回环测试 (行34)
-                        SetExcelCellValue(cells, 34, singleResultCol, executed ? NormalizeFuelResult(vm7.StepDResult) : "--");
-                        SetExcelCellFontColor(cells, 34, singleResultCol, executed && !string.Equals(vm7.StepDResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepDResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 34, singleResultCol, NormalizeFuelResult(vm7.StepDResult));
+                        SetExcelCellFontColor(cells, 34, singleResultCol, !string.Equals(vm7.StepDResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepDResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm7.StepDResult) && vm7.StepDResult != "--" ? 255 : (int?)null);
                         // 综合结果 (行31, F列合并单元格)
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 31, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("RS422通信功能测试", vm7.OverallResult);
@@ -2240,6 +2242,7 @@ namespace MeasureControl.Views.Common
                         SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
+                        SetExcelCellValue(cells, 31, timeCol, testTime);
                     }
                     else
                     {
@@ -2251,18 +2254,17 @@ namespace MeasureControl.Views.Common
                     }
                 }
 
-                // RS422通信自检功能测试 vm8 (行35-36)
+                // RS422通信自检测功能测试 vm8 (行35-36)
                 if (vm8 != null)
                 {
                     if (IsSingleBoardStepSelected("RS422通信自检测功能测试"))
                     {
-                        var executed = DidSingleBoardStepExecute("RS422通信自检测功能测试");
                         // 通道1自检测试 (行35)
-                        SetExcelCellValue(cells, 35, singleResultCol, executed ? NormalizeFuelResult(vm8.StepAResult) : "--");
-                        SetExcelCellFontColor(cells, 35, singleResultCol, executed && !string.Equals(vm8.StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm8.StepAResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 35, singleResultCol, NormalizeFuelResult(vm8.StepAResult));
+                        SetExcelCellFontColor(cells, 35, singleResultCol, !string.Equals(vm8.StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm8.StepAResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm8.StepAResult) && vm8.StepAResult != "--" ? 255 : (int?)null);
                         // 通道2自检测试 (行36)
-                        SetExcelCellValue(cells, 36, singleResultCol, executed ? NormalizeFuelResult(vm8.StepBResult) : "--");
-                        SetExcelCellFontColor(cells, 36, singleResultCol, executed && !string.Equals(vm8.StepBResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm8.StepBResult, "合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        SetExcelCellValue(cells, 36, singleResultCol, NormalizeFuelResult(vm8.StepBResult));
+                        SetExcelCellFontColor(cells, 36, singleResultCol, !string.Equals(vm8.StepBResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm8.StepBResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm8.StepBResult) && vm8.StepBResult != "--" ? 255 : (int?)null);
                         // 综合结果 (行35, F列合并单元格)
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 35, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("RS422通信自检测功能测试", vm8.OverallResult);
@@ -2270,6 +2272,7 @@ namespace MeasureControl.Views.Common
                         SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
+                        SetExcelCellValue(cells, 35, timeCol, testTime);
                     }
                     else
                     {
