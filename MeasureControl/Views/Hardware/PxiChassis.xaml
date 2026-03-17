@@ -898,7 +898,7 @@
                         </TreeView.Resources>
                         <TreeView.ItemTemplate>
                             <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                                <Border Background="Transparent" HorizontalAlignment="Stretch">
+                                <Border HorizontalAlignment="Stretch" Background="Transparent">
                                     <Border.Padding>
                                         <MultiBinding Converter="{StaticResource LevelToIndentConverter}">
                                             <Binding RelativeSource="{RelativeSource AncestorType={x:Type TreeViewItem}}" />

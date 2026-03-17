@@ -197,7 +197,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="前置条件：" FontWeight="Bold" VerticalAlignment="Center" Foreground="#92400e"/>
-                                    <TextBlock Grid.Column="1" Text="组件下电，通过动作继电器将产品与试验台隔离（a/b步骤）" VerticalAlignment="Center" Foreground="#92400e" Margin="5,0" TextWrapping="Wrap"/>
+                                    <TextBlock Grid.Column="1" Text="组件下电" VerticalAlignment="Center" Foreground="#92400e" Margin="5,0" TextWrapping="Wrap"/>
                                     <Border Grid.Column="2" CornerRadius="4" Padding="8,3" Margin="5,0">
                                         <Border.Style>
                                             <Style TargetType="Border">
@@ -247,7 +247,7 @@
                                                     <Trigger Property="IsMouseOver" Value="True">
                                                         <Setter Property="Background" Value="#d97706"/>
                                                     </Trigger>
-                                                    <Trigger Property="IsEnabled" Value="False">
+                                                    <Trigger Property="IsEnabled" Value="True">
                                                         <Setter Property="Background" Value="#9ca3af"/>
                                                     </Trigger>
                                                 </Style.Triggers>

@@ -41,8 +41,10 @@
                             Width="100"
                             Height="32"
                             Margin="0,0,20,0"
+                            Visibility="Collapsed"
                             VerticalAlignment="Center"
                             BorderThickness="0"
+                            IsEnabled="{Binding CanStartManualTest, FallbackValue=True}"
                             Command="{Binding ManualTestCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
@@ -67,14 +69,23 @@
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsManualTestRunning}" Value="False">
+                                            <Setter Property="Tag" Value="False" />
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding IsManualTestInitializing}" Value="True">
+                                            <Setter Property="Tag" Value="Init" />
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding IsManualTestStopping}" Value="True">
+                                            <Setter Property="Tag" Value="Stopping" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
+                                        </DataTrigger>
+
                                         <DataTrigger Binding="{Binding IsManualTestRunning}" Value="True">
                                             <Setter Property="Tag" Value="True" />
                                             <Setter TargetName="border" Property="Background" Value="#ef4444" />
                                             <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
-                                        </DataTrigger>
-
-                                        <DataTrigger Binding="{Binding IsManualTestRunning}" Value="False">
-                                            <Setter Property="Tag" Value="False" />
                                         </DataTrigger>
 
                                         <!--  2. 未连接 + 悬停  -->
@@ -128,6 +139,7 @@
                             Margin="0,0,30,0"
                             VerticalAlignment="Center"
                             BorderThickness="0"
+                            IsEnabled="{Binding CanStartAutoTest, FallbackValue=True}"
                             Command="{Binding AutoTestCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
@@ -152,14 +164,23 @@
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="False">
+                                            <Setter Property="Tag" Value="False" />
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding IsAutoTestInitializing}" Value="True">
+                                            <Setter Property="Tag" Value="Init" />
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding IsAutoTestStopping}" Value="True">
+                                            <Setter Property="Tag" Value="Stopping" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
+                                        </DataTrigger>
+
                                         <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="True">
                                             <Setter Property="Tag" Value="True" />
                                             <Setter TargetName="border" Property="Background" Value="#ef4444" />
                                             <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
-                                        </DataTrigger>
-
-                                        <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="False">
-                                            <Setter Property="Tag" Value="False" />
                                         </DataTrigger>
 
                                         <!--  2. 未连接 + 悬停  -->
@@ -269,7 +290,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin49Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -287,7 +308,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin50Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -305,7 +326,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin51Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                 </StackPanel>
                                 <StackPanel
@@ -328,7 +349,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin52Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -346,7 +367,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin53Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -364,7 +385,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin54Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                 </StackPanel>
                                 <StackPanel
@@ -387,7 +408,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin55Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -405,7 +426,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin56Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -423,7 +444,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin57Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                 </StackPanel>
                                 <StackPanel
@@ -446,7 +467,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin58Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -464,7 +485,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin59Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -482,7 +503,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin60Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                 </StackPanel>
                                 <StackPanel
@@ -505,7 +526,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin61Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -523,7 +544,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin62Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -541,7 +562,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin63Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                 </StackPanel>
                                 <StackPanel
@@ -564,7 +585,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin89Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -582,7 +603,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin90Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -600,7 +621,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin91Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                 </StackPanel>
 
@@ -624,7 +645,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin92Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -642,7 +663,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin93Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -660,7 +681,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin94Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                 </StackPanel>
                                 <StackPanel
@@ -683,7 +704,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin95Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -701,7 +722,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin96Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -719,7 +740,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin97Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                 </StackPanel>
                                 <StackPanel
@@ -742,7 +763,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin98Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -760,7 +781,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin99Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                     <TextBlock
                                         Margin="20,0,0,0"
@@ -778,7 +799,7 @@
                                             Margin="5,0,1,0"
                                             VerticalAlignment="Center"
                                             FontSize="15"
-                                            Text="{Binding null, TargetNullValue=---, FallbackValue=---}" />
+                                            Text="{Binding Pin100Text, TargetNullValue=---, FallbackValue=---}" />
                                     </Border>
                                 </StackPanel>
 
@@ -792,6 +813,7 @@
                                         Width="50"
                                         Height="28"
                                         Margin="0,0,0,0"
+                                        Visibility="Collapsed"
                                         VerticalAlignment="Center"
                                         BorderThickness="0"
                                         Command="{Binding Measure14Command}"
@@ -938,11 +960,21 @@
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
                         FontSize="18"
-                        FontWeight="Bold">
-                        <Run Text="测试结果：" />
-                        <Run Text=" " />
-                        <Run Text="{Binding LastTestResult, TargetNullValue=--, FallbackValue=--}" />
-                        <Run Text="{Binding LastTestTime, TargetNullValue=--, FallbackValue=--}" />
+                        FontWeight="Bold"
+                        Text="{Binding CurrentTestResult, StringFormat=测试结果：{0}, TargetNullValue=测试结果：--, FallbackValue=测试结果：--}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="Black" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentTestResult}" Value="合格">
+                                        <Setter Property="Foreground" Value="#16a34a" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding CurrentTestResult}" Value="不合格">
+                                        <Setter Property="Foreground" Value="#dc2626" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
                     </TextBlock>
                     <Grid Grid.Row="1">
                         <Grid.ColumnDefinitions>
@@ -954,19 +986,15 @@
                             Margin="20,0,0,0"
                             VerticalAlignment="Center"
                             FontSize="14"
-                            FontWeight="Bold">
-                            <Run Text="上次测试时间：" />
-                            <Run Text="{Binding PreviousTestTime, TargetNullValue=--, FallbackValue=--}" />
-                        </TextBlock>
+                            FontWeight="Bold"
+                            Text="{Binding PreviousTestTime, StringFormat=上次测试时间：{0}, TargetNullValue=上次测试时间：--, FallbackValue=上次测试时间：--}" />
                         <TextBlock
                             Grid.Column="1"
                             Margin="30,0,0,0"
                             VerticalAlignment="Center"
                             FontSize="14"
-                            FontWeight="Bold">
-                            <Run Text="上次测试结果：" />
-                            <Run Text="{Binding PreviousTestResult, TargetNullValue=--, FallbackValue=--}" />
-                        </TextBlock>
+                            FontWeight="Bold"
+                            Text="{Binding PreviousTestResult, StringFormat=上次测试结果：{0}, TargetNullValue=上次测试结果：--, FallbackValue=上次测试结果：--}" />
                     </Grid>
                 </Grid>
             </Border>

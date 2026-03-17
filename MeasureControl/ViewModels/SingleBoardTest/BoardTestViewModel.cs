@@ -12,14 +12,16 @@ using Prism.Commands;
 using Prism.Events;
 using Prism.Mvvm;
 using Prism.Regions;
+using System.Threading.Tasks;
 
 namespace MeasureControl.ViewModels.SingleBoardTest
 {
-    public class BoardTestViewModel : BindableBase, INavigationAware
+    public class BoardTestViewModel : BindableBase, INavigationAware, IConfirmNavigationRequest, ICloseGuard
     {
         private readonly IEventAggregator _eventAggregator;
         private readonly MeasureControl.Services.ISingleBoardTestContextService _singleBoardTestContext;
         private const string CommonBoardTypeKey = "Common";
+        private bool _isStoppingCurrentTest;
 
         private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, Func<UserControl>>> TestItemViewFactoriesByBoardType =
             new Dictionary<string, IReadOnlyDictionary<string, Func<UserControl>>>(StringComparer.OrdinalIgnoreCase)
@@ -161,10 +163,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     {
                         { "电源阻抗测试", "\t a) 阻抗值大于500Ω；\r\n \t b) 阻抗值大于500Ω。" },
                         { "二次电源测试", "\t a) 5V隔离二次电源输出电压范围在[4.925，5.075]V；\r\n \t b) 15V隔离二次电源输出电压范围在[14.775，15.225]V；\r\n \t c) -15V隔离二次电源输出电压范围在[-14.775，-15.225]V。" },
-                        { "温度采集测试", "\t a) 阻值为763.3±2.0Ω，温度值在[-66.6,-53.4]°C;\r\n \t b) 阻值为763.3±2.0Ω，温度值在[193.4,206.6]°C;\r\n \t c) 阻值为763.3±2.0Ω，温度值在[32.4,46.6]°C。" },
-                        { "压力传感器信号采集测试", "\t a) 电压供电0.5±0.0717，压力值在[0,3.4]Psia;\r\n \t b) 电压供电7.17±0.0717V，压力值在[3915,4000]Psia;\r\n \t c) 电压供电3.0±0.0717V，压差力在[1414,1585]Psia。" },
-                        { "压差传感器信号采集测试", "\t a) 电流供电4±0.2mA，压力值在[0,85]Psid;\r\n \t b) 电流供电20±0.2mA，压力值在[121.5,128.4]Psid;\r\n \t c) 电流供电10±0.2mA，压力值在[43.44,50.31]Psid。" },
-                        { "油量传感器信号采集测试", "\t a);\r\n \t b);\r\n \t c)。" },
+                        { "温度采集测试", "\t a) 阻值为763.3±2.0Ω，温度值在[-66.6,-53.4]°C;\r\n \t b) 阻值为1758.6±2.0Ω，温度值在[193.4,206.6]°C;\r\n \t c) 阻值为1155.4±2.0Ω，温度值在[32.4,46.6]°C。" },
+                        { "压力传感器信号采集测试", "\t a) 电压供电0.5±0.0717，压力值在[0,85]Psia;\r\n \t b) 电压供电7.17±0.0717V，压力值在[3915,4000]Psia;\r\n \t c) 电压供电3.0±0.0717V，压差力在[1414,1585]Psia。" },
+                        { "压差传感器信号采集测试", "\t a) 电流供电4±0.2mA，压力值在[0,3.4]Psid;\r\n \t b) 电流供电20±0.2mA，压力值在[121.5,128.4]Psid;\r\n \t c) 电流供电10±0.2mA，压力值在[43.44,50.31]Psid。" },
+                        { "油量传感器信号采集测试", "\t a) 31-32/33-34针脚采集信号频率3200±32Hz，电压有效值6±1Vrms;\r\n \t b)2/3号系统油量处于范围内。\r\n \t " },
                         { "离散量采集测试", "\t 采集结果均为1。" },
                         { "离散量输出测试", "\t a) 置为开路时，针脚9~15对地阻抗均大于100kΩ;\r\n \t b) 置为通路时，针脚9~15对地阻抗均小于10Ω。" },
                     }
@@ -212,6 +214,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 }
             };
 
+        private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> NotesByBoardType =
+            new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                {
+                    "液压单板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        {
+                            "温度采集测试",
+                            ""
+                        },
+                        {
+                            "压差传感器信号采集测试",
+                            ""
+                        },
+                        {
+                            "离散量采集测试",
+                            ""
+                        },
+
+                    }
+                },
+            };
+
         private string _testTaskName;
         private string _boardType;
         private string _parentChassisName;
@@ -219,6 +245,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         private object _rightPanelContent;
         private TestSequenceItem _selectedTestItem;
         private string _selectedTestCriteriaText;
+        private string _selectedTestNotesText;
+
+        /// <summary>右侧"操作步骤"面板标题</summary>
+        public string TestNotesTitle => "注意事项";
+
+        /// <summary>右侧"操作步骤"内容，随左侧选中测试项联动更新</summary>
+        public string SelectedTestNotesText
+        {
+            get => _selectedTestNotesText;
+            private set => SetProperty(ref _selectedTestNotesText, value);
+        }
 
         public string TestTaskName
         {
@@ -272,16 +309,42 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             get => _selectedTestItem;
             set
             {
+                if (_isStoppingCurrentTest)
+                {
+                    RaisePropertyChanged(nameof(SelectedTestItem));
+                    return;
+                }
+
+                if (!ReferenceEquals(value, _selectedTestItem) && _selectedTestItem != null && IsCurrentTestRunning())
+                {
+                    var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                    if (result != System.Windows.MessageBoxResult.Yes)
+                    {
+                        RaisePropertyChanged(nameof(SelectedTestItem));
+                        return;
+                    }
+
+                    _ = StopCurrentTestAndContinueAsync(
+                        onCompleted: () => SelectedTestItem = value,
+                        onFailed: () => RaisePropertyChanged(nameof(SelectedTestItem)));
+                    RaisePropertyChanged(nameof(SelectedTestItem));
+                    return;
+                }
+
                 if (SetProperty(ref _selectedTestItem, value))
                 {
+                    // ── FIX：value == null 时同时清空两个面板 ──────────────────
                     if (value == null)
                     {
                         RightPanelContent = null;
                         SelectedTestCriteriaText = string.Empty;
+                        SelectedTestNotesText = string.Empty;  // ← 新增
                         return;
                     }
 
+                    // ── FIX：正常分支同时更新测试判据与操作步骤 ───────────────
                     SelectedTestCriteriaText = ResolveCriteriaText(BoardType, value.Name);
+                    SelectedTestNotesText = ResolveNotesText(BoardType, value.Name);  // ← 新增
 
                     if (TryGetViewFactory(BoardType, value.Name, out var viewFactory))
                     {
@@ -306,8 +369,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             TestTaskName = parameters?.GetValue<string>("TestTaskName") ?? string.Empty;
             BoardType = parameters?.GetValue<string>("BoardType") ?? string.Empty;
             ParentChassisName = parameters?.GetValue<string>("ParentChassisName")
-                                ?? parameters?.GetValue<string>("ChassisName")
-                                ?? string.Empty;
+                             ?? parameters?.GetValue<string>("ChassisName")
+                             ?? string.Empty;
 
             _singleBoardTestContext.Update(ParentChassisName, TestTaskName, BoardType);
 
@@ -316,6 +379,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
             LoadFixedTestItems(BoardType);
 
+            // ── FIX：直接赋值触发 setter，setter 内部会同时更新判据与操作步骤 ──
+            // 原代码末尾多余的 SelectedTestNotesText = ResolveNotesText(BoardType, value.Name)
+            // 已删除（value 在此方法中未定义，是编译错误的根源）
             SelectedTestItem = TestSequenceItems.FirstOrDefault();
         }
 
@@ -326,6 +392,180 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
         public void OnNavigatedFrom(NavigationContext navigationContext)
         {
+        }
+
+        public void ConfirmNavigationRequest(NavigationContext navigationContext, Action<bool> continuationCallback)
+        {
+            if (continuationCallback == null)
+            {
+                return;
+            }
+
+            if (IsCurrentTestRunning())
+            {
+                var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                if (result != System.Windows.MessageBoxResult.Yes)
+                {
+                    continuationCallback(false);
+                    return;
+                }
+
+                _ = StopCurrentTestAndContinueAsync(
+                    onCompleted: () => continuationCallback(true),
+                    onFailed: () => continuationCallback(false));
+                return;
+            }
+
+            continuationCallback(true);
+        }
+
+        public bool CanClose()
+        {
+            if (IsCurrentTestRunning())
+            {
+                var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并关闭窗口？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                if (result != System.Windows.MessageBoxResult.Yes)
+                {
+                    return false;
+                }
+
+                _ = StopCurrentTestAndContinueAsync(onCompleted: null, onFailed: null);
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool IsCurrentTestRunning()
+        {
+            if (RightPanelContent is not System.Windows.FrameworkElement element)
+            {
+                return false;
+            }
+
+            var dc = element.DataContext;
+            if (dc == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                var type = dc.GetType();
+                var pManual = type.GetProperty("IsManualTestRunning");
+                var pAuto = type.GetProperty("IsAutoTestRunning");
+
+                var manual = pManual?.PropertyType == typeof(bool) && (bool)(pManual.GetValue(dc) ?? false);
+                var auto = pAuto?.PropertyType == typeof(bool) && (bool)(pAuto.GetValue(dc) ?? false);
+
+                return manual || auto;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<bool> TryStopCurrentTestAsync()
+        {
+            if (RightPanelContent is not System.Windows.FrameworkElement element)
+            {
+                return true;
+            }
+
+            var dc = element.DataContext;
+            if (dc == null)
+            {
+                return true;
+            }
+
+            try
+            {
+                var type = dc.GetType();
+                var pManual = type.GetProperty("IsManualTestRunning");
+                var pAuto = type.GetProperty("IsAutoTestRunning");
+
+                var manual = pManual?.PropertyType == typeof(bool) && (bool)(pManual.GetValue(dc) ?? false);
+                var auto = pAuto?.PropertyType == typeof(bool) && (bool)(pAuto.GetValue(dc) ?? false);
+
+                if (manual)
+                {
+                    return await InvokeStopMethodAsync(dc, "StopManualTestAsync").ConfigureAwait(false);
+                }
+
+                if (auto)
+                {
+                    return await InvokeStopMethodAsync(dc, "StopAutoTestAsync").ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private async Task StopCurrentTestAndContinueAsync(Action onCompleted, Action onFailed)
+        {
+            if (_isStoppingCurrentTest)
+            {
+                onFailed?.Invoke();
+                return;
+            }
+
+            _isStoppingCurrentTest = true;
+            try
+            {
+                var stopped = await TryStopCurrentTestAsync().ConfigureAwait(false);
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (stopped)
+                    {
+                        onCompleted?.Invoke();
+                        return;
+                    }
+
+                    onFailed?.Invoke();
+                });
+            }
+            catch
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => onFailed?.Invoke());
+            }
+            finally
+            {
+                _isStoppingCurrentTest = false;
+            }
+        }
+
+        private static async Task<bool> InvokeStopMethodAsync(object target, string methodName)
+        {
+            if (target == null || string.IsNullOrWhiteSpace(methodName))
+            {
+                return false;
+            }
+
+            try
+            {
+                var method = target.GetType().GetMethod(methodName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                if (method == null)
+                {
+                    return false;
+                }
+
+                var result = method.Invoke(target, null);
+                if (result is System.Threading.Tasks.Task task)
+                {
+                    await task.ConfigureAwait(false);
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static bool TryGetViewFactory(string boardType, string testItemName, out Func<UserControl> viewFactory)
@@ -354,11 +594,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         private static string ResolveCriteriaText(string boardType, string testItemName)
         {
             if (string.IsNullOrWhiteSpace(boardType) || string.IsNullOrWhiteSpace(testItemName))
-            {
                 return string.Empty;
-            }
 
             if (CriteriaTextsByBoardType.TryGetValue(boardType, out var perBoard)
+                && perBoard != null
+                && perBoard.TryGetValue(testItemName, out var text))
+            {
+                return text ?? string.Empty;
+            }
+
+            return string.Empty;
+        }
+
+        private static string ResolveNotesText(string boardType, string testItemName)
+        {
+            if (string.IsNullOrWhiteSpace(boardType) || string.IsNullOrWhiteSpace(testItemName))
+                return string.Empty;
+
+            if (NotesByBoardType.TryGetValue(boardType, out var perBoard)
                 && perBoard != null
                 && perBoard.TryGetValue(testItemName, out var text))
             {
@@ -494,6 +747,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
         private void OnCloseInRegion()
         {
+            if (IsCurrentTestRunning())
+            {
+                ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
             var result = ReMessageBox.Show("确定要关闭单板测试吗？", "确认", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
             if (result == System.Windows.MessageBoxResult.Yes)
             {
@@ -501,14 +760,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             }
         }
 
-        public class TestSequenceItem
+        public class TestSequenceItem : BindableBase
         {
+            private bool _isSelected = true;
+
             public TestSequenceItem(string name)
             {
                 Name = name;
             }
 
             public string Name { get; }
+
+            public bool IsSelected
+            {
+                get => _isSelected;
+                set => SetProperty(ref _isSelected, value);
+            }
         }
     }
 }

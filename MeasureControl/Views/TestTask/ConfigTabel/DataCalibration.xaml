@@ -234,10 +234,10 @@
                                                             Margin="10,0,0,0"
                                                             VerticalAlignment="Center"
                                                             BorderThickness="0"
-                                                            FontSize="14"
                                                             DataObject.Pasting="NumericTextBox_Pasting"
-                                                            PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                                            FontSize="14"
                                                             LostFocus="NumericTextBox_LostFocus"
+                                                            PreviewTextInput="NumericTextBox_PreviewTextInput"
                                                             Text="{Binding Value, UpdateSourceTrigger=LostFocus, TargetNullValue=''}" />
                                                     </Border>
                                                 </DataTemplate>
@@ -287,10 +287,10 @@
                                                             Margin="10,0,0,0"
                                                             VerticalAlignment="Center"
                                                             BorderThickness="0"
-                                                            FontSize="14"
                                                             DataObject.Pasting="NumericTextBox_Pasting"
-                                                            PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                                            FontSize="14"
                                                             LostFocus="NumericTextBox_LostFocus"
+                                                            PreviewTextInput="NumericTextBox_PreviewTextInput"
                                                             Text="{Binding Value, UpdateSourceTrigger=LostFocus, TargetNullValue=''}" />
                                                     </Border>
                                                 </DataTemplate>

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Windows;
@@ -20,10 +21,12 @@ using System.Windows.Shapes;
 using MeasureControl.Models.Devices;
 using MeasureControl.ViewModels.SingleBoardTest;
 using MeasureControl.ViewModels.SingleBoardTest.HydraulicController;
+using MeasureControl.ViewModels.SingleBoardTest.FuelController;
 using MeasureControl.Views.Dialogs;
 using MeasureControl.ViewModels.Dialogs;
-using System;
 using System.IO;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -41,6 +44,18 @@ namespace MeasureControl.Views.Common
 
         private CancellationTokenSource _singleBoardAutoTestCts;
         private string _singleBoardAutoTestReportPath;
+        private string _singleBoardAutoTestExcelReportPath;
+        private HashSet<string> _selectedSingleBoardAutoTestItems;
+        private Dictionary<string, string> _singleBoardAutoStepResults;
+        private HC_6_1ViewModel _hydraulicAutoTestVm61;
+        private HC_6_2ViewModel _hydraulicAutoTestVm62;
+        private HC_6_3ViewModel _hydraulicAutoTestVm63;
+        private HC_6_4ViewModel _hydraulicAutoTestVm64;
+        private HC_6_5ViewModel _hydraulicAutoTestVm65;
+        private HC_6_6ViewModel _hydraulicAutoTestVm66;
+        private HC_6_7ViewModel _hydraulicAutoTestVm67;
+        private HC_6_8ViewModel _hydraulicAutoTestVm68;
+        private HashSet<string> _executedFuelTestStepNames;
 
         #endregion
 
@@ -69,6 +84,7 @@ namespace MeasureControl.Views.Common
             
             // 在窗口加载完成后导航到HomePage
             Loaded += OnMainWindowLoaded;
+            Closing += OnMainWindowClosing;
             Closed += OnMainWindowClosed;
             _viewModel.PropertyChanged += ViewModelOnPropertyChanged;
             ProjectTreeView.Loaded += ProjectTreeView_OnLoaded;
@@ -154,6 +170,7 @@ namespace MeasureControl.Views.Common
             {
                 _viewModel.PropertyChanged -= ViewModelOnPropertyChanged;
             }
+            Closing -= OnMainWindowClosing;
             ProjectTreeView.Loaded -= ProjectTreeView_OnLoaded;
             
             // 取消订阅事件
@@ -161,6 +178,24 @@ namespace MeasureControl.Views.Common
             {
                 _eventAggregator.GetEvent<TestTaskCreatedEvent>().Unsubscribe(OnTestTaskCreated);
                 _eventAggregator.GetEvent<SelectProjectItemEvent>().Unsubscribe(OnSelectProjectItem);
+            }
+        }
+
+        private void OnMainWindowClosing(object sender, CancelEventArgs e)
+        {
+            try
+            {
+                if (MainContentContainer?.Content is FrameworkElement element)
+                {
+                    if (element.DataContext is ICloseGuard guard && !guard.CanClose())
+                    {
+                        e.Cancel = true;
+                    }
+                }
+            }
+            catch
+            {
+                e.Cancel = true;
             }
         }
 
@@ -853,15 +888,55 @@ namespace MeasureControl.Views.Common
                 boardType = boardName;
             }
 
-            // 框架：四个单板类型分支，液压已实现，其它留给同事补齐
-            (string Name, Func<CancellationToken, Task<string>> Run)[] steps = boardType switch
+            _selectedSingleBoardAutoTestItems = null;
+            HashSet<string> selectedStepNames = null;
+            if (boardType == "加放油单板")
             {
-                "液压单板" => BuildHydraulicSteps(),
-                "空气单板" => BuildAirSteps(),
-                "惰化单板" => BuildInertingSteps(),
-                "加放油单板" => BuildFuelSteps(),
-                _ => null
-            };
+                selectedStepNames = GetSelectedFuelTestStepNames(boardName);
+                _executedFuelTestStepNames = selectedStepNames != null
+                    ? new HashSet<string>(selectedStepNames, StringComparer.OrdinalIgnoreCase)
+                    : null;
+            }
+            else
+            {
+                _executedFuelTestStepNames = null;
+            }
+
+            (string Name, Func<CancellationToken, Task<string>> Run)[] steps;
+            if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
+            {
+                var allHydraulicSteps = BuildHydraulicSteps();
+                var dialog = new HydraulicAutoTestSelectionDialog
+                {
+                    Owner = this
+                };
+                dialog.Initialize(allHydraulicSteps.Select(x => x.Name).ToArray());
+                var confirmed = dialog.ShowDialog();
+                if (confirmed != true)
+                {
+                    return;
+                }
+
+                var selectedItems = dialog.SelectedItems ?? Array.Empty<string>();
+                if (selectedItems.Length == 0)
+                {
+                    ReMessageBox.Show("请至少勾选一个测试项", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                _selectedSingleBoardAutoTestItems = new HashSet<string>(selectedItems, StringComparer.OrdinalIgnoreCase);
+                steps = allHydraulicSteps.Where(x => _selectedSingleBoardAutoTestItems.Contains(x.Name)).ToArray();
+            }
+            else
+            {
+                steps = boardType switch
+                {
+                    "空气单板" => BuildAirSteps(),
+                    "惰化单板" => BuildInertingSteps(),
+                    "加放油单板" => BuildFuelSteps(selectedStepNames),
+                    _ => null
+                };
+            }
 
             if (steps == null)
             {
@@ -871,7 +946,7 @@ namespace MeasureControl.Views.Common
 
             if (steps.Length == 0)
             {
-                ReMessageBox.Show($"{boardType}整板自动测试未实现", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                ReMessageBox.Show($"{boardType}整板自动测试未实现或没有选中任何测试项", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -893,11 +968,20 @@ namespace MeasureControl.Views.Common
             EventHandler ownerDeactivatedHandler = null;
 
             var originalIsEnabled = IsEnabled;
+            var anyFailed = false;
 
             try
             {
                 PrepareSingleBoardReport(boardName);
                 AppendSingleBoardReportLine($"START | {boardName} | {boardType}");
+
+                if (string.Equals(boardType, "加放油单板", StringComparison.OrdinalIgnoreCase))
+                {
+                    var selected = _executedFuelTestStepNames == null
+                        ? "ALL"
+                        : (_executedFuelTestStepNames.Count == 0 ? "NONE" : string.Join(",", _executedFuelTestStepNames));
+                    AppendSingleBoardReportLine($"SELECTED | {selected}");
+                }
 
                 // 整板自动测试期间禁用主窗口操作
                 IsEnabled = false;
@@ -961,9 +1045,19 @@ namespace MeasureControl.Views.Common
                 dialog.Show();
 
                 int done = 0;
+                bool hasAnyFailed = false;
                 for (int i = 0; i < steps.Length; i++)
                 {
                     token.ThrowIfCancellationRequested();
+
+                    try
+                    {
+                        var singleBoardTestContext = ContainerLocator.Container.Resolve<ISingleBoardTestContextService>();
+                        singleBoardTestContext?.Update(string.Empty, boardName, boardType);
+                    }
+                    catch
+                    {
+                    }
 
                     vm.StatusText = $"{steps[i].Name}（{i + 1}/{steps.Length}）";
                     vm.Progress = done;
@@ -981,32 +1075,29 @@ namespace MeasureControl.Views.Common
                     catch (Exception ex)
                     {
                         AppendSingleBoardReportLine($"EXCEPTION | {steps[i].Name} | {ex.GetType().Name} | {ex.Message}");
-                        vm.IsFailed = true;
-                        vm.ConfirmStopOnClose = false;
-                        ReMessageBox.Show($"{steps[i].Name}异常: {ex.Message}", "测试异常", MessageBoxButton.OK, MessageBoxImage.Error);
-                        return;
+                        result = "异常";
+                        anyFailed = true;
                     }
 
                     AppendSingleBoardReportLine($"STEP | {steps[i].Name} | {NormalizeResult(result)}");
+                    _singleBoardAutoStepResults[steps[i].Name] = NormalizeResult(result);
 
                     done++;
                     vm.Progress = done;
 
                     if (!IsPass(result))
                     {
-                        vm.IsFailed = true;
-                        vm.ConfirmStopOnClose = false;
-                        AppendSingleBoardReportLine($"STOP | FAIL_AT={steps[i].Name}");
-                        ReMessageBox.Show($"{steps[i].Name}不合格，整板自动测试终止。", "测试终止", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        return;
+                        anyFailed = true;
                     }
                 }
 
-                AppendSingleBoardReportLine("END | PASS");
-                vm.IsCompleted = true;
+                AppendSingleBoardReportLine(anyFailed ? "END | FAIL" : "END | PASS");
+                TryGenerateSingleBoardExcelReport(boardName, boardType);
+                vm.IsCompleted = !anyFailed;
+                vm.IsFailed = anyFailed;
                 vm.ConfirmStopOnClose = false;
                 vm.Progress = steps.Length;
-                vm.StatusText = "完成";
+                vm.StatusText = anyFailed ? "完成（存在不合格/异常项）" : "完成";
             }
             catch (OperationCanceledException)
             {
@@ -1051,30 +1142,32 @@ namespace MeasureControl.Views.Common
 
                 _singleBoardAutoTestCts?.Dispose();
                 _singleBoardAutoTestCts = null;
+                _selectedSingleBoardAutoTestItems = null;
+                _singleBoardAutoStepResults = null;
             }
         }
 
-        private static (string Name, Func<CancellationToken, Task<string>> Run)[] BuildHydraulicSteps()
+        private (string Name, Func<CancellationToken, Task<string>> Run)[] BuildHydraulicSteps()
         {
-            var vm61 = ContainerLocator.Container.Resolve<HC_6_1ViewModel>();
-            var vm62 = ContainerLocator.Container.Resolve<HC_6_2ViewModel>();
-            var vm63 = ContainerLocator.Container.Resolve<HC_6_3ViewModel>();
-            var vm64 = ContainerLocator.Container.Resolve<HC_6_4ViewModel>();
-            var vm65 = ContainerLocator.Container.Resolve<HC_6_5ViewModel>();
-            var vm66 = ContainerLocator.Container.Resolve<HC_6_6ViewModel>();
-            var vm67 = ContainerLocator.Container.Resolve<HC_6_7ViewModel>();
-            var vm68 = ContainerLocator.Container.Resolve<HC_6_8ViewModel>();
+            _hydraulicAutoTestVm61 = ContainerLocator.Container.Resolve<HC_6_1ViewModel>();
+            _hydraulicAutoTestVm62 = ContainerLocator.Container.Resolve<HC_6_2ViewModel>();
+            _hydraulicAutoTestVm63 = ContainerLocator.Container.Resolve<HC_6_3ViewModel>();
+            _hydraulicAutoTestVm64 = ContainerLocator.Container.Resolve<HC_6_4ViewModel>();
+            _hydraulicAutoTestVm65 = ContainerLocator.Container.Resolve<HC_6_5ViewModel>();
+            _hydraulicAutoTestVm66 = ContainerLocator.Container.Resolve<HC_6_6ViewModel>();
+            _hydraulicAutoTestVm67 = ContainerLocator.Container.Resolve<HC_6_7ViewModel>();
+            _hydraulicAutoTestVm68 = ContainerLocator.Container.Resolve<HC_6_8ViewModel>();
 
             return new (string Name, Func<CancellationToken, Task<string>> Run)[]
             {
-                ("电源阻抗测试", ct => vm61.RunOnceAsync(ct)),
-                ("二次电源测试", ct => vm62.RunOnceAsync(ct)),
-                ("温度采集测试", ct => vm63.RunOnceAsync(ct)),
-                ("压力传感器信号采集测试", ct => vm64.RunOnceAsync(ct)),
-                ("压差传感器信号采集测试", ct => vm65.RunOnceAsync(ct)),
-                ("油量传感器信号采集测试", ct => vm66.RunOnceAsync(ct)),
-                ("离散量采集测试", ct => vm67.RunOnceAsync(ct)),
-                ("离散量输出测试", ct => vm68.RunOnceAsync(ct)),
+                ("电源阻抗测试", ct => _hydraulicAutoTestVm61.RunOnceAsync(ct)),
+                ("二次电源测试", ct => _hydraulicAutoTestVm62.RunOnceAsync(ct)),
+                ("温度采集测试", ct => _hydraulicAutoTestVm63.RunOnceAsync(ct)),
+                ("压力传感器信号采集测试", ct => _hydraulicAutoTestVm64.RunOnceAsync(ct)),
+                ("压差传感器信号采集测试", ct => _hydraulicAutoTestVm65.RunOnceAsync(ct)),
+                ("油量传感器信号采集测试", ct => _hydraulicAutoTestVm66.RunOnceAsync(ct)),
+                ("离散量采集测试", ct => _hydraulicAutoTestVm67.RunOnceAsync(ct)),
+                ("离散量输出测试", ct => _hydraulicAutoTestVm68.RunOnceAsync(ct)),
             };
         }
 
@@ -1083,35 +1176,1251 @@ namespace MeasureControl.Views.Common
             return Array.Empty<(string Name, Func<CancellationToken, Task<string>> Run)>();
         }
 
+        private static HashSet<string> GetSelectedFuelTestStepNames()
+        {
+            try
+            {
+                return GetSelectedFuelTestStepNames(null);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static HashSet<string> GetSelectedFuelTestStepNames(string expectedTestTaskName)
+        {
+            try
+            {
+                var regionManager = ContainerLocator.Container.Resolve<Prism.Regions.IRegionManager>();
+                if (regionManager == null)
+                    return null;
+
+                BoardTestViewModel TryGetVmFromView(object view, string expectedName)
+                {
+                    if (view is not FrameworkElement fe)
+                        return null;
+
+                    if (fe.DataContext is not BoardTestViewModel vm)
+                        return null;
+
+                    if (!string.Equals(vm.BoardType, "加放油单板", StringComparison.OrdinalIgnoreCase))
+                        return null;
+
+                    if (!string.IsNullOrWhiteSpace(expectedName)
+                        && !string.Equals(vm.TestTaskName, expectedName, StringComparison.OrdinalIgnoreCase))
+                        return null;
+
+                    return vm;
+                }
+
+                BoardTestViewModel FindVmInRegion(string regionName, string expectedName)
+                {
+                    if (string.IsNullOrWhiteSpace(regionName))
+                        return null;
+
+                    if (!regionManager.Regions.ContainsRegionWithName(regionName))
+                        return null;
+
+                    var region = regionManager.Regions[regionName];
+                    foreach (var v in region.Views)
+                    {
+                        var vm = TryGetVmFromView(v, expectedName);
+                        if (vm != null)
+                            return vm;
+                    }
+
+                    foreach (var v in region.ActiveViews)
+                    {
+                        var vm = TryGetVmFromView(v, expectedName);
+                        if (vm != null)
+                            return vm;
+                    }
+
+                    return null;
+                }
+
+                var boardTestVm = FindVmInRegion("MainRegion", expectedTestTaskName)
+                               ?? FindVmInRegion("FloatingRegion", expectedTestTaskName);
+
+                if (boardTestVm == null && !string.IsNullOrWhiteSpace(expectedTestTaskName))
+                {
+                    boardTestVm = FindVmInRegion("MainRegion", null)
+                               ?? FindVmInRegion("FloatingRegion", null);
+                }
+
+                if (boardTestVm == null)
+                {
+                    foreach (var region in regionManager.Regions)
+                    {
+                        foreach (var v in region.Views)
+                        {
+                            var vm = TryGetVmFromView(v, expectedTestTaskName);
+                            if (vm != null)
+                            {
+                                boardTestVm = vm;
+                                break;
+                            }
+                        }
+
+                        if (boardTestVm != null)
+                            break;
+
+                        foreach (var v in region.ActiveViews)
+                        {
+                            var vm = TryGetVmFromView(v, expectedTestTaskName);
+                            if (vm != null)
+                            {
+                                boardTestVm = vm;
+                                break;
+                            }
+                        }
+
+                        if (boardTestVm != null)
+                            break;
+                    }
+                }
+
+                if (boardTestVm == null && !string.IsNullOrWhiteSpace(expectedTestTaskName))
+                {
+                    foreach (var region in regionManager.Regions)
+                    {
+                        foreach (var v in region.Views)
+                        {
+                            var vm = TryGetVmFromView(v, null);
+                            if (vm != null)
+                            {
+                                boardTestVm = vm;
+                                break;
+                            }
+                        }
+
+                        if (boardTestVm != null)
+                            break;
+                    }
+                }
+
+                if (boardTestVm == null)
+                    return null;
+
+                var selectedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var item in boardTestVm.TestSequenceItems)
+                {
+                    if (item.IsSelected)
+                        selectedNames.Add(item.Name);
+                }
+
+                return selectedNames;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private static (string Name, Func<CancellationToken, Task<string>> Run)[] BuildInertingSteps()
         {
             return Array.Empty<(string Name, Func<CancellationToken, Task<string>> Run)>();
         }
 
-        private static (string Name, Func<CancellationToken, Task<string>> Run)[] BuildFuelSteps()
+        private static (string Name, Func<CancellationToken, Task<string>> Run)[] BuildFuelSteps(HashSet<string> selectedStepNames = null)
         {
-            return Array.Empty<(string Name, Func<CancellationToken, Task<string>> Run)>();
+            var vm1 = ContainerLocator.Container.Resolve<PowerImpedanceTestViewModel>();
+            var vm2 = ContainerLocator.Container.Resolve<SecondaryPowerTestViewModel>();
+            var vm3 = ContainerLocator.Container.Resolve<TemperatureAcquisitionTestViewModel>();
+            var vm4 = ContainerLocator.Container.Resolve<LowVoltageAlarmTestViewModel>();
+            var vm5 = ContainerLocator.Container.Resolve<DiscreteInputTestViewModel>();
+            var vm6 = ContainerLocator.Container.Resolve<DiscreteOutputTestViewModel>();
+            var vm7 = ContainerLocator.Container.Resolve<RS422CommunicationFunctionTestViewModel>();
+            var vm8 = ContainerLocator.Container.Resolve<RS422SelfCheckTestViewModel>();
+
+            var allSteps = new (string Name, Func<CancellationToken, Task<string>> Run)[]
+            {
+                ("电源阻抗测试", ct => RunFuelAutoTestAsync(vm1?.AutoTestCommand, () => vm1?.IsAutoTestRunning ?? false, () => vm1?.OverallResult, ct)),
+                ("二次电源测试", ct => RunFuelAutoTestAsync(vm2?.AutoTestCommand, () => vm2?.IsAutoTestRunning ?? false, () => vm2?.OverallResult, ct)),
+                ("低电压告警功能测试", ct => RunFuelAutoTestAsync(vm4?.AutoTestCommand, () => vm4?.IsAutoTestRunning ?? false, () => vm4?.OverallResult, ct)),
+                ("温度采集功能", ct => RunFuelAutoTestAsync(vm3?.AutoTestCommand, () => vm3?.IsAutoTestRunning ?? false, () => vm3?.OverallResult, ct)),
+                ("离散量采集功能测试", ct => RunFuelAutoTestAsync(vm5?.AutoTestCommand, () => vm5?.IsAutoTestRunning ?? false, () => vm5?.OverallResult, ct)),
+                ("离散量输出功能测试", ct => RunFuelAutoTestAsync(vm6?.AutoTestCommand, () => vm6?.IsAutoTestRunning ?? false, () => vm6?.OverallResult, ct)),
+                ("RS422通信功能测试", ct => RunFuelAutoTestAsync(vm7?.AutoTestCommand, () => vm7?.IsAutoTestRunning ?? false, () => vm7?.OverallResult, ct)),
+                ("RS422通信自检测功能测试", ct => RunFuelAutoTestAsync(vm8?.AutoTestCommand, () => vm8?.IsAutoTestRunning ?? false, () => vm8?.OverallResult, ct)),
+            };
+
+            if (selectedStepNames == null)
+                return allSteps;
+
+            return allSteps.Where(s => selectedStepNames.Contains(s.Name)).ToArray();
+        }
+
+        private static async Task<string> RunFuelAutoTestAsync(
+            System.Windows.Input.ICommand autoTestCommand,
+            Func<bool> isAutoTestRunning,
+            Func<string> getOverallResult,
+            CancellationToken cancellationToken)
+        {
+            if (autoTestCommand == null)
+                throw new InvalidOperationException("AutoTestCommand is null");
+
+            const int startTimeoutMs = 2000;
+            const int runTimeoutMs = 30 * 60 * 1000;
+
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                if (autoTestCommand.CanExecute(null))
+                    autoTestCommand.Execute(null);
+            });
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            while (!cancellationToken.IsCancellationRequested && sw.ElapsedMilliseconds < startTimeoutMs)
+            {
+                if (isAutoTestRunning != null && isAutoTestRunning())
+                    break;
+                await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!cancellationToken.IsCancellationRequested && !(isAutoTestRunning?.Invoke() ?? false))
+            {
+                return "不合格";
+            }
+
+            sw.Restart();
+            while (!cancellationToken.IsCancellationRequested && (isAutoTestRunning?.Invoke() ?? false) && sw.ElapsedMilliseconds < runTimeoutMs)
+            {
+                await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!cancellationToken.IsCancellationRequested && (isAutoTestRunning?.Invoke() ?? false))
+            {
+                try
+                {
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        if (autoTestCommand.CanExecute(null))
+                            autoTestCommand.Execute(null);
+                    });
+                }
+                catch
+                {
+                }
+                return "不合格";
+            }
+
+            var r = (getOverallResult?.Invoke() ?? string.Empty).Trim();
+            if (string.Equals(r, "PASS", StringComparison.OrdinalIgnoreCase) || string.Equals(r, "合格", StringComparison.OrdinalIgnoreCase))
+                return "合格";
+            return "不合格";
         }
 
         private void PrepareSingleBoardReport(string boardName)
         {
-            var baseDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "project");
-            Directory.CreateDirectory(baseDir);
-            var fileName = $"{boardName}_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
-            _singleBoardAutoTestReportPath = System.IO.Path.Combine(baseDir, fileName);
+            _singleBoardAutoTestExcelReportPath = null;
+            _singleBoardAutoStepResults = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _hydraulicAutoTestVm61 = null;
+            _hydraulicAutoTestVm62 = null;
+            _hydraulicAutoTestVm63 = null;
+            _hydraulicAutoTestVm64 = null;
+            _hydraulicAutoTestVm65 = null;
+            _hydraulicAutoTestVm66 = null;
+            _hydraulicAutoTestVm67 = null;
+            _hydraulicAutoTestVm68 = null;
+            try
+            {
+                var baseDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "TestResults");
+                Directory.CreateDirectory(baseDir);
+                _singleBoardAutoTestReportPath = System.IO.Path.Combine(baseDir, $"整板自动测试_{boardName}_{DateTime.Now:yyyyMMdd_HHmmss}.log");
+                File.WriteAllText(_singleBoardAutoTestReportPath, string.Empty);
+            }
+            catch
+            {
+                _singleBoardAutoTestReportPath = null;
+            }
         }
 
-        private void AppendSingleBoardReportLine(string message)
+        private sealed class SingleBoardExcelReportConfig
         {
-            if (string.IsNullOrWhiteSpace(_singleBoardAutoTestReportPath))
+            public string TemplateFileName { get; set; }
+            public string OutputFolderName { get; set; }
+            public string FileNamePrefix { get; set; }
+            public Action<string> FillAction { get; set; }
+        }
+
+        private SingleBoardExcelReportConfig GetSingleBoardExcelReportConfig(string boardType)
+        {
+            switch (boardType?.Trim())
+            {
+                case "液压单板":
+                    return new SingleBoardExcelReportConfig
+                    {
+                        TemplateFileName = "液压测试报表模板.xlsx",
+                        OutputFolderName = "TestResults",
+                        FileNamePrefix = "液压测试",
+                        FillAction = FillHydraulicBoardExcelReport
+                    };
+                case "加放油单板":
+                    return new SingleBoardExcelReportConfig
+                    {
+                        TemplateFileName = "加放油报表模板.xlsx",
+                        OutputFolderName = "TestResults",
+                        FileNamePrefix = "加放油测试",
+                        FillAction = FillFuelBoardExcelReport
+                    };
+                case "空气单板":
+                case "惰化单板":
+                default:
+                    return null;
+            }
+        }
+
+        private void TryGenerateSingleBoardExcelReport(string boardName, string boardType)
+        {
+            var reportConfig = GetSingleBoardExcelReportConfig(boardType);
+            if (reportConfig == null)
             {
                 return;
             }
 
-            var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} | {message}";
             try
             {
-                File.AppendAllText(_singleBoardAutoTestReportPath, line + Environment.NewLine);
+                string ResolveTemplatePath()
+                {
+                    var basePath = AppDomain.CurrentDomain.BaseDirectory;
+                    var candidates = new[]
+                    {
+                        System.IO.Path.Combine(basePath, "Projects", reportConfig.TemplateFileName),
+                        System.IO.Path.Combine(basePath, "Resources", "ReportTemplates", reportConfig.TemplateFileName),
+                        System.IO.Path.Combine(basePath, reportConfig.TemplateFileName)
+                    };
+                    foreach (var c in candidates)
+                    {
+                        if (File.Exists(c))
+                            return c;
+                    }
+                    return candidates[0];
+                }
+
+                var templatePath = ResolveTemplatePath();
+                if (!File.Exists(templatePath))
+                {
+                    AppendSingleBoardReportLine($"REPORT | TEMPLATE_NOT_FOUND | {templatePath}");
+                    return;
+                }
+
+                var baseDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), reportConfig.OutputFolderName);
+                Directory.CreateDirectory(baseDir);
+
+                var reportPath = System.IO.Path.Combine(baseDir, $"{reportConfig.FileNamePrefix}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+                File.Copy(templatePath, reportPath, true);
+                reportConfig.FillAction?.Invoke(reportPath);
+                _singleBoardAutoTestExcelReportPath = reportPath;
+                AppendSingleBoardReportLine($"REPORT | EXCEL_CREATED | {reportPath}");
+            }
+            catch (Exception ex)
+            {
+                AppendSingleBoardReportLine($"REPORT | EXCEL_CREATE_FAILED | {ex.GetType().Name} | {ex.Message}");
+            }
+        }
+
+        private void FillHydraulicBoardExcelReport(string reportPath)
+        {
+            var vm61 = _hydraulicAutoTestVm61 ?? ContainerLocator.Container.Resolve<HC_6_1ViewModel>();
+            var vm62 = _hydraulicAutoTestVm62 ?? ContainerLocator.Container.Resolve<HC_6_2ViewModel>();
+            var vm63 = _hydraulicAutoTestVm63 ?? ContainerLocator.Container.Resolve<HC_6_3ViewModel>();
+            var vm64 = _hydraulicAutoTestVm64 ?? ContainerLocator.Container.Resolve<HC_6_4ViewModel>();
+            var vm65 = _hydraulicAutoTestVm65 ?? ContainerLocator.Container.Resolve<HC_6_5ViewModel>();
+            var vm66 = _hydraulicAutoTestVm66 ?? ContainerLocator.Container.Resolve<HC_6_6ViewModel>();
+            var vm67 = _hydraulicAutoTestVm67 ?? ContainerLocator.Container.Resolve<HC_6_7ViewModel>();
+            var vm68 = _hydraulicAutoTestVm68 ?? ContainerLocator.Container.Resolve<HC_6_8ViewModel>();
+            if (vm61 == null && vm62 == null && vm63 == null && vm64 == null && vm65 == null && vm66 == null && vm67 == null && vm68 == null)
+            {
+                return;
+            }
+
+            Type excelType = null;
+            object excelApp = null;
+            object workbooks = null;
+            object workbook = null;
+            object sheet = null;
+            object cells = null;
+            object range = null;
+
+            try
+            {
+                excelType = Type.GetTypeFromProgID("Excel.Application");
+                if (excelType == null)
+                {
+                    throw new InvalidOperationException("未检测到 Excel COM 组件，无法写入报表模板。");
+                }
+
+                excelApp = Activator.CreateInstance(excelType);
+                excelType.InvokeMember("Visible", BindingFlags.SetProperty, null, excelApp, new object[] { false });
+                excelType.InvokeMember("DisplayAlerts", BindingFlags.SetProperty, null, excelApp, new object[] { false });
+
+                workbooks = excelType.InvokeMember("Workbooks", BindingFlags.GetProperty, null, excelApp, null);
+                workbook = workbooks.GetType().InvokeMember("Open", BindingFlags.InvokeMethod, null, workbooks, new object[] { reportPath });
+                sheet = workbook.GetType().InvokeMember("Worksheets", BindingFlags.GetProperty, null, workbook, null);
+                sheet = sheet.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, sheet, new object[] { 1 });
+                cells = sheet.GetType().InvokeMember("Cells", BindingFlags.GetProperty, null, sheet, null);
+
+                if (vm61 != null)
+                {
+                    if (IsSingleBoardStepSelected("电源阻抗测试"))
+                    {
+                        var hc61Executed = DidSingleBoardStepExecute("电源阻抗测试");
+                        SetExcelCellValue(cells, 3, 5, hc61Executed ? vm61.Resistance14Text : "--");
+                        SetExcelCellValue(cells, 4, 5, hc61Executed ? vm61.Resistance182Text : "--");
+
+                        SetExcelCellValue(cells, 3, 6, hc61Executed ? (vm61.IsResistance14Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 4, 6, hc61Executed ? (vm61.IsResistance182Pass ? "合格" : "不合格") : "--");
+
+                        SetExcelCellFontColor(cells, 3, 6, hc61Executed && !vm61.IsResistance14Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 4, 6, hc61Executed && !vm61.IsResistance182Pass ? 255 : (int?)null);
+
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 3, 7 });
+                        var hc61Result = GetSingleBoardStepResult("电源阻抗测试", vm61.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc61Result });
+                        SetRangeFontColor(range, string.Equals(hc61Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                    else
+                    {
+                        FillUntestedCells(cells, 3, 5, 4);
+                        FillUntestedCells(cells, 3, 6, 4);
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 3, 7 });
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                }
+
+                if (vm62 != null)
+                {
+                    if (IsSingleBoardStepSelected("二次电源测试"))
+                    {
+                        var hc62Executed = DidSingleBoardStepExecute("二次电源测试");
+                        SetExcelCellValue(cells, 5, 5, hc62Executed ? FormatNullableNumber(vm62.Voltage5VValue) : "--");
+                        SetExcelCellValue(cells, 6, 5, hc62Executed ? FormatNullableNumber(vm62.Voltage15VValue) : "--");
+                        SetExcelCellValue(cells, 7, 5, hc62Executed ? FormatNullableNumber(vm62.VoltageM15VValue) : "--");
+
+                        SetExcelCellValue(cells, 5, 6, hc62Executed ? (vm62.IsVoltage5VPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 6, 6, hc62Executed ? (vm62.IsVoltage15VPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 7, 6, hc62Executed ? (vm62.IsVoltageM15VPass ? "合格" : "不合格") : "--");
+
+                        SetExcelCellFontColor(cells, 5, 6, hc62Executed && !vm62.IsVoltage5VPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 6, 6, hc62Executed && !vm62.IsVoltage15VPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 7, 6, hc62Executed && !vm62.IsVoltageM15VPass ? 255 : (int?)null);
+
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 4, 7 });
+                        var hc62Result = GetSingleBoardStepResult("二次电源测试", vm62.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc62Result });
+                        SetRangeFontColor(range, string.Equals(hc62Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                    else
+                    {
+                        FillUntestedCells(cells, 5, 5, 7);
+                        FillUntestedCells(cells, 5, 6, 7);
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 4, 7 });
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                }
+
+                if (vm63 != null)
+                {
+                    if (IsSingleBoardStepSelected("温度采集测试"))
+                    {
+                        var hc63Executed = DidSingleBoardStepExecute("温度采集测试");
+                        SetExcelCellValue(cells, 8, 5, hc63Executed ? FormatNullableNumber(vm63.Temp1Value) : "--");
+                        SetExcelCellValue(cells, 9, 5, hc63Executed ? FormatNullableNumber(vm63.Temp1BValue) : "--");
+                        SetExcelCellValue(cells, 10, 5, hc63Executed ? FormatNullableNumber(vm63.Temp2Value) : "--");
+                        SetExcelCellValue(cells, 11, 5, hc63Executed ? FormatNullableNumber(vm63.Temp2BValue) : "--");
+                        SetExcelCellValue(cells, 12, 5, hc63Executed ? FormatNullableNumber(vm63.Temp3Value) : "--");
+                        SetExcelCellValue(cells, 13, 5, hc63Executed ? FormatNullableNumber(vm63.Temp3BValue) : "--");
+
+                        SetExcelCellValue(cells, 8, 6, hc63Executed ? (vm63.IsTemp1Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 9, 6, hc63Executed ? (vm63.IsTemp1BPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 10, 6, hc63Executed ? (vm63.IsTemp2Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 11, 6, hc63Executed ? (vm63.IsTemp2BPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 12, 6, hc63Executed ? (vm63.IsTemp3Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 13, 6, hc63Executed ? (vm63.IsTemp3BPass ? "合格" : "不合格") : "--");
+
+                        SetExcelCellFontColor(cells, 8, 6, hc63Executed && !vm63.IsTemp1Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 9, 6, hc63Executed && !vm63.IsTemp1BPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 10, 6, hc63Executed && !vm63.IsTemp2Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 11, 6, hc63Executed && !vm63.IsTemp2BPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 12, 6, hc63Executed && !vm63.IsTemp3Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 13, 6, hc63Executed && !vm63.IsTemp3BPass ? 255 : (int?)null);
+
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 5, 7 });
+                        var hc63Result = GetSingleBoardStepResult("温度采集测试", vm63.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc63Result });
+                        SetRangeFontColor(range, string.Equals(hc63Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                    else
+                    {
+                        FillUntestedCells(cells, 8, 5, 13);
+                        FillUntestedCells(cells, 8, 6, 13);
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 5, 7 });
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                }
+
+                if (vm64 != null)
+                {
+                    if (IsSingleBoardStepSelected("压力传感器信号采集测试"))
+                    {
+                        var hc64Executed = DidSingleBoardStepExecute("压力传感器信号采集测试");
+                        SetExcelCellValue(cells, 14, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint1Sys1Value) : "--");
+                        SetExcelCellValue(cells, 15, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint1Sys2Value) : "--");
+                        SetExcelCellValue(cells, 16, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint1Sys3Value) : "--");
+                        SetExcelCellValue(cells, 17, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint2Sys1Value) : "--");
+                        SetExcelCellValue(cells, 18, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint2Sys2Value) : "--");
+                        SetExcelCellValue(cells, 19, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint2Sys3Value) : "--");
+                        SetExcelCellValue(cells, 20, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint3Sys1Value) : "--");
+                        SetExcelCellValue(cells, 21, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint3Sys2Value) : "--");
+                        SetExcelCellValue(cells, 22, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint3Sys3Value) : "--");
+
+                        SetExcelCellValue(cells, 14, 6, hc64Executed ? (vm64.IsPressurePoint1Sys1Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 15, 6, hc64Executed ? (vm64.IsPressurePoint1Sys2Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 16, 6, hc64Executed ? (vm64.IsPressurePoint1Sys3Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 17, 6, hc64Executed ? (vm64.IsPressurePoint2Sys1Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 18, 6, hc64Executed ? (vm64.IsPressurePoint2Sys2Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 19, 6, hc64Executed ? (vm64.IsPressurePoint2Sys3Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 20, 6, hc64Executed ? (vm64.IsPressurePoint3Sys1Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 21, 6, hc64Executed ? (vm64.IsPressurePoint3Sys2Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 22, 6, hc64Executed ? (vm64.IsPressurePoint3Sys3Pass ? "合格" : "不合格") : "--");
+
+                        SetExcelCellFontColor(cells, 14, 6, hc64Executed && !vm64.IsPressurePoint1Sys1Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 15, 6, hc64Executed && !vm64.IsPressurePoint1Sys2Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 16, 6, hc64Executed && !vm64.IsPressurePoint1Sys3Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 17, 6, hc64Executed && !vm64.IsPressurePoint2Sys1Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 18, 6, hc64Executed && !vm64.IsPressurePoint2Sys2Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 19, 6, hc64Executed && !vm64.IsPressurePoint2Sys3Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 20, 6, hc64Executed && !vm64.IsPressurePoint3Sys1Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 21, 6, hc64Executed && !vm64.IsPressurePoint3Sys2Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 22, 6, hc64Executed && !vm64.IsPressurePoint3Sys3Pass ? 255 : (int?)null);
+
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 6, 7 });
+                        var hc64Result = GetSingleBoardStepResult("压力传感器信号采集测试", vm64.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc64Result });
+                        SetRangeFontColor(range, string.Equals(hc64Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                    else
+                    {
+                        FillUntestedCells(cells, 14, 5, 22);
+                        FillUntestedCells(cells, 14, 6, 22);
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 6, 7 });
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                }
+
+                if (vm65 != null)
+                {
+                    if (IsSingleBoardStepSelected("压差传感器信号采集测试"))
+                    {
+                        var hc65Executed = DidSingleBoardStepExecute("压差传感器信号采集测试");
+                        SetExcelCellValue(cells, 23, 5, hc65Executed ? FormatNullableNumber(vm65.DptEdp24mAValue) : "--");
+                        SetExcelCellValue(cells, 24, 5, hc65Executed ? FormatNullableNumber(vm65.DptEmp2B4mAValue) : "--");
+                        SetExcelCellValue(cells, 25, 5, hc65Executed ? FormatNullableNumber(vm65.DptEmp3B4mAValue) : "--");
+                        SetExcelCellValue(cells, 26, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys14mAValue) : "--");
+                        SetExcelCellValue(cells, 27, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys24mAValue) : "--");
+                        SetExcelCellValue(cells, 28, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys34mAValue) : "--");
+
+                        SetExcelCellValue(cells, 29, 5, hc65Executed ? FormatNullableNumber(vm65.DptEdp2A20mAValue) : "--");
+                        SetExcelCellValue(cells, 30, 5, hc65Executed ? FormatNullableNumber(vm65.DptEmp2B20mAValue) : "--");
+                        SetExcelCellValue(cells, 31, 5, hc65Executed ? FormatNullableNumber(vm65.DptEmp3B20mAValue) : "--");
+                        SetExcelCellValue(cells, 32, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys120mAValue) : "--");
+                        SetExcelCellValue(cells, 33, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys220mAValue) : "--");
+                        SetExcelCellValue(cells, 34, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys320mAValue) : "--");
+
+                        SetExcelCellValue(cells, 35, 5, hc65Executed ? FormatNullableNumber(vm65.DptEdp2A10mAValue) : "--");
+                        SetExcelCellValue(cells, 36, 5, hc65Executed ? FormatNullableNumber(vm65.DptEmp2B10mAValue) : "--");
+                        SetExcelCellValue(cells, 37, 5, hc65Executed ? FormatNullableNumber(vm65.DptEmp3B10mAValue) : "--");
+                        SetExcelCellValue(cells, 38, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys110mAValue) : "--");
+                        SetExcelCellValue(cells, 39, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys210mAValue) : "--");
+                        SetExcelCellValue(cells, 40, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys310mAValue) : "--");
+
+                        SetExcelCellValue(cells, 23, 6, hc65Executed ? (vm65.IsDptEdp24mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 24, 6, hc65Executed ? (vm65.IsDptEmp2B4mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 25, 6, hc65Executed ? (vm65.IsDptEmp3B4mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 26, 6, hc65Executed ? (vm65.IsDptSys14mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 27, 6, hc65Executed ? (vm65.IsDptSys24mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 28, 6, hc65Executed ? (vm65.IsDptSys34mAPass ? "合格" : "不合格") : "--");
+
+                        SetExcelCellValue(cells, 29, 6, hc65Executed ? (vm65.IsDptEdp2A20mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 30, 6, hc65Executed ? (vm65.IsDptEmp2B20mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 31, 6, hc65Executed ? (vm65.IsDptEmp3B20mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 32, 6, hc65Executed ? (vm65.IsDptSys120mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 33, 6, hc65Executed ? (vm65.IsDptSys220mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 34, 6, hc65Executed ? (vm65.IsDptSys320mAPass ? "合格" : "不合格") : "--");
+
+                        SetExcelCellValue(cells, 35, 6, hc65Executed ? (vm65.IsDptEdp2A10mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 36, 6, hc65Executed ? (vm65.IsDptEmp2B10mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 37, 6, hc65Executed ? (vm65.IsDptEmp3B10mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 38, 6, hc65Executed ? (vm65.IsDptSys110mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 39, 6, hc65Executed ? (vm65.IsDptSys210mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 40, 6, hc65Executed ? (vm65.IsDptSys310mAPass ? "合格" : "不合格") : "--");
+
+                        SetExcelCellFontColor(cells, 23, 6, hc65Executed && !vm65.IsDptEdp24mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 24, 6, hc65Executed && !vm65.IsDptEmp2B4mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 25, 6, hc65Executed && !vm65.IsDptEmp3B4mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 26, 6, hc65Executed && !vm65.IsDptSys14mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 27, 6, hc65Executed && !vm65.IsDptSys24mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 28, 6, hc65Executed && !vm65.IsDptSys34mAPass ? 255 : (int?)null);
+
+                        SetExcelCellFontColor(cells, 29, 6, hc65Executed && !vm65.IsDptEdp2A20mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 30, 6, hc65Executed && !vm65.IsDptEmp2B20mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 31, 6, hc65Executed && !vm65.IsDptEmp3B20mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 32, 6, hc65Executed && !vm65.IsDptSys120mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 33, 6, hc65Executed && !vm65.IsDptSys220mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 34, 6, hc65Executed && !vm65.IsDptSys320mAPass ? 255 : (int?)null);
+
+                        SetExcelCellFontColor(cells, 35, 6, hc65Executed && !vm65.IsDptEdp2A10mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 36, 6, hc65Executed && !vm65.IsDptEmp2B10mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 37, 6, hc65Executed && !vm65.IsDptEmp3B10mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 38, 6, hc65Executed && !vm65.IsDptSys110mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 39, 6, hc65Executed && !vm65.IsDptSys210mAPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 40, 6, hc65Executed && !vm65.IsDptSys310mAPass ? 255 : (int?)null);
+
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 7, 7 });
+                        var hc65Result = GetSingleBoardStepResult("压差传感器信号采集测试", vm65.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc65Result });
+                        SetRangeFontColor(range, string.Equals(hc65Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                    else
+                    {
+                        FillUntestedCells(cells, 23, 5, 40);
+                        FillUntestedCells(cells, 23, 6, 40);
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 7, 7 });
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                }
+
+                if (vm66 != null)
+                {
+                    if (IsSingleBoardStepSelected("油量传感器信号采集测试"))
+                    {
+                        var hc66Executed = DidSingleBoardStepExecute("油量传感器信号采集测试");
+                        SetExcelCellValue(cells, 41, 5, hc66Executed ? vm66.Pin3031FreqText : "--");
+                        SetExcelCellValue(cells, 42, 5, hc66Executed ? vm66.Pin3334FreqText : "--");
+                        SetExcelCellValue(cells, 43, 5, hc66Executed ? vm66.Pin3031VoltText : "--");
+                        SetExcelCellValue(cells, 44, 5, hc66Executed ? vm66.Pin3334VoltText : "--");
+                        SetExcelCellValue(cells, 45, 5, hc66Executed ? vm66.PointLowSys1Text : "--");
+                        SetExcelCellValue(cells, 46, 5, hc66Executed ? vm66.PointLowSys2Text : "--");
+                        SetExcelCellValue(cells, 47, 5, hc66Executed ? vm66.PointMidSys1Text : "--");
+                        SetExcelCellValue(cells, 48, 5, hc66Executed ? vm66.PointMidSys2Text : "--");
+                        SetExcelCellValue(cells, 49, 5, hc66Executed ? vm66.PointHighSys1Text : "--");
+                        SetExcelCellValue(cells, 50, 5, hc66Executed ? vm66.PointHighSys2Text : "--");
+
+                        SetExcelCellValue(cells, 41, 6, hc66Executed ? (vm66.IsPin3031FreqPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 42, 6, hc66Executed ? (vm66.IsPin3334FreqPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 43, 6, hc66Executed ? (vm66.IsPin3031VoltPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 44, 6, hc66Executed ? (vm66.IsPin3334VoltPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 45, 6, hc66Executed ? (vm66.IsPointLowSys1Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 46, 6, hc66Executed ? (vm66.IsPointLowSys2Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 47, 6, hc66Executed ? (vm66.IsPointMidSys1Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 48, 6, hc66Executed ? (vm66.IsPointMidSys2Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 49, 6, hc66Executed ? (vm66.IsPointHighSys1Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 50, 6, hc66Executed ? (vm66.IsPointHighSys2Pass ? "合格" : "不合格") : "--");
+
+                        SetExcelCellFontColor(cells, 41, 6, hc66Executed && !vm66.IsPin3031FreqPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 42, 6, hc66Executed && !vm66.IsPin3334FreqPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 43, 6, hc66Executed && !vm66.IsPin3031VoltPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 44, 6, hc66Executed && !vm66.IsPin3334VoltPass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 45, 6, hc66Executed && !vm66.IsPointLowSys1Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 46, 6, hc66Executed && !vm66.IsPointLowSys2Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 47, 6, hc66Executed && !vm66.IsPointMidSys1Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 48, 6, hc66Executed && !vm66.IsPointMidSys2Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 49, 6, hc66Executed && !vm66.IsPointHighSys1Pass ? 255 : (int?)null);
+                        SetExcelCellFontColor(cells, 50, 6, hc66Executed && !vm66.IsPointHighSys2Pass ? 255 : (int?)null);
+
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 8, 7 });
+                        var hc66Result = GetSingleBoardStepResult("油量传感器信号采集测试", vm66.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc66Result });
+                        SetRangeFontColor(range, string.Equals(hc66Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                    else
+                    {
+                        FillUntestedCells(cells, 41, 5, 50);
+                        FillUntestedCells(cells, 41, 6, 50);
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 8, 7 });
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                }
+
+                if (vm67 != null)
+                {
+                    if (IsSingleBoardStepSelected("离散量采集测试"))
+                    {
+                        var hc67Executed = DidSingleBoardStepExecute("离散量采集测试");
+                        var hc67Values = new[]
+                        {
+                            vm67.Pin49Text, vm67.Pin50Text, vm67.Pin51Text, vm67.Pin52Text, vm67.Pin53Text, vm67.Pin54Text, vm67.Pin55Text,
+                            vm67.Pin56Text, vm67.Pin57Text, vm67.Pin58Text, vm67.Pin59Text, vm67.Pin60Text, vm67.Pin61Text, vm67.Pin62Text,
+                            vm67.Pin63Text, vm67.Pin89Text, vm67.Pin90Text, vm67.Pin91Text, vm67.Pin92Text, vm67.Pin93Text, vm67.Pin94Text,
+                            vm67.Pin95Text, vm67.Pin96Text, vm67.Pin97Text, vm67.Pin98Text, vm67.Pin99Text, vm67.Pin100Text
+                        };
+
+                        var hc67Passes = new[]
+                        {
+                            vm67.IsPin49Pass, vm67.IsPin50Pass, vm67.IsPin51Pass, vm67.IsPin52Pass, vm67.IsPin53Pass, vm67.IsPin54Pass, vm67.IsPin55Pass,
+                            vm67.IsPin56Pass, vm67.IsPin57Pass, vm67.IsPin58Pass, vm67.IsPin59Pass, vm67.IsPin60Pass, vm67.IsPin61Pass, vm67.IsPin62Pass,
+                            vm67.IsPin63Pass, vm67.IsPin89Pass, vm67.IsPin90Pass, vm67.IsPin91Pass, vm67.IsPin92Pass, vm67.IsPin93Pass, vm67.IsPin94Pass,
+                            vm67.IsPin95Pass, vm67.IsPin96Pass, vm67.IsPin97Pass, vm67.IsPin98Pass, vm67.IsPin99Pass, vm67.IsPin100Pass
+                        };
+
+                        for (var i = 0; i < hc67Values.Length; i++)
+                        {
+                            var row = 51 + i;
+                            SetExcelCellValue(cells, row, 5, hc67Executed ? hc67Values[i] : "--");
+                            SetExcelCellValue(cells, row, 6, hc67Executed ? (hc67Passes[i] ? "合格" : "不合格") : "--");
+                            SetExcelCellFontColor(cells, row, 6, hc67Executed && !hc67Passes[i] ? 255 : (int?)null);
+                        }
+
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 9, 7 });
+                        var hc67Result = GetSingleBoardStepResult("离散量采集测试", vm67.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc67Result });
+                        SetRangeFontColor(range, string.Equals(hc67Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                    else
+                    {
+                        FillUntestedCells(cells, 51, 5, 77);
+                        FillUntestedCells(cells, 51, 6, 77);
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 9, 7 });
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                }
+
+                if (vm68 != null)
+                {
+                    if (IsSingleBoardStepSelected("离散量输出测试"))
+                    {
+                        var hc68Executed = DidSingleBoardStepExecute("离散量输出测试");
+                        var hc68OpenValues = new[]
+                        {
+                            vm68.OpenPin9Text, vm68.OpenPin10Text, vm68.OpenPin11Text, vm68.OpenPin12Text,
+                            vm68.OpenPin13Text, vm68.OpenPin14Text, vm68.OpenPin15Text
+                        };
+
+                        var hc68OpenPasses = new[]
+                        {
+                            vm68.IsOpenPin9Pass, vm68.IsOpenPin10Pass, vm68.IsOpenPin11Pass, vm68.IsOpenPin12Pass,
+                            vm68.IsOpenPin13Pass, vm68.IsOpenPin14Pass, vm68.IsOpenPin15Pass
+                        };
+
+                        var hc68CloseValues = new[]
+                        {
+                            vm68.ClosePin9Text, vm68.ClosePin10Text, vm68.ClosePin11Text, vm68.ClosePin12Text,
+                            vm68.ClosePin13Text, vm68.ClosePin14Text, vm68.ClosePin15Text
+                        };
+
+                        var hc68ClosePasses = new[]
+                        {
+                            vm68.IsClosePin9Pass, vm68.IsClosePin10Pass, vm68.IsClosePin11Pass, vm68.IsClosePin12Pass,
+                            vm68.IsClosePin13Pass, vm68.IsClosePin14Pass, vm68.IsClosePin15Pass
+                        };
+
+                        for (var i = 0; i < hc68OpenValues.Length; i++)
+                        {
+                            var row = 78 + i;
+                            SetExcelCellValue(cells, row, 5, hc68Executed ? hc68OpenValues[i] : "--");
+                            SetExcelCellValue(cells, row, 6, hc68Executed ? (hc68OpenPasses[i] ? "合格" : "不合格") : "--");
+                            SetExcelCellFontColor(cells, row, 6, hc68Executed && !hc68OpenPasses[i] ? 255 : (int?)null);
+                        }
+
+                        for (var i = 0; i < hc68CloseValues.Length; i++)
+                        {
+                            var row = 85 + i;
+                            SetExcelCellValue(cells, row, 5, hc68Executed ? hc68CloseValues[i] : "--");
+                            SetExcelCellValue(cells, row, 6, hc68Executed ? (hc68ClosePasses[i] ? "合格" : "不合格") : "--");
+                            SetExcelCellFontColor(cells, row, 6, hc68Executed && !hc68ClosePasses[i] ? 255 : (int?)null);
+                        }
+
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 10, 7 });
+                        var hc68Result = GetSingleBoardStepResult("离散量输出测试", vm68.CurrentTestResult);
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc68Result });
+                        SetRangeFontColor(range, string.Equals(hc68Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                    else
+                    {
+                        FillUntestedCells(cells, 78, 5, 91);
+                        FillUntestedCells(cells, 78, 6, 91);
+                        range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 10, 7 });
+                        range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                        ReleaseComObject(range);
+                        range = null;
+                    }
+                }
+
+                workbook.GetType().InvokeMember("Save", BindingFlags.InvokeMethod, null, workbook, null);
+            }
+            finally
+            {
+                TryInvoke(workbook, "Close", false);
+                TryInvoke(excelApp, "Quit");
+                ReleaseComObject(range);
+                ReleaseComObject(cells);
+                ReleaseComObject(sheet);
+                ReleaseComObject(workbook);
+                ReleaseComObject(workbooks);
+                ReleaseComObject(excelApp);
+            }
+        }
+
+        private static string FormatNullableNumber(double? value)
+        {
+            return value.HasValue ? value.Value.ToString("0.###") : "--";
+        }
+
+        private bool IsSingleBoardStepSelected(string stepName)
+        {
+            return _selectedSingleBoardAutoTestItems == null || _selectedSingleBoardAutoTestItems.Contains(stepName);
+        }
+
+        private bool DidSingleBoardStepExecute(string stepName)
+        {
+            return _singleBoardAutoStepResults != null && _singleBoardAutoStepResults.ContainsKey(stepName);
+        }
+
+        private string GetSingleBoardStepResult(string stepName, string fallback)
+        {
+            if (_singleBoardAutoStepResults != null && _singleBoardAutoStepResults.TryGetValue(stepName, out var result))
+            {
+                return NormalizeResult(result);
+            }
+
+            return NormalizeResult(fallback);
+        }
+
+        private static void FillUntestedCells(object cells, int startRow, int column, int endRow)
+        {
+            for (var row = startRow; row <= endRow; row++)
+            {
+                SetExcelCellValue(cells, row, column, "--");
+                SetExcelCellFontColor(cells, row, column, null);
+            }
+        }
+
+        private static void SetExcelCellValue(object cells, int row, int column, string value)
+        {
+            var cell = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { row, column });
+            try
+            {
+                cell.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, cell, new object[] { value });
+            }
+            finally
+            {
+                ReleaseComObject(cell);
+            }
+        }
+
+        private static void SetExcelCellFontColor(object cells, int row, int column, int? oleColor)
+        {
+            var cell = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { row, column });
+            object font = null;
+            try
+            {
+                font = cell.GetType().InvokeMember("Font", BindingFlags.GetProperty, null, cell, null);
+                if (oleColor.HasValue)
+                {
+                    font.GetType().InvokeMember("Color", BindingFlags.SetProperty, null, font, new object[] { oleColor.Value });
+                }
+                else
+                {
+                    TryInvoke(font, "ColorIndex", -4105);
+                }
+            }
+            finally
+            {
+                ReleaseComObject(font);
+                ReleaseComObject(cell);
+            }
+        }
+
+        private static void SetRangeFontColor(object range, int? oleColor)
+        {
+            if (range == null)
+            {
+                return;
+            }
+
+            object font = null;
+            try
+            {
+                font = range.GetType().InvokeMember("Font", BindingFlags.GetProperty, null, range, null);
+                if (oleColor.HasValue)
+                {
+                    font.GetType().InvokeMember("Color", BindingFlags.SetProperty, null, font, new object[] { oleColor.Value });
+                }
+                else
+                {
+                    TryInvoke(font, "ColorIndex", -4105);
+                }
+            }
+            finally
+            {
+                ReleaseComObject(font);
+            }
+        }
+
+        private static void TryInvoke(object target, string methodName, params object[] args)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            try
+            {
+                target.GetType().InvokeMember(methodName, BindingFlags.InvokeMethod, null, target, args);
+            }
+            catch
+            {
+            }
+        }
+
+        private static void ReleaseComObject(object comObject)
+        {
+            if (comObject != null && Marshal.IsComObject(comObject))
+            {
+                try
+                {
+                    Marshal.ReleaseComObject(comObject);
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        private void FillFuelBoardExcelReport(string reportPath)
+        {
+            var vm1 = ContainerLocator.Container.Resolve<PowerImpedanceTestViewModel>();
+            var vm2 = ContainerLocator.Container.Resolve<SecondaryPowerTestViewModel>();
+            var vm3 = ContainerLocator.Container.Resolve<TemperatureAcquisitionTestViewModel>();
+            var vm4 = ContainerLocator.Container.Resolve<LowVoltageAlarmTestViewModel>();
+            var vm5 = ContainerLocator.Container.Resolve<DiscreteInputTestViewModel>();
+            var vm6 = ContainerLocator.Container.Resolve<DiscreteOutputTestViewModel>();
+            var vm7 = ContainerLocator.Container.Resolve<RS422CommunicationFunctionTestViewModel>();
+            var vm8 = ContainerLocator.Container.Resolve<RS422SelfCheckTestViewModel>();
+            if (vm1 == null && vm2 == null && vm3 == null && vm4 == null && vm5 == null && vm6 == null && vm7 == null && vm8 == null)
+            {
+                return;
+            }
+
+            Type excelType = null;
+            object excelApp = null;
+            object workbooks = null;
+            object workbook = null;
+            object sheet = null;
+            object cells = null;
+            object usedRange = null;
+            object foundCell = null;
+
+            try
+            {
+                excelType = Type.GetTypeFromProgID("Excel.Application");
+                if (excelType == null)
+                {
+                    throw new InvalidOperationException("未检测到 Excel COM 组件，无法写入报表模板。");
+                }
+
+                excelApp = Activator.CreateInstance(excelType);
+                excelType.InvokeMember("Visible", BindingFlags.SetProperty, null, excelApp, new object[] { false });
+                excelType.InvokeMember("DisplayAlerts", BindingFlags.SetProperty, null, excelApp, new object[] { false });
+
+                workbooks = excelType.InvokeMember("Workbooks", BindingFlags.GetProperty, null, excelApp, null);
+                workbook = workbooks.GetType().InvokeMember("Open", BindingFlags.InvokeMethod, null, workbooks, new object[] { reportPath });
+                sheet = workbook.GetType().InvokeMember("Worksheets", BindingFlags.GetProperty, null, workbook, null);
+                sheet = sheet.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, sheet, new object[] { 1 });
+                cells = sheet.GetType().InvokeMember("Cells", BindingFlags.GetProperty, null, sheet, null);
+                usedRange = sheet.GetType().InvokeMember("UsedRange", BindingFlags.GetProperty, null, sheet, null);
+
+                int? FindColumnByHeader(string header)
+                {
+                    try
+                    {
+                        foundCell = usedRange.GetType().InvokeMember(
+                            "Find",
+                            BindingFlags.InvokeMethod,
+                            null,
+                            usedRange,
+                            new object[] { header, Type.Missing, Type.Missing, 2, Type.Missing, Type.Missing, false, Type.Missing, Type.Missing });
+
+                        if (foundCell == null)
+                            return null;
+
+                        var colObj = foundCell.GetType().InvokeMember("Column", BindingFlags.GetProperty, null, foundCell, null);
+                        if (colObj == null)
+                            return null;
+
+                        return Convert.ToInt32(colObj);
+                    }
+                    catch
+                    {
+                        return null;
+                    }
+                    finally
+                    {
+                        ReleaseComObject(foundCell);
+                        foundCell = null;
+                    }
+                }
+
+                int? FindRowByText(string text)
+                {
+                    try
+                    {
+                        foundCell = usedRange.GetType().InvokeMember(
+                            "Find",
+                            BindingFlags.InvokeMethod,
+                            null,
+                            usedRange,
+                            new object[] { text, Type.Missing, Type.Missing, 2, Type.Missing, Type.Missing, false, Type.Missing, Type.Missing });
+
+                        if (foundCell == null)
+                            return null;
+
+                        var rowObj = foundCell.GetType().InvokeMember("Row", BindingFlags.GetProperty, null, foundCell, null);
+                        if (rowObj == null)
+                            return null;
+
+                        return Convert.ToInt32(rowObj);
+                    }
+                    catch
+                    {
+                        return null;
+                    }
+                    finally
+                    {
+                        ReleaseComObject(foundCell);
+                        foundCell = null;
+                    }
+                }
+
+                string NormalizeFuelOverall(string overall)
+                {
+                    var r = (overall ?? string.Empty).Trim();
+                    if (string.Equals(r, "PASS", StringComparison.OrdinalIgnoreCase) || string.Equals(r, "合格", StringComparison.OrdinalIgnoreCase))
+                        return "合格";
+                    if (string.Equals(r, "FAIL", StringComparison.OrdinalIgnoreCase) || string.Equals(r, "不合格", StringComparison.OrdinalIgnoreCase))
+                        return "不合格";
+                    return string.IsNullOrWhiteSpace(r) || r == "--" ? "未知" : r;
+                }
+
+                string NormalizeFuelStepResult(string result)
+                {
+                    var r = (result ?? string.Empty).Trim();
+                    if (string.Equals(r, "PASS", StringComparison.OrdinalIgnoreCase) || string.Equals(r, "合格", StringComparison.OrdinalIgnoreCase))
+                        return "合格";
+                    if (string.Equals(r, "FAIL", StringComparison.OrdinalIgnoreCase) || string.Equals(r, "不合格", StringComparison.OrdinalIgnoreCase))
+                        return "不合格";
+                    return string.IsNullOrWhiteSpace(r) || r == "--" ? "--" : r;
+                }
+
+                var valueCol = FindColumnByHeader("测试值") ?? 4;
+                var resultCol = FindColumnByHeader("测试结果") ?? 6;
+                var remarkCol = FindColumnByHeader("备注") ?? 7;
+
+                void WriteRow(int row, string value, string result, string remark)
+                {
+                    if (!string.IsNullOrWhiteSpace(value))
+                        SetExcelCellValue(cells, row, valueCol, value);
+                    if (!string.IsNullOrWhiteSpace(result))
+                    {
+                        SetExcelCellValue(cells, row, resultCol, result);
+                        SetExcelCellFontColor(cells, row, resultCol, string.Equals(result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
+                    }
+                    if (!string.IsNullOrWhiteSpace(remark))
+                        SetExcelCellValue(cells, row, remarkCol, remark);
+                }
+
+                string MapFuelTemplateStepToUiStep(string templateStepName)
+                {
+                    var n = (templateStepName ?? string.Empty).Trim();
+                    return n switch
+                    {
+                        "二次供电测试" => "二次电源测试",
+                        "温度采集测试" => "温度采集功能",
+                        "低供电告警功能测试" => "低电压告警功能测试",
+                        "离散量采集测试" => "离散量采集功能测试",
+                        "离散量输出测试" => "离散量输出功能测试",
+                        "RS422通信自检功能测试" => "RS422通信自检测功能测试",
+                        _ => n
+                    };
+                }
+
+                bool IsStepExecuted(string stepName)
+                {
+                    if (_executedFuelTestStepNames == null)
+                        return true;
+                    var uiName = MapFuelTemplateStepToUiStep(stepName);
+                    return _executedFuelTestStepNames.Contains(uiName);
+                }
+
+                void FillStep(string stepName, Action<int> fillRows)
+                {
+                    var row = FindRowByText(stepName);
+                    if (row.HasValue)
+                    {
+                        if (IsStepExecuted(stepName))
+                        {
+                            fillRows(row.Value);
+                        }
+                    }
+                    else
+                    {
+                        AppendSingleBoardReportLine($"REPORT | FUEL_EXCEL_STEP_NOT_FOUND | {stepName}");
+                    }
+                }
+
+                FillStep("电源阻抗测试", row =>
+                {
+                    if (vm1 == null)
+                        return;
+
+                    var values = new[]
+                    {
+                        FormatNullableNumber(vm1.ImpedanceA),
+                        FormatNullableNumber(vm1.ImpedanceB),
+                        FormatNullableNumber(vm1.ImpedanceC),
+                        FormatNullableNumber(vm1.ImpedanceD)
+                    };
+
+                    var results = new[]
+                    {
+                        NormalizeFuelStepResult(vm1.ResultA),
+                        NormalizeFuelStepResult(vm1.ResultB),
+                        NormalizeFuelStepResult(vm1.ResultC),
+                        NormalizeFuelStepResult(vm1.ResultD)
+                    };
+
+                    for (var i = 0; i < values.Length; i++)
+                    {
+                        WriteRow(row + i, values[i], results[i], null);
+                    }
+
+                    WriteRow(row, null, NormalizeFuelOverall(vm1.OverallResult), null);
+                });
+
+                FillStep("二次供电测试", row =>
+                {
+                    if (vm2 == null)
+                        return;
+
+                    WriteRow(row, FormatNullableNumber(vm2.VoltageValue), NormalizeFuelOverall(vm2.OverallResult), null);
+                });
+
+                FillStep("温度采集测试", row =>
+                {
+                    if (vm3 == null)
+                        return;
+
+                    WriteRow(row, FormatNullableNumber(vm3.TemperatureValue), NormalizeFuelOverall(vm3.OverallResult), null);
+                });
+
+                FillStep("低供电告警功能测试", row =>
+                {
+                    if (vm4 == null)
+                        return;
+
+                    WriteRow(row, FormatNullableNumber(vm4.FlipVoltage), NormalizeFuelOverall(vm4.OverallResult), null);
+                });
+
+                FillStep("离散量采集测试", row =>
+                {
+                    if (vm5 == null)
+                        return;
+
+                    var remark = $"接地[{vm5.Bank0GroundedResults}] [{vm5.Bank1GroundedResults}] 开路[{vm5.Bank0OpenResults}] [{vm5.Bank1OpenResults}]";
+                    WriteRow(row, null, NormalizeFuelOverall(vm5.OverallResult), remark);
+                });
+
+                FillStep("离散量输出测试", row =>
+                {
+                    if (vm6 == null)
+                        return;
+
+                    var remark = $"GND={FormatNullableNumber(vm6.ImpedanceGrounded)} OPEN={FormatNullableNumber(vm6.ImpedanceOpen)} J14={FormatNullableNumber(vm6.J14Voltage)}";
+                    WriteRow(row, null, NormalizeFuelOverall(vm6.OverallResult), remark);
+                });
+
+                FillStep("RS422通信功能测试", row =>
+                {
+                    if (vm7 == null)
+                        return;
+
+                    WriteRow(row + 0, null, NormalizeFuelStepResult(vm7.StepAResult), vm7.StepARxData);
+                    WriteRow(row + 1, null, NormalizeFuelStepResult(vm7.StepBResult), vm7.StepBRxData);
+                    WriteRow(row + 2, null, NormalizeFuelStepResult(vm7.StepCResult), vm7.StepCRxData);
+                    WriteRow(row + 3, null, NormalizeFuelStepResult(vm7.StepDResult), vm7.StepDRxData);
+                    WriteRow(row, null, NormalizeFuelOverall(vm7.OverallResult), null);
+                });
+
+                FillStep("RS422通信自检功能测试", row =>
+                {
+                    if (vm8 == null)
+                        return;
+
+                    WriteRow(row + 0, null, NormalizeFuelStepResult(vm8.StepAResult), vm8.StepARxData);
+                    WriteRow(row + 1, null, NormalizeFuelStepResult(vm8.StepBResult), vm8.StepBRxData);
+                    WriteRow(row, null, NormalizeFuelOverall(vm8.OverallResult), null);
+                });
+
+                workbook.GetType().InvokeMember("Save", BindingFlags.InvokeMethod, null, workbook, null);
+            }
+            catch (Exception ex)
+            {
+                AppendSingleBoardReportLine($"REPORT | FUEL_EXCEL_FILL_FAILED | {ex.GetType().Name} | {ex.Message}");
+            }
+            finally
+            {
+                TryInvoke(workbook, "Close", false);
+                TryInvoke(excelApp, "Quit");
+                ReleaseComObject(foundCell);
+                ReleaseComObject(usedRange);
+                ReleaseComObject(cells);
+                ReleaseComObject(sheet);
+                ReleaseComObject(workbook);
+                ReleaseComObject(workbooks);
+                ReleaseComObject(excelApp);
+            }
+        }
+
+        private void AppendSingleBoardReportLine(string message)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(_singleBoardAutoTestReportPath))
+                    return;
+
+                var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {message}{Environment.NewLine}";
+                File.AppendAllText(_singleBoardAutoTestReportPath, line);
             }
             catch
             {
