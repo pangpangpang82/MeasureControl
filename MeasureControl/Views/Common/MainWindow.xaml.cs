@@ -1156,6 +1156,22 @@ namespace MeasureControl.Views.Common
                 _singleBoardAutoTestCts = null;
                 _selectedSingleBoardAutoTestItems = null;
                 _singleBoardAutoStepResults = null;
+                _hydraulicAutoTestVm61 = null;
+                _hydraulicAutoTestVm62 = null;
+                _hydraulicAutoTestVm63 = null;
+                _hydraulicAutoTestVm64 = null;
+                _hydraulicAutoTestVm65 = null;
+                _hydraulicAutoTestVm66 = null;
+                _hydraulicAutoTestVm67 = null;
+                _hydraulicAutoTestVm68 = null;
+                _fuelAutoTestVm1 = null;
+                _fuelAutoTestVm2 = null;
+                _fuelAutoTestVm3 = null;
+                _fuelAutoTestVm4 = null;
+                _fuelAutoTestVm5 = null;
+                _fuelAutoTestVm6 = null;
+                _fuelAutoTestVm7 = null;
+                _fuelAutoTestVm8 = null;
             }
         }
 
@@ -1230,22 +1246,6 @@ namespace MeasureControl.Views.Common
         {
             _singleBoardAutoTestExcelReportPath = null;
             _singleBoardAutoStepResults = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            _hydraulicAutoTestVm61 = null;
-            _hydraulicAutoTestVm62 = null;
-            _hydraulicAutoTestVm63 = null;
-            _hydraulicAutoTestVm64 = null;
-            _hydraulicAutoTestVm65 = null;
-            _hydraulicAutoTestVm66 = null;
-            _hydraulicAutoTestVm67 = null;
-            _hydraulicAutoTestVm68 = null;
-            _fuelAutoTestVm1 = null;
-            _fuelAutoTestVm2 = null;
-            _fuelAutoTestVm3 = null;
-            _fuelAutoTestVm4 = null;
-            _fuelAutoTestVm5 = null;
-            _fuelAutoTestVm6 = null;
-            _fuelAutoTestVm7 = null;
-            _fuelAutoTestVm8 = null;
             try
             {
                 var baseDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "TestResults");
@@ -1368,6 +1368,8 @@ namespace MeasureControl.Views.Common
 
             try
             {
+                OleMessageFilter.Register();
+
                 excelType = Type.GetTypeFromProgID("Excel.Application");
                 if (excelType == null)
                 {
@@ -1812,6 +1814,7 @@ namespace MeasureControl.Views.Common
                 ReleaseComObject(workbook);
                 ReleaseComObject(workbooks);
                 ReleaseComObject(excelApp);
+                OleMessageFilter.Revoke();
             }
         }
 
@@ -1966,6 +1969,8 @@ namespace MeasureControl.Views.Common
 
             try
             {
+                OleMessageFilter.Register();
+
                 excelType = Type.GetTypeFromProgID("Excel.Application");
                 if (excelType == null)
                 {
@@ -2132,15 +2137,19 @@ namespace MeasureControl.Views.Common
                     if (IsSingleBoardStepSelected("离散量采集功能测试"))
                     {
                         // 接地测试 Bank0[0:6] (行10)
+                        SetExcelCellValue(cells, 10, valueCol, vm5.Bank0GroundedResults);
                         SetExcelCellValue(cells, 10, singleResultCol, NormalizeFuelResult(vm5.GroundedTestResult));
                         SetExcelCellFontColor(cells, 10, singleResultCol, !string.Equals(vm5.GroundedTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.GroundedTestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm5.GroundedTestResult) && vm5.GroundedTestResult != "--" ? 255 : (int?)null);
                         // 接地测试 Bank1[0:6] (行11)
+                        SetExcelCellValue(cells, 11, valueCol, vm5.Bank1GroundedResults);
                         SetExcelCellValue(cells, 11, singleResultCol, NormalizeFuelResult(vm5.GroundedTestResult));
                         SetExcelCellFontColor(cells, 11, singleResultCol, !string.Equals(vm5.GroundedTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.GroundedTestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm5.GroundedTestResult) && vm5.GroundedTestResult != "--" ? 255 : (int?)null);
                         // 开路测试 Bank0[0:6] (行12)
+                        SetExcelCellValue(cells, 12, valueCol, vm5.Bank0OpenResults);
                         SetExcelCellValue(cells, 12, singleResultCol, NormalizeFuelResult(vm5.OpenTestResult));
                         SetExcelCellFontColor(cells, 12, singleResultCol, !string.Equals(vm5.OpenTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.OpenTestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm5.OpenTestResult) && vm5.OpenTestResult != "--" ? 255 : (int?)null);
                         // 开路测试 Bank1[0:6] (行13)
+                        SetExcelCellValue(cells, 13, valueCol, vm5.Bank1OpenResults);
                         SetExcelCellValue(cells, 13, singleResultCol, NormalizeFuelResult(vm5.OpenTestResult));
                         SetExcelCellFontColor(cells, 13, singleResultCol, !string.Equals(vm5.OpenTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.OpenTestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm5.OpenTestResult) && vm5.OpenTestResult != "--" ? 255 : (int?)null);
                         // 综合结果 (行10, F列合并单元格)
@@ -2224,15 +2233,19 @@ namespace MeasureControl.Views.Common
                     if (IsSingleBoardStepSelected("RS422通信功能测试"))
                     {
                         // 通道1收发测试 (行31)
+                        SetExcelCellValue(cells, 31, valueCol, vm7.StepARxData);
                         SetExcelCellValue(cells, 31, singleResultCol, NormalizeFuelResult(vm7.StepAResult));
                         SetExcelCellFontColor(cells, 31, singleResultCol, !string.Equals(vm7.StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepAResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm7.StepAResult) && vm7.StepAResult != "--" ? 255 : (int?)null);
                         // 通道2收发测试 (行32)
+                        SetExcelCellValue(cells, 32, valueCol, vm7.StepBRxData);
                         SetExcelCellValue(cells, 32, singleResultCol, NormalizeFuelResult(vm7.StepBResult));
                         SetExcelCellFontColor(cells, 32, singleResultCol, !string.Equals(vm7.StepBResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepBResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm7.StepBResult) && vm7.StepBResult != "--" ? 255 : (int?)null);
                         // 通道1回环测试 (行33)
+                        SetExcelCellValue(cells, 33, valueCol, vm7.StepCRxData);
                         SetExcelCellValue(cells, 33, singleResultCol, NormalizeFuelResult(vm7.StepCResult));
                         SetExcelCellFontColor(cells, 33, singleResultCol, !string.Equals(vm7.StepCResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepCResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm7.StepCResult) && vm7.StepCResult != "--" ? 255 : (int?)null);
                         // 通道2回环测试 (行34)
+                        SetExcelCellValue(cells, 34, valueCol, vm7.StepDRxData);
                         SetExcelCellValue(cells, 34, singleResultCol, NormalizeFuelResult(vm7.StepDResult));
                         SetExcelCellFontColor(cells, 34, singleResultCol, !string.Equals(vm7.StepDResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepDResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm7.StepDResult) && vm7.StepDResult != "--" ? 255 : (int?)null);
                         // 综合结果 (行31, F列合并单元格)
@@ -2260,9 +2273,11 @@ namespace MeasureControl.Views.Common
                     if (IsSingleBoardStepSelected("RS422通信自检测功能测试"))
                     {
                         // 通道1自检测试 (行35)
+                        SetExcelCellValue(cells, 35, valueCol, vm8.StepARxData);
                         SetExcelCellValue(cells, 35, singleResultCol, NormalizeFuelResult(vm8.StepAResult));
                         SetExcelCellFontColor(cells, 35, singleResultCol, !string.Equals(vm8.StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm8.StepAResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm8.StepAResult) && vm8.StepAResult != "--" ? 255 : (int?)null);
                         // 通道2自检测试 (行36)
+                        SetExcelCellValue(cells, 36, valueCol, vm8.StepARxData);
                         SetExcelCellValue(cells, 36, singleResultCol, NormalizeFuelResult(vm8.StepBResult));
                         SetExcelCellFontColor(cells, 36, singleResultCol, !string.Equals(vm8.StepBResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm8.StepBResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm8.StepBResult) && vm8.StepBResult != "--" ? 255 : (int?)null);
                         // 综合结果 (行35, F列合并单元格)
@@ -2300,6 +2315,7 @@ namespace MeasureControl.Views.Common
                 ReleaseComObject(workbook);
                 ReleaseComObject(workbooks);
                 ReleaseComObject(excelApp);
+                OleMessageFilter.Revoke();
             }
         }
 
