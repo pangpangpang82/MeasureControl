@@ -24,6 +24,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
 
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private static readonly byte[] Pwm100Command8 = { 0x21, 0x03, 0x04, 0x03, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] Pwm50Command8 = { 0x21, 0x03, 0x04, 0x02, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] Pwm0Command8 = { 0x21, 0x03, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00 };
@@ -44,8 +47,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private CancellationTokenSource _autoTestCts;
 
-        private string _testTxChannel = "CH0";
-        private string _testRxChannel = "CH1";
+        private string _testTxChannel = FixedTxChannel;
+        private string _testRxChannel = FixedRxChannel;
 
         private string _oscilloscopeIpAddress = "192.168.1.18";
         private string _frequencyCounterIpAddress = "192.168.1.14";
@@ -305,6 +308,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
+        private void EnsureManualArincChannels()
+        {
+            TestTxChannel = FixedTxChannel;
+            TestRxChannel = FixedRxChannel;
+        }
+
         private async Task RunManualTestAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -312,6 +321,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsBusy)
                     return;
+
+                EnsureManualArincChannels();
 
                 IsBusy = true;
                 try
@@ -357,6 +368,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        private async Task<double?> QueryScopeDutyPctAsync(int channel, CancellationToken token)
+        {
+            var duty = await QueryScopeDoubleAsync(channel, ":MEASure:ITEM? DUTY", token);
+            if (duty.HasValue)
+                return NormalizeDutyToPercent(duty.Value);
+
+            duty = await QueryScopeDoubleAsync(channel, ":MEASure:ITEM? DUTYcycle", token);
+            if (duty.HasValue)
+                return NormalizeDutyToPercent(duty.Value);
+
+            return null;
+        }
+
         private async Task StopManualTestAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -391,6 +415,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsBusy)
                     return;
+
+                EnsureManualArincChannels();
 
                 IsBusy = true;
                 IsAutoTestRunning = true;
@@ -683,9 +709,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             var vpp = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VPP", token);
 
             var freq = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? FREQuency", token);
-            var pw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? PWIDth", token);
-            var nw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? NWIDth", token);
-            var dutyPct = TryCalcDutyPctFromPulseWidths(pw, nw);
+            double? dutyPct = await QueryScopeDutyPctAsync(1, token);
+            if (!dutyPct.HasValue)
+            {
+                var pw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? PWIDth", token);
+                var nw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? NWIDth", token);
+                dutyPct = TryCalcDutyPctFromPulseWidths(pw, nw);
+            }
 
             return new PwmMeasurement
             {
@@ -784,7 +814,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             const double vHigh = 3.3;
             const double vHighTol = 0.5;
             const double vppMax = 0.5;
-            const double dutyMin = 99.0;
+            const double dutyMin = 90.0;
 
             if (!vmax.HasValue)
             {
@@ -804,7 +834,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return false;
             }
 
-            if (dutyPct.HasValue && dutyPct.Value < dutyMin)
+            if (!dutyPct.HasValue)
+            {
+                reason = "示波器占空比无有效值";
+                return false;
+            }
+
+            if (dutyPct.Value < dutyMin)
             {
                 reason = $"占空比过低: {dutyPct.Value:F3}% < {dutyMin}%";
                 return false;
@@ -840,7 +876,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool QualifyPwm0(double? vmax, double? vmin, double? vavg, double? vpp, double? dutyPct, out string reason)
         {
             const double vAbsMax = 1.0;
-            const double dutyMax = 1.0;
+            const double dutyMax = 10.0;
             const double vppMax = 0.5;
 
             if (!vmax.HasValue || !vmin.HasValue)
@@ -861,7 +897,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return false;
             }
 
-            if (dutyPct.HasValue && dutyPct.Value > dutyMax)
+            if (!dutyPct.HasValue)
+            {
+                reason = "示波器占空比无有效值";
+                return false;
+            }
+
+            if (dutyPct.Value > dutyMax)
             {
                 reason = $"占空比过高: {dutyPct.Value:F3}% > {dutyMax}%";
                 return false;

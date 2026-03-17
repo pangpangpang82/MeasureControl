@@ -11,25 +11,6 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <x:Array x:Key="Arinc429Channels" Type="sys:String">
-            <sys:String>CH0</sys:String>
-            <sys:String>CH1</sys:String>
-            <sys:String>CH2</sys:String>
-            <sys:String>CH3</sys:String>
-            <sys:String>CH4</sys:String>
-            <sys:String>CH5</sys:String>
-            <sys:String>CH6</sys:String>
-            <sys:String>CH7</sys:String>
-            <sys:String>CH8</sys:String>
-            <sys:String>CH9</sys:String>
-            <sys:String>CH10</sys:String>
-            <sys:String>CH11</sys:String>
-            <sys:String>CH12</sys:String>
-            <sys:String>CH13</sys:String>
-            <sys:String>CH14</sys:String>
-            <sys:String>CH15</sys:String>
-        </x:Array>
-
         <Style x:Key="EnableCheckBoxStyle" TargetType="CheckBox">
             <Setter Property="Template">
                 <Setter.Value>
@@ -301,25 +282,11 @@
                         FontSize="16"
                         Text="1.进入ATP模式：" />
 
-                    <StackPanel
-                        Grid.Row="0"
-                        Grid.Column="1"
-                        Margin="0"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="TX" />
-                        <ComboBox
-                            Width="100"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0" Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
+                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" ><Run Text="429_CH"/><Run Language="zh-cn" Text="1"/></TextBlock>
+                        </Border>
 
                         <Border
                             Width="180"
@@ -378,25 +345,11 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="1"
-                        Grid.Column="1"
-                        Margin="0"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="RX" />
-                        <ComboBox
-                            Width="100"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0" Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
+                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" ><Run Text="429_CH"/><Run Language="zh-cn" Text="0"/></TextBlock>
+                        </Border>
 
                         <Border
                             Width="180"
@@ -515,25 +468,12 @@
                         VerticalAlignment="Center"
                         FontSize="16"><Run Text="3.控制器" /><Run Language="zh-cn" Text="温度" /><Run Text="测试：" /></TextBlock>
 
-                    <StackPanel
-                        Grid.Row="0"
-                        Grid.Column="1"
-                        Margin="0"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="TX" />
-                        <ComboBox
-                            Width="100"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding ControllerPressureTestTxChannel, Mode=TwoWay}" />
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0" Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
+                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" ><Run Text="429_CH"/><Run Language="zh-cn" Text="1"/></TextBlock>
+                        </Border>
+
                         <Border
                             Width="180"
                             Height="28"
@@ -550,6 +490,7 @@
                                 FontSize="12"
                                 Text="0x15 02 03 01 00 00 00 00" />
                         </Border>
+
                         <Button
                             Width="50"
                             Height="28"
@@ -590,25 +531,11 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="1"
-                        Grid.Column="1"
-                        Margin="0"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="RX" />
-                        <ComboBox
-                            Width="100"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding ControllerPressureTestRxChannel, Mode=TwoWay}" />
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0" Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
+                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" ><Run Text="429_CH"/><Run Language="zh-cn" Text="0"/></TextBlock>
+                        </Border>
                         <Border
                             Width="180"
                             Height="28"
@@ -638,21 +565,10 @@
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
                         FontSize="16"><Run Text="4." /><Run Language="zh-cn" Text="温度" /><Run Text="回采值：" /></TextBlock>
-                    <TextBlock
-                        Margin="0,0,0,0"
-                        VerticalAlignment="Center"
-                        FontSize="14"
-                        Text="RX" />
-                    <ComboBox
-                        Width="100"
-                        Height="28"
-                        Margin="5,0,0,0"
-                        HorizontalAlignment="Left"
-                        FontSize="12"
-                        IsEnabled="{Binding CanEditStepControls}"
-                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                        ItemsSource="{StaticResource Arinc429Channels}"
-                        SelectedItem="{Binding PressureTelemetryRxChannel, Mode=TwoWay}" />
+                    <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="14" Text="RX" />
+                    <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" ><Run Text="429_CH"/><Run Language="zh-cn" Text="0"/></TextBlock>
+                    </Border>
                     <Border
                         Width="100"
                         Height="28"
@@ -707,25 +623,12 @@
                         FontSize="16"
                         Text="5.退出ATP模式：" />
 
-                    <StackPanel
-                        Grid.Row="0"
-                        Grid.Column="1"
-                        Margin="2"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="TX" />
-                        <ComboBox
-                            Width="100"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="2" Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
+                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" ><Run Text="429_CH"/><Run Language="zh-cn" Text="1"/></TextBlock>
+                        </Border>
+
                         <Border
                             Width="180"
                             Height="28"
@@ -782,25 +685,12 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="1"
-                        Grid.Column="1"
-                        Margin="0"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="RX" />
-                        <ComboBox
-                            Width="100"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}" />
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0" Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
+                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" ><Run Text="429_CH"/><Run Language="zh-cn" Text="0"/></TextBlock>
+                        </Border>
+
                         <Border
                             Width="180"
                             Height="28"

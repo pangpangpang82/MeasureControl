@@ -31,6 +31,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const double QualifyDutyTargetPct = 50.0;
         private const double QualifyDutyTolPct = 5.0;
 
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private readonly A_C_6_16_1_1_1Simulation _simulation = new A_C_6_16_1_1_1Simulation();
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
@@ -46,8 +49,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private CancellationTokenSource _autoTestCts;
 
-        private string _testTxChannel = "CH0";
-        private string _testRxChannel = "CH1";
+        private string _testTxChannel = FixedTxChannel;
+        private string _testRxChannel = FixedRxChannel;
 
         private string _oscilloscopeIpAddress = "192.168.1.18";
 
@@ -183,6 +186,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _previousTestResult, value);
         }
 
+        private void EnsureManualArincChannels()
+        {
+            TestTxChannel = FixedTxChannel;
+            TestRxChannel = FixedRxChannel;
+        }
+
         private void OnManualTest()
         {
             if (IsManualTestRunning)
@@ -212,6 +221,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsBusy)
                     return;
+
+                EnsureManualArincChannels();
 
                 IsBusy = true;
                 try
@@ -291,6 +302,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsBusy)
                     return;
+
+                EnsureManualArincChannels();
 
                 IsBusy = true;
                 IsAutoTestRunning = true;
@@ -638,9 +651,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await Task.Delay(200, token);
 
             var freq = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? FREQuency", token);
-            var pw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? PWIDth", token);
-            var nw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? NWIDth", token);
-            var dutyPct = TryCalcDutyPctFromPulseWidths(pw, nw);
+            double? dutyPct = await QueryScopeDutyPctAsync(1, token);
+            if (!dutyPct.HasValue)
+            {
+                var pw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? PWIDth", token);
+                var nw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? NWIDth", token);
+                dutyPct = TryCalcDutyPctFromPulseWidths(pw, nw);
+            }
 
             return new Measurement
             {
@@ -854,6 +871,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return null;
 
             return pw / period * 100.0;
+        }
+
+        private static double NormalizeDutyToPercent(double dutyValue)
+        {
+            if (double.IsNaN(dutyValue) || double.IsInfinity(dutyValue))
+                return dutyValue;
+            if (dutyValue <= 1.0)
+                return dutyValue * 100.0;
+            return dutyValue;
+        }
+
+        private async Task<double?> QueryScopeDutyPctAsync(int channel, CancellationToken token)
+        {
+            var duty = await QueryScopeDoubleAsync(channel, ":MEASure:ITEM? DUTY", token);
+            if (duty.HasValue)
+                return NormalizeDutyToPercent(duty.Value);
+
+            duty = await QueryScopeDoubleAsync(channel, ":MEASure:ITEM? DUTYcycle", token);
+            if (duty.HasValue)
+                return NormalizeDutyToPercent(duty.Value);
+
+            return null;
         }
 
         private static string FormatNum(double? v)

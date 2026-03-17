@@ -1,4 +1,4 @@
-﻿using Prism.Commands;
+using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -14,6 +14,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public class CanReceiveTestViewModel : BindableBase
     {
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private static readonly byte[] EnterAtpCommand = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] ExitAtpCommand = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
@@ -38,13 +41,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
 
-        private string _enterAtpTxChannel = "429_CH0";
-        private string _enterAtpRxChannel = "429_CH1";
-        private string _exitAtpTxChannel = "429_CH0";
-        private string _exitAtpRxChannel = "429_CH1";
-        private string _testControllerRxChannel = "429_CH2";
-        private string _testBenchRxChannel = "429_CH3";
-        private string _canTxChannel = "CH4";
+        private string _enterAtpTxChannel = FixedTxChannel;
+        private string _enterAtpRxChannel = FixedRxChannel;
+        private string _exitAtpTxChannel = FixedTxChannel;
+        private string _exitAtpRxChannel = FixedRxChannel;
+        private string _testControllerRxChannel = FixedTxChannel;
+        private string _testBenchRxChannel = FixedRxChannel;
+        private string _canTxChannel = "CH0";
 
         private string _enterAtpRxDataText = "--";
         private string _canInjectStatusText = "--";
@@ -106,25 +109,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
+            set => SetProperty(ref _enterAtpTxChannel, FixedTxChannel);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
+            set => SetProperty(ref _enterAtpRxChannel, FixedRxChannel);
         }
 
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
+            set => SetProperty(ref _exitAtpTxChannel, FixedTxChannel);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
+            set => SetProperty(ref _exitAtpRxChannel, FixedRxChannel);
         }
 
         public string CanTxChannel
@@ -136,13 +139,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string TestControllerRxChannel
         {
             get => _testControllerRxChannel;
-            set => SetProperty(ref _testControllerRxChannel, value);
+            set => SetProperty(ref _testControllerRxChannel, FixedTxChannel);
         }
 
         public string TestBenchRxChannel
         {
             get => _testBenchRxChannel;
-            set => SetProperty(ref _testBenchRxChannel, value);
+            set => SetProperty(ref _testBenchRxChannel, FixedRxChannel);
         }
 
         public string EnterAtpRxDataText
