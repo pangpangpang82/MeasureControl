@@ -472,7 +472,6 @@
                                     VerticalAlignment="Center"
                                     FontSize="16"
                                     Text="万用表测量(J167)：" />
-
                                 <Border
                                     Width="140"
                                     Height="28"
@@ -489,7 +488,6 @@
                                         FontSize="12"
                                         Text="{Binding J167VoltageText}" />
                                 </Border>
-
                                 <Button
                                     Width="80"
                                     Height="28"
@@ -536,7 +534,6 @@
                                     VerticalAlignment="Center"
                                     FontSize="16"
                                     Text="万用表测量(J168)：" />
-
                                 <Border
                                     Width="140"
                                     Height="28"
@@ -553,7 +550,6 @@
                                         FontSize="12"
                                         Text="{Binding J168VoltageText}" />
                                 </Border>
-
                                 <Button
                                     Width="80"
                                     Height="28"
@@ -600,7 +596,6 @@
                                     VerticalAlignment="Center"
                                     FontSize="16"
                                     Text="万用表测量(J169)：" />
-
                                 <Border
                                     Width="140"
                                     Height="28"
@@ -617,7 +612,6 @@
                                         FontSize="12"
                                         Text="{Binding J169VoltageText}" />
                                 </Border>
-
                                 <Button
                                     Width="80"
                                     Height="28"
@@ -664,7 +658,6 @@
                                     VerticalAlignment="Center"
                                     FontSize="16"
                                     Text="万用表测量(J231)：" />
-
                                 <Border
                                     Width="140"
                                     Height="28"
@@ -681,7 +674,6 @@
                                         FontSize="12"
                                         Text="{Binding J231VoltageText}" />
                                 </Border>
-
                                 <Button
                                     Width="80"
                                     Height="28"
@@ -722,138 +714,138 @@
                                 </Button>
                             </StackPanel>
 
-                        <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
 
-                        <StackPanel Margin="5" Orientation="Horizontal">
-                            <TextBlock
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="退出ATP模式：" />
-                            <TextBlock
-                                Margin="0,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="TX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding ExitAtpTxChannel}" />
-                            </Border>
+                                <StackPanel Margin="5" Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="退出ATP模式：" />
+                                    <TextBlock
+                                        Margin="0,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="TX" />
+                                    <Border
+                                        Width="100"
+                                        Height="28"
+                                        Margin="5,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding ExitAtpTxChannel}" />
+                                    </Border>
+                                    <Border
+                                        Width="220"
+                                        Height="28"
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="0x00 02 00 01 00 00 00 01" />
+                                    </Border>
+                                    <Button
+                                        Width="50"
+                                        Height="28"
+                                        Margin="15,0,0,0"
+                                        VerticalAlignment="Center"
+                                        BorderThickness="0"
+                                        Command="{Binding SendExitAtpCommand}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Background="#3b82f6"
+                                                    CornerRadius="4">
+                                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                        <TextBlock
+                                                            x:Name="DeviceAction"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            FontSize="14"
+                                                            Foreground="White"
+                                                            Text="发送" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                        <Setter Property="Cursor" Value="Arrow" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </StackPanel>
 
-                            <Border
-                                Width="220"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                Background="AliceBlue"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"
-                                    FontSize="12"
-                                    Text="0x00 02 00 01 00 00 00 01" />
-                            </Border>
-
-                            <Button
-                                Width="50"
-                                Height="28"
-                                Margin="15,0,0,0"
-                                VerticalAlignment="Center"
-                                BorderThickness="0"
-                                Command="{Binding SendExitAtpCommand}">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border
-                                            x:Name="border"
-                                            Background="#3b82f6"
-                                            CornerRadius="4">
-                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                <TextBlock
-                                                    x:Name="DeviceAction"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    FontSize="14"
-                                                    Foreground="White"
-                                                    Text="发送" />
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsEnabled" Value="False">
-                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                <Setter Property="Cursor" Value="Arrow" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
-                            <TextBlock
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="RX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding ExitAtpRxChannel}" />
-                            </Border>
-
-                            <Border
-                                Width="220"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                Background="AliceBlue"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding ExitAtpRxDataText}" />
-                            </Border>
-                        </StackPanel>
-                    </Grid>
+                                <StackPanel
+                                    Grid.Row="1"
+                                    Margin="115,5,5,5"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="RX" />
+                                    <Border
+                                        Width="100"
+                                        Height="28"
+                                        Margin="5,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding ExitAtpRxChannel}" />
+                                    </Border>
+                                    <Border
+                                        Width="220"
+                                        Height="28"
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding ExitAtpRxDataText}" />
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
 
                         </StackPanel>
                     </ScrollViewer>
@@ -912,9 +904,9 @@
                         Grid.Row="1"
                         Grid.RowSpan="4"
                         Grid.Column="1"
-                        Margin="0,0,5,0"
                         Width="350"
                         Height="350"
+                        Margin="0,0,5,0"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         BorderBrush="#D9D9D9"

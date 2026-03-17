@@ -52,7 +52,6 @@ namespace MeasureControl.Services.HardwareApis
 
         Task ConnectAsync(CancellationToken cancellationToken = default);  // 连接到板卡
         Task DisconnectAsync(CancellationToken cancellationToken = default);  // 断开板卡连接
-        Task EnsureConnectedAndRunningAsync(CancellationToken cancellationToken = default);  // 确保板卡已连接并启动
 
         Task StartAsync(CancellationToken cancellationToken = default);  // 启动板卡
         Task StopAsync(CancellationToken cancellationToken = default);   // 停止板卡
@@ -85,12 +84,12 @@ namespace MeasureControl.Services.HardwareApis
     /// </summary>
     public sealed class Jy7131Api : IJy7131Api
     {
-        private const string ThresholdComPort = "COM14";  // DI 阈值设置串口 加放油
-        //private const string ThresholdComPort = "COM17"; // 液压
+        //private const string ThresholdComPort = "COM14";  // DI 阈值设置串口 加放油
+        private const string ThresholdComPort = "COM17"; // 液压
         private const int ThresholdBaudRate = 115200;
 
-        private const string RelayComPort = "COM13";      // 外部 485 继电器控制串口 加放油
-        //private const string ThresholdComPort = "COM21"; // 液压
+        //private const string RelayComPort = "COM13";      // 外部 485 继电器控制串口 加放油
+        private const string RelayComPort = "COM21"; // 液压
         private const int RelayBaudRate = 9600;
         private const byte RelaySlaveAddress = 1;
         private const ushort RelayStartCoilAddress = 0;
@@ -115,73 +114,26 @@ namespace MeasureControl.Services.HardwareApis
         public bool IsRunning => _isRunning;
 
         /// <summary>
-        /// 连接到 PXIe-7131 板卡（带重试机制）
+        /// 连接到 PXIe-7131 板卡
         /// </summary>
         public async Task ConnectAsync(CancellationToken cancellationToken = default)
         {
-            const int maxRetries = 3;
-            const int retryDelayMs = 500;
-            Exception lastException = null;
-
             await _lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 if (IsConnected)
                     return;
 
-                for (int attempt = 1; attempt <= maxRetries; attempt++)
-                {
-                    try
-                    {
-                        // 清理旧驱动实例
-                        if (_driver != null)
-                        {
-                            try { await _driver.DisconnectAsync().ConfigureAwait(false); } catch { }
-                            _driver = null;
-                        }
+                _driver = new JY7131Driver(_device, _slotNumber);
+                var ok = await _driver.ConnectAsync().ConfigureAwait(false);
+                if (!ok)
+                    throw new InvalidOperationException("JY7131 connect returned false");
 
-                        _driver = new JY7131Driver(_device, _slotNumber);
-                        var ok = await _driver.ConnectAsync().ConfigureAwait(false);
-                        if (!ok)
-                            throw new InvalidOperationException("JY7131 connect returned false");
-
-                        _isRunning = false;
-                        return; // 连接成功
-                    }
-                    catch (Exception ex)
-                    {
-                        lastException = ex;
-                        System.Diagnostics.Debug.WriteLine($"[Jy7131Api] 连接失败 (尝试 {attempt}/{maxRetries}): {ex.Message}");
-                        
-                        if (attempt < maxRetries)
-                        {
-                            await Task.Delay(retryDelayMs, cancellationToken).ConfigureAwait(false);
-                        }
-                    }
-                }
-
-                throw lastException ?? new InvalidOperationException("JY7131 连接失败");
+                _isRunning = false;
             }
             finally
             {
                 _lifecycleLock.Release();
-            }
-        }
-
-        /// <summary>
-        /// 确保板卡已连接并启动，如果未连接则自动重连
-        /// </summary>
-        public async Task EnsureConnectedAndRunningAsync(CancellationToken cancellationToken = default)
-        {
-            if (!IsConnected)
-            {
-                await ConnectAsync(cancellationToken).ConfigureAwait(false);
-            }
-
-            if (!IsRunning)
-            {
-                await SetOutputModeAsync(Jy7131OutputMode.PushPull, cancellationToken).ConfigureAwait(false);
-                await StartAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -559,11 +511,10 @@ namespace MeasureControl.Services.HardwareApis
             if (!int.TryParse(num, NumberStyles.Integer, CultureInfo.InvariantCulture, out var idx))
                 throw new ArgumentException("Invalid channel index", nameof(channel));
 
-            // Public API uses 1-based channel number (DI1..DI32 / DO1..DO32).
+            // Public API accepts 1-based channel number (DI1..DI32 / DO1..DO32).
             // Hardware uses 0-based (DI0..DI31 / DO0..DO31).
-            // Also allow explicit 0-based access for DI0/DO0.
-            if (idx == 0)
-                return 0;
+            if (idx >= 0 && idx <= 31)
+                return idx;
             if (idx >= 1 && idx <= 32)
                 return idx - 1;
 

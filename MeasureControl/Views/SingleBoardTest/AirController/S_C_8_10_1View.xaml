@@ -54,7 +54,10 @@
                         Command="{Binding ManualTestCommand}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
+                                <Border
+                                    x:Name="border"
+                                    Background="#3b82f6"
+                                    CornerRadius="6">
                                     <StackPanel Orientation="Horizontal">
                                         <Image
                                             Width="15"
@@ -125,7 +128,10 @@
                         Command="{Binding AutoTestCommand}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border x:Name="border" Background="#22c55e" CornerRadius="6">
+                                <Border
+                                    x:Name="border"
+                                    Background="#22c55e"
+                                    CornerRadius="6">
                                     <StackPanel Orientation="Horizontal">
                                         <Image
                                             Width="15"
@@ -258,8 +264,8 @@
                                 Grid.Column="2"
                                 Width="70"
                                 Height="28"
-                                VerticalAlignment="Center"
                                 HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
                                 Background="#f3f4f6"
                                 CornerRadius="4">
                                 <TextBlock
@@ -273,15 +279,23 @@
                                 Grid.Column="3"
                                 Width="80"
                                 Height="30"
-                                VerticalAlignment="Center"
                                 HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
                                 BorderThickness="0"
                                 Command="{Binding SendPwmCustomCommand}"
                                 IsEnabled="{Binding IsManualTestRunning}">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
-                                        <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
-                                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="测量" />
+                                        <Border
+                                            x:Name="border"
+                                            Background="#3b82f6"
+                                            CornerRadius="6">
+                                            <TextBlock
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontSize="14"
+                                                Foreground="White"
+                                                Text="测量" />
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <DataTrigger Binding="{Binding IsMeasuringPwmCustom}" Value="True">
@@ -338,25 +352,114 @@
                                     <RowDefinition Height="40" />
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" Grid.ColumnSpan="5" Background="#f3f4f6" CornerRadius="8,8,0,0" />
-                                <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="序号" />
-                                <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="测试项目" />
-                                <TextBlock Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="设置值" />
-                                <TextBlock Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="结果" />
-                                <TextBlock Grid.Row="0" Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="操作" />
+                                <Border
+                                    Grid.Row="0"
+                                    Grid.ColumnSpan="5"
+                                    Background="#f3f4f6"
+                                    CornerRadius="8,8,0,0" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Text="序号" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Text="测试项目" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Text="设置值" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="3"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Text="结果" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="4"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Text="操作" />
 
-                                <Border Grid.Row="1" Grid.ColumnSpan="5" Background="White" />
-                                <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="a)" />
-                                <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="14" Text="100%PWM" />
-                                <TextBlock Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="100%" />
-                                <Border Grid.Row="1" Grid.Column="3" Width="70" Height="28" VerticalAlignment="Center" HorizontalAlignment="Center" Background="#f3f4f6" CornerRadius="4">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Pwm100Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <Border
+                                    Grid.Row="1"
+                                    Grid.ColumnSpan="5"
+                                    Background="White" />
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Grid.Column="0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="a)" />
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Grid.Column="1"
+                                    Margin="10,0,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="100%PWM" />
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Grid.Column="2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="100%" />
+                                <Border
+                                    Grid.Row="1"
+                                    Grid.Column="3"
+                                    Width="70"
+                                    Height="28"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Background="#f3f4f6"
+                                    CornerRadius="4">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="{Binding Pwm100Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
                                 </Border>
-                                <Button Grid.Row="1" Grid.Column="4" Width="80" Height="30" VerticalAlignment="Center" HorizontalAlignment="Center" BorderThickness="0" Command="{Binding SendPwm100Command}" IsEnabled="{Binding IsManualTestRunning}">
+                                <Button
+                                    Grid.Row="1"
+                                    Grid.Column="4"
+                                    Width="80"
+                                    Height="30"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding SendPwm100Command}"
+                                    IsEnabled="{Binding IsManualTestRunning}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
-                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="测量" />
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="6">
+                                                <TextBlock
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    FontSize="14"
+                                                    Foreground="White"
+                                                    Text="测量" />
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <DataTrigger Binding="{Binding IsMeasuringPwm100}" Value="True">
@@ -385,18 +488,68 @@
                                     </Button.Template>
                                 </Button>
 
-                                <Border Grid.Row="2" Grid.ColumnSpan="5" Background="#f9fafb" />
-                                <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="b)" />
-                                <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="14" Text="50%PWM" />
-                                <TextBlock Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="50%" />
-                                <Border Grid.Row="2" Grid.Column="3" Width="70" Height="28" VerticalAlignment="Center" HorizontalAlignment="Center" Background="#f3f4f6" CornerRadius="4">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Pwm50Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <Border
+                                    Grid.Row="2"
+                                    Grid.ColumnSpan="5"
+                                    Background="#f9fafb" />
+                                <TextBlock
+                                    Grid.Row="2"
+                                    Grid.Column="0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="b)" />
+                                <TextBlock
+                                    Grid.Row="2"
+                                    Grid.Column="1"
+                                    Margin="10,0,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="50%PWM" />
+                                <TextBlock
+                                    Grid.Row="2"
+                                    Grid.Column="2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="50%" />
+                                <Border
+                                    Grid.Row="2"
+                                    Grid.Column="3"
+                                    Width="70"
+                                    Height="28"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Background="#f3f4f6"
+                                    CornerRadius="4">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="{Binding Pwm50Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
                                 </Border>
-                                <Button Grid.Row="2" Grid.Column="4" Width="80" Height="30" VerticalAlignment="Center" HorizontalAlignment="Center" BorderThickness="0" Command="{Binding SendPwm50Command}" IsEnabled="{Binding IsManualTestRunning}">
+                                <Button
+                                    Grid.Row="2"
+                                    Grid.Column="4"
+                                    Width="80"
+                                    Height="30"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding SendPwm50Command}"
+                                    IsEnabled="{Binding IsManualTestRunning}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
-                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="测量" />
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="6">
+                                                <TextBlock
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    FontSize="14"
+                                                    Foreground="White"
+                                                    Text="测量" />
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <DataTrigger Binding="{Binding IsMeasuringPwm50}" Value="True">
@@ -425,18 +578,69 @@
                                     </Button.Template>
                                 </Button>
 
-                                <Border Grid.Row="3" Grid.ColumnSpan="5" Background="White" CornerRadius="0,0,8,8" />
-                                <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="c)" />
-                                <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="14" Text="0%PWM" />
-                                <TextBlock Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="0%" />
-                                <Border Grid.Row="3" Grid.Column="3" Width="70" Height="28" VerticalAlignment="Center" HorizontalAlignment="Center" Background="#f3f4f6" CornerRadius="4">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Pwm0Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <Border
+                                    Grid.Row="3"
+                                    Grid.ColumnSpan="5"
+                                    Background="White"
+                                    CornerRadius="0,0,8,8" />
+                                <TextBlock
+                                    Grid.Row="3"
+                                    Grid.Column="0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="c)" />
+                                <TextBlock
+                                    Grid.Row="3"
+                                    Grid.Column="1"
+                                    Margin="10,0,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="0%PWM" />
+                                <TextBlock
+                                    Grid.Row="3"
+                                    Grid.Column="2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="0%" />
+                                <Border
+                                    Grid.Row="3"
+                                    Grid.Column="3"
+                                    Width="70"
+                                    Height="28"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Background="#f3f4f6"
+                                    CornerRadius="4">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="{Binding Pwm0Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
                                 </Border>
-                                <Button Grid.Row="3" Grid.Column="4" Width="80" Height="30" VerticalAlignment="Center" HorizontalAlignment="Center" BorderThickness="0" Command="{Binding SendPwm0Command}" IsEnabled="{Binding IsManualTestRunning}">
+                                <Button
+                                    Grid.Row="3"
+                                    Grid.Column="4"
+                                    Width="80"
+                                    Height="30"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding SendPwm0Command}"
+                                    IsEnabled="{Binding IsManualTestRunning}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
-                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="测量" />
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="6">
+                                                <TextBlock
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    FontSize="14"
+                                                    Foreground="White"
+                                                    Text="测量" />
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <DataTrigger Binding="{Binding IsMeasuringPwm0}" Value="True">
@@ -488,43 +692,203 @@
                                     <RowDefinition Height="44" />
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" Grid.ColumnSpan="5" Background="#f3f4f6" CornerRadius="8,8,0,0" />
-                                <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="测点" />
-                                <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="VMAX" />
-                                <TextBlock Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="VMIN" />
-                                <TextBlock Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="VPP" />
-                                <TextBlock Grid.Row="0" Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="DUTY(%)" />
+                                <Border
+                                    Grid.Row="0"
+                                    Grid.ColumnSpan="5"
+                                    Background="#f3f4f6"
+                                    CornerRadius="8,8,0,0" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Text="测点" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Text="VMAX" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Text="VMIN" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="3"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Text="VPP" />
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="4"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Text="DUTY(%)" />
 
-                                <Border Grid.Row="1" Grid.ColumnSpan="5" Background="White" />
-                                <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="J8" />
-                                <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding J8VmaxText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding J8VminText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock Grid.Row="1" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding J8VppText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock Grid.Row="1" Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding J8DutyPctText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <Border
+                                    Grid.Row="1"
+                                    Grid.ColumnSpan="5"
+                                    Background="White" />
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Grid.Column="0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="J8" />
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding J8VmaxText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Grid.Column="2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding J8VminText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Grid.Column="3"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding J8VppText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Grid.Column="4"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding J8DutyPctText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
 
-                                <Border Grid.Row="2" Grid.ColumnSpan="5" Background="#f9fafb" />
-                                <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="J9" />
-                                <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding J9VmaxText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding J9VminText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock Grid.Row="2" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding J9VppText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock Grid.Row="2" Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding J9DutyPctText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <Border
+                                    Grid.Row="2"
+                                    Grid.ColumnSpan="5"
+                                    Background="#f9fafb" />
+                                <TextBlock
+                                    Grid.Row="2"
+                                    Grid.Column="0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="J9" />
+                                <TextBlock
+                                    Grid.Row="2"
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding J9VmaxText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <TextBlock
+                                    Grid.Row="2"
+                                    Grid.Column="2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding J9VminText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <TextBlock
+                                    Grid.Row="2"
+                                    Grid.Column="3"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding J9VppText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <TextBlock
+                                    Grid.Row="2"
+                                    Grid.Column="4"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding J9DutyPctText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
 
-                                <Border Grid.Row="3" Grid.ColumnSpan="5" Background="White" CornerRadius="0,0,8,8" />
-                                <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="J8-J9" />
-                                <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding J8J9VmaxText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding J8J9VminText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock Grid.Row="3" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding J8J9VppText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock Grid.Row="3" Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding J8J9DutyPctText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <Border
+                                    Grid.Row="3"
+                                    Grid.ColumnSpan="5"
+                                    Background="White"
+                                    CornerRadius="0,0,8,8" />
+                                <TextBlock
+                                    Grid.Row="3"
+                                    Grid.Column="0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Text="J8-J9" />
+                                <TextBlock
+                                    Grid.Row="3"
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding J8J9VmaxText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <TextBlock
+                                    Grid.Row="3"
+                                    Grid.Column="2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding J8J9VminText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <TextBlock
+                                    Grid.Row="3"
+                                    Grid.Column="3"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding J8J9VppText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <TextBlock
+                                    Grid.Row="3"
+                                    Grid.Column="4"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding J8J9DutyPctText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
                             </Grid>
                         </Border>
 
-                        <Border Margin="0,0,0,10" Background="#f0fdf4" BorderBrush="#22c55e" BorderThickness="1" CornerRadius="6" Padding="8">
+                        <Border
+                            Margin="0,0,0,10"
+                            Padding="8"
+                            Background="#f0fdf4"
+                            BorderBrush="#22c55e"
+                            BorderThickness="1"
+                            CornerRadius="6">
                             <StackPanel>
-                                <TextBlock FontWeight="Bold" Foreground="#166534" Text="测试判据：" />
-                                <TextBlock Margin="0,6,0,0" Foreground="#166534" Text="a) 100%PWM：J8/J9/J8-J9 的 VMAX ∈ [17,32]V 为 PASS" />
-                                <TextBlock Margin="0,2,0,0" Foreground="#166534" Text="b) 50%PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (50±1)% 为 PASS" />
-                                <TextBlock Margin="0,2,0,0" Foreground="#166534" Text="c) 0%PWM：VMAX ≤ 1V 且 VMIN ≥ -1V 为 PASS" />
-                                <TextBlock Margin="0,2,0,0" Foreground="#166534" Text="d) 自定义PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (设定值±1)% 为 PASS" />
+                                <TextBlock
+                                    FontWeight="Bold"
+                                    Foreground="#166534"
+                                    Text="测试判据：" />
+                                <TextBlock
+                                    Margin="0,6,0,0"
+                                    Foreground="#166534"
+                                    Text="a) 100%PWM：J8/J9/J8-J9 的 VMAX ∈ [17,32]V 为 PASS" />
+                                <TextBlock
+                                    Margin="0,2,0,0"
+                                    Foreground="#166534"
+                                    Text="b) 50%PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (50±1)% 为 PASS" />
+                                <TextBlock
+                                    Margin="0,2,0,0"
+                                    Foreground="#166534"
+                                    Text="c) 0%PWM：VMAX ≤ 1V 且 VMIN ≥ -1V 为 PASS" />
+                                <TextBlock
+                                    Margin="0,2,0,0"
+                                    Foreground="#166534"
+                                    Text="d) 自定义PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (设定值±1)% 为 PASS" />
                             </StackPanel>
                         </Border>
 
@@ -555,7 +919,10 @@
                             Command="{Binding ClearLogCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="4">
                                         <TextBlock
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"

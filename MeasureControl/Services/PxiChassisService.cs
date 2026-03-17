@@ -384,6 +384,10 @@ namespace MeasureControl.Services
                 
                 // 根据设备名称重新识别设备类型
                 var correctDevice = DeviceFactory.CreateDevice(device.Name, device.SlotPosition);
+                if ((correctDevice == null || correctDevice.GetType().Name == "GenericDevice") && !string.IsNullOrWhiteSpace(device.Model))
+                {
+                    correctDevice = DeviceFactory.CreateDevice(device.Model, device.SlotPosition);
+                }
                 
                 // 如果识别出了不同的设备类型，则替换
                 if (correctDevice != null && correctDevice.GetType().Name != "GenericDevice")
@@ -908,11 +912,34 @@ namespace MeasureControl.Services
 
             var cards = chassis.Devices.Where(d => d.DeviceType == AppConstants.DeviceTypeCard).ToList();
             int cardIndex = 1;
+            int switchIndex = 1;
 
             foreach (var card in cards)
             {
                 if (card.Name == "空槽")
                 {
+                    continue;
+                }
+
+                if (card is SwitchDevice)
+                {
+                    var needRename = string.IsNullOrWhiteSpace(card.CardName)
+                        || card.CardName.IndexOf("其他自定义", StringComparison.OrdinalIgnoreCase) >= 0
+                        || card.CardName.IndexOf("自定义", StringComparison.OrdinalIgnoreCase) >= 0
+                        || card.CardName.StartsWith("板卡", StringComparison.OrdinalIgnoreCase);
+
+                    if (needRename)
+                    {
+                        string switchCardName;
+                        do
+                        {
+                            switchCardName = $"矩阵开关{switchIndex}";
+                            switchIndex++;
+                        } while (cards.Any(c => !ReferenceEquals(c, card) && string.Equals(c.CardName, switchCardName, StringComparison.OrdinalIgnoreCase)));
+
+                        card.CardName = switchCardName;
+                    }
+
                     continue;
                 }
 

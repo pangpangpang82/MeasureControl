@@ -4,7 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:Prism="http://prismlibrary.com/"
     xmlns:behaviors="clr-namespace:MeasureControl.Behaviors"
-    xmlns:local="clr-namespace:MeasureControl">
+    xmlns:local="clr-namespace:MeasureControl"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -12,6 +13,17 @@
                 <ResourceDictionary Source="/Styles/ScrollBarStyles.xaml" />
                 <ResourceDictionary Source="/Styles/ComboBoxStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <x:Array x:Key="Arinc429Channels" Type="sys:String">
+                <sys:String>429_CH0</sys:String>
+                <sys:String>429_CH1</sys:String>
+                <sys:String>429_CH2</sys:String>
+                <sys:String>429_CH3</sys:String>
+                <sys:String>429_CH4</sys:String>
+                <sys:String>429_CH5</sys:String>
+                <sys:String>429_CH6</sys:String>
+                <sys:String>429_CH7</sys:String>
+            </x:Array>
 
             <!--  全局ScrollViewer样式，默认启用滚轮横向滚动  -->
             <Style TargetType="ScrollViewer">

@@ -14,8 +14,8 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
-                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="{TemplateBinding Content}" />
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -87,13 +87,15 @@
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
-                                    <TextBlock
-                                        x:Name="DeviceAction"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="16"
-                                        Foreground="White"
-                                        Text="手动测试" />
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock
+                                            x:Name="DeviceAction"
+                                            Margin="10,0,10,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Foreground="White"
+                                            Text="手动测试" />
+                                    </StackPanel>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <DataTrigger Binding="{Binding IsManualTestRunning}" Value="True">
@@ -151,13 +153,15 @@
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="border" Background="#22c55e" CornerRadius="6">
-                                    <TextBlock
-                                        x:Name="DeviceAction"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="16"
-                                        Foreground="White"
-                                        Text="自动测试" />
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock
+                                            x:Name="DeviceAction"
+                                            Margin="10,0,10,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Foreground="White"
+                                            Text="自动测试" />
+                                    </StackPanel>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="True">
@@ -330,8 +334,16 @@
                     </Border>
                 </ScrollViewer>
 
-                <StackPanel Grid.Row="0" Grid.Column="1" Margin="10,5,0,0" Orientation="Horizontal">
-                    <TextBlock VerticalAlignment="Center" FontSize="22" FontWeight="Bold" Text="测试信息" />
+                <StackPanel
+                    Grid.Row="0"
+                    Grid.Column="1"
+                    Margin="10,5,0,0"
+                    Orientation="Horizontal">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="22"
+                        FontWeight="Bold"
+                        Text="测试信息" />
                     <Button
                         Width="80"
                         Height="32"
@@ -370,9 +382,9 @@
                     Grid.Row="1"
                     Grid.RowSpan="5"
                     Grid.Column="1"
-                    Margin="0,0,5,0"
                     Width="350"
                     Height="350"
+                    Margin="0,0,5,0"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     BorderBrush="#D9D9D9"
@@ -386,7 +398,10 @@
                         ScrollViewer.VerticalScrollBarVisibility="Auto">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock FontSize="12" Text="{Binding}" TextWrapping="Wrap" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Text="{Binding}"
+                                    TextWrapping="Wrap" />
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>

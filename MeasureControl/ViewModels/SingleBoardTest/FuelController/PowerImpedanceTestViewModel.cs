@@ -1023,6 +1023,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         AddLog("7131板卡已启动");
                     }
 
+                    // 打开485继电器第4路
+                    try
+                    {
+                        await _jy7131Api.SetRelayAsync(3, true, _opCts.Token);
+                        await Task.Delay(200);
+                        AddLog("485继电器第4路已打开");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"485继电器操作失败: {ex.Message}");
+                    }
+
                     // DO15高电平 → SWITCH1 → 驱动继电器U3/E1/E2线圈得电 → NC跳NO → 产品与试验台隔离
                     AddLog("正在写DO15（高电平）...");
                     await _jy7131Api.WriteDoAsync(RelayControlChannel, true, timeoutCts.Token);
@@ -1094,6 +1106,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     // DO15低电平 → 继电器线圈失电 → 触点恢复NC → 产品与试验台恢复连接
                     AddLog("正在写DO15（低电平）...");
                     await _jy7131Api.WriteDoAsync(RelayControlChannel, false, timeoutCts.Token);
+
+                    // 关闭485继电器第4路
+                    try
+                    {
+                        await _jy7131Api.SetRelayAsync(3, false, _opCts.Token);
+                        await Task.Delay(200);
+                        AddLog("485继电器第4路已关闭");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"485继电器操作失败: {ex.Message}");
+                    }
+
                     try
                     {
                         var mask = await _jy7131Api.ReadDoBitmaskAsync(timeoutCts.Token);

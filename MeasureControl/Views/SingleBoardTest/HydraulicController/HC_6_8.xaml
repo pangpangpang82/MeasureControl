@@ -42,7 +42,9 @@
                             Height="32"
                             Margin="0,0,20,0"
                             VerticalAlignment="Center"
+                            Visibility="Collapsed"
                             BorderThickness="0"
+                            IsEnabled="{Binding CanStartManualTest, FallbackValue=True}"
                             Command="{Binding ManualTestCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
@@ -67,14 +69,23 @@
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsManualTestRunning}" Value="False">
+                                            <Setter Property="Tag" Value="False" />
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding IsManualTestInitializing}" Value="True">
+                                            <Setter Property="Tag" Value="Init" />
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding IsManualTestStopping}" Value="True">
+                                            <Setter Property="Tag" Value="Stopping" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
+                                        </DataTrigger>
+
                                         <DataTrigger Binding="{Binding IsManualTestRunning}" Value="True">
                                             <Setter Property="Tag" Value="True" />
                                             <Setter TargetName="border" Property="Background" Value="#ef4444" />
                                             <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
-                                        </DataTrigger>
-
-                                        <DataTrigger Binding="{Binding IsManualTestRunning}" Value="False">
-                                            <Setter Property="Tag" Value="False" />
                                         </DataTrigger>
 
                                         <!--  2. 未连接 + 悬停  -->
@@ -128,6 +139,7 @@
                             Margin="0,0,30,0"
                             VerticalAlignment="Center"
                             BorderThickness="0"
+                            IsEnabled="{Binding CanStartAutoTest, FallbackValue=True}"
                             Command="{Binding AutoTestCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
@@ -152,14 +164,23 @@
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="False">
+                                            <Setter Property="Tag" Value="False" />
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding IsAutoTestInitializing}" Value="True">
+                                            <Setter Property="Tag" Value="Init" />
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding IsAutoTestStopping}" Value="True">
+                                            <Setter Property="Tag" Value="Stopping" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
+                                        </DataTrigger>
+
                                         <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="True">
                                             <Setter Property="Tag" Value="True" />
                                             <Setter TargetName="border" Property="Background" Value="#ef4444" />
                                             <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
-                                        </DataTrigger>
-
-                                        <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="False">
-                                            <Setter Property="Tag" Value="False" />
                                         </DataTrigger>
 
                                         <!--  2. 未连接 + 悬停  -->
@@ -398,6 +419,7 @@
                                     VerticalAlignment="Center">
                                     <Button
                                         Width="50"
+                                        Visibility="Collapsed"
                                         Height="28"
                                         Margin="30,20,0,0"
                                         VerticalAlignment="Center"
@@ -610,6 +632,7 @@
                                         Width="50"
                                         Height="28"
                                         Margin="30,20,0,0"
+                                        Visibility="Collapsed"
                                         VerticalAlignment="Center"
                                         BorderThickness="0"
                                         Command="{Binding MeasureCloseCommand}"
@@ -758,11 +781,21 @@
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
                         FontSize="18"
-                        FontWeight="Bold">
-                        <Run Text="测试结果：" />
-                        <Run Text=" " />
-                        <Run Text="{Binding LastTestResult, TargetNullValue=--, FallbackValue=--}" />
-                        <Run Text="{Binding LastTestTime, TargetNullValue=--, FallbackValue=--}" />
+                        FontWeight="Bold"
+                        Text="{Binding CurrentTestResult, StringFormat=测试结果：{0}, TargetNullValue=测试结果：--, FallbackValue=测试结果：--}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="Black" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentTestResult}" Value="合格">
+                                        <Setter Property="Foreground" Value="#16a34a" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding CurrentTestResult}" Value="不合格">
+                                        <Setter Property="Foreground" Value="#dc2626" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
                     </TextBlock>
                     <Grid Grid.Row="1">
                         <Grid.ColumnDefinitions>
@@ -774,19 +807,15 @@
                             Margin="20,0,0,0"
                             VerticalAlignment="Center"
                             FontSize="14"
-                            FontWeight="Bold">
-                            <Run Text="上次测试时间：" />
-                            <Run Text="{Binding PreviousTestTime, TargetNullValue=--, FallbackValue=--}" />
-                        </TextBlock>
+                            FontWeight="Bold"
+                            Text="{Binding PreviousTestTime, StringFormat=上次测试时间：{0}, TargetNullValue=上次测试时间：--, FallbackValue=上次测试时间：--}" />
                         <TextBlock
                             Grid.Column="1"
                             Margin="30,0,0,0"
                             VerticalAlignment="Center"
                             FontSize="14"
-                            FontWeight="Bold">
-                            <Run Text="上次测试结果：" />
-                            <Run Text="{Binding PreviousTestResult, TargetNullValue=--, FallbackValue=--}" />
-                        </TextBlock>
+                            FontWeight="Bold"
+                            Text="{Binding PreviousTestResult, StringFormat=上次测试结果：{0}, TargetNullValue=上次测试结果：--, FallbackValue=上次测试结果：--}" />
                     </Grid>
                 </Grid>
             </Border>
