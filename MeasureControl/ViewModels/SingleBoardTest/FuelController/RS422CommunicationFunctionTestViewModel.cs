@@ -317,24 +317,92 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             if (IsAutoTestRunning)
             {
+                AddLog("正在停止自动测试...");
                 _opCts?.Cancel();
+                // 等待测试停止并重置状态
+                await Task.Delay(200);
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsAutoTestRunning = false;
+                    _hardwareInitialized = false;
+                    UpdateCommandStates();
+                });
+                AddLog("自动测试已停止");
                 return;
             }
 
-            IsAutoTestRunning = true;
             _opCts = new CancellationTokenSource();
+            try
+            {
+                await ExecuteAutoTestCoreAsync(_opCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // 已在 ExecuteAutoTestCoreAsync 中处理
+            }
+            catch (Exception ex)
+            {
+                AddLog($"自动测试异常: {ex.Message}");
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsAutoTestRunning = false;
+                    _hardwareInitialized = false;
+                    UpdateCommandStates();
+                });
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
+
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                _opCts?.Cancel();
+                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            _opCts?.Cancel();
+            _opCts?.Dispose();
+            _opCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
             try
             {
-                AddLog("========== 自动测试开始 ==========");
-                await InitializeHardwareAsync(_opCts.Token);
+                return await ExecuteAutoTestCoreAsync(_opCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
+                _hardwareInitialized = false;
+                UpdateCommandStates();
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
 
-                await RunStepAsync("a", token => RunStepAAsync(token));
-                await RunStepAsync("b", token => RunStepBAsync(token));
-                await RunStepAsync("c", token => RunStepCAsync(token));
-                await RunStepAsync("d", token => RunStepDAsync(token));
+        private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token)
+        {
+            Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = true);
+            AddLog("========== 自动测试开始 ==========");
 
-                await ResetHardwareAsync(_opCts.Token);
+            try
+            {
+                await InitializeHardwareAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                await RunStepAsync("a", t => RunStepAAsync(t)).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                await RunStepAsync("b", t => RunStepBAsync(t)).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                await RunStepAsync("c", t => RunStepCAsync(t)).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                await RunStepAsync("d", t => RunStepDAsync(t)).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
 
                 bool overallPass =
                     string.Equals(StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) &&
@@ -344,27 +412,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    OverallResult = overallPass ? "PASS" : "FAIL";
+                    OverallResult = overallPass ? "合格" : "不合格";
                     LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 });
 
-                AddLog($"========== 自动测试完成: {(overallPass ? "PASS" : "FAIL")} ==========");
+                AddLog($"========== 自动测试完成: {OverallResult} ==========");
+                return OverallResult;
             }
             catch (OperationCanceledException)
             {
                 AddLog("自动测试已取消");
-                await SafeResetHardwareAsync();
+                await SafeResetHardwareAsync().ConfigureAwait(false);
+                throw;
             }
             catch (Exception ex)
             {
                 AddLog($"自动测试异常: {ex.Message}");
-                await SafeResetHardwareAsync();
-            }
-            finally
-            {
-                IsAutoTestRunning = false;
-                _hardwareInitialized = false;
-                UpdateCommandStates();
+                await SafeResetHardwareAsync().ConfigureAwait(false);
+                return "不合格";
             }
         }
 

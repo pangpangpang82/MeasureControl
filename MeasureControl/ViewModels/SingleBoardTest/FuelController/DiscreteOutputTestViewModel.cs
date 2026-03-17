@@ -24,7 +24,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const double ImpedanceOpenLowerLimitOhm = 100000.0;
         private const double J14VoltageLowerLimitV = 16.0;
 
-        private const string RelayControlChannel = "DO15";
+        // 物理DO15映射到API的DO14
+        private const string RelayControlChannel = "DO14";
         private const int RelayTimeoutMs = 3000;
 
         private const string MatrixIpAddress = "192.168.1.3";
@@ -46,11 +47,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private static readonly (string In, string Out) MatrixDmmImpedance = ("I4", "O2");
 
-        // DO1-DO14通道名称（用于给J30J提供地/开信号）
+        // DO0-DO13通道名称（物理DO1-DO14映射到API的DO0-DO13）
         private static readonly string[] DoChannels = new[]
         {
-            "DO1", "DO2", "DO3", "DO4", "DO5", "DO6", "DO7",
-            "DO8", "DO9", "DO10", "DO11", "DO12", "DO13", "DO14"
+            "DO0", "DO1", "DO2", "DO3", "DO4", "DO5", "DO6",
+            "DO7", "DO8", "DO9", "DO10", "DO11", "DO12", "DO13"
         };
 
         // J6-J13测量点名称
@@ -477,28 +478,95 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             if (IsAutoTestRunning)
             {
+                AddLog("正在停止自动测试...");
                 _opCts?.Cancel();
+                // 等待测试停止并重置状态
+                await Task.Delay(200);
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsAutoTestRunning = false;
+                    _hardwareInitialized = false;
+                    UpdateCommandStates();
+                });
+                AddLog("自动测试已停止");
                 return;
             }
 
-            IsAutoTestRunning = true;
             _opCts = new CancellationTokenSource();
+            try
+            {
+                await ExecuteAutoTestCoreAsync(_opCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // 已在 ExecuteAutoTestCoreAsync 中处理
+            }
+            catch (Exception ex)
+            {
+                AddLog($"自动测试异常: {ex.Message}");
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsAutoTestRunning = false;
+                    _hardwareInitialized = false;
+                    UpdateCommandStates();
+                });
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
+
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                _opCts?.Cancel();
+                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            _opCts?.Cancel();
+            _opCts?.Dispose();
+            _opCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
             try
             {
-                AddLog("========== 自动测试开始 ==========");
-                await InitializeHardwareAsync(_opCts.Token);
+                return await ExecuteAutoTestCoreAsync(_opCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
+                _hardwareInitialized = false;
+                UpdateCommandStates();
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
+
+        private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token)
+        {
+            Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = true);
+            AddLog("========== 自动测试开始 ==========");
+
+            try
+            {
+                await InitializeHardwareAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
 
                 AddLog("--- 步骤a: 下电 + DO接地 + 测阻抗 ---");
-                await RunStepAAsync();
+                await RunStepAAsync().ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
 
                 AddLog("--- 步骤b: 下电 + DO开路 + 测阻抗 ---");
-                await RunStepBAsync();
+                await RunStepBAsync().ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
 
                 AddLog("--- 步骤c: 28V上电 + 测J14电压 ---");
-                await RunStepCAsync();
+                await RunStepCAsync().ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
 
-                await ResetHardwareAsync(_opCts.Token);
+                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
 
                 bool overallPass =
                     string.Equals(StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) &&
@@ -507,27 +575,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    OverallResult = overallPass ? "PASS" : "FAIL";
+                    OverallResult = overallPass ? "合格" : "不合格";
                     LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 });
 
-                AddLog($"========== 自动测试完成: {(overallPass ? "PASS" : "FAIL")} ==========");
+                AddLog($"========== 自动测试完成: {OverallResult} ==========");
+                return OverallResult;
             }
             catch (OperationCanceledException)
             {
                 AddLog("自动测试已取消");
-                await SafeResetHardwareAsync();
+                await SafeResetHardwareAsync().ConfigureAwait(false);
+                throw;
             }
             catch (Exception ex)
             {
                 AddLog($"自动测试异常: {ex.Message}");
-                await SafeResetHardwareAsync();
-            }
-            finally
-            {
-                IsAutoTestRunning = false;
-                _hardwareInitialized = false;
-                UpdateCommandStates();
+                await SafeResetHardwareAsync().ConfigureAwait(false);
+                return "不合格";
             }
         }
 
@@ -683,6 +748,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 {
                     try
                     {
+                        if (!_jy7131Api.IsRunning)
+                        {
+                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
+                            await _jy7131Api.StartAsync(token);
+                            AddLog("7131板卡已启动");
+                        }
+
                         AddLog("正在复位继电器（DO15低电平）...");
                         await _jy7131Api.WriteDoAsync(RelayControlChannel, false, token);
                         await Task.Delay(500);
@@ -967,7 +1039,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         {
                             var mask = await _jy7131Api.ReadDoBitmaskAsync(_opCts.Token);
                             var ok = int.TryParse(RelayControlChannel.Substring(2), out var doIdx);
-                            var bit = ok ? (doIdx == 0 ? 0 : doIdx - 1) : 14;
+                            var bit = ok ? doIdx : 14;
                             AddLog($"DO写回读取: mask=0x{mask:X8}，{RelayControlChannel}={(mask & (1u << bit)) != 0}");
                         }
                         catch (Exception ex)
@@ -1043,6 +1115,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 try
                 {
+                    if (!_jy7131Api.IsRunning)
+                    {
+                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
+                        await _jy7131Api.StartAsync(token);
+                        AddLog("7131板卡已启动");
+                    }
+
                     AddLog("正在激活继电器（DO15高电平），隔离产品...");
                     await _jy7131Api.WriteDoAsync(RelayControlChannel, false, token);
                     IsRelayActivated = true;
@@ -1089,6 +1168,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 try
                 {
+                    if (!_jy7131Api.IsRunning)
+                    {
+                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
+                        await _jy7131Api.StartAsync(token);
+                        AddLog("7131板卡已启动");
+                    }
+
                     AddLog("正在复位继电器（DO15低电平），恢复产品连接...");
                     await _jy7131Api.WriteDoAsync(RelayControlChannel, false, token);
                     IsRelayActivated = false;
@@ -1123,7 +1209,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     //await _jy7131Api.EnsureConnectedAndRunningAsync(token);
                     if (!_jy7131Api.IsRunning)
                     {
-                        AddLog("警告: 7131板卡启动失败");
+                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
+                        await _jy7131Api.StartAsync(token);
+                        AddLog("7131板卡已启动");
                     }
 
                     // 1. 先操作 485 继电器第 4 路
@@ -1154,10 +1242,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     try
                     {
                         var mask = await _jy7131Api.ReadDoBitmaskAsync(token);
-                        uint expectedMask = grounded ? 0x7FFEu : 0x0000u; // bit1-bit14全高或全低
-                        uint actualDo1To14 = mask & 0x7FFEu;
-                        bool verified = (grounded && actualDo1To14 == expectedMask) || (!grounded && actualDo1To14 == 0);
-                        AddLog($"DO回读验证: mask=0x{mask:X8}, DO1-14=0x{actualDo1To14:X4}, 期望=0x{expectedMask:X4}, {(verified ? "✓" : "✗")}");
+                        uint expectedMask = grounded ? 0x3FFFu : 0x0000u; // bit0-bit13全高或全低
+                        uint actualDo0To13 = mask & 0x3FFFu;
+                        bool verified = (grounded && actualDo0To13 == expectedMask) || (!grounded && actualDo0To13 == 0);
+                        AddLog($"DO回读验证: mask=0x{mask:X8}, DO0-13=0x{actualDo0To13:X4}, 期望=0x{expectedMask:X4}, {(verified ? "✓" : "✗")}");
                         
                         if (!verified)
                         {
@@ -1395,7 +1483,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         {
                             var mask = await _jy7131Api.ReadDoBitmaskAsync(_opCts.Token);
                             var ok = int.TryParse(RelayControlChannel.Substring(2), out var doIdx);
-                            var bit = ok ? (doIdx == 0 ? 0 : doIdx - 1) : 14;
+                            var bit = ok ? doIdx : 14;
                             AddLog($"DO写回读取: mask=0x{mask:X8}，{RelayControlChannel}={(mask & (1u << bit)) != 0}");
                         }
                         catch (Exception ex)
@@ -1437,7 +1525,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         {
                             var mask = await _jy7131Api.ReadDoBitmaskAsync(_opCts.Token);
                             var ok = int.TryParse(RelayControlChannel.Substring(2), out var doIdx);
-                            var bit = ok ? (doIdx == 0 ? 0 : doIdx - 1) : 14;
+                            var bit = ok ? doIdx : 14;
                             AddLog($"DO写回读取: mask=0x{mask:X8}，{RelayControlChannel}={(mask & (1u << bit)) != 0}");
                         }
                         catch (Exception ex)
