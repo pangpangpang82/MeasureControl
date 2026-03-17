@@ -338,7 +338,10 @@
                     Style="{StaticResource CustomComboBoxStyle}" />
             </Grid>
 
-            <Grid x:Name="CustomNameRow" Grid.Row="2" Visibility="Collapsed">
+            <Grid
+                x:Name="CustomNameRow"
+                Grid.Row="2"
+                Visibility="Collapsed">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />

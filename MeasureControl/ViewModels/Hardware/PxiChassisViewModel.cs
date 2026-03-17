@@ -1555,10 +1555,13 @@ namespace MeasureControl.ViewModels
         private void UpdateAllSlotPositions(ChassisDevice chassis)
         {
             if (chassis?.Children == null) return;
+            var orderedChildren = chassis.Children
+                .OrderBy(child => GetExistingSlotOrder(child))
+                .ToList();
             // 遍历所有子设备，更新其槽位信息
             // 控制器固定占用 Slot 1，其他板卡从 Slot 2 开始
             int currentSlot = 1;
-            foreach (var child in chassis.Children)
+            foreach (var child in orderedChildren)
             {
                 if (child is ControllerDevice controller)
                 {
@@ -1588,6 +1591,40 @@ namespace MeasureControl.ViewModels
                     currentSlot += 1;
                 }
             }
+        }
+
+        private static int GetExistingSlotOrder(DeviceBase device)
+        {
+            if (device == null)
+                return int.MaxValue;
+
+            var slot = TryParseSlotNumber(device.SlotPosition);
+            if (slot.HasValue)
+                return slot.Value;
+
+            slot = TryParseSlotNumber(device.ConnectionMethod);
+            if (slot.HasValue)
+                return slot.Value;
+
+            if (device is ControllerDevice)
+                return 1;
+
+            return int.MaxValue;
+        }
+
+        private static int? TryParseSlotNumber(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return null;
+
+            var digits = new string(text.Where(char.IsDigit).ToArray());
+            if (string.IsNullOrWhiteSpace(digits))
+                return null;
+
+            if (int.TryParse(digits, out var slot))
+                return slot;
+
+            return null;
         }
         private void InitializeTools()
         {
@@ -2259,7 +2296,15 @@ namespace MeasureControl.ViewModels
                 if (existingCalibration.DataContext is ViewModels.TestTask.ConfigTabel.DataCalibrationViewModel existingViewModel)
                 {
                     existingViewModel.SetProjectContext(_projectService?.CurrentProjectRoot);
-                    if (device is AnalogAcquisitionDevice existingAnalogAcquisitionDevice)
+                    if (string.Equals(channelType, "LVDT_VAVB", StringComparison.OrdinalIgnoreCase))
+                    {
+                        existingViewModel.ApplyExplicitSignalContext(device?.Id, new[]
+                        {
+                            "CH0_VA", "CH0_VB", "CH1_VA", "CH1_VB", "CH2_VA", "CH2_VB", "CH3_VA", "CH3_VB",
+                            "CH4_VA", "CH4_VB", "CH5_VA", "CH5_VB", "CH6_VA", "CH6_VB", "CH7_VA", "CH7_VB"
+                        }, "LVDT_VAVB");
+                    }
+                    else if (device is AnalogAcquisitionDevice existingAnalogAcquisitionDevice)
                     {
                         existingViewModel.ApplyAnalogInputContext(device.Id, existingAnalogAcquisitionDevice.ChannelCount);
                     }
@@ -2280,7 +2325,15 @@ namespace MeasureControl.ViewModels
             }
             // 注入当前项目的标定数据（避免错过 ProjectOpened 时发布的 CalibrationRecordsLoadEvent）
             viewModel.SetProjectContext(_projectService?.CurrentProjectRoot);
-            if (device is AnalogAcquisitionDevice analogAcquisitionDevice)
+            if (string.Equals(channelType, "LVDT_VAVB", StringComparison.OrdinalIgnoreCase))
+            {
+                viewModel.ApplyExplicitSignalContext(device?.Id, new[]
+                {
+                    "CH0_VA", "CH0_VB", "CH1_VA", "CH1_VB", "CH2_VA", "CH2_VB", "CH3_VA", "CH3_VB",
+                    "CH4_VA", "CH4_VB", "CH5_VA", "CH5_VB", "CH6_VA", "CH6_VB", "CH7_VA", "CH7_VB"
+                }, "LVDT_VAVB");
+            }
+            else if (device is AnalogAcquisitionDevice analogAcquisitionDevice)
             {
                 viewModel.ApplyAnalogInputContext(device.Id, analogAcquisitionDevice.ChannelCount);
             }
@@ -3225,7 +3278,7 @@ namespace MeasureControl.ViewModels
                             "凌华 PXIe-3987",
                             "欧开 PXI-4087A",
                             "欧开 PXI-4087C",
-                            "盲板",
+                            "欧开 PXI-4087C",
                             "阿尔泰 PXI-7012",
                             "阿尔泰 PXI-7012",
                             "芒果树 MT-X532",
@@ -3292,14 +3345,14 @@ namespace MeasureControl.ViewModels
                     var sequence = new List<string>
                         {
                             "凌华 PXIe-3987",
-                            "阿尔泰 PXI-2601",
-                            "阿尔泰 PXI-2601",
                             "欧开 PXI-3022",
+                            "欧开 PXI-3022",
+                            "欧开 PXI-2601",
                             "盲板",
                             "阿尔泰 PXI-2601",
                             "阿尔泰 PXI-2601",
                             "阿尔泰 PXI-2601",
-                            "欧开 PXI-3022"
+                            "阿尔泰 PXI-2601"
                         };
                     foreach (var name in sequence)
                     {

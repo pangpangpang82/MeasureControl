@@ -13,7 +13,7 @@
         <!--  控件名称（上方显示）  -->
         <TextBlock
             x:Name="ControlNameText"
-              Margin="0,0,0,5"
+            Margin="0,0,0,5"
             HorizontalAlignment="Center"
             FontSize="14"
             Foreground="Black"
