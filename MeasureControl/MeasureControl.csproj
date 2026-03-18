@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Import disabled by automation: Costura.Fody props removed to avoid MSBuild compatibility issues during CI/local edits -->
   <!-- <Import Project="..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props" Condition="Exists('..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props')" /> -->
@@ -386,6 +386,27 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_7_4_1_1View.xaml.cs">
       <DependentUpon>A_C_7_4_1_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_4_2_1View.xaml.cs">
+      <DependentUpon>A_C_7_4_2_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_4_3_1View.xaml.cs">
+      <DependentUpon>A_C_7_4_3_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_4_4_1View.xaml.cs">
+      <DependentUpon>A_C_7_4_4_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_4_5_1View.xaml.cs">
+      <DependentUpon>B_C_7_4_5_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_4_6_1View.xaml.cs">
+      <DependentUpon>B_C_7_4_6_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_4_7_1View.xaml.cs">
+      <DependentUpon>B_C_7_4_7_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_4_8_1View.xaml.cs">
+      <DependentUpon>B_C_7_4_8_1View.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_7_4_1_2View.xaml.cs">
       <DependentUpon>A_C_7_4_1_2View.xaml</DependentUpon>

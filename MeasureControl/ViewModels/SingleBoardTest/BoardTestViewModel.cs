@@ -69,6 +69,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "7.3.4.1B控制通道功率板CBV直流电机驱动模块供电电流测试", () => new A_C_7_3_4_1View() },
                         { "7.3.3.2 B控制通道PWM/FPGA速度控制测试", () => new B_C_7_3_3_2View() },
                         { "7.4.1.1A控制通道功率板TCV步进电机驱动模块输出测试", () => new A_C_7_4_1_1View() },
+                        { "7.4.2.1A控制通道功率板驾驶舱TAV步进电机驱动模块输出测试", () => new A_C_7_4_2_1View() },
+                        { "7.4.3.1A控制通道功率板前后客舱TAV步进电机驱动模块输出测试", () => new A_C_7_4_3_1View() },
+                        { "7.4.4.1A控制通道功率板前货舱TAV步进电机驱动模块供电电流测试", () => new A_C_7_4_4_1View() },
+                        { "7.4.5.1B控制通道功率板TCV步进电机驱动模块输出测试", () => new B_C_7_4_5_1View() },
+                        { "7.4.6.1B控制通道功率板驾驶舱TAV步进电机驱动模块输出测试", () => new B_C_7_4_6_1View() },
+                        { "7.4.7.1B控制通道功率板前后客舱TAV步进电机驱动模块输出测试", () => new B_C_7_4_7_1View() },
+                        { "7.4.8.1B控制通道功率板前货舱TAV步进电机驱动模块供电电流测试", () => new B_C_7_4_8_1View() },
                         { "7.4.1.2 A控制通道功率板TCV步进电机驱动模块方向测试", () => new A_C_7_4_1_2View() },
                         { "7.4.2.2 A控制通道功率板驾驶舱TAV步进电机驱动模块方向测试", () => new A_C_7_4_2_2View() },
                         { "7.4.3.2 A控制通道功率板前后客舱TAV步进电机驱动模块方向测试", () => new A_C_7_4_3_2View() },
@@ -206,6 +213,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "7.3.3.1B控制通道功率板RAIA直流电机驱动模块供电测试", "\t a) 接入50±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS；\r\n\t b) 接入12±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS。" },
                         { "7.3.4.1B控制通道功率板CBV直流电机驱动模块供电电流测试", "\t a) 接入50±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS；\r\n\t b) 接入12±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS。" },
                         { "7.4.1.1A控制通道功率板TCV步进电机驱动模块输出测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J96与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.2.1A控制通道功率板驾驶舱TAV步进电机驱动模块输出测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J33与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.3.1A控制通道功率板前后客舱TAV步进电机驱动模块输出测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J158与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.4.1A控制通道功率板前货舱TAV步进电机驱动模块供电电流测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J221与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.5.1B控制通道功率板TCV步进电机驱动模块输出测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J96与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.6.1B控制通道功率板驾驶舱TAV步进电机驱动模块输出测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J33与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.7.1B控制通道功率板前后客舱TAV步进电机驱动模块输出测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J158与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.8.1B控制通道功率板前货舱TAV步进电机驱动模块供电电流测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J221与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
                         { "7.4.1.2 A控制通道功率板TCV步进电机驱动模块方向测试", "\t a) 发送DIR高电平指令(0A 55 02 07 05)；\r\n\t b) 检测J96(第一相)与J98(第二相)输出波形并判断相位差；\r\n\t c) 发送DIR低电平指令(0A 55 02 07 0D)；\r\n\t d) 检测J96(第一相)与J98(第二相)输出波形并判断相位差；\r\n\t e) DIR高电平：J98相位落后J96约90°±20°为PASS；DIR低电平：J98相位落后J96约270°±20°为PASS。" },
                         { "7.4.2.2 A控制通道功率板驾驶舱TAV步进电机驱动模块方向测试", "\t a) 发送DIR高电平指令(0A 55 02 07 05)；\r\n\t b) 检测J33(第一相)与J35(第二相)输出波形并判断相位差；\r\n\t c) 发送DIR低电平指令(0A 55 02 07 0D)；\r\n\t d) 检测J33(第一相)与J35(第二相)输出波形并判断相位差；\r\n\t e) DIR高电平：J35相位落后J33约90°±20°为PASS；DIR低电平：J35相位落后J33约270°±20°为PASS。" },
                         { "7.4.3.2 A控制通道功率板前后客舱TAV步进电机驱动模块方向测试", "\t a) 发送DIR高电平指令(0A 55 02 07 05)；\r\n\t b) 检测J158(第一相)与J160(第二相)输出波形并判断相位差；\r\n\t c) 发送DIR低电平指令(0A 55 02 07 0D)；\r\n\t d) 检测J158(第一相)与J160(第二相)输出波形并判断相位差；\r\n\t e) DIR高电平：J160相位落后J158约90°±20°为PASS；DIR低电平：J160相位落后J158约270°±20°为PASS。" },
@@ -655,6 +669,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("7.3.4.1B控制通道功率板CBV直流电机驱动模块供电电流测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.3.3.2 B控制通道PWM/FPGA速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.4.1.1A控制通道功率板TCV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.2.1A控制通道功率板驾驶舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.3.1A控制通道功率板前后客舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.4.1A控制通道功率板前货舱TAV步进电机驱动模块供电电流测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.5.1B控制通道功率板TCV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.6.1B控制通道功率板驾驶舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.7.1B控制通道功率板前后客舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.8.1B控制通道功率板前货舱TAV步进电机驱动模块供电电流测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.4.1.2 A控制通道功率板TCV步进电机驱动模块方向测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.4.2.2 A控制通道功率板驾驶舱TAV步进电机驱动模块方向测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.4.3.2 A控制通道功率板前后客舱TAV步进电机驱动模块方向测试"));
