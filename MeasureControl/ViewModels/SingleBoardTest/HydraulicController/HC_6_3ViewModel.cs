@@ -863,7 +863,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             if (!TryGetValidatedCustomResistance(out var resistanceOhm))
             {
-                Log("自定义电阻输入无效，请输入 2~6700Ω，且最多 1 位小数");
+                Log("自定义电阻输入无效，请输入 716.1~2146.7Ω，且最多 1 位小数");
                 RefreshMeasureCommands();
                 return;
             }
@@ -1229,7 +1229,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return false;
 
             resistanceOhm = Math.Truncate(resistanceOhm * 10d) / 10d;
-            return resistanceOhm >= 2d && resistanceOhm <= 6700d;
+            return resistanceOhm >= 716.1d && resistanceOhm <= 2146.7d;
         }
 
         /// <summary>
