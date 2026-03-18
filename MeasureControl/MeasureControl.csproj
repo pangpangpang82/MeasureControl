@@ -504,6 +504,27 @@
     <Compile Include="Views\SingleBoardTest\AirController\A_C_7_5_1_1_2View.xaml.cs">
       <DependentUpon>A_C_7_5_1_1_2View.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_5_2_1View.xaml.cs">
+      <DependentUpon>A_C_7_5_2_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_5_3_1View.xaml.cs">
+      <DependentUpon>A_C_7_5_3_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_5_4_1View.xaml.cs">
+      <DependentUpon>A_C_7_5_4_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_5_8_1View.xaml.cs">
+      <DependentUpon>A_C_7_5_8_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_5_7_1View.xaml.cs">
+      <DependentUpon>B_C_7_5_7_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_5_6_1View.xaml.cs">
+      <DependentUpon>B_C_7_5_6_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_5_5_1View.xaml.cs">
+      <DependentUpon>B_C_7_5_5_1View.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\B_C_7_3_3_2View.xaml.cs">
       <DependentUpon>B_C_7_3_3_2View.xaml</DependentUpon>
     </Compile>

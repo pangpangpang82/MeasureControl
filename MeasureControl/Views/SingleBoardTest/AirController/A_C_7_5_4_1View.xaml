@@ -1,5 +1,5 @@
 <UserControl
-    x:Class="MeasureControl.Views.SingleBoardTest.AirController.A_C_7_5_1_1_2View"
+    x:Class="MeasureControl.Views.SingleBoardTest.AirController.A_C_7_5_4_1View"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -43,7 +43,7 @@
                     VerticalAlignment="Center"
                     FontSize="24"
                     FontWeight="Bold"
-                    Text="7.5.1.1 A控制通道功率板FAV力矩电机驱动测试" />
+                    Text="7.5.4.1 A控制通道功率板WAIV力矩电机驱动测试" />
 
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                     <Button
@@ -228,8 +228,7 @@
 
                                 <Border Grid.Row="1" Grid.ColumnSpan="3" Background="White" />
                                 <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="(1)" />
-                                <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="40,0,0,0" FontSize="14" Text="外部接入40±1Ω负载" />
-
+                                <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="40,0,0,0" FontSize="14" Text="外部接入40±1Ω负载(J100/J37)" />
 
                                 <Border Grid.Row="2" Grid.ColumnSpan="3" Background="#f9fafb" />
                                 <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="(2)" />
@@ -312,9 +311,9 @@
 
                                 <Border Grid.Row="5" Grid.ColumnSpan="3" Background="White" />
                                 <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="(5)" />
-                                <TextBlock Grid.Row="5" Grid.Column="1" VerticalAlignment="Center" Margin="40,0,0,0" FontSize="14" Text="输出400mA电流" />
+                                <TextBlock Grid.Row="5" Grid.Column="1" VerticalAlignment="Center" Margin="40,0,0,0" FontSize="14" Text="输出250mA电流" />
                                 <Grid Grid.Row="5" Grid.Column="2">
-                                    <Button Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Left" BorderThickness="0" Command="{Binding Step6Set400mACommand}" Margin="37,0,0,0">
+                                    <Button Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Left" BorderThickness="0" Command="{Binding Step6Set250mACommand}" Margin="37,0,0,0">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
@@ -337,7 +336,7 @@
                                 <TextBlock Grid.Row="6" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="(6)" />
                                 <TextBlock Grid.Row="6" Grid.Column="1" VerticalAlignment="Center" Margin="40,0,0,0" FontSize="14" Text="测量负载两端电压" />
                                 <Grid Grid.Row="6" Grid.Column="2">
-                                    <Button Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Left" BorderThickness="0" Command="{Binding Step7Measure400mACommand}" Margin="38,0,0,0">
+                                    <Button Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Left" BorderThickness="0" Command="{Binding Step7Measure250mACommand}" Margin="38,0,0,0">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border x:Name="border" Background="#22c55e" CornerRadius="6">
@@ -367,7 +366,7 @@
                                 <TextBlock Grid.Row="7" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="(7)" />
                                 <TextBlock Grid.Row="7" Grid.Column="1" VerticalAlignment="Center" Margin="40,0,0,0" FontSize="14" Text="读取回采电流" />
                                 <Grid Grid.Row="7" Grid.Column="2">
-                                    <Button Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Left" BorderThickness="0" Command="{Binding Step8Readback400mACommand}" Margin="40,0,0,0">
+                                    <Button Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Left" BorderThickness="0" Command="{Binding Step8Readback250mACommand}" Margin="40,0,0,0">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
