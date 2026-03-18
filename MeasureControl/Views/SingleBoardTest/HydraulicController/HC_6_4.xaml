@@ -580,7 +580,7 @@
                             Orientation="Vertical">
                             <StackPanel Height="28" Orientation="Horizontal">
                                 <Border
-                                    Width="60"
+                                    Width="80"
                                     Height="24"
                                     Margin="0,4,0,0"
                                     VerticalAlignment="Center"
