@@ -77,6 +77,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private static readonly IReadOnlyList<int> SharedCloseRelayChannels = new[] { 1, 6 };
         private static readonly IReadOnlyList<uint> SharedCloseChannel1Words = new uint[] { 0x000005C4, 0x000006C4, 0x80000524, 0x80000624, 0x00100294, 0x80100394, 0x96F6ED9D, 0x0000443D, 0x0000423D, 0x800009BD };
         private static readonly IReadOnlyList<uint> SharedCloseChannel2Words = new uint[] { 0x000005C4, 0x000006C4, 0x80000524, 0x80000624, 0x0034019D, 0x80000ABD };
+        private static readonly IReadOnlyList<int> CloseMeasurementPins = new[] { 9, 10, 11, 12, 13, 14, 15 };
+        private static readonly IReadOnlyList<int> RequiredCloseFeedbackBits = new[] { 10, 11, 12, 13, 14, 15, 16 };
+        private const int CloseFeedbackTimeoutSeconds = 85;
         private const int LvdtSlotIndex = 2;
         private const int LvdtChannel1 = 1;
         private const int LvdtChannel2 = 2;
@@ -157,122 +160,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private readonly Dictionary<int, double?> _openValuesByPin = new Dictionary<int, double?>();
         private readonly Dictionary<int, double?> _closeValuesByPin = new Dictionary<int, double?>();
-
-        private sealed class CloseSignalDefinition
-        {
-            public int Pin { get; set; }
-            public string Name { get; set; }
-            public IReadOnlyList<uint> Channel1Words { get; set; }
-            public IReadOnlyList<uint> Channel2Words { get; set; }
-            public IReadOnlyList<string> AoChannels { get; set; } = Array.Empty<string>();
-            public IReadOnlyList<int> DoIndices { get; set; } = Array.Empty<int>();
-            public IReadOnlyList<int> RelayChannels { get; set; } = Array.Empty<int>();
-            public string ResistanceChannel { get; set; }
-            public double? ResistanceOhm { get; set; }
-            public int? LvdtChannel { get; set; }
-            public double? LvdtVaV { get; set; }
-            public double? LvdtVbV { get; set; }
-            public int WaitBitIndex { get; set; }
-            public int WaitTimeoutSeconds { get; set; }
-            public bool RequiresPrePowerLvdt { get; set; }
-            public bool KeepLvdtUntilAllDone { get; set; }
-        }
-
-        private static readonly IReadOnlyList<CloseSignalDefinition> CloseSignals = new[]
-        {
-            new CloseSignalDefinition
-            {
-                Pin = 9,
-                Name = "EMP_1B_AUTO_ENABLE_DO",
-                Channel1Words = new uint[] { 0x000005C4, 0x000006C4, 0x80000524, 0x80000624, 0x0002C19D, 0x8000043D, 0x800009BD },
-                Channel2Words = new uint[] { 0x000005C4, 0x000006C4, 0x80000524, 0x80000624, 0x80000ABD },
-                AoChannels = new[] { "AO1", "AO2" },
-                DoIndices = new[] { 20 },
-                RelayChannels = new[] { 6 },
-                WaitBitIndex = 13,
-                WaitTimeoutSeconds = 20
-            },
-            new CloseSignalDefinition
-            {
-                Pin = 10,
-                Name = "EMP_2B_AUTO_ENABLE_DO",
-                Channel1Words = new uint[] { 0x000005C4, 0x000006C4, 0x80000524, 0x80000624, 0x9400019D, 0x8000043D, 0x800009BD },
-                Channel2Words = new uint[] { 0x000005C4, 0x000006C4, 0x80000524, 0x80000624, 0x80000ABD },
-                AoChannels = new[] { "AO0", "AO2" },
-                DoIndices = new[] { 21 },
-                RelayChannels = new[] { 6 },
-                WaitBitIndex = 14,
-                WaitTimeoutSeconds = 20
-            },
-            new CloseSignalDefinition
-            {
-                Pin = 11,
-                Name = "EMP_3B_AUTO_ENABLE_DO",
-                Channel1Words = new uint[] { 0x000005C4, 0x000006C4, 0x80000524, 0x80000624, 0x82F4019D, 0x8000403D },
-                Channel2Words = new uint[] { 0x000005C4, 0x000006C4, 0x80000524, 0x80000624, 0x0034019D },
-                AoChannels = new[] { "AO0", "AO1" },
-                DoIndices = new[] { 9, 22, 23 },
-                RelayChannels = new[] { 3, 6 },
-                WaitBitIndex = 15,
-                WaitTimeoutSeconds = 20
-            },
-            new CloseSignalDefinition
-            {
-                Pin = 12,
-                Name = "EMP_3A_AUTO_ENABLE_DO",
-                Channel1Words = new uint[] { 0x000005C4, 0x000006C4, 0x80000524, 0x80000624, 0x002C019D, 0x8000403D },
-                Channel2Words = new uint[] { 0x000005C4, 0x000006C4, 0x80000524, 0x80000624 },
-                AoChannels = new[] { "AO0", "AO1" },
-                DoIndices = new[] { 22 },
-                RelayChannels = new[] { 6 },
-                WaitBitIndex = 16,
-                WaitTimeoutSeconds = 20
-            },
-            new CloseSignalDefinition
-            {
-                Pin = 13,
-                Name = "PTU_AUTO_ENABLE_DO",
-                Channel1Words = new uint[] { 0x00002D9D, 0x8000043D, 0x0000423D, 0x800009BD },
-                Channel2Words = new uint[] { 0x80000ABD },
-                DoIndices = new[] { 3 },
-                RelayChannels = new[] { 1 },
-                LvdtChannel = LvdtChannel1,
-                LvdtVaV = BleedLvdtVaV,
-                LvdtVbV = BleedLvdtVbV,
-                WaitBitIndex = 12,
-                WaitTimeoutSeconds = 10,
-                RequiresPrePowerLvdt = true,
-                KeepLvdtUntilAllDone = true
-            },
-            new CloseSignalDefinition
-            {
-                Pin = 14,
-                Name = "RSVR_2_ABV_BLEED_ENABLE_DO",
-                Channel1Words = new uint[] { 0x00100294, 0x800009BD },
-                Channel2Words = new uint[] { 0x80000ABD },
-                ResistanceChannel = "RO0",
-                ResistanceOhm = BleedResistanceOhm,
-                LvdtChannel = LvdtChannel1,
-                LvdtVaV = BleedLvdtVaV,
-                LvdtVbV = BleedLvdtVbV,
-                WaitBitIndex = 10,
-                WaitTimeoutSeconds = 85,
-            },
-            new CloseSignalDefinition
-            {
-                Pin = 15,
-                Name = "RSVR_3_ABV_BLEED_ENABLE_DO",
-                Channel1Words = new uint[] { 0x80100394, 0x800009BD },
-                Channel2Words = new uint[] { 0x80000ABD },
-                ResistanceChannel = "RO1",
-                ResistanceOhm = BleedResistanceOhm,
-                LvdtChannel = LvdtChannel2,
-                LvdtVaV = BleedLvdtVaV,
-                LvdtVbV = BleedLvdtVbV,
-                WaitBitIndex = 11,
-                WaitTimeoutSeconds = 85,
-            }
-        };
 
         public HC_6_8ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
         {
@@ -884,22 +771,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await Task.Delay(CloseSignalSettleMs, cancellationToken).ConfigureAwait(false);
 
                 var readyBits = await WaitForAllCloseSignalsReadyAsync(cancellationToken).ConfigureAwait(false);
-                foreach (var signal in GetCloseSignalExecutionOrder())
+                if (readyBits.Count != RequiredCloseFeedbackBits.Count)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var ready = readyBits.Contains(signal.WaitBitIndex);
-                    if (!ready)
+                    foreach (var pin in CloseMeasurementPins)
                     {
-                        _closeValuesByPin[signal.Pin] = null;
-                        SetClosePinText(signal.Pin, "超时");
-                        Log($"通路: PIN{signal.Pin} => {signal.Name} 对应反馈 bit{signal.WaitBitIndex} 未到位，跳过阻抗测量");
-                        await Task.Delay(50, cancellationToken).ConfigureAwait(false);
-                        continue;
+                        _closeValuesByPin[pin] = null;
+                        SetClosePinText(pin, "超时");
                     }
 
-                    var (value, text) = await MeasureOnePinResistanceAsync(signal.Pin, cancellationToken).ConfigureAwait(false);
-                    _closeValuesByPin[signal.Pin] = value;
-                    SetClosePinText(signal.Pin, text);
+                    var missingBits = string.Join(", ", RequiredCloseFeedbackBits.Where(bit => !readyBits.Contains(bit)).Select(bit => $"bit{bit}"));
+                    Log($"通路: 在{CloseFeedbackTimeoutSeconds}s内未等到全部反馈位，缺失 {missingBits}");
+                    return false;
+                }
+
+                Log("通路: label=65(oct) sdi=0 的 bit10~bit16 已全部到位，开始顺序测量 PIN9~15 阻抗");
+
+                foreach (var pin in CloseMeasurementPins)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var (value, text) = await MeasureOnePinResistanceAsync(pin, cancellationToken).ConfigureAwait(false);
+                    _closeValuesByPin[pin] = value;
+                    SetClosePinText(pin, text);
 
                     if (cancellationToken.IsCancellationRequested)
                         return false;
@@ -1096,29 +989,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return _closeValuesByPin.TryGetValue(pin, out var value) && value.HasValue && value.Value <= ClosePassThresholdOhm;
         }
 
-        private IReadOnlyList<CloseSignalDefinition> GetCloseSignalExecutionOrder()
-        {
-            var ptuSignal = CloseSignals.FirstOrDefault(x => x.Pin == 13);
-            var ordered = new List<CloseSignalDefinition>();
-            if (ptuSignal != null)
-                ordered.Add(ptuSignal);
-
-            ordered.AddRange(CloseSignals.Where(x => x.Pin >= 9 && x.Pin <= 12).OrderBy(x => x.Pin));
-            ordered.AddRange(CloseSignals.Where(x => x.Pin >= 14 && x.Pin <= 15).OrderBy(x => x.Pin));
-            return ordered;
-        }
-
         private async Task PrepareCloseTestPowerPreconditionsAsync(CancellationToken cancellationToken)
         {
-            var ptuSignal = CloseSignals.FirstOrDefault(x => x.RequiresPrePowerLvdt);
-            if (ptuSignal == null || _isPtuPrePowerPrepared)
+            if (_isPtuPrePowerPrepared)
                 return;
 
             await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
-            await _lvdt.SetVaVbAsync(ptuSignal.LvdtChannel.Value, ptuSignal.LvdtVaV.Value, ptuSignal.LvdtVbV.Value, cancellationToken).ConfigureAwait(false);
-            await _lvdt.StartAsync(ptuSignal.LvdtChannel.Value, cancellationToken).ConfigureAwait(false);
+            await _lvdt.SetVaVbAsync(LvdtChannel1, BleedLvdtVaV, BleedLvdtVbV, cancellationToken).ConfigureAwait(false);
+            await _lvdt.StartAsync(LvdtChannel1, cancellationToken).ConfigureAwait(false);
             _isPtuPrePowerPrepared = true;
-            Log($"PTU通路预置: 上电前保持LVDT CH{ptuSignal.LvdtChannel.Value} VA={ptuSignal.LvdtVaV.Value:0.0}V, VB={ptuSignal.LvdtVbV.Value:0.0}V");
+            Log($"PTU通路预置: 上电前保持LVDT CH{LvdtChannel1} VA={BleedLvdtVaV:0.0}V, VB={BleedLvdtVbV:0.0}V");
         }
 
         private async Task<HashSet<int>> WaitForAllCloseSignalsReadyAsync(CancellationToken cancellationToken)
@@ -1126,9 +1006,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
             _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            var waitBits = new HashSet<int>(CloseSignals.Select(x => x.WaitBitIndex));
+            var waitBits = new HashSet<int>(RequiredCloseFeedbackBits);
             var readyBits = new HashSet<int>();
-            var deadline = DateTime.UtcNow.AddSeconds(85);
+            var deadline = DateTime.UtcNow.AddSeconds(CloseFeedbackTimeoutSeconds);
             var nextDebugLogAt = DateTime.MinValue;
             while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
             {
@@ -1165,7 +1045,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return;
 
             _arinc.ParseRawWord(rawWord, out var label, out var sdi, out var data19, out var ssm);
-            if (_arinc.ReverseLabel(label) != CloseFeedbackLabelDec || sdi != 1)
+            if (_arinc.ReverseLabel(label) != CloseFeedbackLabelDec || sdi != CloseFeedbackSdi)
                 return;
 
             var now = DateTime.UtcNow;
@@ -1173,7 +1053,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return;
 
             var data19Binary = Convert.ToString(data19, 2).PadLeft(19, '0');
-            Log($"通路调试: 收到反馈 label=65(oct) sdi=1 data19={data19Binary}");
+            Log($"通路调试: 收到反馈 label=65(oct) sdi={CloseFeedbackSdi} data19={data19Binary}");
             nextDebugLogAt = now.AddMilliseconds(CloseFeedbackDebugLogIntervalMs);
         }
 
@@ -1768,16 +1648,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     if (_jy7131 != null)
                     {
-                        foreach (var signal in CloseSignals)
+                        foreach (var relayChannel in SharedCloseRelayChannels.Distinct())
                         {
-                            foreach (var relayChannel in signal.RelayChannels.Distinct())
-                            {
-                                try { await _jy7131.SetRelayAsync(relayChannel - 1, false, cancellationToken).ConfigureAwait(false); } catch { }
-                            }
-                            foreach (var doIndex in signal.DoIndices.Distinct())
-                            {
-                                try { await _jy7131.WriteDoAsync($"DO{doIndex}", false, cancellationToken).ConfigureAwait(false); } catch { }
-                            }
+                            try { await _jy7131.SetRelayAsync(relayChannel - 1, false, cancellationToken).ConfigureAwait(false); } catch { }
+                        }
+
+                        foreach (var doIndex in SharedCloseDoIndices.Distinct())
+                        {
+                            try { await _jy7131.WriteDoAsync($"DO{doIndex}", false, cancellationToken).ConfigureAwait(false); } catch { }
                         }
 
                         try { await _jy7131.WriteDoAsync("DO25", false, cancellationToken).ConfigureAwait(false); } catch { }
