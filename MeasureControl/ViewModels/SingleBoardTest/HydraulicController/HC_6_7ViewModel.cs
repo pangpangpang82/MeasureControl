@@ -548,7 +548,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                     CommitPinState(values);
                     
-                    if (HasAllRequiredFrames(seenFrames))
+                    if (HasAllRequiredFrames(seenFrames, values))
                     {
                         Log($"离散量采集完成，已收到 {seenFrames.Count} 帧有效信号");
                         return true;
@@ -794,14 +794,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             values[100] = pinValue;
         }
 
-        private static bool HasAllRequiredFrames(HashSet<string> seenFrames)
+        private static bool HasAllRequiredFrames(HashSet<string> seenFrames, Dictionary<int, string> values)
         {
             return seenFrames.Contains($"{DiscreteLabelDec}:1")
                 && seenFrames.Contains($"{DiscreteLabelDec}:2")
                 && seenFrames.Contains($"{DiscreteLabelDec}:3")
                 && seenFrames.Contains($"{AtpStatusLabelDec}:0")
                 && seenFrames.Contains($"{AtpStatusLabelDec2}:2")
-                && seenFrames.Contains($"{PbitLabelDec}:0");
+                && values.TryGetValue(99, out var pin99)
+                && values.TryGetValue(100, out var pin100)
+                && pin99 != "--"
+                && pin100 != "--";
         }
 
         private static void ApplyTimeoutState(Dictionary<int, string> values)
