@@ -361,7 +361,7 @@
                                                 <Style.Triggers>
                                                     <!--  RightPanelContent 为空时隐藏  -->
                                                     <DataTrigger Binding="{Binding RightPanelContent}" Value="{x:Null}">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Setter Property="Visibility" Value="Visible" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
