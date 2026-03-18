@@ -593,10 +593,11 @@
                                             <ColumnDefinition Width="18" />
                                         </Grid.ColumnDefinitions>
                                         <TextBox
+                                             Width="58"
                                             Grid.Column="0"
                                             Height="28"
                                             Padding="2,0,0,0"
-                                            HorizontalAlignment="Center"
+                                            HorizontalAlignment="Left"
                                             VerticalAlignment="Center"
                                             BorderThickness="0"
                                             FontSize="22"
