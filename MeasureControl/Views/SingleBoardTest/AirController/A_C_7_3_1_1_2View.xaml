@@ -275,7 +275,7 @@
                                 <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="(3)" />
                                 <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" Margin="40,0,0,0" FontSize="14" Text="测量输出电压" />
                                 <Grid Grid.Row="3" Grid.Column="2">
-                                    <Button Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Left" BorderThickness="0" Command="{Binding Step3MeasureVoltageCommand}" Margin="29,0,0,0">
+                                    <Button Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Center" BorderThickness="0" Command="{Binding Step3MeasureVoltageCommand}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border x:Name="border" Background="#22c55e" CornerRadius="6">
@@ -296,7 +296,7 @@
                                             </ControlTemplate>
                                         </Button.Template>
                                     </Button>
-                                    <Border Width="100" Height="30" Margin="126,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" Background="#f3f4f6" CornerRadius="4">
+                                    <Border Width="56" Height="30" Margin="168,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" Background="#f3f4f6" CornerRadius="4">
                                         <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding Step3Voltage, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
                                     </Border>
                                 </Grid>
@@ -347,7 +347,7 @@
                                 <TextBlock Grid.Row="6" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="(6)" />
                                 <TextBlock Grid.Row="6" Grid.Column="1" VerticalAlignment="Center" Margin="40,0,0,0" FontSize="14" Text="测量输出电压" />
                                 <Grid Grid.Row="6" Grid.Column="2">
-                                    <Button Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Left" BorderThickness="0" Command="{Binding Step6MeasureVoltageCommand}" Margin="29,0,0,0">
+                                    <Button Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Center" BorderThickness="0" Command="{Binding Step6MeasureVoltageCommand}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border x:Name="border" Background="#22c55e" CornerRadius="6">
@@ -368,14 +368,14 @@
                                             </ControlTemplate>
                                         </Button.Template>
                                     </Button>
-                                    <Border Width="100" Height="30" Margin="124,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" Background="#f3f4f6" CornerRadius="4">
+                                    <Border Width="56" Height="30" Margin="168,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" Background="#f3f4f6" CornerRadius="4">
                                         <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding Step6Voltage, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
                                     </Border>
                                 </Grid>
                             </Grid>
                         </Border>
 
-                      
+
 
                     </StackPanel>
                 </ScrollViewer>
