@@ -90,20 +90,20 @@ namespace MeasureControl.Views.Common
             _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
             _eventAggregator = eventAggregator ?? throw new ArgumentNullException(nameof(eventAggregator));
             DataContext = _viewModel;
-            
+
             // 在窗口加载完成后导航到HomePage
             Loaded += OnMainWindowLoaded;
             Closing += OnMainWindowClosing;
             Closed += OnMainWindowClosed;
             _viewModel.PropertyChanged += ViewModelOnPropertyChanged;
             ProjectTreeView.Loaded += ProjectTreeView_OnLoaded;
-            
+
             // 订阅测试任务创建事件，用于展开项目树到新节点
             _eventAggregator.GetEvent<TestTaskCreatedEvent>().Subscribe(OnTestTaskCreated);
-            
+
             // 订阅选中项目树节点事件
             _eventAggregator.GetEvent<SelectProjectItemEvent>().Subscribe(OnSelectProjectItem);
-            
+
             // ========== 调试日志：添加窗口焦点事件监听 ==========
             // 监听窗口激活事件
             Activated += OnMainWindowActivated;
@@ -114,7 +114,7 @@ namespace MeasureControl.Views.Common
             // 监听失去焦点事件
             LostFocus += OnMainWindowLostFocus;
         }
-        
+
         /// <summary>
         /// 主窗口加载完成事件处理
         /// </summary>
@@ -126,21 +126,21 @@ namespace MeasureControl.Views.Common
                 _viewModel?.NavigateToHomePageOnStartup();
             }), DispatcherPriority.Loaded);
         }
-        
+
         /// <summary>
         /// 主窗口被激活事件处理（调试用）
         /// </summary>
         private void OnMainWindowActivated(object sender, EventArgs e)
         {
         }
-        
+
         /// <summary>
         /// 主窗口失去激活事件处理（调试用）
         /// </summary>
         private void OnMainWindowDeactivated(object sender, EventArgs e)
         {
         }
-        
+
         /// <summary>
         /// 主窗口获得焦点事件处理（调试用）
         /// </summary>
@@ -149,7 +149,7 @@ namespace MeasureControl.Views.Common
             var focusedElement = FocusManager.GetFocusedElement(this);
             var focusedElementName = focusedElement?.GetType().Name ?? "null";
         }
-        
+
         /// <summary>
         /// 主窗口失去焦点事件处理（调试用）
         /// </summary>
@@ -181,7 +181,7 @@ namespace MeasureControl.Views.Common
             }
             Closing -= OnMainWindowClosing;
             ProjectTreeView.Loaded -= ProjectTreeView_OnLoaded;
-            
+
             // 取消订阅事件
             if (_eventAggregator != null)
             {
@@ -220,7 +220,7 @@ namespace MeasureControl.Views.Common
             {
                 // 展开所有节点
                 ProjectTreeView.ExpandAll();
-                
+
                 // 查找并展开到新创建的测试任务节点
                 var treeViewItem = FindTreeViewItem(ProjectTreeView, newTestTask);
                 if (treeViewItem != null)
@@ -232,7 +232,7 @@ namespace MeasureControl.Views.Common
                         parent.IsExpanded = true;
                         parent = FindParent<TreeViewItem>(parent);
                     }
-                    
+
                     // 滚动到新节点
                     treeViewItem.BringIntoView();
                 }
@@ -312,7 +312,7 @@ namespace MeasureControl.Views.Common
 
                         // 选中节点
                         treeViewItem.IsSelected = true;
-                        
+
                         // 滚动到节点
                         treeViewItem.BringIntoView();
 
@@ -501,7 +501,7 @@ namespace MeasureControl.Views.Common
                         return;
                     }
                 }
-                
+
                 if (_viewModel?.TreeItemDoubleClickCommand?.CanExecute(projectItem) == true)
                 {
                     _viewModel.TreeItemDoubleClickCommand.Execute(projectItem);
@@ -552,56 +552,56 @@ namespace MeasureControl.Views.Common
                 {
                     // 查找原始点击源所属的 TreeViewItem
                     var clickedTreeViewItem = FindParent<TreeViewItem>(originalSource);
-                    
+
                     // 如果点击的不是当前节点，说明是子节点冒泡上来的事件，忽略
                     if (clickedTreeViewItem != treeViewItem)
                     {
                         return;
                     }
                 }
-                
+
                 // 选中当前项
                 treeViewItem.IsSelected = true;
-                
+
                 // 先清除旧的右键菜单（防止菜单残留）
                 treeViewItem.ContextMenu = null;
-                
+
                 var contextMenu = new ContextMenu();
-                
+
                 // 应用自定义样式
                 if (this.Resources["CustomContextMenuStyle"] is Style contextMenuStyle)
                 {
                     contextMenu.Style = contextMenuStyle;
                 }
-                
+
                 // 为PXI机箱节点显示右键菜单
                 if (projectItem.Type == "PXIChassis")
                 {
                     // 重命名菜单项
                     var renameMenuItem = new MenuItem { Header = "重命名" };
-                    
+
                     // 应用自定义菜单项样式
                     if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle)
                     {
                         renameMenuItem.Style = menuItemStyle;
                     }
-                    
-                    renameMenuItem.Click += (s, args) => 
+
+                    renameMenuItem.Click += (s, args) =>
                     {
                         _viewModel?.RenamePxiChassisCommand?.Execute(projectItem.Name);
                     };
                     contextMenu.Items.Add(renameMenuItem);
-                    
+
                     // 删除菜单项
                     var deleteMenuItem = new MenuItem { Header = "删除" };
-                    
+
                     // 应用自定义菜单项样式
                     if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle2)
                     {
                         deleteMenuItem.Style = menuItemStyle2;
                     }
-                    
-                    deleteMenuItem.Click += (s, args) => 
+
+                    deleteMenuItem.Click += (s, args) =>
                     {
                         _viewModel?.DeletePxiChassisFromTreeCommand?.Execute(projectItem.Name);
                     };
@@ -612,14 +612,14 @@ namespace MeasureControl.Views.Common
                 {
                     // 创建测试任务菜单项
                     var createTestTaskMenuItem = new MenuItem { Header = "创建测试任务" };
-                    
+
                     // 应用自定义菜单项样式
                     if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle)
                     {
                         createTestTaskMenuItem.Style = menuItemStyle;
                     }
-                    
-                    createTestTaskMenuItem.Click += (s, args) => 
+
+                    createTestTaskMenuItem.Click += (s, args) =>
                     {
                         _viewModel?.CreateTestTaskCommand?.Execute(projectItem);
                     };
@@ -659,29 +659,29 @@ namespace MeasureControl.Views.Common
                     {
                         // 重命名菜单项
                         var renameMenuItem = new MenuItem { Header = "重命名" };
-                        
+
                         // 应用自定义菜单项样式
                         if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle)
                         {
                             renameMenuItem.Style = menuItemStyle;
                         }
-                        
-                        renameMenuItem.Click += (s, args) => 
+
+                        renameMenuItem.Click += (s, args) =>
                         {
                             _viewModel?.RenameTestTaskCommand?.Execute(projectItem);
                         };
                         contextMenu.Items.Add(renameMenuItem);
-                        
+
                         // 删除菜单项
                         var deleteMenuItem = new MenuItem { Header = "删除" };
-                        
+
                         // 应用自定义菜单项样式
                         if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle2)
                         {
                             deleteMenuItem.Style = menuItemStyle2;
                         }
-                        
-                        deleteMenuItem.Click += (s, args) => 
+
+                        deleteMenuItem.Click += (s, args) =>
                         {
                             _viewModel?.DeleteTestTaskCommand?.Execute(projectItem);
                         };
@@ -692,13 +692,13 @@ namespace MeasureControl.Views.Common
                 else if (projectItem.Type == "channel_config")
                 {
                     var createMenuItem = new MenuItem { Header = "创建通道配置表" };
-                    
+
                     if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle)
                     {
                         createMenuItem.Style = menuItemStyle;
                     }
-                    
-                    createMenuItem.Click += (s, args) => 
+
+                    createMenuItem.Click += (s, args) =>
                     {
                         _viewModel?.CreateChannelConfigTabelCommand?.Execute(projectItem);
                     };
@@ -714,8 +714,8 @@ namespace MeasureControl.Views.Common
                     {
                         createVariableMenuItem.Style = menuItemStyle;
                     }
-                    
-                    createVariableMenuItem.Click += (s, args) => 
+
+                    createVariableMenuItem.Click += (s, args) =>
                     {
                         _viewModel?.CreateSignalConfigTabelCommand?.Execute(projectItem);
                     };
@@ -723,13 +723,13 @@ namespace MeasureControl.Views.Common
 
                     // 创建矩阵开关配置表
                     var createMatrixSwitchMenuItem = new MenuItem { Header = "创建矩阵开关配置表" };
-                    
+
                     if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle2)
                     {
                         createMatrixSwitchMenuItem.Style = menuItemStyle2;
                     }
-                    
-                    createMatrixSwitchMenuItem.Click += (s, args) => 
+
+                    createMatrixSwitchMenuItem.Click += (s, args) =>
                     {
                         _viewModel?.CreateMatrixSwitchConfigTableCommand?.Execute(projectItem);
                     };
@@ -755,12 +755,12 @@ namespace MeasureControl.Views.Common
                 else if (projectItem.Type == "icd_config")
                 {
                     var createIcdMenuItem = new MenuItem { Header = "创建ICD配置表" };
-                    
+
                     if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle)
                     {
                         createIcdMenuItem.Style = menuItemStyle;
                     }
-                    
+
                     createIcdMenuItem.Click += (s, args) =>
                     {
                         _viewModel?.CreateIcdConfigTabelCommand?.Execute(projectItem);
@@ -771,13 +771,13 @@ namespace MeasureControl.Views.Common
                 else if (projectItem.Type == "test_ui")
                 {
                     var createMenuItem = new MenuItem { Header = "创建测试界面" };
-                    
+
                     if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle)
                     {
                         createMenuItem.Style = menuItemStyle;
                     }
-                    
-                    createMenuItem.Click += (s, args) => 
+
+                    createMenuItem.Click += (s, args) =>
                     {
                         _viewModel?.CreateTestInterfaceCommand?.Execute(projectItem);
                     };
@@ -787,13 +787,13 @@ namespace MeasureControl.Views.Common
                 else if (projectItem.Type == "test_sequence")
                 {
                     var createMenuItem = new MenuItem { Header = "创建测试序列" };
-                    
+
                     if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle)
                     {
                         createMenuItem.Style = menuItemStyle;
                     }
-                    
-                    createMenuItem.Click += (s, args) => 
+
+                    createMenuItem.Click += (s, args) =>
                     {
                         _viewModel?.CreateTestSequenceCommand?.Execute(projectItem);
                     };
@@ -803,13 +803,13 @@ namespace MeasureControl.Views.Common
                 else if (projectItem.Type == "report")
                 {
                     var createMenuItem = new MenuItem { Header = "创建报表模板" };
-                    
+
                     if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle)
                     {
                         createMenuItem.Style = menuItemStyle;
                     }
-                    
-                    createMenuItem.Click += (s, args) => 
+
+                    createMenuItem.Click += (s, args) =>
                     {
                         _viewModel?.CreateReportConfigTabelCommand?.Execute(projectItem);
                     };
@@ -820,45 +820,45 @@ namespace MeasureControl.Views.Common
                 {
                     // TDM系统暂时不需要右键菜单，只支持双击导航
                 }
-                    // 为配置表子节点显示右键菜单（通道配置表、非通讯变量表、ICD配置表、测试序列、报表模板、测试界面）
-                else if (projectItem.Type == "channel_config_tabel" || 
-                         projectItem.Type == "signal_config_tabel" || 
+                // 为配置表子节点显示右键菜单（通道配置表、非通讯变量表、ICD配置表、测试序列、报表模板、测试界面）
+                else if (projectItem.Type == "channel_config_tabel" ||
+                         projectItem.Type == "signal_config_tabel" ||
                          //projectItem.Type == "communicating_signal_config_tabel" || 
                          projectItem.Type == "icd_mapping_tabel" ||
-                         projectItem.Type == "icd_config_tabel" || 
-                         projectItem.Type == "test_sequence_item" || 
+                         projectItem.Type == "icd_config_tabel" ||
+                         projectItem.Type == "test_sequence_item" ||
                          projectItem.Type == "report_config_tabel" ||
                          projectItem.Type == "test_interface")
                 {
                     // 重命名菜单项
                     var renameMenuItem = new MenuItem { Header = "重命名" };
-                    
+
                     if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle)
                     {
                         renameMenuItem.Style = menuItemStyle;
                     }
-                    
-                    renameMenuItem.Click += (s, args) => 
+
+                    renameMenuItem.Click += (s, args) =>
                     {
                         _viewModel?.RenameConfigTabelCommand?.Execute(projectItem);
                     };
                     contextMenu.Items.Add(renameMenuItem);
-                    
+
                     // 删除菜单项
                     var deleteMenuItem = new MenuItem { Header = "删除" };
-                    
+
                     if (this.Resources["CustomMenuItemStyle"] is Style menuItemStyle2)
                     {
                         deleteMenuItem.Style = menuItemStyle2;
                     }
-                    
-                    deleteMenuItem.Click += (s, args) => 
+
+                    deleteMenuItem.Click += (s, args) =>
                     {
                         _viewModel?.DeleteConfigTabelCommand?.Execute(projectItem);
                     };
                     contextMenu.Items.Add(deleteMenuItem);
                 }
-                
+
                 // 如果有菜单项，显示右键菜单
                 if (contextMenu.Items.Count > 0)
                 {
@@ -870,7 +870,7 @@ namespace MeasureControl.Views.Common
                     // 没有菜单项时，清除右键菜单（防止继承父节点的菜单）
                     treeViewItem.ContextMenu = null;
                 }
-                
+
                 e.Handled = true;
             }
         }
@@ -990,6 +990,7 @@ namespace MeasureControl.Views.Common
             var anyFailed = false;
             var shouldNotifyCompletion = false;
             string completionMessage = null;
+            string abortExceptionMessage = null;
 
             try
             {
@@ -1087,8 +1088,24 @@ namespace MeasureControl.Views.Common
                     catch (Exception ex)
                     {
                         AppendSingleBoardReportLine($"EXCEPTION | {steps[i].Name} | {ex.GetType().Name} | {ex.Message}");
-                        result = "异常";
                         anyFailed = true;
+
+                        if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
+                        {
+                            abortExceptionMessage = $"{steps[i].Name}测试出现异常，已终止测试。\r\n异常信息：{ex.Message}";
+                            AppendSingleBoardReportLine("END | FAIL | ABORT_ON_EXCEPTION");
+                            if (vm != null)
+                            {
+                                vm.IsFailed = true;
+                                vm.ConfirmStopOnClose = false;
+                                vm.StatusText = $"异常终止：{steps[i].Name}";
+                                vm.Progress = done;
+                            }
+
+                            throw new OperationCanceledException($"液压单板测试项异常终止: {steps[i].Name}", ex, token);
+                        }
+
+                        result = "异常";
                     }
 
                     AppendSingleBoardReportLine($"STEP | {steps[i].Name} | {NormalizeResult(result)}");
@@ -1133,11 +1150,19 @@ namespace MeasureControl.Views.Common
             }
             catch (OperationCanceledException)
             {
-                AppendSingleBoardReportLine("END | CANCELED");
+                if (string.IsNullOrWhiteSpace(abortExceptionMessage))
+                {
+                    AppendSingleBoardReportLine("END | CANCELED");
+                }
+
                 if (vm != null)
                 {
                     vm.IsFailed = true;
                     vm.ConfirmStopOnClose = false;
+                    if (string.IsNullOrWhiteSpace(abortExceptionMessage))
+                    {
+                        vm.StatusText = "已取消";
+                    }
                 }
             }
             finally
@@ -1176,10 +1201,28 @@ namespace MeasureControl.Views.Common
                 {
                     try
                     {
-                        MessageBox.Show(this, completionMessage, "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                        ReMessageBox.Show(completionMessage, "提示", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     catch
                     {
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(abortExceptionMessage))
+                {
+                    try
+                    {
+                        ReMessageBox.Show(abortExceptionMessage, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                    catch
+                    {
+                        try
+                        {
+                            MessageBox.Show(this, abortExceptionMessage, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                        catch
+                        {
+                        }
                     }
                 }
 
@@ -1285,18 +1328,8 @@ namespace MeasureControl.Views.Common
         private void PrepareSingleBoardReport(string boardName)
         {
             _singleBoardAutoTestExcelReportPath = null;
+            _singleBoardAutoTestReportPath = null;
             _singleBoardAutoStepResults = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                var baseDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "TestResults");
-                Directory.CreateDirectory(baseDir);
-                _singleBoardAutoTestReportPath = System.IO.Path.Combine(baseDir, $"整板自动测试_{boardName}_{DateTime.Now:yyyyMMdd_HHmmss}.log");
-                File.WriteAllText(_singleBoardAutoTestReportPath, string.Empty);
-            }
-            catch
-            {
-                _singleBoardAutoTestReportPath = null;
-            }
         }
 
         private sealed class SingleBoardExcelReportConfig
@@ -1373,7 +1406,7 @@ namespace MeasureControl.Views.Common
 
                 var reportPath = System.IO.Path.Combine(baseDir, $"{reportConfig.FileNamePrefix}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
                 File.Copy(templatePath, reportPath, true);
-                
+
                 if (File.Exists(reportPath))
                 {
                     var fileInfo = new FileInfo(reportPath);
@@ -1383,7 +1416,7 @@ namespace MeasureControl.Views.Common
                     }
                     fileInfo.Attributes = FileAttributes.Normal;
                 }
-                
+
                 try
                 {
                     if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
@@ -1397,17 +1430,6 @@ namespace MeasureControl.Views.Common
                 }
                 catch
                 {
-                    try
-                    {
-                        if (File.Exists(reportPath))
-                        {
-                            File.Delete(reportPath);
-                        }
-                    }
-                    catch
-                    {
-                    }
-
                     throw;
                 }
 
@@ -1569,7 +1591,7 @@ namespace MeasureControl.Views.Common
                     {
                         FillUntestedCells(cells, 8, 5, 13);
                         FillUntestedCells(cells, 8, 6, 13);
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G8:13" });
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G8:G13" });
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
                         ReleaseComObject(range);
                         range = null;
@@ -1976,10 +1998,19 @@ namespace MeasureControl.Views.Common
 
         private static void SetExcelCellValue(object cells, int row, int column, string value)
         {
-            var cell = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { row, column });
+            object cell = null;
             try
             {
+                LogExcelDiagnostic($"EXCEL | CELL_VALUE_BEGIN | R{row}C{column} | VALUE={FormatExcelDebugValue(value)}");
+                cell = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { row, column });
+                LogExcelDiagnostic($"EXCEL | CELL_VALUE_GOT_CELL | R{row}C{column}");
                 cell.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, cell, new object[] { value });
+                LogExcelDiagnostic($"EXCEL | CELL_VALUE_SUCCESS | R{row}C{column} | VALUE={FormatExcelDebugValue(value)}");
+            }
+            catch (Exception ex)
+            {
+                LogExcelDiagnostic($"EXCEL | CELL_VALUE_FAILED | R{row}C{column} | VALUE={FormatExcelDebugValue(value)} | {DescribeException(ex)}");
+                throw;
             }
             finally
             {
@@ -1989,19 +2020,30 @@ namespace MeasureControl.Views.Common
 
         private static void SetExcelCellFontColor(object cells, int row, int column, int? oleColor)
         {
-            var cell = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { row, column });
+            object cell = null;
             object font = null;
             try
             {
+                LogExcelDiagnostic($"EXCEL | CELL_FONT_BEGIN | R{row}C{column} | COLOR={(oleColor.HasValue ? oleColor.Value.ToString() : "<default>")}");
+                cell = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { row, column });
+                LogExcelDiagnostic($"EXCEL | CELL_FONT_GOT_CELL | R{row}C{column}");
                 font = cell.GetType().InvokeMember("Font", BindingFlags.GetProperty, null, cell, null);
+                LogExcelDiagnostic($"EXCEL | CELL_FONT_GOT_FONT | R{row}C{column}");
                 if (oleColor.HasValue)
                 {
                     font.GetType().InvokeMember("Color", BindingFlags.SetProperty, null, font, new object[] { oleColor.Value });
+                    LogExcelDiagnostic($"EXCEL | CELL_FONT_SET_COLOR | R{row}C{column} | COLOR={oleColor.Value}");
                 }
                 else
                 {
                     TryInvoke(font, "ColorIndex", -4105);
+                    LogExcelDiagnostic($"EXCEL | CELL_FONT_RESET_COLOR | R{row}C{column}");
                 }
+            }
+            catch (Exception ex)
+            {
+                LogExcelDiagnostic($"EXCEL | CELL_FONT_FAILED | R{row}C{column} | COLOR={(oleColor.HasValue ? oleColor.Value.ToString() : "<default>")} | {DescribeException(ex)}");
+                throw;
             }
             finally
             {
@@ -2020,20 +2062,73 @@ namespace MeasureControl.Views.Common
             object font = null;
             try
             {
+                LogExcelDiagnostic($"EXCEL | RANGE_FONT_BEGIN | COLOR={(oleColor.HasValue ? oleColor.Value.ToString() : "<default>")}");
                 font = range.GetType().InvokeMember("Font", BindingFlags.GetProperty, null, range, null);
+                LogExcelDiagnostic("EXCEL | RANGE_FONT_GOT_FONT");
                 if (oleColor.HasValue)
                 {
                     font.GetType().InvokeMember("Color", BindingFlags.SetProperty, null, font, new object[] { oleColor.Value });
+                    LogExcelDiagnostic($"EXCEL | RANGE_FONT_SET_COLOR | COLOR={oleColor.Value}");
                 }
                 else
                 {
                     TryInvoke(font, "ColorIndex", -4105);
+                    LogExcelDiagnostic("EXCEL | RANGE_FONT_RESET_COLOR");
                 }
+            }
+            catch (Exception ex)
+            {
+                LogExcelDiagnostic($"EXCEL | RANGE_FONT_FAILED | COLOR={(oleColor.HasValue ? oleColor.Value.ToString() : "<default>")} | {DescribeException(ex)}");
+                throw;
             }
             finally
             {
                 ReleaseComObject(font);
             }
+        }
+
+        private static string FormatExcelDebugValue(string value)
+        {
+            if (value == null)
+            {
+                return "<null>";
+            }
+
+            return value
+                .Replace("\r", "\\r")
+                .Replace("\n", "\\n")
+                .Replace("\t", "\\t");
+        }
+
+        private static string DescribeException(Exception ex)
+        {
+            if (ex == null)
+            {
+                return "<no exception>";
+            }
+
+            var parts = new List<string>
+            {
+                $"TYPE={ex.GetType().FullName}",
+                $"MESSAGE={ex.Message}"
+            };
+
+            var inner = ex.InnerException;
+            var level = 0;
+            while (inner != null && level < 5)
+            {
+                parts.Add($"INNER{level}_TYPE={inner.GetType().FullName}");
+                parts.Add($"INNER{level}_MESSAGE={inner.Message}");
+                inner = inner.InnerException;
+                level++;
+            }
+
+            return string.Join(" | ", parts);
+        }
+
+        private static void LogExcelDiagnostic(string message)
+        {
+            Debug.WriteLine(message);
         }
 
         private static void TryInvoke(object target, string methodName, params object[] args)
@@ -2447,7 +2542,8 @@ namespace MeasureControl.Views.Common
 
         private void AppendSingleBoardReportLine(string message)
         {
-            return;
+            var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {message}";
+            Debug.WriteLine(line);
         }
 
         private static bool IsPass(string result)
@@ -2532,11 +2628,11 @@ namespace MeasureControl.Views.Common
                 };
                 return;
             }
-            
+
             // 如果已加载，直接执行展开
             PerformTreeExpansion(treeView);
         }
-        
+
         /// <summary>
         /// 执行树展开操作
         /// </summary>
@@ -2549,7 +2645,7 @@ namespace MeasureControl.Views.Common
                 {
                     // 强制更新布局
                     treeView.UpdateLayout();
-                    
+
                     // 等待容器生成
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
@@ -2562,7 +2658,7 @@ namespace MeasureControl.Views.Common
                                 if (treeViewItem != null)
                                 {
                                     treeViewItem.IsExpanded = true;
-                                    
+
                                     // 递归展开到三级节点
                                     ExpandToLevel3(treeViewItem, 1);
                                 }
@@ -2571,14 +2667,14 @@ namespace MeasureControl.Views.Common
                                 }
                             }
                         }
-            catch (Exception)
-            {
-            }
+                        catch (Exception)
+                        {
+                        }
                     }), DispatcherPriority.Loaded);
                 }
-            catch (Exception)
-            {
-            }
+                catch (Exception)
+                {
+                }
             }), DispatcherPriority.Loaded);
         }
 
@@ -2587,13 +2683,13 @@ namespace MeasureControl.Views.Common
         /// </summary>
         private void ExpandToLevel3(TreeViewItem parentItem, int currentLevel)
         {
-            if (currentLevel >= 3) 
+            if (currentLevel >= 3)
             {
                 return; // 只展开到三级节点
             }
             // 强制更新布局以生成子容器
             parentItem.UpdateLayout();
-            
+
             // 使用延迟确保容器生成完成
             Dispatcher.BeginInvoke(new Action(() =>
             {
@@ -2639,7 +2735,7 @@ namespace MeasureControl.Views.Common
             else
             {
             }
-            
+
             // 检查TreeView
             var treeView = FindName("ProjectTreeView") as TreeView;
             if (treeView != null)
@@ -2648,7 +2744,7 @@ namespace MeasureControl.Views.Common
             else
             {
             }
-            
+
             // 尝试展开
             ExpandProjectTreeToLevel3();
         }
