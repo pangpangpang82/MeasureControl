@@ -750,7 +750,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             if (!TryGetValidatedCustomVoltage(out var voltage))
             {
-                Log("自定义电压输入无效，请输入 0~10V，且最多 2 位小数");
+                Log("自定义电压输入无效，请输入 0~7.17V，且最多 2 位小数");
                 RefreshMeasureCommands();
                 return;
             }
@@ -1250,7 +1250,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return false;
 
             voltage = Math.Truncate(voltage * 100d) / 100d;
-            return voltage >= 0d && voltage <= 10d;
+            return voltage >= 0d && voltage <= 7.17d;
         }
 
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
