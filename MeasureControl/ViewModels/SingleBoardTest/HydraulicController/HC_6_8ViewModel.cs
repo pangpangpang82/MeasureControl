@@ -1198,6 +1198,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
             await SetCloseSignalAoChannelsAsync(SharedCloseAoHighChannels, CloseSignalAoVoltageV, cancellationToken).ConfigureAwait(false);
+            await SetCloseSignalAoChannelsAsync(SharedCloseAoLowChannels, 0.0, cancellationToken).ConfigureAwait(false);
 
             await EnsureJy7131ReadyAsync(cancellationToken).ConfigureAwait(false);
             foreach (var doIndex in SharedCloseDoIndices)
