@@ -990,6 +990,7 @@ namespace MeasureControl.Views.Common
             var anyFailed = false;
             var shouldNotifyCompletion = false;
             string completionMessage = null;
+            string abortExceptionMessage = null;
 
             try
             {
@@ -1087,8 +1088,24 @@ namespace MeasureControl.Views.Common
                     catch (Exception ex)
                     {
                         AppendSingleBoardReportLine($"EXCEPTION | {steps[i].Name} | {ex.GetType().Name} | {ex.Message}");
-                        result = "异常";
                         anyFailed = true;
+
+                        if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
+                        {
+                            abortExceptionMessage = $"{steps[i].Name}测试出现异常，已终止测试。\r\n异常信息：{ex.Message}";
+                            AppendSingleBoardReportLine("END | FAIL | ABORT_ON_EXCEPTION");
+                            if (vm != null)
+                            {
+                                vm.IsFailed = true;
+                                vm.ConfirmStopOnClose = false;
+                                vm.StatusText = $"异常终止：{steps[i].Name}";
+                                vm.Progress = done;
+                            }
+
+                            throw new OperationCanceledException($"液压单板测试项异常终止: {steps[i].Name}", ex, token);
+                        }
+
+                        result = "异常";
                     }
 
                     AppendSingleBoardReportLine($"STEP | {steps[i].Name} | {NormalizeResult(result)}");
@@ -1133,11 +1150,19 @@ namespace MeasureControl.Views.Common
             }
             catch (OperationCanceledException)
             {
-                AppendSingleBoardReportLine("END | CANCELED");
+                if (string.IsNullOrWhiteSpace(abortExceptionMessage))
+                {
+                    AppendSingleBoardReportLine("END | CANCELED");
+                }
+
                 if (vm != null)
                 {
                     vm.IsFailed = true;
                     vm.ConfirmStopOnClose = false;
+                    if (string.IsNullOrWhiteSpace(abortExceptionMessage))
+                    {
+                        vm.StatusText = "已取消";
+                    }
                 }
             }
             finally
@@ -1176,10 +1201,28 @@ namespace MeasureControl.Views.Common
                 {
                     try
                     {
-                        MessageBox.Show(this, completionMessage, "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                        ReMessageBox.Show(completionMessage, "提示", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     catch
                     {
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(abortExceptionMessage))
+                {
+                    try
+                    {
+                        ReMessageBox.Show(abortExceptionMessage, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                    catch
+                    {
+                        try
+                        {
+                            MessageBox.Show(this, abortExceptionMessage, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                        catch
+                        {
+                        }
                     }
                 }
 
@@ -1285,18 +1328,8 @@ namespace MeasureControl.Views.Common
         private void PrepareSingleBoardReport(string boardName)
         {
             _singleBoardAutoTestExcelReportPath = null;
+            _singleBoardAutoTestReportPath = null;
             _singleBoardAutoStepResults = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                var baseDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "TestResults");
-                Directory.CreateDirectory(baseDir);
-                _singleBoardAutoTestReportPath = System.IO.Path.Combine(baseDir, $"整板自动测试_{boardName}_{DateTime.Now:yyyyMMdd_HHmmss}.log");
-                File.WriteAllText(_singleBoardAutoTestReportPath, string.Empty);
-            }
-            catch
-            {
-                _singleBoardAutoTestReportPath = null;
-            }
         }
 
         private sealed class SingleBoardExcelReportConfig
@@ -1397,17 +1430,6 @@ namespace MeasureControl.Views.Common
                 }
                 catch
                 {
-                    try
-                    {
-                        if (File.Exists(reportPath))
-                        {
-                            File.Delete(reportPath);
-                        }
-                    }
-                    catch
-                    {
-                    }
-
                     throw;
                 }
 
@@ -1569,7 +1591,7 @@ namespace MeasureControl.Views.Common
                     {
                         FillUntestedCells(cells, 8, 5, 13);
                         FillUntestedCells(cells, 8, 6, 13);
-                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G8:13" });
+                        range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G8:G13" });
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
                         ReleaseComObject(range);
                         range = null;

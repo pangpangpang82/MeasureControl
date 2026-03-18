@@ -46,7 +46,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int SampleTimeoutMs = 5000;
         private const int LvdtSettleMs = 500;
         private const int PostSwitchRxFlushMs = 120;
-        private const int ExcitationReadSettleMs = 80;
+        private const int ExcitationReadSettleMs = 120;
         //private const int ExcitationRestoreSettleMs = 120;
         private const string DmmTriggerDelayCommand= "TRIG:DEL 1";
         private const double ExcitationFreqMinHz = 3168.0;
