@@ -750,7 +750,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             if (!TryGetValidatedCustomVoltage(out var voltage))
             {
-                Log("自定义电压输入无效，请输入 0~10V，且最多 1 位小数");
+                Log("自定义电压输入无效，请输入 0~10V，且最多 2 位小数");
                 RefreshMeasureCommands();
                 return;
             }
@@ -1216,7 +1216,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     if (hasDot)
                     {
-                        if (decimalCount >= 1)
+                        if (decimalCount >= 2)
                             continue;
 
                         decimalCount++;
@@ -1249,7 +1249,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!double.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out voltage))
                 return false;
 
-            voltage = Math.Truncate(voltage * 10d) / 10d;
+            voltage = Math.Truncate(voltage * 100d) / 100d;
             return voltage >= 0d && voltage <= 10d;
         }
 
