@@ -104,11 +104,6 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
             }
 
             var formatted = FormatCurrentText(textBox.Text);
-            if (string.Equals(textBox.Text, formatted, System.StringComparison.Ordinal))
-            {
-                return;
-            }
-
             try
             {
                 _isUpdatingCustomInput = true;
@@ -180,6 +175,7 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
                 return sanitized;
             }
 
+            value = System.Math.Max(4d, System.Math.Min(20d, value));
             value = System.Math.Truncate(value * 10d) / 10d;
             return value.ToString("0.0", CultureInfo.InvariantCulture);
         }
