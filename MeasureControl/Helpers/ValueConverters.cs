@@ -538,7 +538,7 @@ namespace MeasureControl.Helpers
     }
 
     /// <summary>
-    /// Baud number <-> string converter.
+    /// Baud number to/from string converter.
     /// Supports plain numbers ("500000") or suffixed forms like "500k", "500K", "1M".
     /// Converts numeric values (uint/int) to plain decimal string.
     /// </summary>
