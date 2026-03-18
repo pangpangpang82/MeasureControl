@@ -79,6 +79,39 @@ namespace MeasureControl.Simulations.S_C_8_3_1
             return null;
         }
 
+        public async Task<byte[]> WaitBenchData8Async(string benchRxChannel, byte label0, byte label1, byte label2, byte label3, int timeoutMs, Action<string> log, CancellationToken token)
+        {
+            if (!_started || _arincDriver == null)
+                throw new InvalidOperationException("Simulation not started");
+
+            int rxIndex = ParseChannelIndex(benchRxChannel);
+            var labelAssembler = new MultiLabelCommandAssembler(new[] { label0, label1, label2, label3 });
+            var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
+
+            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
+            {
+                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
+                if (list != null && list.Count > 0)
+                {
+                    foreach (var item in list)
+                    {
+                        if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
+                            continue;
+
+                        if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
+                        {
+                            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 4包拼包完成 labels=0x{label0:X2}/0x{label1:X2}/0x{label2:X2}/0x{label3:X2} data8={FormatBytes(resp8)}");
+                            return resp8;
+                        }
+                    }
+                }
+
+                await Task.Delay(10, token);
+            }
+
+            return null;
+        }
+
         public async Task<byte[]> WaitBenchResponse8Async(string benchRxChannel, Func<byte[], bool> isExpected, int timeoutMs, Action<string> log, CancellationToken token)
         {
             if (!_started || _arincDriver == null)

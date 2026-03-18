@@ -347,11 +347,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     IsManualTestRunning = true;
                     await Task.Yield();
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
-                    _simulation.SimProductArincRate = ArincRate;
-                    _simulation.SimProductRxChannelIndex = 4;
-                    _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
 
@@ -439,11 +436,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     ResetUi();
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
-                    _simulation.SimProductArincRate = ArincRate;
-                    _simulation.SimProductRxChannelIndex = 4;
-                    _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
@@ -529,6 +523,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _simulation.ClearRxFifoAsync(TestRxChannel);
             await Task.Delay(20, token);
             await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
+
+            if (!cmd8.SequenceEqual(EnterAtpCommand8) && !cmd8.SequenceEqual(ExitAtpCommand8))
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送完成（不等待回读）");
+                return true;
+            }
 
             var resp = await _simulation.WaitBenchResponse8Async(
                 TestRxChannel,

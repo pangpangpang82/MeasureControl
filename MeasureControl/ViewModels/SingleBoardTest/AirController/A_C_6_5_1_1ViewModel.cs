@@ -29,6 +29,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] ExpectedData4 = { 0x7F, 0x00, 0xAA, 0x55 };
         private const byte Label50 = 0x50;
         private const byte Label51 = 0x51;
+        private const byte Label52 = 0x52;
+        private const byte Label53 = 0x53;
 
         private readonly A_C_6_5_1_1Simulation _simulation = new A_C_6_5_1_1Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
@@ -408,7 +410,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     LastTestResult = "--";
                     CurrentStepImage = CreateImageSource("/Resources/Logo/begin.png");
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
                     _simulation.SimProductArincRate = ArincRate;
                     _simulation.SimProductRxChannelIndex = 4;
@@ -499,16 +501,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_A429TX0_TRANSMIT：{FormatBytes(AbA429Tx0TransmitCommand8)}");
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbA429Tx0TransmitCommand8, msg => AddLog(msg), token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待接收数据(LABEL0x{Label50:X2}/0x{Label51:X2})...");
-                    var data4 = await _simulation.WaitBenchData4Async(
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待接收数据(LABEL0x{Label50:X2}/0x{Label51:X2}/0x{Label52:X2}/0x{Label53:X2})...");
+                    var resp8 = await _simulation.WaitBenchData8Async(
                         TestRxChannel,
                         Label50,
                         Label51,
+                        Label52,
+                        Label53,
                         timeoutMs: 1200,
                         log: msg => AddLog(msg),
                         token: token);
 
-                    if (data4 == null)
+                    if (resp8 == null || resp8.Length != 8)
                     {
                         AddLog($"[{DateTime.Now:HH:mm:ss}] 接收数据超时");
                         SetLastTestResult("FAIL");
@@ -516,7 +520,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         return;
                     }
 
-                    RxDataText = $"{FormatBytesHex(data4)}";
+                    RxDataText = $"{FormatBytesHex(resp8)}";
+
+                    var data4 = resp8.Take(4).ToArray();
 
                     bool pass = data4.SequenceEqual(ExpectedData4);
                     SetLastTestResult(pass ? "PASS" : "FAIL");
@@ -576,7 +582,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
                     catch { }
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
                     _simulation.SimProductArincRate = ArincRate;
                     _simulation.SimProductRxChannelIndex = 4;
@@ -616,16 +622,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbA429Tx0TransmitCommand8, msg => AddLog(msg), token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：等待接收数据(LABEL50/51)");
-                    var data4 = await _simulation.WaitBenchData4Async(
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：等待接收数据(LABEL50/51/52/53)");
+                    var resp8 = await _simulation.WaitBenchData8Async(
                         TestRxChannel,
                         Label50,
                         Label51,
+                        Label52,
+                        Label53,
                         timeoutMs: 1200,
                         log: msg => AddLog(msg),
                         token: token);
 
-                    if (data4 == null)
+                    if (resp8 == null || resp8.Length != 8)
                     {
                         SetLastTestResult("FAIL");
                         CurrentStepImage = CreateImageSource("/Resources/Logo/warning.png");
@@ -633,7 +641,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         return;
                     }
 
-                    RxDataText = $"{FormatBytesHex(data4)}";
+                    RxDataText = $"{FormatBytesHex(resp8)}";
+
+                    var data4 = resp8.Take(4).ToArray();
 
                     bool pass = data4.SequenceEqual(ExpectedData4);
                     SetLastTestResult(pass ? "PASS" : "FAIL");

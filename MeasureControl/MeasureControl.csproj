@@ -308,8 +308,17 @@
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_2_1View.xaml.cs">
       <DependentUpon>A_C_6_10_2_1View.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_3_1View.xaml.cs">
+      <DependentUpon>A_C_6_10_3_1View.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_4_1View.xaml.cs">
       <DependentUpon>A_C_6_10_4_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_5_1View.xaml.cs">
+      <DependentUpon>A_C_6_10_5_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_6_1View.xaml.cs">
+      <DependentUpon>A_C_6_10_6_1View.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_7_1View.xaml.cs">
       <DependentUpon>A_C_6_10_7_1View.xaml</DependentUpon>
@@ -400,6 +409,9 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_9_2_1View.xaml.cs">
       <DependentUpon>A_C_6_9_2_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_1View.xaml.cs">
+      <DependentUpon>A_C_7_1View.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_7_3_1_1_2View.xaml.cs">
       <DependentUpon>A_C_7_3_1_1_2View.xaml</DependentUpon>
@@ -529,6 +541,9 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_3View.xaml.cs">
       <DependentUpon>S_C_8_3_3View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_7_1View.xaml.cs">
+      <DependentUpon>S_C_8_7_1View.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml.cs">
       <DependentUpon>S_C_8_7_2View.xaml</DependentUpon>
