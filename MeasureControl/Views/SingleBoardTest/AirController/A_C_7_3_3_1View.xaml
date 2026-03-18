@@ -1,5 +1,5 @@
 <UserControl
-    x:Class="MeasureControl.Views.SingleBoardTest.AirController.A_C_7_3_1_1_2View"
+    x:Class="MeasureControl.Views.SingleBoardTest.AirController.A_C_7_3_3_1View"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -43,7 +43,7 @@
                     VerticalAlignment="Center"
                     FontSize="24"
                     FontWeight="Bold"
-                    Text="7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试" />
+                    Text="7.3.3.1B控制通道功率板RAIA直流电机驱动模块供电测试" />
 
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
 
