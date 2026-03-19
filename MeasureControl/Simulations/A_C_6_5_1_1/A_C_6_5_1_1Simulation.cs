@@ -18,6 +18,7 @@ namespace MeasureControl.Simulations.A_C_6_5_1_1
 
         private static readonly byte[] AbA429Tx0TransmitCommand8 = { 0x04, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] FixedSendData4 = { 0x7F, 0x00, 0xAA, 0x55 };
+        private static readonly byte[] FixedSendData8 = { 0x7F, 0x00, 0xAA, 0x55, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
         private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
@@ -278,9 +279,9 @@ namespace MeasureControl.Simulations.A_C_6_5_1_1
                                     }
                                     else if (cmd8.SequenceEqual(AbA429Tx0TransmitCommand8))
                                     {
-                                        log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到AB_A429TX0_TRANSMIT -> 发送LABEL50/51测试信息");
+                                        log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到AB_A429TX0_TRANSMIT -> 发送测试信息");
                                         await Task.Delay(30, token);
-                                        await SendTwoFrameOnChannelAsync(SimProductTxChannelIndex, 0x50, 0x51, FixedSendData4, log, token);
+                                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, FixedSendData8, log, token);
                                     }
                                 }
                             }

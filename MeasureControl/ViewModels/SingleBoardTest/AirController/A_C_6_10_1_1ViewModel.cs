@@ -1385,7 +1385,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            _ = StartManualTestAsync();
+            _ = StartManualTestAsync();//上电和打开对应的429通道，手动测试按钮
 
         }
 

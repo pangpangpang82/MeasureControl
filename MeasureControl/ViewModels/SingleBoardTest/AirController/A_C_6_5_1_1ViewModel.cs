@@ -27,10 +27,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private static readonly byte[] AbA429Tx0TransmitCommand8 = { 0x04, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] ExpectedData4 = { 0x7F, 0x00, 0xAA, 0x55 };
-        private const byte Label50 = 0x50;
-        private const byte Label51 = 0x51;
-        private const byte Label52 = 0x52;
-        private const byte Label53 = 0x53;
+        private const byte Label50 = 0x09;
+        private const byte Label51 = 0x0A;
+        private const byte Label52 = 0x0B;
+        private const byte Label53 = 0x0C;
 
         private readonly A_C_6_5_1_1Simulation _simulation = new A_C_6_5_1_1Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
@@ -622,7 +622,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbA429Tx0TransmitCommand8, msg => AddLog(msg), token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：等待接收数据(LABEL50/51/52/53)");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：等待接收数据(LABEL09/0A/0B/0C)");
                     var resp8 = await _simulation.WaitBenchData8Async(
                         TestRxChannel,
                         Label50,
