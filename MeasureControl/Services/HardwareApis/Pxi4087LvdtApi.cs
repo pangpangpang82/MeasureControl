@@ -51,6 +51,8 @@ namespace MeasureControl.Services.HardwareApis
         Task StartAsync(int channel, CancellationToken cancellationToken = default);
         Task StopAsync(int channel, CancellationToken cancellationToken = default);
 
+        Task<(double ExcRms, double ExcFreqHz)> ReadExternalExcitationAsync(int channel, int settleMs = 200, int retryCount = 3, CancellationToken cancellationToken = default);
+
         Task<LvdtReading> ReadOnceAsync(int channel, int settleMs = 300, int retryCount = 3, bool restartBeforeRead = true, CancellationToken cancellationToken = default);
     }
 
@@ -364,6 +366,74 @@ namespace MeasureControl.Services.HardwareApis
                 int status = PXI4087Native.pxi4087_lvdtStop(_handle, chIndex);
                 if (status != 0)
                     throw new InvalidOperationException($"pxi4087_lvdtStop failed: {status}");
+            }
+            finally
+            {
+                _ioLock.Release();
+            }
+        }
+
+        public async Task<(double ExcRms, double ExcFreqHz)> ReadExternalExcitationAsync(int channel, int settleMs = 200, int retryCount = 3, CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+
+            if (retryCount < 1)
+                throw new ArgumentOutOfRangeException(nameof(retryCount));
+
+            await _ioLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnsureConnected();
+                ushort chIndex = ToChIndex(channel);
+
+                int status = PXI4087Native.pxi4087_setMode(
+                    _handle,
+                    chIndex,
+                    (ushort)PXI4087Constants.pxi4087_Ch_Mode_Test,
+                    (ushort)PXI4087Constants.pxi4087_Ch_Exc_Sour_Ext,
+                    0,
+                    0);
+                if (status != 0)
+                    throw new InvalidOperationException($"pxi4087_setMode(test/ext) failed: {status}");
+
+                status = PXI4087Native.pxi4087_setSelExcCh0Flag(_handle, chIndex, 0);
+                if (status != 0)
+                    throw new InvalidOperationException($"pxi4087_setSelExcCh0Flag failed: {status}");
+
+                status = PXI4087Native.pxi4087_lvdtStart(_handle, chIndex);
+                if (status != 0)
+                    throw new InvalidOperationException($"pxi4087_lvdtStart failed: {status}");
+
+                if (settleMs > 0)
+                    await Task.Delay(settleMs, cancellationToken).ConfigureAwait(false);
+
+                Exception last = null;
+                for (int i = 0; i < retryCount; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    try
+                    {
+                        double excRms;
+                        status = PXI4087Native.pxi4087_getLvdtExcSigRms(_handle, chIndex, out excRms);
+                        if (status != 0)
+                            throw new InvalidOperationException($"pxi4087_getLvdtExcSigRms failed: {status}");
+
+                        double excFreqHz;
+                        status = PXI4087Native.pxi4087_getLvdtExcSigFreq(_handle, chIndex, out excFreqHz);
+                        if (status != 0)
+                            throw new InvalidOperationException($"pxi4087_getLvdtExcSigFreq failed: {status}");
+
+                        return (excRms, excFreqHz);
+                    }
+                    catch (Exception ex)
+                    {
+                        last = ex;
+                        await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+
+                throw new InvalidOperationException("PXI4087 external excitation read failed after retries", last);
             }
             finally
             {
