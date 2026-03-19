@@ -1549,6 +1549,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+
+        {
+
+            try
+
+            {
+
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+
+                if (api != null)
+
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+
+            }
+
+            catch
+
+            {
+
+            }
+
+        }
+
+
+
         private void OnToggleMtx532Hardware()
 
         {
@@ -1915,6 +1941,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 {
 
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+
                     IsManualTestRunning = false;
 
                     IsBusy = false;
@@ -2174,6 +2202,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     {
 
                     }
+
+
+
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
 
 
