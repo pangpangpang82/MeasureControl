@@ -5,17 +5,12 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="clr-namespace:MeasureControl.Helpers"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:sys="clr-namespace:System;assembly=mscorlib"
     d:DesignHeight="550"
     d:DesignWidth="970"
     mc:Ignorable="d">
     <UserControl.Resources>
         <helpers:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <helpers:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
-        <x:Array x:Key="DmmChannels" Type="sys:String">
-            <sys:String>Port1</sys:String>
-            <sys:String>Port2</sys:String>
-        </x:Array>
     </UserControl.Resources>
     <Grid
         x:Name="RootGrid"
@@ -239,221 +234,39 @@
                     FontWeight="Bold"
                     Text="测试步骤" />
 
-                <Grid Grid.Row="1" Grid.RowSpan="5">
-
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="2.5*" />
-                        <RowDefinition Height="2*" />
-                        <RowDefinition Height="2*" />
-                        <RowDefinition Height="2*" />
-                        <RowDefinition Height="2.5*" />
-                    </Grid.RowDefinitions>
-
-                    <Grid Grid.Row="0">
+                <ScrollViewer
+                    Grid.Row="1"
+                    Grid.RowSpan="5"
+                    Margin="0"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer.Resources>
+                        <Style BasedOn="{StaticResource SimpleScrollViewerStyle}" TargetType="ScrollViewer" />
+                    </ScrollViewer.Resources>
+                    <Grid>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <StackPanel Margin="5" Orientation="Horizontal">
-                            <TextBlock
-                                Grid.Column="0"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="进入ATP模式：" />
-                            <TextBlock
-                                Grid.Column="0"
-                                Margin="0,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="TX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding EnterAtpTxChannel}" />
-                            </Border>
 
-                            <Border
-                                Width="180"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="0x00 01 00 01 00 00 00 00" />
-                            </Border>
+                    <StackPanel Grid.Row="0" Margin="5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="1.向控制通道供电 32V" />
 
-                            <Button
-                                Width="50"
-                                Height="28"
-                                Margin="15,0,0,0"
-                                VerticalAlignment="Center"
-                                BorderThickness="0"
-                                Command="{Binding SendEnterAtpCommand}">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border
-                                            x:Name="border"
-                                            Background="#3b82f6"
-                                            CornerRadius="4">
-                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                <TextBlock
-                                                    x:Name="DeviceAction"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    FontSize="14"
-                                                    Foreground="White"
-                                                    Text="发送" />
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsEnabled" Value="False">
-                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                <Setter Property="Cursor" Value="Arrow" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </StackPanel>
-                        <StackPanel
-                            Grid.Row="1"
-                            Margin="115,5,5,5"
-                            Orientation="Horizontal">
-                            <TextBlock
-                                Grid.Column="0"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="RX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding EnterAtpRxChannel}" />
-                            </Border>
-
-                            <Border
-                                Width="180"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding EnterAtpRxDataText}" />
-                            </Border>
-                        </StackPanel>
-                    </Grid>
-
-                    <StackPanel
-                        Grid.Row="1"
-                        Margin="5,5,5,5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Grid.Column="0"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            Text="控制器输出电压：" />
-                        <TextBlock
-                            Grid.Column="0"
-                            Margin="0,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="TX" />
-                        <Border
-                            Width="100"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            Background="AliceBlue"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding SetVoltageTxChannel}" />
-                        </Border>
-
-                        <Border
-                            Width="180"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="AliceBlue"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="0x01 04 01 01 00 00 00 00" />
-                        </Border>
-
-                        <Button
-                            Width="50"
-                            Height="28"
-                            Margin="15,0,0,0"
-                            VerticalAlignment="Center"
-                            BorderThickness="0"
-                            Command="{Binding SendSetVoltageCommand}">
+                        <Button Width="70" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Supply32vCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border
-                                        x:Name="border"
-                                        Background="#3b82f6"
-                                        CornerRadius="4">
+                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
                                         <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                            <TextBlock
-                                                x:Name="DeviceAction"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                FontSize="14"
-                                                Foreground="White"
-                                                Text="发送" />
+                                            <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="32V" />
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
@@ -473,203 +286,27 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="2"
-                        Margin="5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Grid.Column="0"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            Text="供电输出电压：" />
-                        <ComboBox
-                            Width="80"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource DmmChannels}"
-                            SelectedItem="{Binding DmmChannel, Mode=TwoWay}">
-                            <ComboBox.Style>
-                                <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                    <Setter Property="Opacity" Value="1" />
-                                </Style>
-                            </ComboBox.Style>
-                        </ComboBox>
-                        <Border
-                            Width="100"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                FontSize="14"
-                                Text="{Binding DmmVoltageText}" />
-                        </Border>
-
-                        <TextBlock
-                            Margin="15,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            Text="电流值：" />
-                        <Border
-                            Width="100"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                FontSize="14"
-                                Text="{Binding PowerSupplyMeasuredCurrentText}" />
-                        </Border>
-                    </StackPanel>
-
-                    <StackPanel
-                        Grid.Row="3"
-                        Margin="5"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            Grid.Column="0"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            Text="供电电压回采值：" />
-                        <TextBlock
-                            Grid.Column="0"
-                            Margin="0,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="RX" />
-                        <Border
-                            Width="100"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            Background="AliceBlue"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding TelemetryRxChannel}" />
-                        </Border>
-                        <Border
-                            Width="100"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                FontSize="14"
-                                Text="{Binding TelemetryVoltageText}" />
-                        </Border>
-                        <Border
-                            Width="180"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="LightYellow"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding TelemetryRxDataText}" />
-                        </Border>
-                    </StackPanel>
-
-                    <Grid Grid.Row="4">
+                    <Grid Grid.Row="1">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <StackPanel
-                            Grid.Row="0"
-                            Margin="5"
-                            Orientation="Horizontal">
-                            <TextBlock
-                                Grid.Column="0"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="退出ATP模式：" />
-                            <TextBlock
-                                Grid.Column="0"
-                                Margin="0,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="TX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding ExitAtpTxChannel}" />
+                        <StackPanel Grid.Row="0" Margin="5" Orientation="Horizontal">
+                            <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="2.进入ATP模式" />
+                            <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                            <Border Width="100" Height="28" Margin="5,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding EnterAtpTxChannel}" />
                             </Border>
-
-                            <Border
-                                Width="180"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="0x00 02 00 01 00 00 00 01" />
+                            <Border Width="180" Height="28" Margin="10,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x00 01 00 01 00 00 00 00" />
                             </Border>
-
-                            <Button
-                                Width="50"
-                                Height="28"
-                                Margin="15,0,0,0"
-                                VerticalAlignment="Center"
-                                BorderThickness="0"
-                                Command="{Binding SendExitAtpCommand}">
+                            <Button Width="50" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding SendEnterAtpCommand}">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
-                                        <Border
-                                            x:Name="border"
-                                            Background="#3b82f6"
-                                            CornerRadius="4">
+                                        <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
                                             <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                <TextBlock
-                                                    x:Name="DeviceAction"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    FontSize="14"
-                                                    Foreground="White"
-                                                    Text="发送" />
+                                                <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送" />
                                             </StackPanel>
                                         </Border>
                                         <ControlTemplate.Triggers>
@@ -689,51 +326,275 @@
                             </Button>
                         </StackPanel>
 
-                        <StackPanel
-                            Grid.Row="1"
-                            Margin="115,5,5,5"
-                            Orientation="Horizontal">
-                            <TextBlock
-                                Grid.Column="0"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="RX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding ExitAtpRxChannel}" />
+                        <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
+                            <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="RX" />
+                            <Border Width="100" Height="28" Margin="5,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxChannel}" />
                             </Border>
-
-                            <Border
-                                Width="180"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding ExitAtpRxDataText}" />
+                            <Border Width="180" Height="28" Margin="10,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxData32Text}" />
                             </Border>
                         </StackPanel>
                     </Grid>
-                </Grid>
+
+                    <StackPanel Grid.Row="2" Margin="5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="3.电源处电流值" />
+
+                        <Button Width="70" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding ReadPowerSupplyMeasurementsCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="#22c55e" CornerRadius="4">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                            <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="记录" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            <Setter Property="Cursor" Value="Arrow" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <Border Width="120" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" FontSize="12" Text="{Binding DmmVoltage32Text}" />
+                        </Border>
+                        <Border Width="120" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" FontSize="12" Text="{Binding PowerSupplyMeasuredCurrent32Text}" />
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="3" Margin="5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="4.发送指令 AB_28V_SUPPLY" />
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding SetVoltageTxChannel}" />
+                        </Border>
+                        <Border Width="180" Height="28" Margin="10,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x01 01 01 01 00 00 00 00" />
+                        </Border>
+                        <Button Width="50" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding SendSetVoltageCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                            <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            <Setter Property="Cursor" Value="Arrow" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="4" Margin="5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="5.二次电源回采值(15V_VBIT/5V_VBIT)" />
+                        <Border Width="430" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" Background="LightYellow" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" FontSize="12" Text="{Binding TelemetryVoltage32Text}" />
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="5" Margin="5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="6.断开控制通道供电" />
+                        <Button Width="70" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding PowerSupplyOutputOffCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="#ef4444" CornerRadius="4">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                            <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="断电" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            <Setter Property="Cursor" Value="Arrow" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="6" Margin="5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="7.向控制通道供电 28V" />
+                        <Button Width="70" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Supply28vCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                            <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="28V" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            <Setter Property="Cursor" Value="Arrow" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+
+                    <Grid Grid.Row="7">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="5" Orientation="Horizontal">
+                            <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="8.进入ATP模式" />
+                            <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                            <Border Width="100" Height="28" Margin="5,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding EnterAtpTxChannel}" />
+                            </Border>
+                            <Border Width="180" Height="28" Margin="10,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x00 01 00 01 00 00 00 00" />
+                            </Border>
+                            <Button Width="50" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding SendEnterAtpCommand}">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送" />
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                <Setter Property="Cursor" Value="Arrow" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
+                            <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="RX" />
+                            <Border Width="100" Height="28" Margin="5,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxChannel}" />
+                            </Border>
+                            <Border Width="180" Height="28" Margin="10,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxData28Text}" />
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Grid.Row="8" Margin="5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="9.电源处电流值" />
+
+                        <Button Width="70" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding ReadPowerSupplyMeasurementsCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="#22c55e" CornerRadius="4">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                            <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="记录" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            <Setter Property="Cursor" Value="Arrow" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <Border Width="120" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" FontSize="12" Text="{Binding DmmVoltage28Text}" />
+                        </Border>
+                        <Border Width="120" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" FontSize="12" Text="{Binding PowerSupplyMeasuredCurrent28Text}" />
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="9" Margin="5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="10.发送指令 AB_28V_SUPPLY" />
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
+                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding SetVoltageTxChannel}" />
+                        </Border>
+                        <Border Width="180" Height="28" Margin="10,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x01 01 01 01 00 00 00 00" />
+                        </Border>
+                        <Button Width="50" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding SendSetVoltageCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                            <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            <Setter Property="Cursor" Value="Arrow" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="10" Margin="5" Orientation="Horizontal">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="11.二次电源回采值(15V_VBIT/5V_VBIT)" />
+                        <Border Width="430" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" Background="LightYellow" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                            <TextBlock Margin="1" FontSize="12" Text="{Binding TelemetryVoltage28Text}" />
+                        </Border>
+                    </StackPanel>
+                    </Grid>
+                </ScrollViewer>
 
                 <StackPanel
                     Grid.Row="0"
