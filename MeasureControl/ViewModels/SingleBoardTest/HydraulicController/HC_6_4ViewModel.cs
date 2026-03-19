@@ -87,6 +87,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
+        private bool _isManualTestInitializing;
+        private bool _isAutoTestInitializing;
+        private bool _isManualTestStopping;
+        private bool _isAutoTestStopping;
+        private bool _canMeasure;
 
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
@@ -119,12 +124,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private double? _p3Sys1;
         private double? _p3Sys2;
         private double? _p3Sys3;
-
-        private bool _canMeasure;
-        private bool _isManualTestInitializing;
-        private bool _isAutoTestInitializing;
-        private bool _isManualTestStopping;
-        private bool _isAutoTestStopping;
 
         public HC_6_4ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
         {
@@ -500,7 +499,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnManualTestAsync()
         {
-            if (IsManualTestRunning)
+            if (IsManualTestStopping)
+            {
+                return;
+            }
+
+            if (IsManualTestRunning || IsManualTestInitializing)
             {
                 await StopManualTestAsync().ConfigureAwait(false);
                 return;
@@ -553,7 +557,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnAutoTestAsync()
         {
-            if (IsAutoTestRunning)
+            if (IsAutoTestStopping)
+            {
+                return;
+            }
+
+            if (IsAutoTestRunning || IsAutoTestInitializing)
             {
                 await StopAutoTestAsync().ConfigureAwait(false);
                 return;
@@ -741,7 +750,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             if (!TryGetValidatedCustomVoltage(out var voltage))
             {
-                Log("自定义电压输入无效，请输入 0~10V，且最多 1 位小数");
+                Log("自定义电压输入无效，请输入 0~7.17V，且最多 2 位小数");
                 RefreshMeasureCommands();
                 return;
             }
@@ -1024,6 +1033,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task StopManualTestAsync()
         {
+            if (IsManualTestStopping)
+            {
+                return;
+            }
+
             IsManualTestStopping = true;
             IsManualTestInitializing = false;
             try
@@ -1053,6 +1067,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task StopAutoTestAsync()
         {
+            if (IsAutoTestStopping)
+            {
+                return;
+            }
+
             IsAutoTestStopping = true;
             IsAutoTestInitializing = false;
             try
@@ -1197,7 +1216,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     if (hasDot)
                     {
-                        if (decimalCount >= 1)
+                        if (decimalCount >= 2)
                             continue;
 
                         decimalCount++;
@@ -1230,8 +1249,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!double.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out voltage))
                 return false;
 
-            voltage = Math.Truncate(voltage * 10d) / 10d;
-            return voltage >= 0d && voltage <= 10d;
+            voltage = Math.Truncate(voltage * 100d) / 100d;
+            return voltage >= 0d && voltage <= 7.17d;
         }
 
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
