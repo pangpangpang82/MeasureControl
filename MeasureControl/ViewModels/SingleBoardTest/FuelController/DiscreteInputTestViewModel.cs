@@ -37,9 +37,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const int HardwareTimeoutMs = 3000;
 
         /// <summary>
-        /// 继电器控制通道，使用7131板卡的DO15
+        /// 继电器控制通道，使用7131板卡的DO14（物理DO15映射到API的DO14）
         /// </summary>
-        private const string RelayControlChannel = "DO15";
+        private const string RelayControlChannel = "DO14";
 
         #endregion
 
@@ -63,11 +63,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private FpgaIoClient _fpga;
         private bool _fpgaConnected;
 
-        // DO1-DO14通道名称（用于给J30J提供地/开信号）
+        // DO0-DO13通道名称（物理DO1-DO14映射到API的DO0-DO13）
         private static readonly string[] DoChannels = new[]
         {
-            "DO1", "DO2", "DO3", "DO4", "DO5", "DO6", "DO7",
-            "DO8", "DO9", "DO10", "DO11", "DO12", "DO13", "DO14"
+            "DO0", "DO1", "DO2", "DO3", "DO4", "DO5", "DO6",
+            "DO7", "DO8", "DO9", "DO10", "DO11", "DO12", "DO13"
         };
 
         #endregion
@@ -340,62 +340,117 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             if (IsAutoTestRunning)
             {
+                AddLog("正在停止自动测试...");
                 _testCts?.Cancel();
+                // 等待测试停止并重置状态
+                await Task.Delay(200);
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsAutoTestRunning = false;
+                    _hardwareInitialized = false;
+                    UpdateCommandStates();
+                });
+                AddLog("自动测试已停止");
                 return;
             }
 
-            IsAutoTestRunning = true;
             _testCts = new CancellationTokenSource();
-
             try
             {
-                AddLog("========== 自动测试开始 ==========");
-
-                // 1. 初始化硬件
-                await InitializeHardwareAsync(_testCts.Token);
-
-                // 2. 执行接地测试
-                AddLog("--- 步骤a: 接地测试 ---");
-                AddLog("正在设置接地信号...");
-                await SetDoOutputAsync(true, _testCts.Token);
-                await Task.Delay(500);//继电器动作时间
-                bool groundedPass = await PerformGroundedTestAsync(_testCts.Token);
-                
-                // 3. 执行开路测试
-                AddLog("--- 步骤b: 开路测试 ---");
-                AddLog("正在设置开路信号...");
-                await SetDoOutputAsync(false, _testCts.Token);
-                await Task.Delay(500);//继电器动作时间
-                bool openPass = await PerformOpenTestAsync(_testCts.Token);
-
-                // 4. 复位硬件
-                await ResetHardwareAsync(_testCts.Token);
-
-                // 5. 判定综合结果
-                bool overallPass = groundedPass && openPass;
-                Application.Current?.Dispatcher?.Invoke(() =>
-                {
-                    OverallResult = overallPass ? "PASS" : "FAIL";
-                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                });
-
-                AddLog($"========== 自动测试完成: {(overallPass ? "PASS" : "FAIL")} ==========");
+                await ExecuteAutoTestCoreAsync(_testCts.Token);
             }
             catch (OperationCanceledException)
             {
-                AddLog("自动测试已取消");
-                await SafeResetHardwareAsync();
+                // 已在 ExecuteAutoTestCoreAsync 中处理
             }
             catch (Exception ex)
             {
                 AddLog($"自动测试异常: {ex.Message}");
-                await SafeResetHardwareAsync();
             }
             finally
             {
-                IsAutoTestRunning = false;
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsAutoTestRunning = false;
+                    _hardwareInitialized = false;
+                    UpdateCommandStates();
+                });
+                _testCts?.Dispose();
+                _testCts = null;
+            }
+        }
+
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                _testCts?.Cancel();
+                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            _testCts?.Cancel();
+            _testCts?.Dispose();
+            _testCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                return await ExecuteAutoTestCoreAsync(_testCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
                 _hardwareInitialized = false;
                 UpdateCommandStates();
+                _testCts?.Dispose();
+                _testCts = null;
+            }
+        }
+
+        private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token)
+        {
+            Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = true);
+            AddLog("========== 自动测试开始 ==========");
+
+            try
+            {
+                await InitializeHardwareAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                AddLog("--- 步骤a: 接地测试 ---");
+                await SetDoOutputAsync(true, token).ConfigureAwait(false);
+                await Task.Delay(500, token).ConfigureAwait(false);
+                bool groundedPass = await PerformGroundedTestAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                AddLog("--- 步骤b: 开路测试 ---");
+                await SetDoOutputAsync(false, token).ConfigureAwait(false);
+                await Task.Delay(500, token).ConfigureAwait(false);
+                bool openPass = await PerformOpenTestAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+
+                bool overallPass = groundedPass && openPass;
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    OverallResult = overallPass ? "合格" : "不合格";
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                });
+
+                AddLog($"========== 自动测试完成: {OverallResult} ==========");
+                return OverallResult;
+            }
+            catch (OperationCanceledException)
+            {
+                AddLog("自动测试已取消");
+                await SafeResetHardwareAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"自动测试异常: {ex.Message}");
+                await SafeResetHardwareAsync().ConfigureAwait(false);
+                return "不合格";
             }
         }
 
@@ -949,6 +1004,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 {
                     // 确保7131板卡已连接并启动
                     //await _jy7131Api.EnsureConnectedAndRunningAsync(token);
+                    if (!_jy7131Api.IsRunning)
+                    {
+                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
+                        await _jy7131Api.StartAsync(token);
+                        AddLog("7131板卡已启动");
+                    }
 
                     //打开前四路 485 继电器
                     AddLog("正在打开 485 继电器前 4 路...");
@@ -977,11 +1038,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     try
                     {
                         var mask = await _jy7131Api.ReadDoBitmaskAsync(token);
-                        // DO1-DO14对应bit1-bit14（DO1=bit1, DO2=bit2, ..., DO14=bit14）
-                        uint expectedMask = grounded ? 0x7FFEu : 0x0000u;
-                        uint actualDo1To14 = mask & 0x7FFEu;
-                        bool verified = (grounded && actualDo1To14 == expectedMask) || (!grounded && actualDo1To14 == 0);
-                        AddLog($"DO回读验证: mask=0x{mask:X8}, DO1-14=0x{actualDo1To14:X4}, 期望=0x{expectedMask:X4}, {(verified ? "✓" : "✗")}");
+                        // DO0-DO13对应bit0-bit13
+                        uint expectedMask = grounded ? 0x3FFFu : 0x0000u;
+                        uint actualDo0To13 = mask & 0x3FFFu;
+                        bool verified = (grounded && actualDo0To13 == expectedMask) || (!grounded && actualDo0To13 == 0);
+                        AddLog($"DO回读验证: mask=0x{mask:X8}, DO0-13=0x{actualDo0To13:X4}, 期望=0x{expectedMask:X4}, {(verified ? "✓" : "✗")}");
                 }
                 catch (Exception ex)
                 {
@@ -1018,6 +1079,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 {
                     //await _jy7131Api.EnsureConnectedAndRunningAsync(token);
 
+                    if (!_jy7131Api.IsRunning)
+                    {
+                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
+                        await _jy7131Api.StartAsync(token);
+                        AddLog("7131板卡已启动");
+                    }
+
                     
 
                     // 2. 再输出 DO15
@@ -1026,8 +1094,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                     // 回读验证
                     var mask = await _jy7131Api.ReadDoBitmaskAsync(token);
-                    bool do15State = (mask & (1u << 15)) != 0;
-                    AddLog($"继电器已激活: DO15={do15State}");
+                    bool do14State = (mask & (1u << 14)) != 0;
+                    AddLog($"继电器已激活: DO14={do14State}");
                     
                     await Task.Delay(200, token); // 等待继电器动作完成
                 }
