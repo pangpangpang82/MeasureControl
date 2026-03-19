@@ -25,7 +25,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private const string PowerSupplyIpAddress = "192.168.1.15";
         private const double InputVoltageV = 28.0;
-        private const double InputCurrentA = 0.1;
+        private const double InputCurrentA = 3.0;
+
+        private const int DmmTimeoutMs = 2000;
 
         private const int MatrixSlotSequence = 6;
         private const int MatrixSlotCommon = 4;
@@ -33,6 +35,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
         private readonly ProjectService _projectService;
         private readonly IEventAggregator _eventAggregator;
+        private readonly IComponentPowerStateApi _componentPowerStateApi;
         private readonly IDmmApi _dmm;
         private IPowerSupplyApi _power;
 
@@ -55,21 +58,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             ISingleBoardTestContextService singleBoardTestContext,
             ProjectService projectService,
             IEventAggregator eventAggregator,
-            IDmmApi dmm)
+            IDmmApi dmm,
+            IComponentPowerStateApi componentPowerStateApi = null)
         {
             _singleBoardTestContext = singleBoardTestContext;
             _projectService = projectService;
             _eventAggregator = eventAggregator;
             _dmm = dmm;
+            _componentPowerStateApi = componentPowerStateApi;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
-
-            Items.Add(new VoltageItemViewModel(this, "a)", "15V检测", "J83", "J91", nominal: 15.0, tolerance: 1.5) { ColumnIndex = 30 });
-            Items.Add(new VoltageItemViewModel(this, "b)", "-15V检测", "J84", "J91", nominal: -15.0, tolerance: 1.5) { ColumnIndex = 31 });
-            Items.Add(new VoltageItemViewModel(this, "c)", "5V检测", "J97", "J94", nominal: 5.0, tolerance: 0.5) { ColumnIndex = 32 });
-            Items.Add(new VoltageItemViewModel(this, "d)", "3.3V检测", "J98", "J94", nominal: 3.3, tolerance: 0.33) { ColumnIndex = 33 });
+            Items.Add(new VoltageItemViewModel(this, "a)", "15V检测", "J83", "J91", nominal: 15.0, tolerance: 1.5) { ColumnIndex = 15 });
+            Items.Add(new VoltageItemViewModel(this, "b)", "-15V检测", "J84", "J91", nominal: -15.0, tolerance: 1.5) { ColumnIndex = 16 });
+            Items.Add(new VoltageItemViewModel(this, "c)", "5V检测", "J97", "J94", nominal: 5.0, tolerance: 0.5) { ColumnIndex = 17 });
+            Items.Add(new VoltageItemViewModel(this, "d)", "3.3V检测", "J98", "J94", nominal: 3.3, tolerance: 0.33) { ColumnIndex = 18 });
 
             LoadPersistedState();
             _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
@@ -88,7 +92,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         public bool IsPowerOn
         {
             get => _isPowerOn;
-            private set => SetProperty(ref _isPowerOn, value);
+            private set
+            {
+                if (SetProperty(ref _isPowerOn, value))
+                {
+                    RaiseCanExecuteChangedForItems();
+                }
+            }
         }
 
         public string PowerStatus
@@ -191,10 +201,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 var okCommon = await matrix.ConnectNodesAsync("I4", "O2", MatrixSlotCommon, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
                 Log($"矩阵公共通路 I4-O2(slot{MatrixSlotCommon}) {(okCommon ? "OK" : "FAIL")}");
 
-                Log($"电源: CH1/CH2 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
+                Log($"电源: CH1 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
                 await EnsurePowerAsync(InputVoltageV, _cts.Token).ConfigureAwait(false);
-                IsPowerOn = true;
-                PowerStatus = "已供电";
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsPowerOn = true;
+                    PowerStatus = "已供电";
+                });
 
                 if (!okCommon)
                 {
@@ -252,10 +265,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                     return;
                 }
 
-                Log($"电源: CH1/CH2 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
+                Log($"电源: CH1 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
                 await EnsurePowerAsync(InputVoltageV, _cts.Token).ConfigureAwait(false);
-                IsPowerOn = true;
-                PowerStatus = "已供电";
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsPowerOn = true;
+                    PowerStatus = "已供电";
+                });
 
                 foreach (var item in Items)
                 {
@@ -349,7 +365,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         {
             try
             {
-                return await _dmm.ReadOnceAsync(DmmMeasureMode.DCV, new DmmReadOptions { TimeoutMilliseconds = 8000 }, token).ConfigureAwait(false);
+                return await _dmm.ReadOnceAsync(DmmMeasureMode.DCV, new DmmReadOptions { TimeoutMilliseconds = DmmTimeoutMs }, token).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -445,10 +461,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             await CleanupPowerAsync().ConfigureAwait(false);
 
-            IsPowerOn = false;
-            PowerStatus = "未供电";
-
-            RaiseCanExecuteChangedForItems();
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsPowerOn = false;
+                PowerStatus = "未供电";
+                RaiseCanExecuteChangedForItems();
+            });
         }
 
         private void RaiseCanExecuteChangedForItems()
@@ -542,12 +560,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task EnsurePowerAsync(double voltageV, CancellationToken cancellationToken)
         {
+            if (_componentPowerStateApi != null)
+            {
+                await _componentPowerStateApi.ApplyComponent28VStateAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
             _power ??= new PowerSupplySocketApi();
             await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
             await _power.ApplyAsync(PowerSupplyChannel.CH1, voltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
-            await _power.ApplyAsync(PowerSupplyChannel.CH2, voltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
             await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, true, cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 
@@ -555,10 +577,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         {
             try
             {
+                if (_componentPowerStateApi != null)
+                {
+                    try { await _componentPowerStateApi.ApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                }
+
                 if (_power != null)
                 {
                     try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, false, CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
                 }

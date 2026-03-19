@@ -54,6 +54,7 @@ namespace MeasureControl.Services.HardwareApis
         bool IsOutputRunning { get; }  // 是否正在输出
 
         Task ConnectAsync(CancellationToken cancellationToken = default);  // 连接到板卡
+        Task ConnectAsync(CancellationToken cancellationToken = default, IEnumerable<string> enabledAoChannels = null);
         Task DisconnectAsync(CancellationToken cancellationToken = default);  // 断开板卡连接
 
         Task SetSampleRateAsync(double sampleRateHz, CancellationToken cancellationToken = default);
@@ -103,7 +104,12 @@ namespace MeasureControl.Services.HardwareApis
         /// <summary>
         /// 连接到 MTX532 模拟量输出板卡
         /// </summary>
-        public async Task ConnectAsync(CancellationToken cancellationToken = default)
+        public Task ConnectAsync(CancellationToken cancellationToken = default)
+        {
+            return ConnectAsync(cancellationToken, enabledAoChannels: null);
+        }
+
+        public async Task ConnectAsync(CancellationToken cancellationToken = default, IEnumerable<string> enabledAoChannels = null)
         {
             await _lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -112,6 +118,17 @@ namespace MeasureControl.Services.HardwareApis
                     return;
 
                 _driver = new MTX532Driver(_device, suppressNativeDialogs: _options.SuppressNativeDialogs, slotNumberOverride: _slotNumber);
+
+                if (enabledAoChannels != null)
+                {
+                    var normalized = enabledAoChannels
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Select(x => NormalizeAoChannel(x))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    _driver.SetEnabledChannels(normalized);
+                }
+
                 var ok = await _driver.ConnectAsync().ConfigureAwait(false);
                 if (!ok)
                     throw new InvalidOperationException("MTX532 connect returned false");
@@ -460,7 +477,7 @@ namespace MeasureControl.Services.HardwareApis
             if (sampleRateHz <= 0)
                 return;
 
-            for (int i = 1; i <= 32; i++)
+            for (int i = 0; i < 32; i++)
             {
                 var ch = NormalizeAoChannel($"AO{i}");
                 var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -476,7 +493,7 @@ namespace MeasureControl.Services.HardwareApis
         /// </summary>
         private async Task ResetAllToZeroInternalAsync(bool disableAfterReset)
         {
-            for (int i = 1; i <= 32; i++)
+            for (int i = 0; i < 32; i++)
             {
                 var ch = NormalizeAoChannel($"AO{i}");
                 var cfg = new Mtx532ChannelConfig
@@ -495,7 +512,10 @@ namespace MeasureControl.Services.HardwareApis
         }
 
         /// <summary>
-        /// 将外部通道名（AO1-AO32）转换为内部驱动通道名（AO0-AO31）
+        /// 将外部通道名转换为内部驱动通道名（AO0-AO31）
+        /// 兼容两种命名：
+        /// - AO0-AO31（推荐，和板卡测试界面/驱动一致）
+        /// - AO1-AO32（历史兼容）
         /// </summary>
         private static string NormalizeAoChannel(string channel)
         {
@@ -510,10 +530,16 @@ namespace MeasureControl.Services.HardwareApis
             if (!int.TryParse(num, NumberStyles.Integer, CultureInfo.InvariantCulture, out var idx))
                 throw new ArgumentException("Invalid AO channel index", nameof(channel));
 
-            if (idx < 1 || idx > 32)
-                throw new ArgumentOutOfRangeException(nameof(channel), "AO channel index must be 1..32");
+            // 约定：
+            // - 只有输入 AO0 时，才认为调用方显式使用内部编号。
+            // - AO1-AO32 统一按外部端子/文档编号处理，映射到内部 AO0-AO31。
+            // 这样可避免常见歧义：例如输入 "AO2"，更符合外部端子 2 的语义（内部应为 AO1）。
+            if (idx == 0)
+                return "AO0";
+            if (idx >= 1 && idx <= 32)
+                return $"AO{idx - 1}";
 
-            return $"AO{idx - 1}";
+            throw new ArgumentOutOfRangeException(nameof(channel), "AO channel index must be 0 or 1..32");
         }
 
         public async ValueTask DisposeAsync()

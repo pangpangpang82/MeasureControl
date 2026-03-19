@@ -195,94 +195,63 @@
                             <TextBlock Text="前置条件：控制板下电；按测试项目提示连接万用表两表笔后点击‘测量’" FontWeight="Bold" Foreground="#92400e" />
                         </Border>
 
-                        <Border Margin="0,5,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="3">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="140" />
-                                    <ColumnDefinition Width="60" />
-                                    <ColumnDefinition Width="100" />
-                                    <ColumnDefinition Width="110" />
-                                    <ColumnDefinition Width="55" />
-                                    <ColumnDefinition Width="60" />
-                                </Grid.ColumnDefinitions>
+                        <Border Margin="0,5,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <ItemsControl ItemsSource="{Binding Items}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,10,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="120" />
+                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="70" />
+                                            </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="序号" Margin="2" />
-                                <TextBlock Grid.Row="0" Grid.Column="1" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="测试项目" Margin="2" />
-                                <TextBlock Grid.Row="0" Grid.Column="2" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="信号引脚" Margin="2" />
-                                <TextBlock Grid.Row="0" Grid.Column="3" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="参考引脚" Margin="2" />
-                                <TextBlock Grid.Row="0" Grid.Column="4" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="测量值(Ω)" Margin="2" />
-                                <TextBlock Grid.Row="0" Grid.Column="5" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="结果" Margin="2" />
-                                <TextBlock Grid.Row="0" Grid.Column="6" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="操作" Margin="2" />
+                                            <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="18" Foreground="#111827" VerticalAlignment="Center" />
 
-                                <ItemsControl Grid.Row="1" Grid.ColumnSpan="7" ItemsSource="{Binding Items}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid Margin="0,2">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="140" />
-                                                    <ColumnDefinition Width="60" />
-                                                    <ColumnDefinition Width="100" />
-                                                    <ColumnDefinition Width="110" />
-                                                    <ColumnDefinition Width="55" />
-                                                    <ColumnDefinition Width="60" />
-                                                </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="1" Text="{Binding ImpedanceText}" FontSize="18" Foreground="#111827" HorizontalAlignment="Center" VerticalAlignment="Center" />
 
-                                                <TextBlock Grid.Column="0" Text="{Binding IndexText}" Width="34" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center" Margin="4,0" />
+                                            <TextBlock Grid.Column="2" Text="{Binding Result}" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#6b7280" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Result}" Value="PASS">
+                                                                <Setter Property="Foreground" Value="#16a34a" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Result}" Value="FAIL">
+                                                                <Setter Property="Foreground" Value="#dc2626" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
 
-                                                <ComboBox Grid.Column="2" Height="22" FontSize="12" SelectedItem="{Binding SignalPin}" ItemsSource="{Binding SignalPinOptions}" Margin="1" />
-                                                <ComboBox Grid.Column="3" Height="22" FontSize="12" SelectedItem="{Binding GroundPin}" ItemsSource="{Binding GroundPinOptions}" Margin="1" />
-
-                                                <TextBlock Grid.Column="4" Text="{Binding ImpedanceText}" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
-
-                                                <TextBlock Grid.Column="5" Text="{Binding Result}" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="#6b7280" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Result}" Value="PASS">
-                                                                    <Setter Property="Foreground" Value="#16a34a" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding Result}" Value="FAIL">
-                                                                    <Setter Property="Foreground" Value="#dc2626" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-
-                                                <Button Grid.Column="6" Width="52" Height="22" Margin="1" BorderThickness="0" Command="{Binding MeasureCommand}">
-                                                    <Button.Template>
-                                                        <ControlTemplate TargetType="Button">
-                                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
-                                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Foreground="White" Text="测量" />
-                                                            </Border>
-                                                            <ControlTemplate.Triggers>
-                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                                </Trigger>
-                                                                <Trigger Property="IsPressed" Value="True">
-                                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                                </Trigger>
-                                                                <Trigger Property="IsEnabled" Value="False">
-                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                                    <Setter Property="Cursor" Value="Arrow" />
-                                                                </Trigger>
-                                                            </ControlTemplate.Triggers>
-                                                        </ControlTemplate>
-                                                    </Button.Template>
-                                                </Button>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </Grid>
+                                            <Button Grid.Column="3" Width="60" Height="28" Margin="0" BorderThickness="0" Command="{Binding MeasureCommand}">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="测量" />
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsPressed" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                                <Setter Property="Cursor" Value="Arrow" />
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </Border>
 
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">

@@ -182,10 +182,17 @@ namespace MeasureControl.Services
                 });
                 testTasks.Children.Add(new ProjectItem
                 {
-                    Name = "惰化单板",
+                    Name = "惰化模拟板",
                     Icon = AppConstants.IconTasks,
                     Type = AppConstants.NodeTypeTestTask,
-                    Tag = "惰化单板"
+                    Tag = "惰化模拟板"
+                });
+                testTasks.Children.Add(new ProjectItem
+                {
+                    Name = "惰化控制板",
+                    Icon = AppConstants.IconTasks,
+                    Type = AppConstants.NodeTypeTestTask,
+                    Tag = "惰化控制板"
                 });
                 testTasks.Children.Add(new ProjectItem
                 {

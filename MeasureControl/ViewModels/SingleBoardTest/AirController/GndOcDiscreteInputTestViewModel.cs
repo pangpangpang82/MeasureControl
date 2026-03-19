@@ -55,7 +55,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _exitAtpRxDataText = "--";
 
         // 工装继电器配置（后端常量）
-        private const string RelayComPort = "COM14";      // 485继电器板串口
+        private const string RelayComPort = "COM27";      // 485继电器板串口
         private const int RelayIndex = 0;                   // 继电器通道号
         private const int RelaySettleDelayMs = 120;         // 切换后稳定延时
 
