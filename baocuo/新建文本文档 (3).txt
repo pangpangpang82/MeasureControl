@@ -1,0 +1,3 @@
+严重性	代码	说明	项目	文件	行	抑制状态
+错误(活动)	CS0136	无法在此范围中声明名为“pxi”的局部变量或参数，因为该名称在封闭局部范围中用于定义局部变量或参数	MeasureControl	C:\Users\HY\Desktop\duohua\20\MeasureControl\ViewModels\SingleBoardTest\InertController\PressureSensorSignalAcquisitionTestViewModel.cs	560	
+  var pxi = ContainerLocator.Container.Resolve<IPxiChassisService>();

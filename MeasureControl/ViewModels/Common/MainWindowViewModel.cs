@@ -619,10 +619,17 @@ namespace MeasureControl.ViewModels.Common
                 });
                 testTasks.Children.Add(new ProjectItem
                 {
-                    Name = "惰化单板",
+                    Name = "惰化模拟板",
                     Icon = AppConstants.IconTasks,
                     Type = AppConstants.NodeTypeTestTask,
-                    Tag = "惰化单板"
+                    Tag = "惰化模拟板"
+                });
+                testTasks.Children.Add(new ProjectItem
+                {
+                    Name = "惰化控制板",
+                    Icon = AppConstants.IconTasks,
+                    Type = AppConstants.NodeTypeTestTask,
+                    Tag = "惰化控制板"
                 });
                 testTasks.Children.Add(new ProjectItem
                 {
@@ -638,6 +645,45 @@ namespace MeasureControl.ViewModels.Common
                     Type = AppConstants.NodeTypeTestTask,
                     Tag = "液压单板"
                 });
+            }
+
+            try
+            {
+                var legacy = testTasks.Children.FirstOrDefault(c => c != null
+                    && c.Type == AppConstants.NodeTypeTestTask
+                    && (string.Equals(c.Tag as string, "惰化单板", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(c.Name, "惰化单板", StringComparison.OrdinalIgnoreCase)));
+
+                if (legacy != null)
+                {
+                    var index = testTasks.Children.IndexOf(legacy);
+                    if (index < 0)
+                        index = 0;
+
+                    testTasks.Children.Remove(legacy);
+
+                    var sim = new ProjectItem
+                    {
+                        Name = "惰化模拟板",
+                        Icon = AppConstants.IconTasks,
+                        Type = AppConstants.NodeTypeTestTask,
+                        Tag = "惰化模拟板"
+                    };
+
+                    var control = new ProjectItem
+                    {
+                        Name = "惰化控制板",
+                        Icon = AppConstants.IconTasks,
+                        Type = AppConstants.NodeTypeTestTask,
+                        Tag = "惰化控制板"
+                    };
+
+                    testTasks.Children.Insert(index, sim);
+                    testTasks.Children.Insert(index + 1, control);
+                }
+            }
+            catch
+            {
             }
 
             foreach (var task in testTasks.Children.Where(c => c != null && c.Type == AppConstants.NodeTypeTestTask))

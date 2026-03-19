@@ -1,36 +1,45 @@
-using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
 using MeasureControl.Drivers;
+using MeasureControl.Models.Devices;
 using Prism.Commands;
 using Prism.Mvvm;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using MeasureControl.Services;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 {
     public sealed class LatchModuleCircuitTestViewModel : BindableBase, IDisposable
     {
-        private const string DmmIpAddress = "192.168.1.13";
-        private const string MatrixIpAddress = "192.168.1.3";
-        private const int MatrixTcpBasePort = 50200;
+        private const string FpgaServerIpAddress = "192.168.1.10";
+        private const int FpgaServerPort = 5001;
+
+        //private const string FpgaServerIpAddress = "192.168.1.2";
+        //private const int FpgaServerPort = 5011;
 
         private const string PowerSupplyIpAddress = "192.168.1.15";
-        private const double InputCurrentA = 0.1;
-
-        private const int MatrixSlotSequence = 6;
-        private const int MatrixSlotCommon = 4;
-
-        private readonly IDmmApi _dmm;
+        private const double MainPowerCurrentA = 1.0;
+        private const double LatchSupplyCurrentA = 0.1;
         private readonly IPxiChassisService _pxiChassisService;
 
         private IPowerSupplyApi _power;
-        private ACTS6010Driver _resistor;
+        private IPxi7012Api _resistor;
+        private uint? _connectedResistorLogicalId;
+
+        private TcpClient _fpgaClient;
+        private NetworkStream _fpgaStream;
+
+        private readonly SemaphoreSlim _fpgaSendLock = new SemaphoreSlim(1, 1);
+        private uint _fpgaGpioWriteMask;
+
+        private uint? _lastFpgaGpioInput;
+        private DateTime? _lastFpgaGpioInputTime;
 
         private readonly SemaphoreSlim _opLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _resistorLock = new SemaphoreSlim(1, 1);
@@ -49,11 +58,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private PowerSupplyChannel _latchSupplyChannel = PowerSupplyChannel.CH3;
 
-        private readonly Dictionary<string, string> _pinMatrixPointMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        public LatchModuleCircuitTestViewModel(IDmmApi dmm, IPxiChassisService pxiChassisService)
+        public LatchModuleCircuitTestViewModel(IPxiChassisService pxiChassisService)
         {
-            _dmm = dmm;
             _pxiChassisService = pxiChassisService;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
@@ -77,7 +83,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         public bool IsPowerOn
         {
             get => _isPowerOn;
-            private set => SetProperty(ref _isPowerOn, value);
+            private set
+            {
+                if (SetProperty(ref _isPowerOn, value))
+                {
+                    RaiseCanExecuteChanged();
+                }
+            }
         }
 
         public string PowerStatus
@@ -134,6 +146,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             private set => SetProperty(ref _lastTestTime, value);
         }
 
+        public uint? LastFpgaGpioInput
+        {
+            get => _lastFpgaGpioInput;
+            private set => SetProperty(ref _lastFpgaGpioInput, value);
+        }
+
         public PowerSupplyChannel LatchSupplyChannel
         {
             get => _latchSupplyChannel;
@@ -167,7 +185,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             item.Steps.Add(new LatchStepViewModel(this, item,
                 stepName: "c)",
-                actionDescription: "J34 供电3.3V",
+                actionDescription: "J34 动作(FPGA GPIO)",
                 resistanceOhm: null,
                 inject3v3: true,
                 expected: "低电平(0±0.1V)",
@@ -203,7 +221,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             item.Steps.Add(new LatchStepViewModel(this, item,
                 stepName: "c)",
-                actionDescription: "J35 供电3.3V",
+                actionDescription: "J35 动作(FPGA GPIO)",
                 resistanceOhm: null,
                 inject3v3: true,
                 expected: "低电平(0±0.1V)",
@@ -240,25 +258,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             try
             {
-                await _dmm.ConnectAsync(DmmIpAddress, _cts.Token).ConfigureAwait(false);
-                Log($"万用表连接成功: {DmmIpAddress}");
+                ResetFpgaCapture();
 
-                var matrix = MatrixControlService.Instance;
-                var okCommon = await matrix.ConnectNodesAsync("I4", "O2", MatrixSlotCommon, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-                Log($"矩阵公共通路 I4-O2(slot{MatrixSlotCommon}) {(okCommon ? "OK" : "FAIL")}");
-
-                Log($"电源: CH1/CH2 28V, IP={PowerSupplyIpAddress}");
+                Log($"电源: CH1 28V 1A, IP={PowerSupplyIpAddress}");
                 await EnsureMainPowerAsync(28.0, _cts.Token).ConfigureAwait(false);
-                IsPowerOn = true;
-                PowerStatus = "已供电";
-
-                if (!okCommon)
-                {
-                    await StopTestAsync().ConfigureAwait(false);
-                    return;
-                }
-
-                Log($"锁存供电: {LatchSupplyChannel} => 3.3V (接线: PT500->J34, PT1000->J35)");
+                SetPowerState(true, "已供电");
             }
             catch (OperationCanceledException)
             {
@@ -299,22 +303,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             try
             {
-                await _dmm.ConnectAsync(DmmIpAddress, _cts.Token).ConfigureAwait(false);
-                Log($"万用表连接成功: {DmmIpAddress}");
+                ResetFpgaCapture();
 
-                var matrix = MatrixControlService.Instance;
-                var okCommon = await matrix.ConnectNodesAsync("I4", "O2", MatrixSlotCommon, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-                Log($"矩阵公共通路 I4-O2(slot{MatrixSlotCommon}) {(okCommon ? "OK" : "FAIL")}");
-                if (!okCommon)
-                {
-                    await StopTestAsync().ConfigureAwait(false);
-                    return;
-                }
-
-                Log($"电源: CH1/CH2 28V, IP={PowerSupplyIpAddress}");
+                Log($"电源: CH1 28V 1A, IP={PowerSupplyIpAddress}");
                 await EnsureMainPowerAsync(28.0, _cts.Token).ConfigureAwait(false);
-                IsPowerOn = true;
-                PowerStatus = "已供电";
+                SetPowerState(true, "已供电");
 
                 foreach (var item in Items)
                 {
@@ -377,11 +370,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 if (step.ResistanceOhm != null)
                 {
                     await ApplyResistanceAsync(step.Item, step.ResistanceOhm.Value, token).ConfigureAwait(false);
-                }
-
-                if (step.Inject3V3)
-                {
-                    await EnsureLatchSupplyAsync(step.Item, token).ConfigureAwait(false);
+                    await Task.Delay(2000).ConfigureAwait(false);
                 }
 
                 await MeasureAsync(step, token).ConfigureAwait(false);
@@ -406,18 +395,35 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                     return;
                 }
 
-                var okRelay = await _resistor.SetRelayStateAsync(item.RoChannel, pathRelayClosed: true, shortCircuitClosed: false).ConfigureAwait(false);
-                if (!okRelay)
+                var apiChannel = MapRoChannelTo7012Api(item.RoChannel);
+                try
                 {
-                    Log("设置继电器失败");
+                    await _resistor.SetRelayStateAsync(apiChannel, pathRelayClosed: true, shortCircuitClosed: false, token).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log($"设置7012继电器失败: {ex.Message}");
                     return;
                 }
 
-                var okWrite = await _resistor.WriteChannelAsync(item.RoChannel, resistanceOhm).ConfigureAwait(false);
-                if (!okWrite)
+                try
                 {
-                    Log("设置电阻失败");
+                    await _resistor.SetResistanceAsync(apiChannel, resistanceOhm, Pxi7012OutputMode.NoWait, token).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log($"设置7012电阻失败: {ex.Message}");
                     return;
+                }
+
+                try
+                {
+                    var r = await _resistor.GetResistanceAsync(apiChannel, token).ConfigureAwait(false);
+                    Log($"电阻回读: {r.ToString("0.###", CultureInfo.InvariantCulture)}Ω");
+                }
+                catch (Exception ex)
+                {
+                    Log($"电阻回读异常: {ex.Message}");
                 }
 
                 await Task.Delay(50, token).ConfigureAwait(false);
@@ -436,114 +442,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         {
             Log($"开始测量: {step.Item.MeasurePin}({step.Item.MeasurePinName}) {step.ActionDescription}");
 
-            var matrixPoint = ResolveMatrixPointForPin(step.Item.MeasurePin);
-            if (string.IsNullOrWhiteSpace(matrixPoint))
-            {
-                step.UpdateMeasurement(null, "--", "--", measured: true);
-                Log($"未配置引脚矩阵映射: {step.Item.MeasurePin}");
-                return;
-            }
-
-            var matrix = MatrixControlService.Instance;
-            var ok = await matrix.ConnectNodesAsync("I1", matrixPoint, MatrixSlotSequence, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-            Log($"矩阵连接 I1-{matrixPoint}(slot{MatrixSlotSequence}) {(ok ? "OK" : "FAIL")}");
-            if (!ok)
-            {
-                step.UpdateMeasurement(null, "--", "FAIL", measured: true);
-                return;
-            }
-
-            try
-            {
-                var reading = await SafeReadVoltageAsync(token).ConfigureAwait(false);
-                ApplyReading(step, reading);
-            }
-            finally
-            {
-                try
-                {
-                    _ = await matrix.DisconnectNodesAsync("I1", matrixPoint, MatrixSlotSequence, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-                }
-                catch
-                {
-                }
-            }
+            await MeasureFpgaIoAsync(step, token).ConfigureAwait(false);
         }
 
         private async Task EnsureLatchSupplyAsync(LatchItemViewModel item, CancellationToken token)
         {
             _power ??= new PowerSupplySocketApi();
             await _power.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
-            await _power.ApplyAsync(LatchSupplyChannel, 3.3, InputCurrentA, token).ConfigureAwait(false);
+            await _power.ApplyAsync(LatchSupplyChannel, 3.3, LatchSupplyCurrentA, token).ConfigureAwait(false);
             await _power.SetOutputEnabledAsync(LatchSupplyChannel, true, token).ConfigureAwait(false);
             await Task.Delay(300, token).ConfigureAwait(false);
             Log($"锁存供电已开启: {LatchSupplyChannel} 3.3V (请确认已接线到 {item.SupplyPin})");
-        }
-
-        private async Task<DmmReading> SafeReadVoltageAsync(CancellationToken token)
-        {
-            try
-            {
-                return await _dmm.ReadOnceAsync(DmmMeasureMode.DCV, new DmmReadOptions { TimeoutMilliseconds = 8000 }, token).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Log($"万用表读数异常: {ex.Message}");
-                return null;
-            }
-        }
-
-        private void ApplyReading(LatchStepViewModel step, DmmReading reading)
-        {
-            if (reading == null)
-            {
-                step.UpdateMeasurement(null, "--", "FAIL", measured: true);
-                return;
-            }
-
-            if (reading.IsOverrange)
-            {
-                step.UpdateMeasurement(null, "OL", "FAIL", measured: true);
-                Log("读数为OL(过量程)，判为FAIL");
-                return;
-            }
-
-            if (reading.Value == null)
-            {
-                step.UpdateMeasurement(null, "--", "FAIL", measured: true);
-                return;
-            }
-
-            var v = reading.Value.Value;
-            var text = v.ToString("0.###", CultureInfo.InvariantCulture);
-            var pass = EvaluateVoltage(step.Evaluation, v);
-
-            step.UpdateMeasurement(v, text, pass ? "PASS" : "FAIL", measured: true);
-            Log($"读数: {v:0.###} V, 期望: {step.Expected} => {(pass ? "PASS" : "FAIL")}");
-        }
-
-        private static bool EvaluateVoltage(LatchEvaluation evaluation, double v)
-        {
-            switch (evaluation)
-            {
-                case LatchEvaluation.High33:
-                    return Math.Abs(v - 3.3) <= 0.33;
-                case LatchEvaluation.Low0:
-                    return Math.Abs(v - 0.0) <= 0.1;
-                default:
-                    return false;
-            }
-        }
-
-        private string ResolveMatrixPointForPin(string pin)
-        {
-            if (string.IsNullOrWhiteSpace(pin))
-                return null;
-
-            if (_pinMatrixPointMap.TryGetValue(pin.Trim(), out var point))
-                return point;
-
-            return null;
         }
 
         private void ResetResults()
@@ -582,34 +491,50 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             IsAutoTestRunning = false;
             IsBusy = false;
 
-            try
-            {
-                var matrix = MatrixControlService.Instance;
-                _ = await matrix.DisconnectNodesAsync("I4", "O2", MatrixSlotCommon, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                await _dmm.DisconnectAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-            catch
-            {
-            }
+            try { await DisconnectFpgaTcpAsync().ConfigureAwait(false); } catch { }
 
             try { await CleanupPowerAsync().ConfigureAwait(false); } catch { }
             try { await CleanupResistorAsync().ConfigureAwait(false); } catch { }
 
-            IsPowerOn = false;
-            PowerStatus = "未供电";
+            SetPowerState(false, "未供电");
 
             RaiseCanExecuteChanged();
         }
 
+        private void SetPowerState(bool isOn, string status)
+        {
+            try
+            {
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null && !dispatcher.CheckAccess())
+                {
+                    dispatcher.BeginInvoke(new Action(() => SetPowerState(isOn, status)));
+                    return;
+                }
+            }
+            catch
+            {
+            }
+
+            IsPowerOn = isOn;
+            PowerStatus = status;
+        }
+
         private void RaiseCanExecuteChanged()
         {
+            try
+            {
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null && !dispatcher.CheckAccess())
+                {
+                    dispatcher.BeginInvoke(new Action(RaiseCanExecuteChanged));
+                    return;
+                }
+            }
+            catch
+            {
+            }
+
             foreach (var item in Items)
             {
                 foreach (var step in item.Steps)
@@ -646,10 +571,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         {
             _power ??= new PowerSupplySocketApi();
             await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
-            await _power.ApplyAsync(PowerSupplyChannel.CH1, voltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
-            await _power.ApplyAsync(PowerSupplyChannel.CH2, voltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
+            await _power.ApplyAsync(PowerSupplyChannel.CH1, voltageV, MainPowerCurrentA, cancellationToken).ConfigureAwait(false);
             await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, true, cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 
@@ -660,7 +583,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 if (_power != null)
                 {
                     try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, false, CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.SetOutputEnabledAsync(LatchSupplyChannel, false, CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
@@ -679,22 +601,47 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             if (_resistor != null && _resistor.IsConnected)
                 return true;
 
-            var device = FindFirstActs6010Device();
-            if (device == null)
+            await CleanupResistorAsync().ConfigureAwait(false);
+
+            var candidates = new uint[] { 1, 0, 2, 3, 4, 5, 6, 7 };
+            foreach (var logicalId in candidates)
             {
-                Log("未找到ACTS6010(程控电阻)板卡");
-                return false;
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    var device = new ProgrammableResistorDevice
+                    {
+                        Name = "电阻输出",
+                        Model = "PXI-7012",
+                        CardName = $"电阻输出(自动探测-{logicalId})",
+                        SlotIndex = (int)logicalId
+                    };
+
+                    var api = new Pxi7012Api(device, logicalId);
+                    await api.ConnectAsync(cancellationToken).ConfigureAwait(false);
+
+                    _resistor = api;
+                    _connectedResistorLogicalId = logicalId;
+                    Log($"7012连接成功：逻辑ID={logicalId}");
+                    return true;
+                }
+                catch
+                {
+                    try
+                    {
+                        if (_resistor != null)
+                            await _resistor.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                    }
+                    _resistor = null;
+                    _connectedResistorLogicalId = null;
+                }
             }
 
-            _resistor = new ACTS6010Driver(device, logicalId: 0);
-            var ok = await _resistor.ConnectAsync().ConfigureAwait(false);
-            if (!ok)
-            {
-                Log("ACTS6010连接失败");
-                return false;
-            }
-
-            return true;
+            Log("未找到PXI-7012(程控电阻)板卡");
+            return false;
         }
 
         private async Task CleanupResistorAsync()
@@ -703,34 +650,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             {
                 if (_resistor != null)
                 {
-                    try { await _resistor.DisconnectAsync().ConfigureAwait(false); } catch { }
+                    try { await _resistor.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
             }
             finally
             {
                 _resistor = null;
+                _connectedResistorLogicalId = null;
             }
         }
 
-        private MeasureControl.Models.Devices.DeviceBase FindFirstActs6010Device()
+        private static string MapRoChannelTo7012Api(string roChannel)
         {
-            var chassisList = _pxiChassisService?.GetAllChassis();
-            if (chassisList == null)
-                return null;
+            if (string.IsNullOrWhiteSpace(roChannel))
+                throw new ArgumentException("RO channel is required", nameof(roChannel));
 
-            foreach (var chassis in chassisList)
-            {
-                var device = chassis?.Devices?.FirstOrDefault(d =>
-                    (d?.Model?.IndexOf("6010", StringComparison.OrdinalIgnoreCase) >= 0) ||
-                    (d?.Model?.IndexOf("ACTS", StringComparison.OrdinalIgnoreCase) >= 0) ||
-                    (d?.Name?.IndexOf("6010", StringComparison.OrdinalIgnoreCase) >= 0) ||
-                    (d?.Name?.IndexOf("ACTS", StringComparison.OrdinalIgnoreCase) >= 0));
+            var raw = roChannel.Trim();
+            if (!raw.StartsWith("RO", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("RO channel must start with 'RO'", nameof(roChannel));
 
-                if (device != null)
-                    return device;
-            }
+            if (!int.TryParse(raw.Substring(2), NumberStyles.Integer, CultureInfo.InvariantCulture, out var idx))
+                throw new ArgumentException("Invalid RO channel index", nameof(roChannel));
 
-            return null;
+            return $"RO{idx + 1}";
         }
 
         public void Dispose()
@@ -739,11 +681,344 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             _cts?.Dispose();
             _cts = null;
 
+            try { DisconnectFpgaTcpAsync().GetAwaiter().GetResult(); } catch { }
+
             try { CleanupPowerAsync().GetAwaiter().GetResult(); } catch { }
             try { CleanupResistorAsync().GetAwaiter().GetResult(); } catch { }
 
             try { _opLock?.Dispose(); } catch { }
             try { _resistorLock?.Dispose(); } catch { }
+            try { _fpgaSendLock?.Dispose(); } catch { }
+        }
+
+        private static readonly byte[] FpgaFrameHeader = { 0xAA, 0x55 };
+
+        private static string FpgaTs()
+        {
+            return DateTime.Now.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
+        }
+
+        private static string ToHex(byte[] data)
+        {
+            if (data == null || data.Length == 0) return "--";
+            return string.Join(" ", data.Select(b => b.ToString("X2", CultureInfo.InvariantCulture)));
+        }
+
+        private static byte[] BuildFpgaFrame(byte command, byte[] data)
+        {
+            var dataLen = data?.Length ?? 0;
+            var lengthField = (byte)(1 + dataLen);
+            var frame = new byte[2 + 1 + 1 + dataLen];
+            frame[0] = FpgaFrameHeader[0];
+            frame[1] = FpgaFrameHeader[1];
+            frame[2] = lengthField;
+            frame[3] = command;
+            if (dataLen > 0)
+                Buffer.BlockCopy(data, 0, frame, 4, dataLen);
+            return frame;
+        }
+
+        private void ResetFpgaCapture()
+        {
+            LastFpgaGpioInput = null;
+            _lastFpgaGpioInputTime = null;
+            _fpgaGpioWriteMask = 0;
+        }
+
+        private async Task EnsureFpgaTcpConnectedAsync(CancellationToken token)
+        {
+            if (_fpgaClient?.Connected == true && _fpgaStream != null)
+                return;
+
+            await DisconnectFpgaTcpAsync().ConfigureAwait(false);
+
+            var client = new TcpClient { NoDelay = true };
+            try
+            {
+                using var timeoutCts = new CancellationTokenSource(2000);
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
+
+                var connectTask = client.ConnectAsync(FpgaServerIpAddress, FpgaServerPort);
+                var cancelTask = Task.Delay(Timeout.Infinite, linkedCts.Token);
+                var completed = await Task.WhenAny(connectTask, cancelTask).ConfigureAwait(false);
+                if (completed != connectTask)
+                {
+                    try { client.Close(); } catch { }
+                    token.ThrowIfCancellationRequested();
+                    throw new TimeoutException($"FPGA连接超时(2s): {FpgaServerIpAddress}:{FpgaServerPort}");
+                }
+
+                await connectTask.ConfigureAwait(false);
+                _fpgaClient = client;
+                _fpgaStream = _fpgaClient.GetStream();
+
+                Log($"FPGA TCP连接成功: {FpgaServerIpAddress}:{FpgaServerPort}");
+            }
+            catch (Exception ex)
+            {
+                try { client.Close(); } catch { }
+                _fpgaClient = null;
+                _fpgaStream = null;
+                Log($"FPGA TCP连接失败: {ex.Message}");
+                throw;
+            }
+        }
+
+        private async Task SendFpgaFrameAsync(byte command, byte[] payload, CancellationToken token)
+        {
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                await EnsureFpgaTcpConnectedAsync(token).ConfigureAwait(false);
+                if (_fpgaStream == null)
+                    throw new InvalidOperationException("FPGA未连接");
+
+                await _fpgaSendLock.WaitAsync(token).ConfigureAwait(false);
+                try
+                {
+                    var frame = BuildFpgaFrame(command, payload);
+                    Log($"[{FpgaTs()}][FPGA 发送TX] CMD=0x{command:X2} LEN={payload?.Length ?? 0} FRAME={ToHex(frame)}");
+                    await _fpgaStream.WriteAsync(frame, 0, frame.Length, token).ConfigureAwait(false);
+                    await _fpgaStream.FlushAsync(token).ConfigureAwait(false);
+                    return;
+                }
+                catch (Exception ex) when (
+                    ex is System.IO.IOException ||
+                    ex is SocketException ||
+                    ex is ObjectDisposedException)
+                {
+                    Log($"FPGA发送异常(第{attempt + 1}次): {ex.Message}");
+                }
+                finally
+                {
+                    _fpgaSendLock.Release();
+                }
+
+                try { await DisconnectFpgaTcpAsync().ConfigureAwait(false); } catch { }
+
+                if (attempt == 0)
+                {
+                    Log("FPGA连接已断开，准备重连并重发一次");
+                }
+            }
+
+            throw new InvalidOperationException("FPGA发送失败(已重试)");
+        }
+
+        private static int? MapSupplyPinToIo11To32BitIndex(string supplyPin)
+        {
+            if (string.Equals(supplyPin, "J34", StringComparison.OrdinalIgnoreCase))
+                return 0;
+            if (string.Equals(supplyPin, "J35", StringComparison.OrdinalIgnoreCase))
+                return 1;
+            return null;
+        }
+
+        private async Task ApplySupplyViaFpgaAsync(LatchStepViewModel step, CancellationToken token)
+        {
+            if (step?.Item == null)
+                throw new ArgumentNullException(nameof(step));
+
+            var bitIndex = MapSupplyPinToIo11To32BitIndex(step.Item.SupplyPin);
+            if (bitIndex == null)
+                throw new InvalidOperationException($"未配置FPGA供电引脚映射: {step.Item.SupplyPin}");
+
+            // Only drive the current supply pin high to avoid cross-interference between J34 and J35.
+            _fpgaGpioWriteMask = 1u << bitIndex.Value;
+            //_fpgaGpioWriteMask = 3u;
+            var payload = BitConverter.GetBytes(_fpgaGpioWriteMask);
+            await SendFpgaFrameAsync(0x00, payload, token).ConfigureAwait(false);
+            //Log($"[FPGA TX] GPIO Write(IO11-32) MASK=0x{_fpgaGpioWriteMask:X8} ({step.Item.SupplyPin})");
+        }
+
+        private async Task DisconnectFpgaTcpAsync()
+        {
+            try { _fpgaStream?.Close(); } catch { }
+            try { _fpgaClient?.Close(); } catch { }
+
+            _fpgaStream = null;
+            _fpgaClient = null;
+        }
+
+        private async Task<byte[]> ReadExactFpgaAsync(int count, int timeoutMilliseconds, CancellationToken token)
+        {
+            var buf = new byte[count];
+            var received = 0;
+            while (received < count)
+            {
+                var readTask = _fpgaStream.ReadAsync(buf, received, count - received, token);
+                var timeoutTask = Task.Delay(timeoutMilliseconds, token);
+                var completed = await Task.WhenAny(readTask, timeoutTask).ConfigureAwait(false);
+                if (completed != readTask)
+                {
+                    token.ThrowIfCancellationRequested();
+                    throw new TimeoutException($"FPGA接收超时({timeoutMilliseconds}ms)");
+                }
+
+                var n = await readTask.ConfigureAwait(false);
+                if (n == 0)
+                    throw new InvalidOperationException("FPGA连接已断开(读取0字节)");
+                received += n;
+            }
+            return buf;
+        }
+
+        private async Task<(byte cmd, byte[] payload)> ReadFpgaFrameAsync(int timeoutMilliseconds, CancellationToken token)
+        {
+            var header = await ReadExactFpgaAsync(2, timeoutMilliseconds, token).ConfigureAwait(false);
+            if (header[0] != FpgaFrameHeader[0] || header[1] != FpgaFrameHeader[1])
+                throw new InvalidOperationException($"FPGA帧头校验失败: 0x{header[0]:X2} 0x{header[1]:X2}");
+
+            var lenBuf = await ReadExactFpgaAsync(1, timeoutMilliseconds, token).ConfigureAwait(false);
+            var totalLen = lenBuf[0];
+            var body = await ReadExactFpgaAsync(totalLen, timeoutMilliseconds, token).ConfigureAwait(false);
+
+            var cmd = body[0];
+            var payloadLen = totalLen - 1;
+            var payload = new byte[payloadLen];
+            if (payloadLen > 0)
+                Buffer.BlockCopy(body, 1, payload, 0, payloadLen);
+
+            var frame = new byte[2 + 1 + body.Length];
+            frame[0] = header[0];
+            frame[1] = header[1];
+            frame[2] = lenBuf[0];
+            Buffer.BlockCopy(body, 0, frame, 3, body.Length);
+            Log($"[{FpgaTs()}][FPGA RX] CMD=0x{cmd:X2} LEN={payloadLen} FRAME={ToHex(frame)}");
+
+            return (cmd, payload);
+        }
+
+        private async Task<uint> ReadFpgaGpioInputOnceAsync(int timeoutMilliseconds, CancellationToken token, byte? acceptCmd = null)
+        {
+            await EnsureFpgaTcpConnectedAsync(token).ConfigureAwait(false);
+            if (_fpgaStream == null)
+                throw new InvalidOperationException("FPGA未连接");
+
+            using var timeoutCts = new CancellationTokenSource(timeoutMilliseconds);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
+
+            while (!linkedCts.IsCancellationRequested)
+            {
+                var (cmd, payload) = await ReadFpgaFrameAsync(timeoutMilliseconds, linkedCts.Token).ConfigureAwait(false);
+                var cmdOk = cmd == 0x00 || (acceptCmd != null && cmd == acceptCmd.Value);
+                if (cmdOk && payload != null && payload.Length >= 4)
+                {
+                    var v = BitConverter.ToUInt32(payload, 0);
+                    LastFpgaGpioInput = v;
+                    _lastFpgaGpioInputTime = DateTime.Now;
+
+                    var hex = string.Join(" ", payload.Take(4).Select(b => b.ToString("X2", CultureInfo.InvariantCulture)));
+                    Log($"[FPGA RX] GPIO Read(IO43-64) VALUE=0x{v:X8} DATA={hex}");
+                    return v;
+                }
+            }
+
+            token.ThrowIfCancellationRequested();
+            throw new TimeoutException($"等待FPGA数据超时({timeoutMilliseconds}ms)");
+        }
+
+        private static int? MapPinToIo43To64BitIndex(string pin)
+        {
+            if (string.Equals(pin, "J31", StringComparison.OrdinalIgnoreCase))
+                return 0;
+            if (string.Equals(pin, "J32", StringComparison.OrdinalIgnoreCase))
+                return 1;
+            return null;
+        }
+
+        private static bool GetIo43To64Bit(uint gpioValue, int bitIndex)
+        {
+            if (bitIndex < 0 || bitIndex > 21)
+                return false;
+            return ((gpioValue >> bitIndex) & 0x1u) == 1u;
+        }
+
+        private async Task MeasureFpgaIoAsync(LatchStepViewModel step, CancellationToken token)
+        {
+            var needGpio = step?.Inject3V3 == true;
+            try
+            {
+                await EnsureFpgaTcpConnectedAsync(token).ConfigureAwait(false);
+
+                if (needGpio)
+                {
+                    //for (int i = 0; i < 3; i++)
+                    //{
+                        await ApplySupplyViaFpgaAsync(step, token).ConfigureAwait(false);
+                        Log("等待复位高！！！");
+                        await Task.Delay(1000, token).ConfigureAwait(false);
+                        Log("等待复位低！！！");
+                        await SendFpgaFrameAsync(0x00, new byte[] { 0x00, 0x00, 0x00, 0x00 }, token).ConfigureAwait(false);
+                        //Log("[FPGA TX] Pre Read: AA 55 05 0A 00 00 00 00");
+                        await Task.Delay(2000, token).ConfigureAwait(false);
+                        await SendFpgaFrameAsync(0x0A, new byte[] { 0x00 }, token).ConfigureAwait(false);
+                        await ReadFpgaGpioInputOnceAsync(2000, token, acceptCmd: 0x0A).ConfigureAwait(false);
+                        await SendFpgaFrameAsync(0x0A, new byte[] { 0x00 }, token).ConfigureAwait(false);
+                        await ReadFpgaGpioInputOnceAsync(2000, token, acceptCmd: 0x0A).ConfigureAwait(false);
+                        await SendFpgaFrameAsync(0x0A, new byte[] { 0x00 }, token).ConfigureAwait(false);
+                        await ReadFpgaGpioInputOnceAsync(2000, token, acceptCmd: 0x0A).ConfigureAwait(false);
+                    //}
+
+                }
+                else
+                {
+                    await SendFpgaFrameAsync(0x0A, new byte[] { 0x00 }, token).ConfigureAwait(false);
+                    await ReadFpgaGpioInputOnceAsync(2000, token, acceptCmd: 0x0A).ConfigureAwait(false);
+                }
+
+                if (!needGpio)
+                {
+                    await Task.Delay(1000, token).ConfigureAwait(false);
+                    await SendFpgaFrameAsync(0x0A, new byte[] { 0x00 }, token).ConfigureAwait(false);
+                    await ReadFpgaGpioInputOnceAsync(2000, token, acceptCmd: 0x0A).ConfigureAwait(false);
+                }
+
+                await SendFpgaFrameAsync(0x0A, new byte[] { 0x00 }, token).ConfigureAwait(false);
+                Log("[FPGA TX] Force Read: AA 55 02 0A 00");
+
+                var gpio = await ReadFpgaGpioInputOnceAsync(2000, token, acceptCmd: 0x0A).ConfigureAwait(false);
+                var bitIndex = MapPinToIo43To64BitIndex(step.Item.MeasurePin);
+                if (bitIndex == null)
+                {
+                    step.UpdateMeasurement(null, "--", "FAIL", measured: true);
+                    Log($"未配置FPGA IO映射: {step.Item.MeasurePin}");
+                    return;
+                }
+
+                var isHigh = GetIo43To64Bit(gpio, bitIndex.Value);
+                var valueText = isHigh ? "高电平" : "低电平";
+                var pass = step.Evaluation == LatchEvaluation.High33 ? isHigh : !isHigh;
+                step.UpdateMeasurement(isHigh ? 1.0 : 0.0, valueText, pass ? "PASS" : "FAIL", measured: true);
+
+                var ioNumber = 43 + bitIndex.Value;
+                var ts = _lastFpgaGpioInputTime?.ToString("HH:mm:ss", CultureInfo.InvariantCulture) ?? "--";
+                Log($"FPGA IO读取: {step.Item.MeasurePin}=IO{ioNumber}(bit{bitIndex.Value}) => {valueText} => {(pass ? "PASS" : "FAIL")}, 数据时间={ts}");
+            }
+            catch (TimeoutException ex)
+            {
+                step.UpdateMeasurement(null, "未接收", "FAIL", measured: true);
+                Log(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                step.UpdateMeasurement(null, "异常", "FAIL", measured: true);
+                Log($"FPGA采集异常: {ex.Message}");
+            }
+            finally
+            {
+                if (needGpio)
+                {
+                    try
+                    {
+                        //await SendFpgaFrameAsync(0x00, new byte[] { 0x00, 0x00, 0x00, 0x00 }, CancellationToken.None).ConfigureAwait(false);
+                        //Log("[FPGA TX] Reset: AA 55 05 00 00 00 00 00");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"FPGA复位发送失败: {ex.Message}");
+                    }
+                }
+            }
         }
 
         public enum LatchEvaluation

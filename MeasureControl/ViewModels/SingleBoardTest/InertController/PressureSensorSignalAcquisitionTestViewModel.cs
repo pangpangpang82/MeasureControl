@@ -1,18 +1,29 @@
 using Prism.Commands;
+using Prism.Ioc;
 using Prism.Mvvm;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using MeasureControl.Models.Devices;
+using MeasureControl.Models.Devices.DeviceCategories;
 using MeasureControl.Services;
+using MeasureControl.Services.HardwareApis;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 {
     public sealed class PressureSensorSignalAcquisitionTestViewModel : BindableBase, IDisposable
     {
+        private const string PowerSupplyIpAddress = "192.168.1.15";
+        private const double InputVoltageV = 28.0;
+        private const double InputCurrentA = 3.0;
+
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
         private readonly SynchronizationContext _uiContext;
+        private readonly Prism.Events.IEventAggregator _eventAggregator;
 
         private readonly SemaphoreSlim _opLock = new SemaphoreSlim(1, 1);
         private CancellationTokenSource _cts;
@@ -22,7 +33,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
 
-        private int _selectedPointIndex;
+        private IPowerSupplyApi _power;
+        private bool _isPowerOn;
+        private string _powerStatus = "未供电";
+
+        private IMtx532Api _mtx532;
+        private IArt4229Api _arinc;
+        private Task _arincRxLoopTask;
+        private int? _connectedSlot;
+        private string _connectionText = "532: 未连接 | 4229: 未连接";
+        private bool _atpTxOpened;
+        private bool _atpModeEntered;
+        // private bool _arincTxOpened;
+        // private bool _isSimulateEnabled;
+
+        private readonly object _arincTelemetryLock = new object();
+        private readonly List<double> _voltageTelemetry = new List<double>(64);
+        private readonly List<double> _pressureTelemetry = new List<double>(64);
+
+        private string _realtimeVoltageText = "--";
+        private string _realtimePressureText = "--";
+
+        private string _manualOutputVoltageText = "";
 
         public PressureSensorSignalAcquisitionTestViewModel(
             ISingleBoardTestContextService singleBoardTestContext,
@@ -31,18 +63,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             _singleBoardTestContext = singleBoardTestContext;
             _uiContext = SynchronizationContext.Current;
 
+            _eventAggregator = eventAggregator;
+
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
+            // ToggleSimulateCommand = new DelegateCommand(() => IsSimulateEnabled = !IsSimulateEnabled);
 
-            SetPoint1Command = new DelegateCommand(async () => await ApplyPointAsync(1));
-            SetPoint2Command = new DelegateCommand(async () => await ApplyPointAsync(2));
-            SetPoint3Command = new DelegateCommand(async () => await ApplyPointAsync(3));
-            ApplySelectedPointCommand = new DelegateCommand(async () => await ApplyPointAsync(SelectedPointIndex));
-
-            SignalItems.Add(new PressureSignalItemViewModel("压力传感器", "J25、J26"));
-
-            SelectedPointIndex = 1;
+            Items = new ObservableCollection<PressurePointItemViewModel>
+            {
+                new PressurePointItemViewModel("1)", "(0.5±0.0425)V", targetVoltageV: 0.5, voltageToleranceV: 0.0425, expectedPressurePsi: 0.0, pressureTolerancePsi: 0.45, this),
+                new PressurePointItemViewModel("2)", "(5.6±0.0425)V", targetVoltageV: 5.6, voltageToleranceV: 0.0425, expectedPressurePsi: 54.0, pressureTolerancePsi: 0.45, this),
+                new PressurePointItemViewModel("3)", "(9.0±0.0425)V", targetVoltageV: 9.0, voltageToleranceV: 0.0425, expectedPressurePsi: 90.0, pressureTolerancePsi: 0.45, this),
+            };
         }
 
         private void PostToUi(Action action)
@@ -64,16 +97,76 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
 
-        public ObservableCollection<PressureSignalItemViewModel> SignalItems { get; } = new ObservableCollection<PressureSignalItemViewModel>();
+        public ObservableCollection<PressurePointItemViewModel> Items { get; }
 
         public DelegateCommand ManualTestCommand { get; }
         public DelegateCommand AutoTestCommand { get; }
         public DelegateCommand ClearLogCommand { get; }
+        // public DelegateCommand ToggleSimulateCommand { get; }
 
-        public DelegateCommand SetPoint1Command { get; }
-        public DelegateCommand SetPoint2Command { get; }
-        public DelegateCommand SetPoint3Command { get; }
-        public DelegateCommand ApplySelectedPointCommand { get; }
+        public bool IsPowerOn
+        {
+            get => _isPowerOn;
+            private set => SetProperty(ref _isPowerOn, value);
+        }
+
+        public string PowerStatus
+        {
+            get => _powerStatus;
+            private set => SetProperty(ref _powerStatus, value);
+        }
+
+        // public bool IsSimulateEnabled
+        // {
+        //     get => _isSimulateEnabled;
+        //     set
+        //     {
+        //         if (SetProperty(ref _isSimulateEnabled, value))
+        //         {
+        //             Log(value ? "已启用模拟信号：采集前将由4229通道2发送一帧模拟数据" : "已关闭模拟信号：采集将只读取实际接收数据");
+        //         }
+        //     }
+        // }
+
+        public string ConnectionText
+        {
+            get => _connectionText;
+            private set => SetProperty(ref _connectionText, value);
+        }
+
+        public string RealtimeVoltageText
+        {
+            get => _realtimeVoltageText;
+            private set => SetProperty(ref _realtimeVoltageText, value);
+        }
+
+        public string RealtimePressureText
+        {
+            get => _realtimePressureText;
+            private set => SetProperty(ref _realtimePressureText, value);
+        }
+
+        public string ManualOutputVoltageText
+        {
+            get => _manualOutputVoltageText;
+            set
+            {
+                var next = value ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(next))
+                {
+                    SetProperty(ref _manualOutputVoltageText, string.Empty);
+                    return;
+                }
+
+                var raw = next.Trim();
+                if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ||
+                    double.TryParse(raw, NumberStyles.Float, CultureInfo.CurrentCulture, out v))
+                {
+                    if (v >= 0.0 && v <= 10.0)
+                        SetProperty(ref _manualOutputVoltageText, raw);
+                }
+            }
+        }
 
         public bool IsManualTestRunning
         {
@@ -99,16 +192,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             private set => SetProperty(ref _lastTestResult, value);
         }
 
-        public int SelectedPointIndex
+        private void UpdateConnectionText()
         {
-            get => _selectedPointIndex;
-            set
-            {
-                if (SetProperty(ref _selectedPointIndex, value))
-                {
-                    UpdatePreviewVoltage();
-                }
-            }
+            var mtx = _mtx532 != null && _mtx532.IsConnected
+                ? $"532: 已连接(SLOT={_connectedSlot})"
+                : "532: 未连接";
+
+            var a = _arinc != null && _arinc.IsConnected
+                ? "4229: 已连接"
+                : "4229: 未连接";
+
+            ConnectionText = $"{mtx} | {a}";
         }
 
         private async Task OnManualTestAsync()
@@ -124,7 +218,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 await StopAsync().ConfigureAwait(false);
             }
 
+            var lockTaken = false;
             await _opLock.WaitAsync().ConfigureAwait(false);
+            lockTaken = true;
             try
             {
                 _cts?.Cancel();
@@ -133,11 +229,37 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 IsManualTestRunning = true;
                 IsAutoTestRunning = false;
+
+                PublishNavigationLock(isLocked: true, source: "PressureSensor");
                 LastTestTime = "--";
                 LastTestResult = "--";
 
-                Log("开始手动测试（压力传感器信号采集）：模拟电压输出/矩阵开关/通讯采集暂未接入");
-                UpdatePreviewVoltage();
+                PostToUi(() =>
+                {
+                    foreach (var item in Items)
+                        item.Reset();
+                });
+
+                Log("开始手动测试（压力传感器信号采集）：准备连接532模拟量输出板卡 + 4229(ARINC429)通讯采集");
+                await EnsurePowerAsync(_cts.Token).ConfigureAwait(false);
+                var ok532 = await EnsureMtx532ReadyAsync(_cts.Token).ConfigureAwait(false);
+                var ok429 = await EnsureArincRxReadyAsync(_cts.Token).ConfigureAwait(false);
+                UpdateConnectionText();
+
+                if (!ok532)
+                    Log("532连接失败：请检查板卡/驱动/机箱配置");
+                if (!ok429)
+                    Log("4229连接失败：请检查板卡/驱动/机箱配置");
+
+                if (!ok532 || !ok429)
+                {
+                    await StopAsync().ConfigureAwait(false);
+                    return;
+                }
+
+                StartArincRxLoopIfNeeded(_cts.Token);
+
+                Log("已就绪：AO2输出模拟电压(低端接地)，通过ARINC429采集压力并按表7-6判定");
             }
             catch (OperationCanceledException)
             {
@@ -154,6 +276,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             }
         }
 
+        private static int? TryParseSlotNumber(DeviceBase dev)
+        {
+            if (dev == null)
+                return null;
+
+            var s = dev.SlotPosition;
+            if (string.IsNullOrWhiteSpace(s))
+                return null;
+
+            // 常见格式："SLOT=7" / "Slot 7" / "7" 等
+            var digits = new string(s.Where(char.IsDigit).ToArray());
+            if (int.TryParse(digits, out var n))
+                return n;
+
+            return null;
+        }
+
         private async Task OnAutoTestAsync()
         {
             if (IsAutoTestRunning)
@@ -167,7 +306,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 await StopAsync().ConfigureAwait(false);
             }
 
+            var lockTaken = false;
             await _opLock.WaitAsync().ConfigureAwait(false);
+            lockTaken = true;
             try
             {
                 _cts?.Cancel();
@@ -176,21 +317,48 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 IsAutoTestRunning = true;
                 IsManualTestRunning = false;
+
+                PublishNavigationLock(isLocked: true, source: "PressureSensor");
                 LastTestTime = "--";
                 LastTestResult = "--";
 
-                Log("开始自动测试（占位）：将依次设置点位1~3的模拟电压。通讯采集暂不执行。");
-
-                for (int i = 1; i <= 3; i++)
+                PostToUi(() =>
                 {
-                    _cts.Token.ThrowIfCancellationRequested();
-                    await ApplyPointInternalAsync(i, _cts.Token).ConfigureAwait(false);
-                    await Task.Delay(200, _cts.Token).ConfigureAwait(false);
+                    foreach (var item in Items)
+                        item.Reset();
+                });
+
+                Log("开始自动测试：将依次执行三档电压输出与压力采集判定");
+
+                await EnsurePowerAsync(_cts.Token).ConfigureAwait(false);
+                var ok532 = await EnsureMtx532ReadyAsync(_cts.Token).ConfigureAwait(false);
+                var ok429 = await EnsureArincRxReadyAsync(_cts.Token).ConfigureAwait(false);
+                UpdateConnectionText();
+                if (!ok532 || !ok429)
+                {
+                    LastTestResult = "FAIL";
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    Log("板卡连接失败：自动测试终止");
+                    return;
                 }
 
-                LastTestResult = "PASS";
+                StartArincRxLoopIfNeeded(_cts.Token);
+
+                // 重要：此处必须释放 _opLock
+                // 否则后续 item.MeasureAsync -> MeasurePointAsync 会再次等待 _opLock，导致不可重入死锁（自动测试卡住）
+                _opLock.Release();
+                lockTaken = false;
+
+                foreach (var item in Items)
+                {
+                    _cts.Token.ThrowIfCancellationRequested();
+                    await item.MeasureAsync().ConfigureAwait(false);
+                    await Task.Delay(80, _cts.Token).ConfigureAwait(false);
+                }
+
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                Log("自动测试结束（占位）：未执行通讯采集与判据判定。");
+                LastTestResult = Items.All(x => string.Equals(x.Result, "PASS", StringComparison.OrdinalIgnoreCase)) ? "PASS" : "FAIL";
+                Log($"自动测试结束：汇总结果={LastTestResult}");
             }
             catch (OperationCanceledException)
             {
@@ -204,40 +372,59 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             }
             finally
             {
-                IsAutoTestRunning = false;
-                _opLock.Release();
+                if (lockTaken)
+                {
+                    _opLock.Release();
+                    lockTaken = false;
+                }
+
+                try { await StopAsync().ConfigureAwait(false); } catch { }
             }
         }
 
         private async Task StopAsync()
         {
-            try { _cts?.Cancel(); } catch { }
-            IsManualTestRunning = false;
-            IsAutoTestRunning = false;
-            await Task.CompletedTask;
-        }
-
-        private async Task ApplyPointAsync(int pointIndex)
-        {
-            if (!IsManualTestRunning && !IsAutoTestRunning)
-            {
-                Log("请先点击“手动测试”连接流程（当前输出与采集功能占位）");
-                return;
-            }
-
             await _opLock.WaitAsync().ConfigureAwait(false);
             try
             {
-                var token = _cts?.Token ?? CancellationToken.None;
-                await ApplyPointInternalAsync(pointIndex, token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                Log("设置点位已取消");
-            }
-            catch (Exception ex)
-            {
-                Log($"设置点位异常：{ex.Message}");
+                try { _cts?.Cancel(); } catch { }
+
+                await DisablePowerAsync(CancellationToken.None).ConfigureAwait(false);
+
+                if (_arinc != null)
+                {
+                    await CloseArincAsync().ConfigureAwait(false);
+                }
+
+                if (_mtx532 != null)
+                {
+                    try { await _mtx532.StopOutputAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.ResetAllToZeroAsync(disableAfterReset: true, cancellationToken: CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.DisposeAsync().ConfigureAwait(false); } catch { }
+                    _mtx532 = null;
+                }
+
+                if (_power != null)
+                {
+                    try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
+                    _power = null;
+                }
+
+                _connectedSlot = null;
+                UpdateConnectionText();
+
+                ResetArincTelemetryCache();
+                RealtimeVoltageText = "--";
+                RealtimePressureText = "--";
+
+                IsManualTestRunning = false;
+                IsAutoTestRunning = false;
+
+                PublishNavigationLock(isLocked: false, source: "PressureSensor");
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             }
             finally
             {
@@ -245,49 +432,695 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             }
         }
 
-        private async Task ApplyPointInternalAsync(int pointIndex, CancellationToken token)
+
+
+        private void PublishNavigationLock(bool isLocked, string source)
+
         {
-            token.ThrowIfCancellationRequested();
 
-            var v = GetVoltageForPoint(pointIndex);
-            PostToUi(() =>
+            try
+
             {
-                foreach (var item in SignalItems)
-                {
-                    item.TargetVoltageV = v;
-                }
-            });
 
-            Log($"设置点位{pointIndex}：目标电压={v.ToString("F3", CultureInfo.InvariantCulture)}V（模拟电压输出/矩阵开关/通讯采集暂未接入）");
-            await Task.CompletedTask;
+                _eventAggregator?.GetEvent<MeasureControl.Events.NavigationLockChangedEvent>()
+
+                    ?.Publish(new MeasureControl.Events.NavigationLockChangedEventArgs { IsLocked = isLocked, Source = source });
+
+            }
+
+            catch
+
+            {
+
+            }
+
         }
 
-        private void UpdatePreviewVoltage()
+
+
+        private async Task CloseArincAsync()
+
         {
-            var v = GetVoltageForPoint(SelectedPointIndex);
+
+            if (_arinc == null)
+
+                return;
+
+            try { await _arinc.StopRxAsync(ArincRxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+
+            try { await _arinc.CloseRxAsync(ArincRxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+
+            if (_atpTxOpened)
+
+            {
+
+                try { await _arinc.CloseTxAsync(ArincTxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+
+            }
+
+            try { await _arinc.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+
+            try { await _arinc.DisposeAsync().ConfigureAwait(false); } catch { }
+
+            _arinc = null;
+
+            _arincRxLoopTask = null;
+
+            _atpTxOpened = false;
+
+            _atpModeEntered = false;
+
+        }
+
+        private async Task EnsurePowerAsync(CancellationToken token)
+        {
+            _power ??= new PowerSupplySocketApi();
+            if (!_power.IsConnected)
+                await _power.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
+
+            await _power.ApplyAsync(PowerSupplyChannel.CH1, InputVoltageV, InputCurrentA, token).ConfigureAwait(false);
+            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token).ConfigureAwait(false);
+            await Task.Delay(200, token).ConfigureAwait(false);
+
             PostToUi(() =>
             {
-                foreach (var item in SignalItems)
-                {
-                    item.TargetVoltageV = v;
-                }
+                IsPowerOn = true;
+                PowerStatus = $"已供电(CH1 {InputVoltageV:0.###}V)";
             });
         }
 
-        private static double GetVoltageForPoint(int pointIndex)
+        private async Task DisablePowerAsync(CancellationToken token)
         {
-            switch (pointIndex)
+            try
             {
-                case 1:
-                    return 0.5;
-                case 2:
-                    return 5.6;
-                case 3:
-                    return 9.0;
-                default:
-                    return 0.0;
+                if (_power == null)
+                    return;
+
+                if (!_power.IsConnected)
+                    await _power.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
+
+                foreach (var ch in Enum.GetValues(typeof(PowerSupplyChannel)).Cast<PowerSupplyChannel>())
+                {
+                    try { await _power.SetOutputEnabledAsync(ch, false, token).ConfigureAwait(false); } catch { }
+                }
+                await Task.Delay(200, token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+            finally
+            {
+                PostToUi(() =>
+                {
+                    IsPowerOn = false;
+                    PowerStatus = "未供电";
+                });
             }
         }
+
+        private const int MeasureTimeoutMs = 1200;
+        private const int SamplesPerMeasure = 5;
+        private const int AoSettleDelayMs = 80;
+        private const int AfterClickCollectDelayMs = 1000;
+
+        private const int ArincRxChannelIndex = 0;
+        private const int ArincTxChannelIndex = 1;
+        private const double ArincRate = 100000.0;
+        private const int ArincPollIntervalMs = 10;
+        private const byte ArincExpectedSdi = 1;
+
+        // 注意：此处Label为“已按需求做过bit反转后的接收端Label(十进制)”，不再进行二次反转。
+        // 文档：电压Label(oct)=155 -> 182；压力Label(oct)=156 -> 118
+        private const byte VoltageLabelRxDec = 182;
+        private const byte PressureLabelRxDec = 118;
+
+        private const uint AtpSsmDataSdi = 0xC10001u;
+        private const byte AtpLabelOctal174Dec = 124;
+
+        private const int SignedMagnitudeBitCount = 18;
+        private const int SignBitIndexInData19 = 18;
+        private const uint MagnitudeMask = (1u << SignedMagnitudeBitCount) - 1u;
+
+        private const double VoltageResolution = 0.0001;
+        private const double PressureResolutionPsi = 0.0005;
+
+        private const byte ArincSsmNormal = 2;
+
+        private static double DecodeSignedMagnitude(uint data19, double resolution)
+        {
+            var sign = ((data19 >> SignBitIndexInData19) & 0x1u) != 0;
+            var magnitude = data19 & MagnitudeMask;
+            var value = magnitude * resolution;
+            return sign ? -value : value;
+        }
+
+        private bool IsExpectedLabel(byte labelRaw, byte expectedLabelRxDec)
+            => labelRaw == expectedLabelRxDec;
+
+        private void ResetArincTelemetryCache()
+        {
+            lock (_arincTelemetryLock)
+            {
+                _voltageTelemetry.Clear();
+                _pressureTelemetry.Clear();
+            }
+        }
+
+        private void StartArincRxLoopIfNeeded(CancellationToken token)
+        {
+            if (_arinc == null || !_arinc.IsConnected)
+                return;
+
+            if (_arincRxLoopTask != null && !_arincRxLoopTask.IsCompleted)
+                return;
+
+            _arincRxLoopTask = Task.Run(() => ArincRxLoopAsync(token), token);
+        }
+
+        private async Task ArincRxLoopAsync(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    if (_arinc == null || !_arinc.IsConnected)
+                    {
+                        await Task.Delay(ArincPollIntervalMs, token).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    var words = await _arinc.ReadRxWordsAsync(ArincRxChannelIndex, maxCount: 128, enableTimeTag: false, enableRateAdaption: false, cancellationToken: token).ConfigureAwait(false);
+                    if (words.Count > 0)
+                    {
+                        for (int i = words.Count - 1; i >= 0; i--)
+                        {
+                            ParseAndCacheTelemetry(words[i].Data429);
+                        }
+                    }
+
+                    await Task.Delay(ArincPollIntervalMs, token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch
+                {
+                    try { await Task.Delay(100, token).ConfigureAwait(false); } catch { break; }
+                }
+            }
+        }
+
+        private void ParseAndCacheTelemetry(uint rawWord)
+        {
+            if (_arinc == null)
+                return;
+
+            _arinc.ParseRawWord(rawWord, out var labelRaw, out var sdi, out var data19, out var ssm);
+
+           
+            var isV = IsExpectedLabel(labelRaw, VoltageLabelRxDec);
+            var isP = IsExpectedLabel(labelRaw, PressureLabelRxDec);
+            if (labelRaw==118)
+                Console.WriteLine("labelRaw:" + labelRaw);
+            if (!isV && !isP)
+                return;
+
+            if (sdi != ArincExpectedSdi)
+                return;
+
+            if (!_arinc.VerifyOddParity(rawWord))
+                return;
+
+            //if (ssm != ArincSsmNormal)
+            //    return;
+
+            double? lastV = null;
+            double? lastP = null;
+            lock (_arincTelemetryLock)
+            {
+                const int maxKeep = 64;
+                if (isV)
+                {
+                    lastV = DecodeSignedMagnitude(data19, VoltageResolution);
+                    _voltageTelemetry.Add(lastV.Value);
+                    if (_voltageTelemetry.Count > maxKeep)
+                        _voltageTelemetry.RemoveRange(0, _voltageTelemetry.Count - maxKeep);
+                }
+
+                if (isP)
+                {
+                    lastP = DecodeSignedMagnitude(data19, PressureResolutionPsi);
+                    _pressureTelemetry.Add(lastP.Value);
+                    if (_pressureTelemetry.Count > maxKeep)
+                        _pressureTelemetry.RemoveRange(0, _pressureTelemetry.Count - maxKeep);
+                }
+            }
+
+            if (lastV.HasValue)
+            {
+                var v = lastV.Value;
+                if (labelRaw == 118)
+                    Console.WriteLine("电压labelRaw:" + v);
+                PostToUi(() =>
+                {
+                    RealtimeVoltageText = v.ToString("F4", CultureInfo.InvariantCulture);
+                    if (IsManualTestRunning || IsAutoTestRunning)
+                    {
+                        foreach (var item in Items)
+                            item.SetRealtimeVoltage(v);
+                    }
+                });
+            }
+
+            if (lastP.HasValue)
+            {
+                var p = lastP.Value;
+                if (labelRaw == 118)
+                    Console.WriteLine("压力labelRaw:" + p);
+                PostToUi(() =>
+                {
+                    RealtimePressureText = p.ToString("F3", CultureInfo.InvariantCulture);
+                    if (IsManualTestRunning || IsAutoTestRunning)
+                    {
+                        foreach (var item in Items)
+                            item.SetRealtimePressure(p);
+                    }
+                });
+            }
+        }
+
+        private async Task<(double? VoltageV, double? PressurePsi)> WaitVoltageAndPressureFromCacheAsync(CancellationToken token)
+        {
+            var deadline = DateTime.UtcNow.AddMilliseconds(MeasureTimeoutMs);
+            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
+            {
+                double[] v;
+                double[] p;
+                lock (_arincTelemetryLock)
+                {
+                    v = _voltageTelemetry.Count >= SamplesPerMeasure
+                        ? _voltageTelemetry.Skip(_voltageTelemetry.Count - SamplesPerMeasure).Take(SamplesPerMeasure).ToArray()
+                        : null;
+
+                    p = _pressureTelemetry.Count >= SamplesPerMeasure
+                        ? _pressureTelemetry.Skip(_pressureTelemetry.Count - SamplesPerMeasure).Take(SamplesPerMeasure).ToArray()
+                        : null;
+                }
+
+                if (v != null && p != null)
+                    return (v.Average(), p.Average());
+
+                await Task.Delay(ArincPollIntervalMs, token).ConfigureAwait(false);
+            }
+
+            lock (_arincTelemetryLock)
+            {
+                return (
+                    _voltageTelemetry.Count > 0 ? _voltageTelemetry.Average() : (double?)null,
+                    _pressureTelemetry.Count > 0 ? _pressureTelemetry.Average() : (double?)null);
+            }
+        }
+
+        internal async Task<(double? MeasuredVoltageV, double? MeasuredPressurePsi, string Result)> MeasurePointAsync(double targetVoltageV, double voltageToleranceV, double expectedPressurePsi, double pressureTolerancePsi)
+        {
+            if (!IsManualTestRunning && !IsAutoTestRunning)
+            {
+                Log("请先启动手动测试，再进行采集判定。");
+                return (null, null, "--");
+            }
+
+            await _opLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                var token = _cts?.Token ?? CancellationToken.None;
+
+                var ok532 = await EnsureMtx532ReadyAsync(token).ConfigureAwait(false);
+                var ok429 = await EnsureArincRxReadyAsync(token).ConfigureAwait(false);
+                UpdateConnectionText();
+                if (!ok532 || !ok429)
+                {
+                    Log("板卡未就绪：无法输出/采集");
+                    return (null, null, "FAIL");
+                }
+
+                // 产品实物测试：禁用模拟发送（仅保留接收）
+                // if (IsSimulateEnabled)
+                // {
+                //     var okTx = await EnsureArincTxReadyAsync(token).ConfigureAwait(false);
+                //     if (okTx)
+                //     {
+                //         await SendSimulatedPressureAndVoltageWordsOnceAsync(expectedPressurePsi, targetVoltageV, token).ConfigureAwait(false);
+                //         await Task.Delay(40, token).ConfigureAwait(false);
+                //     }
+                //     else
+                //     {
+                //         Log("模拟信号发送未就绪：4229发送通道未打开");
+                //     }
+                // }
+
+                // 使用持续输出模式，避免一次性写入仅输出很短时间导致万用表难以稳定测到
+                if (!_mtx532.IsOutputRunning)
+                {
+                    try { await _mtx532.StartOutputAsync(token).ConfigureAwait(false); } catch { }
+                }
+
+                var outputVoltageV = targetVoltageV;
+                if (!string.IsNullOrWhiteSpace(ManualOutputVoltageText))
+                {
+                    var raw = ManualOutputVoltageText.Trim();
+                    if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var vInv) ||
+                        double.TryParse(raw, NumberStyles.Float, CultureInfo.CurrentCulture, out vInv))
+                    {
+                        outputVoltageV = vInv;
+                    }
+                }
+
+                ResetArincTelemetryCache();
+                await _mtx532.SetDcAsync("AO2", outputVoltageV, enable: true, cancellationToken: token).ConfigureAwait(false);
+
+                await Task.Delay(AfterClickCollectDelayMs, token).ConfigureAwait(false);
+
+                ResetArincTelemetryCache();
+
+                await Task.Delay(AoSettleDelayMs, token).ConfigureAwait(false);
+
+                var (measuredV, measuredP) = await WaitVoltageAndPressureFromCacheAsync(token).ConfigureAwait(false);
+                if (!measuredV.HasValue || !measuredP.HasValue)
+                {
+                    Log($"采集超时：未同时获取到电压与压力数据（电压Label={VoltageLabelRxDec} 压力Label={PressureLabelRxDec} SDI={ArincExpectedSdi}）");
+                    return (measuredV, measuredP, "FAIL");
+                }
+
+                var vMin = outputVoltageV - voltageToleranceV;
+                var vMax = outputVoltageV + voltageToleranceV;
+                var vPass = measuredV.Value >= vMin && measuredV.Value <= vMax;
+
+                var pMin = expectedPressurePsi - pressureTolerancePsi;
+                var pMax = expectedPressurePsi + pressureTolerancePsi;
+                var pPass = measuredP.Value >= pMin && measuredP.Value <= pMax;
+
+                var pass = vPass && pPass;
+
+                Log($"采集结果：AO2={outputVoltageV.ToString("F3", CultureInfo.InvariantCulture)}V 电压={measuredV.Value.ToString("F4", CultureInfo.InvariantCulture)}(期望{outputVoltageV.ToString("F4", CultureInfo.InvariantCulture)}±{voltageToleranceV.ToString("F4", CultureInfo.InvariantCulture)}) 压力={measuredP.Value.ToString("F3", CultureInfo.InvariantCulture)}psi(期望{expectedPressurePsi.ToString("F3", CultureInfo.InvariantCulture)}±{pressureTolerancePsi.ToString("F3", CultureInfo.InvariantCulture)}) -> {(pass ? "PASS" : "FAIL")}");
+                return (measuredV, measuredP, pass ? "PASS" : "FAIL");
+            }
+            catch (OperationCanceledException)
+            {
+                return (null, null, "--");
+            }
+            catch (Exception ex)
+            {
+                Log($"采集异常：{ex.Message}");
+                return (null, null, "FAIL");
+            }
+            finally
+            {
+                _opLock.Release();
+            }
+        }
+
+        private async Task<bool> EnsureMtx532ReadyAsync(CancellationToken token)
+        {
+            if (_mtx532 != null && _mtx532.IsConnected)
+                return true;
+
+            DeviceBase dev = null;
+            try
+            {
+                var pxiService = ContainerLocator.Container.Resolve<IPxiChassisService>();
+                var chassisList = pxiService?.GetAllChassis();
+                if (chassisList != null)
+                {
+                    foreach (var chassis in chassisList)
+                    {
+                        if (chassis?.Devices == null) continue;
+                        dev = chassis.Devices.FirstOrDefault(d =>
+                            (d?.Model?.IndexOf("532", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                            (d?.Name?.IndexOf("532", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                            (d?.Model?.IndexOf("MTX", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                            (d?.Name?.IndexOf("MTX", StringComparison.OrdinalIgnoreCase) >= 0));
+                        if (dev != null)
+                            break;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            if (dev == null)
+                return false;
+
+            static int? TryParseSlotFromText(string text)
+            {
+                if (string.IsNullOrWhiteSpace(text))
+                    return null;
+                var digits = new string(text.Where(char.IsDigit).ToArray());
+                if (int.TryParse(digits, out var n) && n > 0)
+                    return n;
+                return null;
+            }
+
+            int? preferredSlot = null;
+            if (dev is PxiDeviceBase pxiDev && pxiDev.SlotIndex > 0)
+                preferredSlot = pxiDev.SlotIndex;
+
+            preferredSlot ??= TryParseSlotFromText(dev.SlotPosition);
+            preferredSlot ??= TryParseSlotFromText(dev.Name);
+            preferredSlot ??= TryParseSlotFromText(dev.CardName);
+
+            var slotCandidates = new List<int>();
+            if (preferredSlot.HasValue)
+                slotCandidates.Add(preferredSlot.Value);
+            for (int s = 2; s <= 18; s++)
+            {
+                if (!slotCandidates.Contains(s))
+                    slotCandidates.Add(s);
+            }
+            if (!slotCandidates.Contains(7))
+                slotCandidates.Add(7);
+
+            Exception lastEx = null;
+            foreach (var slot in slotCandidates)
+            {
+                token.ThrowIfCancellationRequested();
+
+                IMtx532Api api = null;
+                try
+                {
+                    api = new Mtx532Api(dev, options: new Mtx532Options { SampleRateHz = 1000.0 }, slotNumber: slot);
+                    await api.ConnectAsync(token, enabledAoChannels: new[] { "AO2" }).ConfigureAwait(false);
+                    await api.SetDcAsync("AO2", 0.0, enable: true, cancellationToken: token).ConfigureAwait(false);
+
+                    // 直流输出需要持续运行，确保万用表可稳定测到
+                    try { await api.StartOutputAsync(token).ConfigureAwait(false); } catch { }
+
+                    try { await api.ResetAllToZeroAsync(disableAfterReset: false, cancellationToken: token).ConfigureAwait(false); } catch { }
+
+                    _mtx532 = api;
+                    _connectedSlot = slot;
+                    UpdateConnectionText();
+                    Log($"532连接成功：SLOT={slot}");
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    lastEx = ex;
+                    try { if (api != null) await api.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+            }
+
+            if (lastEx != null)
+                Log($"532连接失败：{lastEx.Message}");
+
+            return false;
+        }
+
+        private async Task<bool> EnsureArincRxReadyAsync(CancellationToken token)
+        {
+            if (_arinc != null && _arinc.IsConnected)
+                return true;
+
+            if (_arinc == null)
+            {
+                DeviceBase dev = null;
+                try
+                {
+                    var pxi = ContainerLocator.Container.Resolve<IPxiChassisService>();
+                    var chassisList = pxi?.GetAllChassis();
+                    if (chassisList != null)
+                    {
+                        foreach (var chassis in chassisList)
+                        {
+                            if (chassis?.Devices == null) continue;
+                            dev = chassis.Devices.FirstOrDefault(d =>
+                                (d?.Model?.IndexOf("4227", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                                (d?.Model?.IndexOf("4229", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                                (d?.Model?.IndexOf("ARINC", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                                (d?.Model?.IndexOf("429", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                                (d?.Name?.IndexOf("4227", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                                (d?.Name?.IndexOf("4229", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                                (d?.Name?.IndexOf("429", StringComparison.OrdinalIgnoreCase) >= 0));
+                            if (dev != null)
+                                break;
+                        }
+                    }
+                }
+                catch
+                {
+                }
+
+                if (dev != null)
+                    _arinc = new Art4229Api(dev, deviceIndex: 0);
+                _atpTxOpened = false;
+                _atpModeEntered = false;
+            }
+
+            if (_arinc == null)
+            {
+                Log("未找到ART4229(ARINC429)板卡，无法采集压力/电压回读");
+                return false;
+            }
+
+            try
+            {
+                if (!_arinc.IsConnected)
+                    await _arinc.ConnectAsync(token).ConfigureAwait(false);
+
+                await _arinc.OpenRxAsync(ArincRxChannelIndex, token).ConfigureAwait(false);
+                await _arinc.ConfigureRxAsync(
+                    ArincRxChannelIndex,
+                    rate: ArincRate,
+                    parity: Art4229Parity.Odd,
+                    wordFormat: Art4229WordFormat.Standard429,
+                    enableInterrupt: false,
+                    interruptDepth: 512,
+                    enableTimeTag: false,
+                    cancellationToken: token).ConfigureAwait(false);
+
+                await _arinc.StartRxAsync(ArincRxChannelIndex, token).ConfigureAwait(false);
+
+                await EnsureAtpModeAsync(token).ConfigureAwait(false);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static byte ReverseLabelBits(byte label)
+        {
+            byte reversed = 0;
+            for (int i = 0; i < 8; i++)
+            {
+                reversed = (byte)((reversed << 1) | ((label >> i) & 0x01));
+            }
+            return reversed;
+        }
+
+        private byte GetAtpLabelForTx()
+        {
+            if (_arinc != null)
+                return _arinc.ReverseLabel(AtpLabelOctal174Dec);
+
+            return ReverseLabelBits(AtpLabelOctal174Dec);
+        }
+
+        private uint BuildAtpEnterWord(out byte txLabel)
+        {
+            txLabel = GetAtpLabelForTx();
+            return ((AtpSsmDataSdi & 0x00FFFFFFu) << 8) | txLabel;
+        }
+
+        private async Task EnsureAtpModeAsync(CancellationToken token)
+        {
+            if (_arinc == null || !_arinc.IsConnected)
+                return;
+
+            if (!_atpTxOpened)
+            {
+                await _arinc.OpenTxAsync(ArincTxChannelIndex, token).ConfigureAwait(false);
+                await _arinc.ConfigureTxAsync(
+                    ArincTxChannelIndex,
+                    rate: ArincRate,
+                    mode: Art4229TxMode.Single,
+                    parity: Art4229Parity.None,
+                    wordFormat: Art4229WordFormat.Standard429,
+                    cancellationToken: token).ConfigureAwait(false);
+                _atpTxOpened = true;
+            }
+
+            if (_atpModeEntered)
+                return;
+
+            var word = BuildAtpEnterWord(out var txLabel);
+            Log($"测试信息-ATP发送准备: TX通道{ArincTxChannelIndex}, SSM/Data/SDI=0x{AtpSsmDataSdi:X6}, Label(oct174)=0x{AtpLabelOctal174Dec:X2}, Label反转后=0x{txLabel:X2}, Word=0x{word:X8}");
+            try
+            {
+                await _arinc.SendWordsSingleAsync(ArincTxChannelIndex, new[] { word }, Art4229Parity.None, token).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log($"测试信息-ATP发送失败: TX通道{ArincTxChannelIndex}, Word=0x{word:X8}, 异常={ex.Message}");
+                throw;
+            }
+            Log($"测试信息-ATP发送完成: TX通道{ArincTxChannelIndex}, Word=0x{word:X8}");
+            _atpModeEntered = true;
+        }
+
+        // private async Task<bool> EnsureArincTxReadyAsync(CancellationToken token)
+        // {
+        //     await EnsureArincRxReadyAsync(token).ConfigureAwait(false);
+        //     if (_arinc == null || !_arinc.IsConnected)
+        //         return false;
+        //
+        //     if (_arincTxOpened)
+        //         return true;
+        //
+        //     try
+        //     {
+        //         await _arinc.OpenTxAsync(ArincTxChannelIndex, token).ConfigureAwait(false);
+        //         await _arinc.ConfigureTxAsync(
+        //             ArincTxChannelIndex,
+        //             rate: ArincRate,
+        //             mode: Art4229TxMode.Single,
+        //             parity: Art4229Parity.Odd,
+        //             wordFormat: Art4229WordFormat.Standard429,
+        //             cancellationToken: token).ConfigureAwait(false);
+        //         _arincTxOpened = true;
+        //         return true;
+        //     }
+        //     catch
+        //     {
+        //         _arincTxOpened = false;
+        //         return false;
+        //     }
+        // }
+        //
+        // private async Task SendSimulatedPressureAndVoltageWordsOnceAsync(double pressurePsi, double voltageV, CancellationToken token)
+        // {
+        //     if (_arinc == null || !_arinc.IsConnected)
+        //         return;
+        //
+        //     static uint EncodeSignedMagnitude(double value, double resolution)
+        //     {
+        //         var sign = value < 0;
+        //         var magnitude = (uint)Math.Round(Math.Abs(value) / resolution);
+        //         if (magnitude > MagnitudeMask)
+        //             magnitude = MagnitudeMask;
+        //         return magnitude | (sign ? (1u << SignBitIndexInData19) : 0u);
+        //     }
+        //
+        //     var voltageData19 = EncodeSignedMagnitude(voltageV, VoltageResolution);
+        //     var pressureData19 = EncodeSignedMagnitude(pressurePsi, PressureResolutionPsi);
+        //
+        //     var wordV = _arinc.BuildRawWord(VoltageLabelDec, sdi: ArincExpectedSdi, data19: voltageData19, ssm: ArincSsmNormal, applyOddParity: true);
+        //     var wordP = _arinc.BuildRawWord(PressureLabelDec, sdi: ArincExpectedSdi, data19: pressureData19, ssm: ArincSsmNormal, applyOddParity: true);
+        //
+        //     await _arinc.SendWordsSingleAsync(ArincTxChannelIndex, new[] { wordV, wordP }, Art4229Parity.Odd, token).ConfigureAwait(false);
+        // }
 
         private void Log(string message)
         {
@@ -304,24 +1137,106 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             try { _opLock?.Dispose(); } catch { }
         }
 
-        public sealed class PressureSignalItemViewModel : BindableBase
+        public sealed class PressurePointItemViewModel : BindableBase
         {
-            private double _targetVoltageV;
+            private readonly PressureSensorSignalAcquisitionTestViewModel _owner;
+            private string _measuredVoltageText = "--";
+            private string _measuredPressureText = "--";
+            private string _result = "--";
 
-            public PressureSignalItemViewModel(string signalName, string pins)
+            public PressurePointItemViewModel(
+                string indexText,
+                string voltageText,
+                double targetVoltageV,
+                double voltageToleranceV,
+                double expectedPressurePsi,
+                double pressureTolerancePsi,
+                PressureSensorSignalAcquisitionTestViewModel owner)
             {
-                SignalName = signalName;
-                Pins = pins;
+                IndexText = indexText;
+                VoltageText = voltageText;
+                TargetVoltageV = targetVoltageV;
+                VoltageToleranceV = voltageToleranceV;
+                ExpectedPressurePsi = expectedPressurePsi;
+                PressureTolerancePsi = pressureTolerancePsi;
+                _owner = owner;
+                MeasureCommand = new DelegateCommand(async () => await MeasureAsync());
             }
 
-            public string SignalName { get; }
+            public string IndexText { get; }
+            public string VoltageText { get; }
+            public double TargetVoltageV { get; }
+            public double VoltageToleranceV { get; }
+            public double ExpectedPressurePsi { get; }
+            public double PressureTolerancePsi { get; }
 
-            public string Pins { get; }
-
-            public double TargetVoltageV
+            public string MeasuredVoltageText
             {
-                get => _targetVoltageV;
-                set => SetProperty(ref _targetVoltageV, value);
+                get => _measuredVoltageText;
+                private set => SetProperty(ref _measuredVoltageText, value);
+            }
+
+            public string MeasuredPressureText
+            {
+                get => _measuredPressureText;
+                private set => SetProperty(ref _measuredPressureText, value);
+            }
+
+            internal void SetRealtimeVoltage(double v)
+            {
+                if (Result == "--")
+                    MeasuredVoltageText = v.ToString("F4", CultureInfo.InvariantCulture);
+            }
+
+            internal void SetRealtimePressure(double p)
+            {
+                if (Result == "--")
+                    MeasuredPressureText = p.ToString("F3", CultureInfo.InvariantCulture);
+            }
+
+            public string Result
+            {
+                get => _result;
+                private set => SetProperty(ref _result, value);
+            }
+
+            public DelegateCommand MeasureCommand { get; }
+
+            internal void Reset()
+            {
+                MeasuredVoltageText = "--";
+                MeasuredPressureText = "--";
+                Result = "--";
+            }
+
+            public async Task MeasureAsync()
+            {
+                Reset();
+                if (_owner == null)
+                    return;
+
+                var (measuredV, measuredP, result) = await _owner.MeasurePointAsync(TargetVoltageV, VoltageToleranceV, ExpectedPressurePsi, PressureTolerancePsi).ConfigureAwait(false);
+                _owner.PostToUi(() =>
+                {
+                    MeasuredVoltageText = measuredV.HasValue
+                        ? measuredV.Value.ToString("F4", CultureInfo.InvariantCulture)
+                        : "--";
+                    MeasuredPressureText = measuredP.HasValue
+                        ? measuredP.Value.ToString("F3", CultureInfo.InvariantCulture)
+                        : "--";
+                    Result = result;
+                });
+
+                if (_owner.IsAutoTestRunning || _owner.IsManualTestRunning)
+                {
+                    _owner.LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    if (_owner.Items.All(x => x.Result == "--"))
+                        _owner.LastTestResult = "--";
+                    else if (_owner.Items.Any(x => x.Result == "FAIL"))
+                        _owner.LastTestResult = "FAIL";
+                    else if (_owner.Items.All(x => x.Result == "PASS"))
+                        _owner.LastTestResult = "PASS";
+                }
             }
         }
     }

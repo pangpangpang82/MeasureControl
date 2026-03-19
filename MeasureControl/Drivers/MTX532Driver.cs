@@ -178,6 +178,29 @@ namespace MeasureControl.Drivers
             }
         }
 
+        public void SetEnabledChannels(IEnumerable<string> enabledAoChannels)
+        {
+            foreach (var key in _channelConfigs.Keys.ToList())
+            {
+                _channelConfigs[key].Enabled = false;
+            }
+
+            if (enabledAoChannels == null)
+                return;
+
+            foreach (var rawChannel in enabledAoChannels)
+            {
+                if (string.IsNullOrWhiteSpace(rawChannel))
+                    continue;
+
+                var channelId = rawChannel.Trim();
+                if (_channelConfigs.TryGetValue(channelId, out var config))
+                {
+                    config.Enabled = true;
+                }
+            }
+        }
+
         /// <summary>
         /// 连接到 MT-X532 硬件设备
         /// 
@@ -1391,6 +1414,9 @@ namespace MeasureControl.Drivers
             // TODO: 将 IP、ID 等从 _device 或外部配置中获取，这里先占位
             // 获取设备型号，如果为空则使用默认值 "X532"
             string deviceModel = string.IsNullOrEmpty(_device?.Model) ? "X532" : _device.Model;
+            var modelUpper = deviceModel.ToUpperInvariant();
+            if (modelUpper.Contains("MT-X532") || modelUpper.Contains("MTX532"))
+                deviceModel = "X532";
 
             // 从 PXI 设备基类获取槽位编号（在机箱视图中拖拽后由 SlotIndex 设置）
             // 槽位编号用于在 PXI 机箱中定位设备，从 1 开始编号
@@ -1473,10 +1499,10 @@ namespace MeasureControl.Drivers
             }
 
             // 生成通道列表字符串，格式如 "0,1,2,5"（逗号分隔）
-            // 如果没有启用通道，默认使用通道 0（避免配置错误导致 SDK 报错）
+            // 如果没有启用通道，默认打开全通道（避免仅打开 AO0 导致后续通道无法输出）
             string channelList = enabledChannels.Count > 0
                 ? string.Join(",", enabledChannels)
-                : "0";
+                : string.Join(",", Enumerable.Range(0, 32));
 
             // 格式化采样率字符串，确保为整数且至少为 1000 Hz
             // 采样率必须为整数，不能有小数部分（使用 "F0" 格式化为整数）

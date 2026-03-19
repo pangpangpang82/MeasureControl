@@ -187,7 +187,81 @@
 
                     <StackPanel Grid.Row="1" Margin="10,5,10,5">
                         <Border Margin="0,0,0,0" Background="#fef3c7" BorderBrush="#f59e0b" BorderThickness="1" CornerRadius="6" Padding="6">
-                            <TextBlock Text="前置条件：惰化单板下电；按测试项目提示连接万用表两表笔后点击‘测量’" FontWeight="Bold" Foreground="#92400e" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="前置条件：" FontWeight="Bold" VerticalAlignment="Center" Foreground="#92400e" />
+                                <TextBlock Grid.Column="1" Text="惰化模拟板下电；激活继电器后再进行测量" FontWeight="Bold" VerticalAlignment="Center" Foreground="#92400e" Margin="5,0" />
+                                <Border Grid.Column="2" CornerRadius="4" Padding="8,3" Margin="5,0">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#f3f4f6" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPowerOn}" Value="False">
+                                                    <Setter Property="Background" Value="#bbf7d0" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="{Binding PowerStatus}" FontWeight="Bold" VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#dc2626" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsPowerOn}" Value="False">
+                                                        <Setter Property="Foreground" Value="#16a34a" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Border>
+                                <Button Grid.Column="3" Command="{Binding ToggleRelayCommand}" Height="28" Margin="5,0,0,0">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Content" Value="激活" />
+                                            <Setter Property="Background" Value="#f59e0b" />
+                                            <Setter Property="Foreground" Value="White" />
+                                            <Setter Property="BorderThickness" Value="0" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="12,3">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRelayActivated}" Value="True">
+                                                    <Setter Property="Content" Value="复位" />
+                                                    <Setter Property="Background" Value="#6b7280" />
+                                                </DataTrigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#d97706" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Background" Value="#9ca3af" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <Border Margin="0,5,0,0" Background="#f1f5f9" BorderBrush="#cbd5e1" BorderThickness="1" CornerRadius="6" Padding="6">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="继电器状态：" FontWeight="Bold" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding RelayStatus}" FontWeight="Bold" VerticalAlignment="Center" />
+                            </Grid>
                         </Border>
 
                         <Border Margin="0,5,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="4">
@@ -199,9 +273,7 @@
                                 </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="150" />
-                                    <ColumnDefinition Width="70" />
-                                    <ColumnDefinition Width="80" />
+                                    <ColumnDefinition Width="180" />
                                     <ColumnDefinition Width="110" />
                                     <ColumnDefinition Width="70" />
                                     <ColumnDefinition Width="70" />
@@ -209,21 +281,17 @@
 
                                 <TextBlock Grid.Row="0" Grid.Column="0" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="序号" Margin="3" />
                                 <TextBlock Grid.Row="0" Grid.Column="1" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="测试项目" Margin="3" />
-                                <TextBlock Grid.Row="0" Grid.Column="2" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="信号引脚" Margin="3" />
-                                <TextBlock Grid.Row="0" Grid.Column="3" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="参考引脚" Margin="3" />
-                                <TextBlock Grid.Row="0" Grid.Column="4" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="测量值(Ω)" Margin="3" />
-                                <TextBlock Grid.Row="0" Grid.Column="5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="结果" Margin="3" />
-                                <TextBlock Grid.Row="0" Grid.Column="6" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="操作" Margin="3" />
+                                <TextBlock Grid.Row="0" Grid.Column="2" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="测量值(Ω)" Margin="3" />
+                                <TextBlock Grid.Row="0" Grid.Column="3" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="结果" Margin="3" />
+                                <TextBlock Grid.Row="0" Grid.Column="4" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="操作" Margin="3" />
 
-                                <ItemsControl Grid.Row="1" Grid.ColumnSpan="7" ItemsSource="{Binding Items}">
+                                <ItemsControl Grid.Row="1" Grid.ColumnSpan="5" ItemsSource="{Binding Items}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Margin="0,1,0,1">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="150" />
-                                                    <ColumnDefinition Width="70" />
-                                                    <ColumnDefinition Width="80" />
+                                                    <ColumnDefinition Width="180" />
                                                     <ColumnDefinition Width="110" />
                                                     <ColumnDefinition Width="70" />
                                                     <ColumnDefinition Width="70" />
@@ -232,33 +300,11 @@
                                                 <TextBlock Grid.Column="0" Text="{Binding IndexText}" Margin="3" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                 <TextBlock Grid.Column="1" Text="{Binding Name}" Margin="3" HorizontalAlignment="Center" VerticalAlignment="Center" />
 
-                                                <Border Grid.Column="2" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="3" Padding="0">
-                                                    <ComboBox
-                                                        ItemsSource="{Binding SignalPinOptions}"
-                                                        SelectedItem="{Binding SignalPin, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                        Margin="0"
-                                                        Padding="2,0"
-                                                        Height="22"
-                                                        HorizontalContentAlignment="Center"
-                                                        VerticalContentAlignment="Center" />
-                                                </Border>
-
-                                                <Border Grid.Column="3" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="3" Padding="0">
-                                                    <ComboBox
-                                                        ItemsSource="{Binding GroundPinOptions}"
-                                                        SelectedItem="{Binding GroundPin, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                        Margin="0"
-                                                        Padding="2,0"
-                                                        Height="22"
-                                                        HorizontalContentAlignment="Center"
-                                                        VerticalContentAlignment="Center" />
-                                                </Border>
-
-                                                <Border Grid.Column="4" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="3" Padding="4,2">
+                                                <Border Grid.Column="2" Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4" Margin="3" Padding="4,2">
                                                     <TextBlock Text="{Binding ImpedanceText}" HorizontalAlignment="Center" />
                                                 </Border>
 
-                                                <Border Grid.Column="5" CornerRadius="4" Margin="3" Padding="4,2">
+                                                <Border Grid.Column="3" CornerRadius="4" Margin="3" Padding="4,2">
                                                     <Border.Style>
                                                         <Style TargetType="Border">
                                                             <Setter Property="Background" Value="#f3f4f6" />
@@ -289,7 +335,7 @@
                                                     </TextBlock>
                                                 </Border>
 
-                                                <Button Grid.Column="6" Command="{Binding MeasureCommand}" Height="24" Margin="3">
+                                                <Button Grid.Column="4" Command="{Binding MeasureCommand}" Height="24" Margin="3">
                                                     <Button.Template>
                                                         <ControlTemplate TargetType="Button">
                                                             <Border x:Name="border" Background="#3b82f6" CornerRadius="4" Padding="8,2">

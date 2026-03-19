@@ -24,14 +24,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private const int MatrixTcpBasePort = 50200;
 
         private const string PowerSupplyIpAddress = "192.168.1.15";
-        private const double InputCurrentA = 0.1;
+        private const double InputCurrentA = 3.0;
 
         private const int MatrixSlotSequence = 6;
         private const int MatrixSlotCommon = 4;
+        private const int DmmTimeoutMs = 2000;
 
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
         private readonly ProjectService _projectService;
         private readonly IEventAggregator _eventAggregator;
+        private readonly IComponentPowerStateApi _componentPowerStateApi;
         private readonly IDmmApi _dmm;
         private IPowerSupplyApi _power;
 
@@ -54,12 +56,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             ISingleBoardTestContextService singleBoardTestContext,
             ProjectService projectService,
             IEventAggregator eventAggregator,
-            IDmmApi dmm)
+            IDmmApi dmm,
+            IComponentPowerStateApi componentPowerStateApi = null)
         {
             _singleBoardTestContext = singleBoardTestContext;
             _projectService = projectService;
             _eventAggregator = eventAggregator;
             _dmm = dmm;
+            _componentPowerStateApi = componentPowerStateApi;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
@@ -67,9 +71,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             // duohua.txt 电源监控测试：测量 J86 到 J91
             // 28V供电：2.46±0.24V；18V供电：1.56±0.15V；32V供电：2.81±0.28V
-            Items.Add(new MonitorItemViewModel(this, "28V供电", "J86", "J91", nominal: 2.46, tolerance: 0.24) { ColumnIndex = 34 });
-            Items.Add(new MonitorItemViewModel(this, "18V供电", "J86", "J91", nominal: 1.56, tolerance: 0.15) { ColumnIndex = 34 });
-            Items.Add(new MonitorItemViewModel(this, "32V供电", "J86", "J91", nominal: 2.81, tolerance: 0.28) { ColumnIndex = 34 });
+            // 矩阵开关路由：2601(2) I1/O19 -> 2601(1) I4/O2 -> 万用表
+            Items.Add(new MonitorItemViewModel(this, "28V供电", "J86", "J91", nominal: 2.46, tolerance: 0.24) { ColumnIndex = 19 });
+            Items.Add(new MonitorItemViewModel(this, "18V供电", "J86", "J91", nominal: 1.56, tolerance: 0.15) { ColumnIndex = 19 });
+            Items.Add(new MonitorItemViewModel(this, "32V供电", "J86", "J91", nominal: 2.81, tolerance: 0.28) { ColumnIndex = 19 });
 
             LoadPersistedState();
             _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
@@ -88,7 +93,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         public bool IsPowerOn
         {
             get => _isPowerOn;
-            private set => SetProperty(ref _isPowerOn, value);
+            private set
+            {
+                if (SetProperty(ref _isPowerOn, value))
+                {
+                    RaiseCanExecuteChangedForItems();
+                }
+            }
         }
 
         public string PowerStatus
@@ -191,10 +202,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 var okCommon = await matrix.ConnectNodesAsync("I4", "O2", MatrixSlotCommon, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
                 Log($"矩阵公共通路 I4-O2(slot{MatrixSlotCommon}) {(okCommon ? "OK" : "FAIL")}");
 
-                Log($"电源: CH1/CH2, IP={PowerSupplyIpAddress}");
+                Log($"电源: CH1 28V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
                 await EnsurePowerAsync(28.0, _cts.Token).ConfigureAwait(false);
-                IsPowerOn = true;
-                PowerStatus = "已供电";
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsPowerOn = true;
+                    PowerStatus = "已供电";
+                });
 
                 if (!okCommon)
                 {
@@ -252,10 +266,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                     return;
                 }
 
-                Log($"电源: CH1/CH2, IP={PowerSupplyIpAddress}");
+                Log($"电源: CH1 28V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
                 await EnsurePowerAsync(28.0, _cts.Token).ConfigureAwait(false);
-                IsPowerOn = true;
-                PowerStatus = "已供电";
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsPowerOn = true;
+                    PowerStatus = "已供电";
+                });
 
                 foreach (var item in Items)
                 {
@@ -353,7 +370,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         {
             try
             {
-                return await _dmm.ReadOnceAsync(DmmMeasureMode.DCV, new DmmReadOptions { TimeoutMilliseconds = 8000 }, token).ConfigureAwait(false);
+                return await _dmm.ReadOnceAsync(DmmMeasureMode.DCV, new DmmReadOptions { TimeoutMilliseconds = DmmTimeoutMs }, token).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -449,10 +466,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             await CleanupPowerAsync().ConfigureAwait(false);
 
-            IsPowerOn = false;
-            PowerStatus = "未供电";
-
-            RaiseCanExecuteChangedForItems();
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsPowerOn = false;
+                PowerStatus = "未供电";
+                RaiseCanExecuteChangedForItems();
+            });
         }
 
         private void RaiseCanExecuteChangedForItems()
@@ -557,12 +576,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task EnsurePowerAsync(double voltageV, CancellationToken cancellationToken)
         {
+            if (_componentPowerStateApi != null)
+            {
+                await _componentPowerStateApi.ApplyComponent28VStateAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
             _power ??= new PowerSupplySocketApi();
             await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
             await _power.ApplyAsync(PowerSupplyChannel.CH1, voltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
-            await _power.ApplyAsync(PowerSupplyChannel.CH2, voltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
             await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, true, cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 
@@ -570,10 +593,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         {
             try
             {
+                if (_componentPowerStateApi != null)
+                {
+                    try { await _componentPowerStateApi.ApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                }
+
                 if (_power != null)
                 {
                     try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, false, CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
                 }

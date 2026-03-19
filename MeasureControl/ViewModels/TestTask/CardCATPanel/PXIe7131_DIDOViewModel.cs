@@ -77,11 +77,11 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         private DelegateCommand _relayAllOnCommand;
         private DelegateCommand _relayAllOffCommand;
 
-        private const string ThresholdComPort = "COM14"; //第一套
+        private const string ThresholdComPort = "COM12"; //第一套
         //private const string ThresholdComPort = "COM10"; //第二套
         //private const string ThresholdComPort = "COM9"; //第三套
 
-        private const string RelayComPort = "COM13"; //第一套
+        private const string RelayComPort = "COM27"; //第一套
         //private const string RelayComPort = "COM11"; //第二套
         //private const string RelayComPort = "COM9"; //第三套
         private const int RelayBaudRate = 9600;

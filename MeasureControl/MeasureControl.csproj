@@ -327,6 +327,8 @@
     <Compile Include="Views\SingleBoardTest\FuelController\RS422SelfCheckTestView.xaml.cs"><DependentUpon>RS422SelfCheckTestView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\FuelController\SecondaryPowerTestView.xaml.cs"><DependentUpon>SecondaryPowerTestView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\FuelController\TemperatureAcquisitionTestView.xaml.cs"><DependentUpon>TemperatureAcquisitionTestView.xaml</DependentUpon></Compile>
+    <Compile Include="Views\SingleBoardTest\InertController\DiscreteOutputModuleTestView.xaml.cs"><DependentUpon>DiscreteOutputModuleTestView.xaml</DependentUpon></Compile>
+    <Compile Include="Views\SingleBoardTest\InertController\TcvMotorDriveTestView.xaml.cs"><DependentUpon>TcvMotorDriveTestView.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_1.xaml.cs"><DependentUpon>HC_6_1.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_2.xaml.cs"><DependentUpon>HC_6_2.xaml</DependentUpon></Compile>
     <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_3.xaml.cs"><DependentUpon>HC_6_3.xaml</DependentUpon></Compile>
