@@ -58,7 +58,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-        private const string AoChannel = "AO1";
+        private const string AoChannel = "AO9";
         private const string FixedTxChannel = "429_CH0";
         private const string FixedRxChannel = "429_CH2";
 
@@ -77,6 +77,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
         private CancellationTokenSource _autoTestCts;
+
+        private CancellationTokenSource _telemetryListeningCts;
+
+        private Task _telemetryListeningTask;
 
 
 
@@ -242,8 +246,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             SendControllerPressureTestCommand = new DelegateCommand(async () => await OnSendControllerRaiaPosTestAsync());
 
-            TestPressureTelemetryCommand = new DelegateCommand(async () => await OnReadRaiaPosTelemetryAsync());
-
 
 
             _simulation.GetCurrentGearIndex = () => CurrentGearIndex <= 0 ? 1 : CurrentGearIndex;
@@ -271,8 +273,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public DelegateCommand SendSetControllerVoltageCommand { get; }
 
         public DelegateCommand SendControllerPressureTestCommand { get; }
-
-        public DelegateCommand TestPressureTelemetryCommand { get; }
 
 
 
@@ -788,15 +788,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
 
                     _simulation.ArincRate = ArincRate;
-
-                    _simulation.SimProductArincRate = ArincRate;
-
-                    _simulation.SimProductRxChannelIndex = 4;
-
-                    _simulation.SimProductTxChannelIndex = 5;
 
 
 
@@ -899,6 +893,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     IsInAtp = false;
 
+                    await StopPressureTelemetryListeningAsync();
+
                     IsManualTestRunning = false;
 
                 }
@@ -1000,6 +996,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     IsInAtp = true;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP成功");
+
+                    StartPressureTelemetryListeningIfNeeded();
 
                 }
 
@@ -1104,6 +1102,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     IsInAtp = false;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP成功");
+
+                    await StopPressureTelemetryListeningAsync();
 
                 }
 
@@ -1305,134 +1305,101 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-        private async Task OnReadRaiaPosTelemetryAsync()
-
+        private void StartPressureTelemetryListeningIfNeeded()
         {
-
-            if (!IsManualTestRunning || IsBusy)
-
+            if (_telemetryListeningTask != null)
                 return;
 
-
-
-            if (CurrentGearIndex is < 1 or > 3)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 请先选择接入电压挡位");
-
+            if (!IsManualTestRunning)
                 return;
-
-            }
-
-
 
             if (!IsInAtp)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 请先进入ATP模式");
-
                 return;
 
+            if (string.IsNullOrWhiteSpace(PressureTelemetryRxChannel))
+                return;
+
+            _telemetryListeningCts?.Cancel();
+            _telemetryListeningCts?.Dispose();
+            _telemetryListeningCts = new CancellationTokenSource();
+            var token = _telemetryListeningCts.Token;
+
+            _telemetryListeningTask = Task.Run(async () =>
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 启动RAIA_POS遥测持续监听：RX={PressureTelemetryRxChannel}");
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        var tel = await _simulation.WaitRaiaPosTelemetryAsync(
+                            PressureTelemetryRxChannel,
+                            timeoutMs: 300,
+                            log: _ => { },
+                            token: token);
+
+                        if (tel != null && TryParseTelemetryRaiaPos(tel, out var pos))
+                        {
+                            var dispatcher = Application.Current?.Dispatcher;
+                            if (dispatcher != null && !dispatcher.CheckAccess())
+                            {
+                                dispatcher.BeginInvoke(new Action(() =>
+                                {
+                                    PressureTelemetryRxDataText = "0x" + FormatData(tel);
+                                    PressureTelemetryValueText = pos.ToString("0.####", CultureInfo.InvariantCulture);
+                                }));
+                            }
+                            else
+                            {
+                                PressureTelemetryRxDataText = "0x" + FormatData(tel);
+                                PressureTelemetryValueText = pos.ToString("0.####", CultureInfo.InvariantCulture);
+                            }
+                        }
+                        else
+                        {
+                            await Task.Delay(30, token);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                    catch
+                    {
+                        try { await Task.Delay(100, token); } catch { break; }
+                    }
+                }
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] RAIA_POS遥测监听已停止");
+            }, token);
+        }
+
+        private async Task StopPressureTelemetryListeningAsync()
+        {
+            try
+            {
+                _telemetryListeningCts?.Cancel();
+            }
+            catch { }
+
+            var task = _telemetryListeningTask;
+            if (task != null)
+            {
+                try
+                {
+                    await Task.WhenAny(task, Task.Delay(500));
+                }
+                catch { }
             }
 
-
-
-            await _arincOpLock.WaitAsync();
+            _telemetryListeningTask = null;
 
             try
-
             {
-
-                IsBusy = true;
-
-                try
-
-                {
-
-                    PressureTelemetryValueText = "--";
-
-                    PressureTelemetryRxDataText = "--";
-
-
-
-                    var token = CancellationToken.None;
-
-                    await _simulation.ClearRxFifoAsync(PressureTelemetryRxChannel);
-
-                    await Task.Delay(20, token);
-
-
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待RAIA_POS遥测(07 03 07 02)：RX={PressureTelemetryRxChannel}");
-
-                    var tel = await _simulation.WaitRaiaPosTelemetryAsync(PressureTelemetryRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: token);
-
-                    if (tel == null)
-
-                    {
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] RAIA_POS遥测超时");
-
-                        SetLastTestResult("FAIL");
-
-                        return;
-
-                    }
-
-
-
-                    PressureTelemetryRxDataText = "0x" + FormatData(tel);
-
-                    if (!TryParseTelemetryRaiaPos(tel, out var pos))
-
-                    {
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] RAIA_POS遥测解析失败");
-
-                        SetLastTestResult("FAIL");
-
-                        PressureTelemetryValueText = "--";
-
-                        return;
-
-                    }
-
-
-
-                    PressureTelemetryValueText = pos.ToString("0.####", CultureInfo.InvariantCulture);
-
-                    SetLastTestResult(IsRaiaPosQualified(CurrentGearIndex, pos) ? "PASS" : "FAIL");
-
-                }
-
-                finally
-
-                {
-
-                    IsBusy = false;
-
-                }
-
+                _telemetryListeningCts?.Dispose();
             }
+            catch { }
 
-            catch (Exception ex)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] RAIA_POS回采异常：{ex.Message}");
-
-            }
-
-            finally
-
-            {
-
-                _arincOpLock.Release();
-
-            }
-
+            _telemetryListeningCts = null;
         }
 
 
@@ -1487,9 +1454,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     _autoTestCts = new CancellationTokenSource();
 
-
-
                     var token = _autoTestCts.Token;
+
+                    await StopPressureTelemetryListeningAsync();
 
                     try
                     {
@@ -1501,15 +1468,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
 
                     _simulation.ArincRate = ArincRate;
-
-                    _simulation.SimProductArincRate = ArincRate;
-
-                    _simulation.SimProductRxChannelIndex = 4;
-
-                    _simulation.SimProductTxChannelIndex = 5;
 
 
 

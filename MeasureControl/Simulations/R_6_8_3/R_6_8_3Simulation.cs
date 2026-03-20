@@ -21,7 +21,6 @@ namespace MeasureControl.Simulations.R_6_8_3
         private CancellationTokenSource _simCts;
         private Task _rxLoopTask;
         private Task _telemetryTask;
-        private readonly MultiFrameCommandAssembler _rxAssembler = new MultiFrameCommandAssembler();
         private readonly MultiLabelCommandAssembler _rxLabelAssembler = new MultiLabelCommandAssembler(BenchTxFragmentLabels);
 
         private volatile bool _telemetryEnabled;
@@ -44,8 +43,6 @@ namespace MeasureControl.Simulations.R_6_8_3
         public bool EnableFrameLogging { get; set; } = true;
 
         public bool IsRealProduct { get; set; }
-
-        public bool UseMultiLabelFragmentation { get; set; } = true;
 
         public double ArincRate { get; set; } = 100000.0;
 
@@ -264,10 +261,7 @@ namespace MeasureControl.Simulations.R_6_8_3
             int txIndex = ParseChannelIndex(benchTxChannel);
             int rxIndex = ParseChannelIndex(benchRxChannel);
 
-            if (UseMultiLabelFragmentation)
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送: tx={txIndex}, rx={rxIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
-            else
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送: tx={txIndex}, rx={rxIndex}, label=0x{label:X2}, payload8={FormatBytes(command8)}");
+            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送: tx={txIndex}, rx={rxIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
 
             await SendMultiFrameOnChannelAsync(txIndex, label, command8, log, token);
 
@@ -300,10 +294,7 @@ namespace MeasureControl.Simulations.R_6_8_3
 
             await _arincDriver.ConfigureTxChannelAsync(txIndex, ArincRate, sendMode: 0, parity: 1, wordFormat: 0);
 
-            if (UseMultiLabelFragmentation)
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送(仅发送): tx={txIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
-            else
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送(仅发送): tx={txIndex}, label=0x{label:X2}, payload8={FormatBytes(command8)}");
+            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送(仅发送): tx={txIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
 
             await SendMultiFrameOnChannelAsync(txIndex, label, command8, log, token);
         }
@@ -335,8 +326,7 @@ namespace MeasureControl.Simulations.R_6_8_3
                 throw new InvalidOperationException("Simulation not started");
 
             int rxIndex = ParseChannelIndex(benchRxChannel);
-            var assemblers = new Dictionary<byte, MultiFrameCommandAssembler>();
-            MultiLabelCommandAssembler labelAssembler = UseMultiLabelFragmentation ? new MultiLabelCommandAssembler(ProductTxFragmentLabels) : null;
+            MultiLabelCommandAssembler labelAssembler = new MultiLabelCommandAssembler(ProductTxFragmentLabels);
             var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
             int rxLogCount = 0;
             const int maxRxLog = 32;
@@ -364,32 +354,12 @@ namespace MeasureControl.Simulations.R_6_8_3
                             }
                         }
 
-                        if (UseMultiLabelFragmentation)
+                        if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
                         {
-                            if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
+                            if (isExpectedResponse == null || isExpectedResponse(resp8))
                             {
-                                if (isExpectedResponse == null || isExpectedResponse(resp8))
-                                {
-                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 labels={string.Join("/", ProductTxFragmentLabels.Select(b => $"0x{b:X2}"))} resp8={FormatBytes(resp8)}");
-                                    return resp8;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            if (!assemblers.TryGetValue(rxLabel, out var assembler))
-                            {
-                                assembler = new MultiFrameCommandAssembler();
-                                assemblers[rxLabel] = assembler;
-                            }
-
-                            if (assembler.TryAddFragment(rxLabel, sdi, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
-                            {
-                                if (isExpectedResponse == null || isExpectedResponse(resp8))
-                                {
-                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 label=0x{rxLabel:X2} resp8={FormatBytes(resp8)}");
-                                    return resp8;
-                                }
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 labels={string.Join("/", ProductTxFragmentLabels.Select(b => $"0x{b:X2}"))} resp8={FormatBytes(resp8)}");
+                                return resp8;
                             }
                         }
                     }
@@ -416,8 +386,7 @@ namespace MeasureControl.Simulations.R_6_8_3
             int rxIndex = ParseChannelIndex(benchRxChannel);
             byte[] temperature = null;
             byte[] raw = null;
-            var assemblers = new Dictionary<byte, MultiFrameCommandAssembler>();
-            MultiLabelCommandAssembler labelAssembler = UseMultiLabelFragmentation ? new MultiLabelCommandAssembler(ProductTxFragmentLabels) : null;
+            MultiLabelCommandAssembler labelAssembler = new MultiLabelCommandAssembler(ProductTxFragmentLabels);
             var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
@@ -430,42 +399,17 @@ namespace MeasureControl.Simulations.R_6_8_3
                         if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
                             continue;
 
-                        if (UseMultiLabelFragmentation)
+                        if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
                         {
-                            if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
+                            if (temperature == null && IsPrefix(resp8, TelemetryTemperaturePrefix))
                             {
-                                if (temperature == null && IsPrefix(resp8, TelemetryTemperaturePrefix))
-                                {
-                                    temperature = resp8;
-                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 温度采集值拼包完成：{FormatBytes(resp8)}");
-                                }
-                                else if (raw == null && IsPrefix(resp8, TelemetryRawPrefix))
-                                {
-                                    raw = resp8;
-                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 原始数据拼包完成：{FormatBytes(resp8)}");
-                                }
+                                temperature = resp8;
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 温度采集值拼包完成：{FormatBytes(resp8)}");
                             }
-                        }
-                        else
-                        {
-                            if (!assemblers.TryGetValue(rxLabel, out var assembler))
+                            else if (raw == null && IsPrefix(resp8, TelemetryRawPrefix))
                             {
-                                assembler = new MultiFrameCommandAssembler();
-                                assemblers[rxLabel] = assembler;
-                            }
-
-                            if (assembler.TryAddFragment(rxLabel, sdi, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
-                            {
-                                if (temperature == null && IsPrefix(resp8, TelemetryTemperaturePrefix))
-                                {
-                                    temperature = resp8;
-                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 温度采集值拼包完成：{FormatBytes(resp8)}");
-                                }
-                                else if (raw == null && IsPrefix(resp8, TelemetryRawPrefix))
-                                {
-                                    raw = resp8;
-                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 原始数据拼包完成：{FormatBytes(resp8)}");
-                                }
+                                raw = resp8;
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 原始数据拼包完成：{FormatBytes(resp8)}");
                             }
                         }
                     }
@@ -556,16 +500,7 @@ namespace MeasureControl.Simulations.R_6_8_3
                                 bool assembled;
                                 byte[] cmd8;
 
-                                if (UseMultiLabelFragmentation)
-                                {
-                                    assembled = _rxLabelAssembler.TryAddFragment(label, payload, DateTime.UtcNow, out cmd8);
-                                }
-                                else
-                                {
-                                    assembled = _rxAssembler.TryAddFragment(label, sdi, payload, DateTime.UtcNow, out cmd8);
-                                }
-
-                                if (assembled)
+                                if (_rxLabelAssembler.TryAddFragment(label, payload, DateTime.UtcNow, out cmd8) && cmd8 != null)
                                 {
                                     log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] simRX={SimProductRxChannelIndex} 拼包完成 cmd8={FormatBytes(cmd8)}");
 
@@ -739,9 +674,8 @@ namespace MeasureControl.Simulations.R_6_8_3
             for (byte frag = 0; frag < 4; frag++)
             {
                 ushort part = (ushort)((payload8[frag * 2] << 8) | payload8[frag * 2 + 1]);
-                byte fragLabel = UseMultiLabelFragmentation ? ProductTxFragmentLabels[frag] : label;
-                byte sdi = UseMultiLabelFragmentation ? (byte)0 : frag;
-                uint word = BuildWord(fragLabel, sdi, part);
+                byte fragLabel = ProductTxFragmentLabels[frag];
+                uint word = BuildWord(fragLabel, 0, part);
                 data429[frag] = ApplyParity(word);
                 parity[frag] = 1;
             }
@@ -763,10 +697,7 @@ namespace MeasureControl.Simulations.R_6_8_3
             }
             else if (EnableFrameLogging)
             {
-                if (UseMultiLabelFragmentation)
-                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] simTX={SimProductTxChannelIndex} send labels={string.Join("/", ProductTxFragmentLabels.Select(b => $"0x{b:X2}"))} payload8={FormatBytes(payload8)}");
-                else
-                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] simTX={SimProductTxChannelIndex} send label=0x{label:X2} payload8={FormatBytes(payload8)}");
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] simTX={SimProductTxChannelIndex} send labels={string.Join("/", ProductTxFragmentLabels.Select(b => $"0x{b:X2}"))} payload8={FormatBytes(payload8)}");
             }
         }
 
@@ -783,9 +714,8 @@ namespace MeasureControl.Simulations.R_6_8_3
             for (byte frag = 0; frag < 4; frag++)
             {
                 ushort part = (ushort)((payload8[frag * 2] << 8) | payload8[frag * 2 + 1]);
-                byte fragLabel = UseMultiLabelFragmentation ? BenchTxFragmentLabels[frag] : label;
-                byte sdi = UseMultiLabelFragmentation ? (byte)0 : frag;
-                uint word = BuildWord(fragLabel, sdi, part);
+                byte fragLabel = BenchTxFragmentLabels[frag];
+                uint word = BuildWord(fragLabel, 0, part);
                 data429[frag] = ApplyParity(word);
                 parity[frag] = 1;
             }
@@ -807,10 +737,7 @@ namespace MeasureControl.Simulations.R_6_8_3
             }
             else if (EnableFrameLogging)
             {
-                if (UseMultiLabelFragmentation)
-                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchTX={txChannelIndex} send labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))} payload8={FormatBytes(payload8)}");
-                else
-                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchTX={txChannelIndex} send label=0x{label:X2} payload8={FormatBytes(payload8)}");
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchTX={txChannelIndex} send labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))} payload8={FormatBytes(payload8)}");
             }
         }
 
@@ -926,7 +853,6 @@ namespace MeasureControl.Simulations.R_6_8_3
                 _simCts = null;
                 _rxLoopTask = null;
                 _telemetryTask = null;
-                _rxAssembler.Reset();
                 _rxLabelAssembler.Reset();
                 _benchRxStarted = false;
                 _benchTxChannelIndex = -1;
@@ -1036,53 +962,6 @@ namespace MeasureControl.Simulations.R_6_8_3
             if (bytes == null || bytes.Length == 0)
                 return string.Empty;
             return string.Join(" ", bytes.Select(b => b.ToString("X2")));
-        }
-
-        private sealed class MultiFrameCommandAssembler
-        {
-            private readonly ushort[] _parts = new ushort[4];
-            private int _mask;
-            private byte _label;
-            private DateTime _firstSeenUtc;
-
-            private static readonly TimeSpan AssemblyTimeout = TimeSpan.FromMilliseconds(200);
-
-            public bool TryAddFragment(byte label, byte sdi, ushort payload16, DateTime nowUtc, out byte[] cmd8)
-            {
-                cmd8 = null;
-                if (sdi > 3)
-                    return false;
-
-                if (_mask == 0 || label != _label || (nowUtc - _firstSeenUtc) > AssemblyTimeout)
-                {
-                    _label = label;
-                    _mask = 0;
-                    _firstSeenUtc = nowUtc;
-                }
-
-                _parts[sdi] = payload16;
-                _mask |= (1 << sdi);
-
-                if (_mask != 0b1111)
-                    return false;
-
-                cmd8 = new byte[8];
-                for (int j = 0; j < 4; j++)
-                {
-                    cmd8[j * 2] = (byte)((_parts[j] >> 8) & 0xFF);
-                    cmd8[j * 2 + 1] = (byte)(_parts[j] & 0xFF);
-                }
-
-                _mask = 0;
-                return true;
-            }
-
-            public void Reset()
-            {
-                _mask = 0;
-                _label = 0;
-                _firstSeenUtc = default;
-            }
         }
 
         private sealed class MultiLabelCommandAssembler

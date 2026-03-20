@@ -280,8 +280,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             SendControllerPressureTestCommand = new DelegateCommand(async () => await OnSendControllerPressureTestAsync());
 
-            TestPressureTelemetryCommand = new DelegateCommand(async () => await OnReadPressureTelemetryAsync());
-
 
 
             _simulation.GetCurrentGearIndex = () => CurrentGearIndex <= 0 ? 1 : CurrentGearIndex;
@@ -415,8 +413,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
         public DelegateCommand SendControllerPressureTestCommand { get; }
-
-        public DelegateCommand TestPressureTelemetryCommand { get; }
 
 
 
@@ -1006,138 +1002,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-        private async Task OnReadPressureTelemetryAsync()
-
-        {
-
-            if (!IsManualTestRunning || IsBusy)
-
-                return;
-
-
-
-            if (CurrentGearIndex is < 1 or > 3)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 请先选择接入电压挡位");
-
-                return;
-
-            }
-
-
-
-            if (!IsInAtp)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 请先进入ATP模式");
-
-                return;
-
-            }
-
-
-
-            await _arincOpLock.WaitAsync();
-
-            try
-
-            {
-
-                IsBusy = true;
-
-                try
-
-                {
-
-                    PressureTelemetryValueText = "--";
-
-                    PressureTelemetryRxDataText = "--";
-
-
-
-                    var token = CancellationToken.None;
-
-                    await _simulation.ClearRxFifoAsync(PressureTelemetryRxChannel);
-
-                    await Task.Delay(20, token);
-
-
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待压力遥测(07 03 01 02)：RX={PressureTelemetryRxChannel}");
-
-                    var tel = await _simulation.WaitPressureTelemetryAsync(PressureTelemetryRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: token);
-
-                    if (tel == null)
-
-                    {
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测超时");
-
-                        SetLastTestResult("FAIL");
-
-                        return;
-
-                    }
-
-
-
-                    PressureTelemetryRxDataText = "0x" + FormatData(tel);
-
-                    if (!TryParseTelemetryPressure(tel, out var pressureBar))
-
-                    {
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测解析失败");
-
-                        SetLastTestResult("FAIL");
-
-                        PressureTelemetryValueText = "--";
-
-                        return;
-
-                    }
-
-
-
-                    PressureTelemetryValueText = pressureBar.ToString("0.####", CultureInfo.InvariantCulture);
-
-                    SetLastTestResult(IsPressureQualified(CurrentGearIndex, pressureBar) ? "PASS" : "FAIL");
-
-                }
-
-                finally
-
-                {
-
-                    IsBusy = false;
-
-                }
-
-            }
-
-            catch (Exception ex)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 压力回采异常：{ex.Message}");
-
-            }
-
-            finally
-
-            {
-
-                _arincOpLock.Release();
-
-            }
-
-        }
-
-
-
         private void EnsureOneGearSelected()
 
         {
@@ -1521,7 +1385,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            _ = StartManualTestAsync();
+            _ = StartManualTestAsync();//上电和打开对应的429通道，手动测试按钮
 
         }
 
@@ -1717,15 +1581,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-                    _simulation.IsRealProduct = false;
+                    _simulation.IsRealProduct = true;
 
                     _simulation.ArincRate = ArincRate;
-
-                    _simulation.SimProductArincRate = ArincRate;
-
-                    _simulation.SimProductRxChannelIndex = 4;
-
-                    _simulation.SimProductTxChannelIndex = 5;
 
 
 
@@ -2023,15 +1881,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-                    _simulation.IsRealProduct = false;
+                    _simulation.IsRealProduct = true;
 
                     _simulation.ArincRate = ArincRate;
-
-                    _simulation.SimProductArincRate = ArincRate;
-
-                    _simulation.SimProductRxChannelIndex = 4;
-
-                    _simulation.SimProductTxChannelIndex = 5;
 
 
 

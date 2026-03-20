@@ -266,16 +266,22 @@
                             VerticalAlignment="Center"
                             FontSize="14"
                             Text="TX" />
-                        <ComboBox
+                        <Border
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
+                            VerticalAlignment="Center"
+                            Background="#E8E8E8"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding EnterAtpTxChannel}" />
+                        </Border>
 
                         <Border
                             Width="180"
@@ -343,16 +349,22 @@
                             VerticalAlignment="Center"
                             FontSize="14"
                             Text="RX" />
-                        <ComboBox
+                        <Border
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}" />
+                            VerticalAlignment="Center"
+                            Background="#E8E8E8"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding EnterAtpRxChannel}" />
+                        </Border>
 
                         <Border
                             Width="180"
@@ -458,7 +470,6 @@
                     Margin="0,69,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
-                        <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="150" />
@@ -482,16 +493,22 @@
                             VerticalAlignment="Center"
                             FontSize="14"
                             Text="TX" />
-                        <ComboBox
+                        <Border
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding ControllerPressureTestTxChannel, Mode=TwoWay}" />
+                            VerticalAlignment="Center"
+                            Background="#E8E8E8"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding ControllerPressureTestTxChannel}" />
+                        </Border>
 
                         <Border
                             Width="180"
@@ -549,44 +566,6 @@
                             </Button.Template>
                         </Button>
                     </StackPanel>
-
-                    <StackPanel
-                        Grid.Row="1"
-                        Grid.Column="1"
-                        Margin="0"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="RX" />
-                        <ComboBox
-                            Width="100"
-                            Height="28"
-                            Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding ControllerPressureTestRxChannel, Mode=TwoWay}" />
-
-                        <Border
-                            Width="180"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="AliceBlue"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding ControllerPressureTestRxDataText}" />
-                        </Border>
-                    </StackPanel>
                 </Grid>
 
                 <StackPanel
@@ -606,16 +585,22 @@
                         VerticalAlignment="Center"
                         FontSize="14"
                         Text="RX" />
-                    <ComboBox
+                    <Border
                         Width="100"
                         Height="28"
                         Margin="5,0,0,0"
-                        HorizontalAlignment="Left"
-                        FontSize="12"
-                        IsEnabled="{Binding CanEditStepControls}"
-                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                        ItemsSource="{StaticResource Arinc429Channels}"
-                        SelectedItem="{Binding PressureTelemetryRxChannel, Mode=TwoWay}" />
+                        VerticalAlignment="Center"
+                        Background="#E8E8E8"
+                        BorderBrush="#D9D9D9"
+                        BorderThickness="1"
+                        CornerRadius="3">
+                        <TextBlock
+                            Margin="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Text="{Binding PressureTelemetryRxChannel}" />
+                    </Border>
 
                     <Border
                         Width="100"
@@ -649,45 +634,6 @@
                             FontSize="12"
                             Text="{Binding PressureTelemetryRxDataText}" />
                     </Border>
-
-                    <Button
-                        Width="50"
-                        Height="28"
-                        Margin="15,0,0,0"
-                        VerticalAlignment="Center"
-                        BorderThickness="0"
-                        Command="{Binding TestPressureTelemetryCommand}">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border
-                                    x:Name="border"
-                                    Background="#3b82f6"
-                                    CornerRadius="4">
-                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                        <TextBlock
-                                            x:Name="DeviceAction"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="14"
-                                            Foreground="White"
-                                            Text="读取" />
-                                    </StackPanel>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                    </Trigger>
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                    </Trigger>
-                                    <Trigger Property="IsEnabled" Value="False">
-                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                        <Setter Property="Cursor" Value="Arrow" />
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
                 </StackPanel>
 
                 <Grid
@@ -720,16 +666,22 @@
                             VerticalAlignment="Center"
                             FontSize="14"
                             Text="TX" />
-                        <ComboBox
+                        <Border
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}" />
+                            VerticalAlignment="Center"
+                            Background="#E8E8E8"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding ExitAtpTxChannel}" />
+                        </Border>
 
                         <Border
                             Width="180"
@@ -797,16 +749,22 @@
                             VerticalAlignment="Center"
                             FontSize="14"
                             Text="RX" />
-                        <ComboBox
+                        <Border
                             Width="100"
                             Height="28"
                             Margin="5,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            IsEnabled="{Binding CanEditStepControls}"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}" />
+                            VerticalAlignment="Center"
+                            Background="#E8E8E8"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Text="{Binding ExitAtpRxChannel}" />
+                        </Border>
 
                         <Border
                             Width="180"
