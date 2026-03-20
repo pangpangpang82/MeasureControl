@@ -25,11 +25,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] AtpE = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
 
-        // From protocol screenshot: AB_28V_SUPPLY = 01 01 01 01 00 00 00 00
         private static readonly byte[] Ab28vSupply = { 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
-        private static readonly byte[] Req15vVbit = { 0x01, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] Req5vVbit = { 0x01, 0x01, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] Vbit15Prefix4 = { 0x01, 0x01, 0x01, 0x02 };
+        private static readonly byte[] Vbit5Prefix4 = { 0x01, 0x01, 0x01, 0x03 };
 
         private readonly PT500TemperatureSensor429Simulation _arinc = new PT500TemperatureSensor429Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
@@ -53,10 +52,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _powerSupplyIpAddress = "192.168.1.15";
         private string _powerSupplyMeasuredCurrentText = "--";
 
+        private double? _activeSupplyVoltage;
+
+        private string _dmmVoltage32Text;
+        private string _dmmVoltage28Text;
+        private string _powerSupplyMeasuredCurrent32Text;
+        private string _powerSupplyMeasuredCurrent28Text;
+
+        private string _telemetryVoltage32Text;
+        private string _telemetryVoltage28Text;
+        private string _telemetryRxData32Text;
+        private string _telemetryRxData28Text;
+
         private string _enterAtpTxChannel;
         private string _enterAtpRxChannel;
         private string _setVoltageTxChannel;
-        private string _dmmChannel;
         private string _telemetryRxChannel;
         private string _exitAtpTxChannel;
         private string _exitAtpRxChannel;
@@ -64,6 +74,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _dmmVoltageText;
         private string _telemetryVoltageText;
         private string _enterAtpRxDataText;
+        private string _enterAtpRxData32Text;
+        private string _enterAtpRxData28Text;
         private string _telemetryRxDataText;
         private string _exitAtpRxDataText;
 
@@ -75,18 +87,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _telemetryRxChannel = FixedRxChannel;
             _exitAtpTxChannel = FixedTxChannel;
             _exitAtpRxChannel = FixedRxChannel;
-            _dmmChannel = "Port1";
 
             DmmVoltageText = "--";
             PowerSupplyMeasuredCurrentText = "--";
             TelemetryVoltageText = "--";
+            DmmVoltage32Text = "--";
+            DmmVoltage28Text = "--";
+            PowerSupplyMeasuredCurrent32Text = "--";
+            PowerSupplyMeasuredCurrent28Text = "--";
+            TelemetryVoltage32Text = "--";
+            TelemetryVoltage28Text = "--";
+            TelemetryRxData32Text = "--";
+            TelemetryRxData28Text = "--";
             EnterAtpRxDataText = "--";
+            EnterAtpRxData32Text = "--";
+            EnterAtpRxData28Text = "--";
             TelemetryRxDataText = "--";
             ExitAtpRxDataText = "--";
 
             ManualTestCommand = new DelegateCommand(OnManualTest);
             AutoTestCommand = new DelegateCommand(OnAutoTest);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
+
+            Supply32vCommand = new DelegateCommand(async () => await OnSupplyVoltageAsync(32.0));
+            Supply28vCommand = new DelegateCommand(async () => await OnSupplyVoltageAsync(28.0));
+            PowerSupplyOutputOffCommand = new DelegateCommand(async () => await OnPowerSupplyOutputOffAsync());
+            ReadPowerSupplyMeasurementsCommand = new DelegateCommand(async () => await OnReadPowerSupplyMeasurementsAsync());
 
             SendEnterAtpCommand = new DelegateCommand(async () => await OnSendEnterAtpAsync());
             SendSetVoltageCommand = new DelegateCommand(async () => await OnSendAb28vSupplyAsync());
@@ -126,6 +152,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public DelegateCommand AutoTestCommand { get; }
         public DelegateCommand ClearLogCommand { get; }
 
+        public DelegateCommand Supply32vCommand { get; }
+        public DelegateCommand Supply28vCommand { get; }
+        public DelegateCommand PowerSupplyOutputOffCommand { get; }
+        public DelegateCommand ReadPowerSupplyMeasurementsCommand { get; }
+
         public DelegateCommand SendEnterAtpCommand { get; }
         public DelegateCommand SendSetVoltageCommand { get; }
         public DelegateCommand SendExitAtpCommand { get; }
@@ -143,12 +174,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string SetVoltageTxChannel
         {
             get => _setVoltageTxChannel;
-        }
-
-        public string DmmChannel
-        {
-            get => _dmmChannel;
-            set => SetProperty(ref _dmmChannel, value);
         }
 
         public string TelemetryRxChannel
@@ -185,10 +210,34 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             set => SetProperty(ref _dmmVoltageText, value);
         }
 
+        public string DmmVoltage32Text
+        {
+            get => _dmmVoltage32Text;
+            set => SetProperty(ref _dmmVoltage32Text, value);
+        }
+
+        public string DmmVoltage28Text
+        {
+            get => _dmmVoltage28Text;
+            set => SetProperty(ref _dmmVoltage28Text, value);
+        }
+
         public string PowerSupplyMeasuredCurrentText
         {
             get => _powerSupplyMeasuredCurrentText;
             set => SetProperty(ref _powerSupplyMeasuredCurrentText, value);
+        }
+
+        public string PowerSupplyMeasuredCurrent32Text
+        {
+            get => _powerSupplyMeasuredCurrent32Text;
+            set => SetProperty(ref _powerSupplyMeasuredCurrent32Text, value);
+        }
+
+        public string PowerSupplyMeasuredCurrent28Text
+        {
+            get => _powerSupplyMeasuredCurrent28Text;
+            set => SetProperty(ref _powerSupplyMeasuredCurrent28Text, value);
         }
 
         public string TelemetryVoltageText
@@ -197,10 +246,46 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             set => SetProperty(ref _telemetryVoltageText, value);
         }
 
+        public string TelemetryVoltage32Text
+        {
+            get => _telemetryVoltage32Text;
+            set => SetProperty(ref _telemetryVoltage32Text, value);
+        }
+
+        public string TelemetryVoltage28Text
+        {
+            get => _telemetryVoltage28Text;
+            set => SetProperty(ref _telemetryVoltage28Text, value);
+        }
+
+        public string TelemetryRxData32Text
+        {
+            get => _telemetryRxData32Text;
+            private set => SetProperty(ref _telemetryRxData32Text, value);
+        }
+
+        public string TelemetryRxData28Text
+        {
+            get => _telemetryRxData28Text;
+            private set => SetProperty(ref _telemetryRxData28Text, value);
+        }
+
         public string EnterAtpRxDataText
         {
             get => _enterAtpRxDataText;
             private set => SetProperty(ref _enterAtpRxDataText, value);
+        }
+
+        public string EnterAtpRxData32Text
+        {
+            get => _enterAtpRxData32Text;
+            private set => SetProperty(ref _enterAtpRxData32Text, value);
+        }
+
+        public string EnterAtpRxData28Text
+        {
+            get => _enterAtpRxData28Text;
+            private set => SetProperty(ref _enterAtpRxData28Text, value);
         }
 
         public string TelemetryRxDataText
@@ -259,6 +344,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return;
             }
 
+            if (IsAutoTestRunning)
+            {
+                _ = StopAutoThenStartManualAsync();
+                return;
+            }
+
             _ = StartManualTestAsync();
         }
 
@@ -271,7 +362,36 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return;
             }
 
+            if (IsManualTestRunning)
+            {
+                _ = StopManualThenStartAutoAsync();
+                return;
+            }
+
             _ = StartAutoTestAsync();
+        }
+
+        private async Task StopManualThenStartAutoAsync()
+        {
+            await StopManualTestAsync();
+            await StartAutoTestAsync();
+        }
+
+        private async Task StopAutoThenStartManualAsync()
+        {
+            try { _autoTestCts?.Cancel(); } catch { }
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 等待自动测试停止后启动手动测试");
+
+            await _autoTestLock.WaitAsync();
+            try
+            {
+            }
+            finally
+            {
+                _autoTestLock.Release();
+            }
+
+            await StartManualTestAsync();
         }
 
         private async Task StartManualTestAsync()
@@ -285,15 +405,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsManualTestRunning = true;
                 LastTestTime = "--";
                 LastTestResult = "--";
+                _activeSupplyVoltage = null;
+                DmmVoltage32Text = "--";
+                DmmVoltage28Text = "--";
+                PowerSupplyMeasuredCurrent32Text = "--";
+                PowerSupplyMeasuredCurrent28Text = "--";
+                TelemetryVoltage32Text = "--";
+                TelemetryVoltage28Text = "--";
+                TelemetryRxData32Text = "--";
+                TelemetryRxData28Text = "--";
+                EnterAtpRxData32Text = "--";
+                EnterAtpRxData28Text = "--";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：开始打开设备");
-
-                try
-                {
-                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                    if (api != null)
-                        await api.ApplyComponent28VStateAsync(CancellationToken.None);
-                }
-                catch { }
 
                 await EnsurePowerSupplyConnectedAsync(CancellationToken.None);
                 await _arinc.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
@@ -323,9 +446,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试停止：关闭设备");
                 IsManualTestRunning = false;
 
-                try { await PowerSupplyOutputOffAsync(CancellationToken.None); } catch { }
-                try { await DisconnectPowerSupplyAsync(CancellationToken.None); } catch { }
-                try { await _arinc.StopAsync(msg => AddLog(msg)); } catch { }
+                await CleanupHardwareAfterTestAsync();
 
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             }
@@ -353,9 +474,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestEnteredAtp = false;
                 LastTestTime = "--";
                 LastTestResult = "--";
+                _activeSupplyVoltage = null;
                 DmmVoltageText = "--";
                 PowerSupplyMeasuredCurrentText = "--";
                 TelemetryVoltageText = "--";
+                DmmVoltage32Text = "--";
+                DmmVoltage28Text = "--";
+                PowerSupplyMeasuredCurrent32Text = "--";
+                PowerSupplyMeasuredCurrent28Text = "--";
+                TelemetryVoltage32Text = "--";
+                TelemetryVoltage28Text = "--";
+                TelemetryRxData32Text = "--";
+                TelemetryRxData28Text = "--";
+                EnterAtpRxData32Text = "--";
+                EnterAtpRxData28Text = "--";
                 EnterAtpRxDataText = "--";
                 TelemetryRxDataText = "--";
                 ExitAtpRxDataText = "--";
@@ -363,14 +495,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts?.Dispose();
                 _autoTestCts = new CancellationTokenSource();
                 var token = _autoTestCts.Token;
-
-                try
-                {
-                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                    if (api != null)
-                        await api.ApplyComponent28VStateAsync(token);
-                }
-                catch { }
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动");
                 await RunAutoTestAsync(token);
@@ -426,35 +550,74 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             finally
             {
-                try
-                {
-                    if (_autoTestEnteredAtp)
-                        await AutoExitAtpAsync(CancellationToken.None);
-                }
-                catch { }
-
-                try { await PowerSupplyOutputOffAsync(CancellationToken.None); } catch { }
-                try { await DisconnectPowerSupplyAsync(CancellationToken.None); } catch { }
-                try { await _arinc.StopAsync(msg => AddLog(msg)); } catch { }
+                await CleanupHardwareAfterTestAsync();
 
                 _suppressResultUpdates = false;
                 IsAutoTestRunning = false;
             }
         }
 
+        private async Task CleanupHardwareAfterTestAsync()
+        {
+            _activeSupplyVoltage = null;
+
+            try { await PowerSupplyOutputOffAsync(CancellationToken.None); } catch { }
+            try { await DisconnectPowerSupplyAsync(CancellationToken.None); } catch { }
+
+            try
+            {
+                try { await _arinc.ClearRxFifoAsync(EnterAtpRxChannel); } catch { }
+                try { await _arinc.ClearRxFifoAsync(TelemetryRxChannel); } catch { }
+                try { await _arinc.ClearRxFifoAsync(ExitAtpRxChannel); } catch { }
+            }
+            catch
+            {
+            }
+
+            try { await _arinc.StopAsync(msg => AddLog(msg)); } catch { }
+        }
+
         private async Task RunSupplyVoltageScenarioAsync(double supplyVoltage, double currentUpperLimit, CancellationToken token, ObservableCollection<string> failures)
         {
             token.ThrowIfCancellationRequested();
 
+            _activeSupplyVoltage = supplyVoltage;
             AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：向控制通道供电 {supplyVoltage.ToString("0.###", CultureInfo.InvariantCulture)}V");
             await PowerSupplyApplyAsync(supplyVoltage, currentLimit: Math.Max(3.0, currentUpperLimit + 0.5), token);
             await Task.Delay(300, token);
+
+            token.ThrowIfCancellationRequested();
+
+            var enteredAtpOk = await AutoEnterAtpAsync(token);
+            if (!enteredAtpOk)
+            {
+                failures.Add($"{supplyVoltage:0.###}V：进入ATP失败");
+                await PowerSupplyOutputOffAsync(token);
+                return;
+            }
+
+            _autoTestEnteredAtp = true;
 
             var ms = await PowerSupplyReadMeasurementsAsync(token);
             if (ms?.Voltage?.Value != null)
                 DmmVoltageText = $"{ms.Voltage.Value:0.000} V";
             if (ms?.Current?.Value != null)
                 PowerSupplyMeasuredCurrentText = $"{ms.Current.Value:0.000} A";
+
+            if (supplyVoltage >= 31.0)
+            {
+                if (ms?.Voltage?.Value != null)
+                    DmmVoltage32Text = $"{ms.Voltage.Value:0.000} V";
+                if (ms?.Current?.Value != null)
+                    PowerSupplyMeasuredCurrent32Text = $"{ms.Current.Value:0.000} A";
+            }
+            else
+            {
+                if (ms?.Voltage?.Value != null)
+                    DmmVoltage28Text = $"{ms.Voltage.Value:0.000} V";
+                if (ms?.Current?.Value != null)
+                    PowerSupplyMeasuredCurrent28Text = $"{ms.Current.Value:0.000} A";
+            }
 
             if (ms?.Voltage?.Value != null || ms?.Current?.Value != null)
             {
@@ -469,37 +632,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
 
             token.ThrowIfCancellationRequested();
-
-            var enteredAtpOk = await AutoEnterAtpAsync(token);
-            if (!enteredAtpOk)
-            {
-                failures.Add($"{supplyVoltage:0.###}V：进入ATP失败");
-                await PowerSupplyOutputOffAsync(token);
-                return;
-            }
-
-            _autoTestEnteredAtp = true;
-
-            token.ThrowIfCancellationRequested();
             var telemetryOk = await AutoSendAb28vSupplyAndReadTelemetryAsync(token, failures);
             if (!telemetryOk)
             {
                 failures.Add($"{supplyVoltage:0.###}V：AB_28V_SUPPLY 回采失败");
             }
 
-            token.ThrowIfCancellationRequested();
-
-            var exitOk = await AutoExitAtpAsync(token);
-            if (!exitOk)
-            {
-                failures.Add($"{supplyVoltage:0.###}V：退出ATP失败");
-            }
-
-            _autoTestEnteredAtp = false;
-
             AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：断开控制通道供电");
             await PowerSupplyOutputOffAsync(token);
             await Task.Delay(200, token);
+
+            _autoTestEnteredAtp = false;
         }
 
         private async Task<bool> AutoEnterAtpAsync(CancellationToken token)
@@ -527,6 +670,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return false;
 
                 EnterAtpRxDataText = "0x" + FormatBytesHex(resp);
+
+                if (_activeSupplyVoltage.HasValue)
+                {
+                    if (_activeSupplyVoltage.Value >= 31.0)
+                        EnterAtpRxData32Text = EnterAtpRxDataText;
+                    else
+                        EnterAtpRxData28Text = EnterAtpRxDataText;
+                }
                 return true;
             }
             finally
@@ -589,43 +740,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 token.ThrowIfCancellationRequested();
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：读取二次电源回采值(15V_VBIT)");
-                var resp15 = await _arinc.SendBenchCommandAndWaitAsync(
-                    SetVoltageTxChannel,
-                    TelemetryRxChannel,
-                    DefaultLabel,
-                    Req15vVbit,
-                    Is15vVbitPayload,
-                    timeoutMs: 2000,
-                    msg => AddLog(msg),
+                var (resp15, resp5) = await WaitVbitPairAsync(
+                    timeoutMs: 4000,
+                    log: msg => AddLog(msg),
                     token);
 
-                if (resp15 == null)
+                if (resp15 == null || resp5 == null)
                     return false;
 
-                if (!TryParseSingleVbitValue(resp15, Req15vVbit, out var v15))
+                if (!TryParseSingleVbitValue(resp15, Vbit15Prefix4, out var v15))
                 {
                     failures.Add($"15V_VBIT 解析失败: 0x{FormatBytesHex(resp15)}");
                     return true;
                 }
 
-                token.ThrowIfCancellationRequested();
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：读取二次电源回采值(5V_VBIT)");
-                var resp5 = await _arinc.SendBenchCommandAndWaitAsync(
-                    SetVoltageTxChannel,
-                    TelemetryRxChannel,
-                    DefaultLabel,
-                    Req5vVbit,
-                    Is5vVbitPayload,
-                    timeoutMs: 2000,
-                    msg => AddLog(msg),
-                    token);
-
-                if (resp5 == null)
-                    return false;
-
-                if (!TryParseSingleVbitValue(resp5, Req5vVbit, out var v5))
+                if (!TryParseSingleVbitValue(resp5, Vbit5Prefix4, out var v5))
                 {
                     failures.Add($"5V_VBIT 解析失败: 0x{FormatBytesHex(resp5)}");
                     return true;
@@ -633,6 +762,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 TelemetryRxDataText = $"15V:0x{FormatBytesHex(resp15)}  5V:0x{FormatBytesHex(resp5)}";
                 TelemetryVoltageText = $"15V={v15:0.000}V, 5V={v5:0.000}V";
+
+                if (_activeSupplyVoltage.HasValue)
+                {
+                    if (_activeSupplyVoltage.Value >= 31.0)
+                    {
+                        TelemetryRxData32Text = TelemetryRxDataText;
+                        TelemetryVoltage32Text = TelemetryVoltageText;
+                    }
+                    else
+                    {
+                        TelemetryRxData28Text = TelemetryRxDataText;
+                        TelemetryVoltage28Text = TelemetryVoltageText;
+                    }
+                }
 
                 if (!IsWithin(v15, 2.375, 2.625))
                     failures.Add($"15V_VBIT={v15:0.000}V 不在[2.375,2.625]V");
@@ -675,6 +818,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
 
                 EnterAtpRxDataText = "0x" + FormatBytesHex(resp);
+
+                if (_activeSupplyVoltage.HasValue)
+                {
+                    if (_activeSupplyVoltage.Value >= 31.0)
+                        EnterAtpRxData32Text = EnterAtpRxDataText;
+                    else
+                        EnterAtpRxData28Text = EnterAtpRxDataText;
+                }
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 收到ATP OK");
             }
             catch (Exception ex)
@@ -709,15 +860,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     msg => AddLog(msg),
                     CancellationToken.None);
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试：读取二次电源回采值(15V_VBIT)");
-                var resp15 = await _arinc.SendBenchCommandAndWaitAsync(
-                    SetVoltageTxChannel,
-                    TelemetryRxChannel,
-                    DefaultLabel,
-                    Req15vVbit,
-                    Is15vVbitPayload,
-                    timeoutMs: 2000,
-                    msg => AddLog(msg),
+                var (resp15, resp5) = await WaitVbitPairAsync(
+                    timeoutMs: 4000,
+                    log: msg => AddLog(msg),
                     CancellationToken.None);
 
                 if (resp15 == null)
@@ -726,27 +871,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试：读取二次电源回采值(5V_VBIT)");
-                var resp5 = await _arinc.SendBenchCommandAndWaitAsync(
-                    SetVoltageTxChannel,
-                    TelemetryRxChannel,
-                    DefaultLabel,
-                    Req5vVbit,
-                    Is5vVbitPayload,
-                    timeoutMs: 2000,
-                    msg => AddLog(msg),
-                    CancellationToken.None);
-
                 if (resp5 == null)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 5V_VBIT 回采超时");
                     return;
                 }
 
-                if (TryParseSingleVbitValue(resp15, Req15vVbit, out var v15) && TryParseSingleVbitValue(resp5, Req5vVbit, out var v5))
+                if (TryParseSingleVbitValue(resp15, Vbit15Prefix4, out var v15) && TryParseSingleVbitValue(resp5, Vbit5Prefix4, out var v5))
                 {
                     TelemetryRxDataText = $"15V:0x{FormatBytesHex(resp15)}  5V:0x{FormatBytesHex(resp5)}";
                     TelemetryVoltageText = $"15V={v15:0.000}V, 5V={v5:0.000}V";
+
+                    if (_activeSupplyVoltage.HasValue)
+                    {
+                        if (_activeSupplyVoltage.Value >= 31.0)
+                        {
+                            TelemetryRxData32Text = TelemetryRxDataText;
+                            TelemetryVoltage32Text = TelemetryVoltageText;
+                        }
+                        else
+                        {
+                            TelemetryRxData28Text = TelemetryRxDataText;
+                            TelemetryVoltage28Text = TelemetryVoltageText;
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -874,21 +1022,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private static PowerSupplyChannel MapPowerSupplyChannel(string dmmChannel)
-        {
-            // UI uses Port1/Port2. Map them to CH1/CH2.
-            return string.Equals(dmmChannel, "Port2", StringComparison.OrdinalIgnoreCase)
-                ? PowerSupplyChannel.CH2
-                : PowerSupplyChannel.CH1;
-        }
-
         private async Task PowerSupplyApplyAsync(double voltage, double currentLimit, CancellationToken token)
         {
             await EnsurePowerSupplyConnectedAsync(token);
 
-            var ch = MapPowerSupplyChannel(DmmChannel);
-            await _powerSupply.ApplyAsync(ch, voltage, currentLimit, token);
-            await _powerSupply.SetOutputEnabledAsync(ch, true, token);
+            await _powerSupply.ApplyAsync(PowerSupplyChannel.CH1, voltage, currentLimit, token);
+            await _powerSupply.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token);
         }
 
         private async Task PowerSupplyOutputOffAsync(CancellationToken token)
@@ -896,8 +1035,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (_powerSupply == null || !_powerSupply.IsConnected)
                 return;
 
-            var ch = MapPowerSupplyChannel(DmmChannel);
-            await _powerSupply.SetOutputEnabledAsync(ch, false, token);
+            await _powerSupply.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, token);
         }
 
         private async Task<PowerSupplyMeasurements> PowerSupplyReadMeasurementsAsync(CancellationToken token)
@@ -905,40 +1043,80 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (_powerSupply == null || !_powerSupply.IsConnected)
                 return null;
 
-            var ch = MapPowerSupplyChannel(DmmChannel);
-            return await _powerSupply.ReadMeasurementsAsync(ch, options: null, cancellationToken: token);
+            return await _powerSupply.ReadMeasurementsAsync(PowerSupplyChannel.CH1, options: null, cancellationToken: token);
         }
 
         private static bool Is15vVbitPayload(byte[] frame)
         {
-            return IsPrefix(frame, Req15vVbit);
+            return IsPrefix4(frame, Vbit15Prefix4)
+                && (Ab28vSupply == null || frame == null || !frame.SequenceEqual(Ab28vSupply));
         }
 
         private static bool Is5vVbitPayload(byte[] frame)
         {
-            return IsPrefix(frame, Req5vVbit);
+            return IsPrefix4(frame, Vbit5Prefix4);
         }
 
-        private static bool IsPrefix(byte[] frame, byte[] prefix8)
+        private static bool IsAnyVbitPayload(byte[] frame)
+        {
+            return Is15vVbitPayload(frame) || Is5vVbitPayload(frame);
+        }
+
+        private async Task<(byte[] Resp15, byte[] Resp5)> WaitVbitPairAsync(
+            int timeoutMs,
+            Action<string> log,
+            CancellationToken token)
+        {
+            var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(200, timeoutMs));
+            byte[] resp15 = null;
+            byte[] resp5 = null;
+
+            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline && (resp15 == null || resp5 == null))
+            {
+                int remainMs = (int)Math.Max(0, (deadline - DateTime.UtcNow).TotalMilliseconds);
+                if (remainMs <= 0)
+                    break;
+
+                var resp = await _arinc.WaitBenchResponseAsync(
+                    TelemetryRxChannel,
+                    DefaultLabel,
+                    IsAnyVbitPayload,
+                    timeoutMs: Math.Min(500, remainMs),
+                    log,
+                    token);
+
+                if (resp == null)
+                    continue;
+
+                if (resp15 == null && Is15vVbitPayload(resp))
+                    resp15 = resp;
+                else if (resp5 == null && Is5vVbitPayload(resp))
+                    resp5 = resp;
+            }
+
+            return (resp15, resp5);
+        }
+
+        private static bool IsPrefix4(byte[] frame, byte[] prefix4)
         {
             if (frame == null || frame.Length != 8)
                 return false;
-            if (prefix8 == null || prefix8.Length != 8)
+            if (prefix4 == null || prefix4.Length != 4)
                 return false;
 
             for (int i = 0; i < 4; i++)
             {
-                if (frame[i] != prefix8[i])
+                if (frame[i] != prefix4[i])
                     return false;
             }
 
             return true;
         }
 
-        private static bool TryParseSingleVbitValue(byte[] frame, byte[] prefix8, out double value)
+        private static bool TryParseSingleVbitValue(byte[] frame, byte[] prefix4, out double value)
         {
             value = 0;
-            if (!IsPrefix(frame, prefix8))
+            if (!IsPrefix4(frame, prefix4))
                 return false;
 
             try
@@ -971,6 +1149,84 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return string.Empty;
 
             return string.Join(" ", data.Select(b => b.ToString("X2", CultureInfo.InvariantCulture)));
+        }
+
+        private async Task OnSupplyVoltageAsync(double voltage)
+        {
+            await _arincOpLock.WaitAsync();
+            try
+            {
+                _activeSupplyVoltage = voltage;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 供电：程控电源输出 {voltage:0.###}V");
+                await PowerSupplyApplyAsync(voltage, currentLimit: 3.0, CancellationToken.None);
+                await Task.Delay(300);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 供电异常：{ex.Message}");
+            }
+            finally
+            {
+                _arincOpLock.Release();
+            }
+        }
+
+        private async Task OnPowerSupplyOutputOffAsync()
+        {
+            await _arincOpLock.WaitAsync();
+            try
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 断电：关闭程控电源输出");
+                await PowerSupplyOutputOffAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 断电异常：{ex.Message}");
+            }
+            finally
+            {
+                _arincOpLock.Release();
+            }
+        }
+
+        private async Task OnReadPowerSupplyMeasurementsAsync()
+        {
+            await _arincOpLock.WaitAsync();
+            try
+            {
+                var ms = await PowerSupplyReadMeasurementsAsync(CancellationToken.None);
+                if (ms?.Voltage?.Value != null)
+                    DmmVoltageText = $"{ms.Voltage.Value:0.000} V";
+                if (ms?.Current?.Value != null)
+                    PowerSupplyMeasuredCurrentText = $"{ms.Current.Value:0.000} A";
+
+                if (_activeSupplyVoltage.HasValue && _activeSupplyVoltage.Value >= 31.0)
+                {
+                    if (ms?.Voltage?.Value != null)
+                        DmmVoltage32Text = $"{ms.Voltage.Value:0.000} V";
+                    if (ms?.Current?.Value != null)
+                        PowerSupplyMeasuredCurrent32Text = $"{ms.Current.Value:0.000} A";
+                }
+                else if (_activeSupplyVoltage.HasValue)
+                {
+                    if (ms?.Voltage?.Value != null)
+                        DmmVoltage28Text = $"{ms.Voltage.Value:0.000} V";
+                    if (ms?.Current?.Value != null)
+                        PowerSupplyMeasuredCurrent28Text = $"{ms.Current.Value:0.000} A";
+                }
+
+                var vText = ms?.Voltage?.Value != null ? $"{ms.Voltage.Value:0.000}V" : "--";
+                var iText = ms?.Current?.Value != null ? $"{ms.Current.Value:0.000}A" : "--";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 记录供电电源读数 V={vText}, I={iText}");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 读取电源读数异常：{ex.Message}");
+            }
+            finally
+            {
+                _arincOpLock.Release();
+            }
         }
     }
 }

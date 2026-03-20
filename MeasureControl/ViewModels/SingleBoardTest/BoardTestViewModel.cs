@@ -384,7 +384,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     // ── FIX：value == null 时同时清空两个面板 ──────────────────
                     if (value == null)
                     {
-                        RightPanelContent = null;
+                        RightPanelContent = new TextBlock
+                        {
+                            Text = "请选择左侧测试项",
+                            Margin = new System.Windows.Thickness(10)
+                        };
                         SelectedTestCriteriaText = string.Empty;
                         SelectedTestNotesText = string.Empty;  // ← 新增
                         return;
@@ -396,8 +400,35 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
                     if (TryGetViewFactory(BoardType, value.Name, out var viewFactory))
                     {
-                        RightPanelContent = viewFactory();
-                        return;
+                        try
+                        {
+                            var view = viewFactory?.Invoke();
+                            if (view != null)
+                            {
+                                RightPanelContent = view;
+                                return;
+                            }
+
+                            RightPanelContent = new TextBlock
+                            {
+                                Text = $"{value.Name}\r\n\r\n未能创建对应视图：viewFactory 返回 null。",
+                                Margin = new System.Windows.Thickness(10)
+                            };
+                            return;
+                        }
+                        catch (Exception ex)
+                        {
+                            RightPanelContent = new TextBox
+                            {
+                                Text = $"{value.Name}\r\n\r\n视图创建失败：\r\n{ex}",
+                                Margin = new System.Windows.Thickness(10),
+                                IsReadOnly = true,
+                                TextWrapping = System.Windows.TextWrapping.Wrap,
+                                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
+                            };
+                            return;
+                        }
                     }
 
                     RightPanelContent = new TextBlock { Text = value.Name, Margin = new System.Windows.Thickness(10) };
