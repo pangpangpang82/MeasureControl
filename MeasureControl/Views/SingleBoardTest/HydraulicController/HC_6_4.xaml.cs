@@ -104,11 +104,6 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
             }
 
             var formatted = FormatVoltageText(textBox.Text);
-            if (string.Equals(textBox.Text, formatted, System.StringComparison.Ordinal))
-            {
-                return;
-            }
-
             try
             {
                 _isUpdatingCustomInput = true;
@@ -118,6 +113,11 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
             finally
             {
                 _isUpdatingCustomInput = false;
+            }
+
+            if (DataContext is HC_6_4ViewModel viewModel)
+            {
+                viewModel.CustomVoltageInput = formatted;
             }
         }
 
@@ -140,7 +140,7 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
                 {
                     if (hasDot)
                     {
-                        if (decimalCount >= 1)
+                        if (decimalCount >= 2)
                         {
                             continue;
                         }
@@ -181,8 +181,9 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
                 return sanitized;
             }
 
-            value = System.Math.Truncate(value * 10d) / 10d;
-            return value.ToString("0.0", CultureInfo.InvariantCulture);
+            value = System.Math.Max(0d, System.Math.Min(7.17d, value));
+            value = System.Math.Truncate(value * 100d) / 100d;
+            return value.ToString("0.##", CultureInfo.InvariantCulture);
         }
     }
 }

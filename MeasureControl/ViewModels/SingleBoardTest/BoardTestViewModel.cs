@@ -568,6 +568,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 var stopped = await TryStopCurrentTestAsync().ConfigureAwait(false);
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
+                    _isStoppingCurrentTest = false;
+
                     if (stopped)
                     {
                         onCompleted?.Invoke();
@@ -579,7 +581,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             }
             catch
             {
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => onFailed?.Invoke());
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    _isStoppingCurrentTest = false;
+                    onFailed?.Invoke();
+                });
             }
             finally
             {
@@ -837,22 +843,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             }
         }
 
-        public class TestSequenceItem : BindableBase
+        public class TestSequenceItem
         {
-            private bool _isSelected = true;
-
             public TestSequenceItem(string name)
             {
                 Name = name;
             }
 
             public string Name { get; }
-
-            public bool IsSelected
-            {
-                get => _isSelected;
-                set => SetProperty(ref _isSelected, value);
-            }
         }
     }
 }
