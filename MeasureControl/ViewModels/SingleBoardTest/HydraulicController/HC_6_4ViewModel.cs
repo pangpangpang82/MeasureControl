@@ -299,9 +299,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        public bool CanMeasurePoint1 => IsManualTestRunning && CanMeasure && !_measured1;
-        public bool CanMeasurePoint2 => IsManualTestRunning && CanMeasure && !_measured2;
-        public bool CanMeasurePoint3 => IsManualTestRunning && CanMeasure && !_measured3;
+        public bool CanMeasurePoint1 => IsManualTestRunning && CanMeasure;
+        public bool CanMeasurePoint2 => IsManualTestRunning && CanMeasure;
+        public bool CanMeasurePoint3 => IsManualTestRunning && CanMeasure;
         public bool CanMeasureCustomPoint => IsManualTestRunning && CanMeasure && TryGetValidatedCustomVoltage(out _);
         public bool CanStartManualTest => !IsManualTestBusy && !IsAutoTestBusy && !IsAutoTestRunning;
         public bool CanStartAutoTest => !IsManualTestBusy && !IsAutoTestBusy && !IsManualTestRunning;
@@ -700,6 +700,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasurePoint1Async()
         {
+            PressurePoint1Sys1Text = "--";
+            PressurePoint1Sys2Text = "--";
+            PressurePoint1Sys3Text = "--";
+            _p1Sys1 = null;
+            _p1Sys2 = null;
+            _p1Sys3 = null;
+            CanMeasure = false;
             var ok = await MeasurePointAllSystemsAsync("0.5V点", Point1VoltageV,
                 setSys1: t => PressurePoint1Sys1Text = t,
                 setSys2: t => PressurePoint1Sys2Text = t,
@@ -708,7 +715,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 setV2: v => _p1Sys2 = v,
                 setV3: v => _p1Sys3 = v,
                 _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
-
+            CanMeasure = IsManualTestRunning;
             if (!IsManualTestRunning || _manualAborted) return;
             _measured1 = true;
             RefreshMeasureCommands();
@@ -716,6 +723,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasurePoint2Async()
         {
+            PressurePoint2Sys1Text = "--";
+            PressurePoint2Sys2Text = "--";
+            PressurePoint2Sys3Text = "--";
+            _p2Sys1 = null;
+            _p2Sys2 = null;
+            _p2Sys3 = null;
+            CanMeasure = false;
             var ok = await MeasurePointAllSystemsAsync("7.17V点", Point2VoltageV,
                 setSys1: t => PressurePoint2Sys1Text = t,
                 setSys2: t => PressurePoint2Sys2Text = t,
@@ -724,7 +738,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 setV2: v => _p2Sys2 = v,
                 setV3: v => _p2Sys3 = v,
                 _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
-
+            CanMeasure = IsManualTestRunning;
             if (!IsManualTestRunning || _manualAborted) return;
             _measured2 = true;
             RefreshMeasureCommands();
@@ -732,6 +746,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasurePoint3Async()
         {
+            PressurePoint3Sys1Text = "--";
+            PressurePoint3Sys2Text = "--";
+            PressurePoint3Sys3Text = "--";
+            _p3Sys1 = null;
+            _p3Sys2 = null;
+            _p3Sys3 = null;
+            CanMeasure = false;
             var ok = await MeasurePointAllSystemsAsync("3.0V点", Point3VoltageV,
                 setSys1: t => PressurePoint3Sys1Text = t,
                 setSys2: t => PressurePoint3Sys2Text = t,
@@ -740,7 +761,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 setV2: v => _p3Sys2 = v,
                 setV3: v => _p3Sys3 = v,
                 _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
-
+            CanMeasure = IsManualTestRunning;
             if (!IsManualTestRunning || _manualAborted) return;
             _measured3 = true;
             RefreshMeasureCommands();
@@ -781,7 +802,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Action<double?> setV3,
             CancellationToken cancellationToken)
         {
-            if (!(IsAutoTestRunning || (IsManualTestRunning && CanMeasure)))
+            if (!IsAutoTestRunning && !IsManualTestRunning)
             {
                 Log($"{title}: 当前未处于测试状态");
                 return false;
