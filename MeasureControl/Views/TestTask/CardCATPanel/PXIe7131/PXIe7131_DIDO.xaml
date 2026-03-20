@@ -1,0 +1,1151 @@
+﻿<UserControl
+    x:Class="MeasureControl.Views.TestTask.CardCATPanel.PXIe7131.PXIe7131_DIDO"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:MeasureControl.Helpers"
+    xmlns:local="clr-namespace:MeasureControl.Views"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    d:DesignHeight="550"
+    d:DesignWidth="970"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!--  反转布尔值转换器  -->
+        <helpers:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <!--  布尔值转可见性转换器  -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+
+        <!--  简洁的滚动条样式  -->
+        <Style x:Key="SimpleScrollBarStyle" TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Width" Value="8" />
+            <Setter Property="MinWidth" Value="8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Border Background="Transparent" BorderThickness="0">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Style>
+                                            <Style TargetType="Thumb">
+                                                <Setter Property="Background" Value="#CCCCCC" />
+                                                <Setter Property="BorderThickness" Value="0" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Thumb">
+                                                            <Border
+                                                                Background="{TemplateBinding Background}"
+                                                                BorderThickness="0"
+                                                                CornerRadius="4" />
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#999999" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter Property="Background" Value="#666666" />
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Thumb.Style>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+
+
+        <!--  简洁的ScrollViewer样式  -->
+        <Style x:Key="SimpleScrollViewerStyle" TargetType="ScrollViewer">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="8" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <ScrollContentPresenter
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                Margin="{TemplateBinding Padding}"
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}" />
+
+                            <ScrollBar
+                                x:Name="PART_VerticalScrollBar"
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                Maximum="{TemplateBinding ScrollableHeight}"
+                                Orientation="Vertical"
+                                Style="{StaticResource SimpleScrollBarStyle}"
+                                ViewportSize="{TemplateBinding ViewportHeight}"
+                                Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                Value="{TemplateBinding VerticalOffset}" />
+
+                            <ScrollBar
+                                x:Name="PART_HorizontalScrollBar"
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                Maximum="{TemplateBinding ScrollableWidth}"
+                                Orientation="Horizontal"
+                                Style="{StaticResource SimpleScrollBarStyle}"
+                                ViewportSize="{TemplateBinding ViewportWidth}"
+                                Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"
+                                Value="{TemplateBinding HorizontalOffset}" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--  使能CheckBox样式：勾选背景蓝色，勾选标记白色  -->
+        <Style x:Key="EnableCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid>
+                            <Border
+                                x:Name="checkBoxBorder"
+                                Width="16"
+                                Height="16"
+                                Background="White"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="2">
+                                <Path
+                                    x:Name="checkMark"
+                                    Data="M 2 8 L 6 12 L 14 4"
+                                    Stroke="White"
+                                    StrokeThickness="2"
+                                    Visibility="Collapsed" />
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="checkBoxBorder" Property="Background" Value="#3b82f6" />
+                                <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#3b82f6" />
+                                <Setter TargetName="checkMark" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#3b82f6" />
+                            </Trigger>
+                            <!--  禁用状态：灰色  -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="checkBoxBorder" Property="Background" Value="#E5E5E5" />
+                                <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#CCCCCC" />
+                                <Setter TargetName="checkMark" Property="Stroke" Value="#999999" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DisabledSectionBorderStyle" TargetType="Border">
+            <Setter Property="Opacity" Value="1" />
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.6" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!--  全局配置锁定下拉框样式  -->
+        <Style
+            x:Key="ConfigLockedComboBoxStyle"
+            BasedOn="{StaticResource CustomComboBoxStyle}"
+            TargetType="ComboBox">
+            <Setter Property="Opacity" Value="1" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsConfigurationLocked}" Value="True">
+                    <Setter Property="IsEnabled" Value="False" />
+                    <Setter Property="Opacity" Value="0.5" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="StatusLampStyle" TargetType="Ellipse">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsDeviceConnected}" Value="True">
+                    <Setter Property="Fill">
+                        <Setter.Value>
+                            <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                <GradientStop Offset="0" Color="#4ade80" />
+                                <GradientStop Offset="1" Color="#16a34a" />
+                            </RadialGradientBrush>
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Border
+        Background="White"
+        FocusVisualStyle="{x:Null}"
+        Focusable="True"
+        MouseDown="Border_MouseDown">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1*" />
+                <ColumnDefinition Width="2*" />
+            </Grid.ColumnDefinitions>
+
+            <Border
+                x:Name="Card_name"
+                Grid.Column="0"
+                Margin="8,8,4,8"
+                Background="White"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1.5"
+                CornerRadius="8"
+                Style="{StaticResource DisabledSectionBorderStyle}">
+
+                <Grid>
+                    <StackPanel Orientation="Vertical">
+
+                        <StackPanel IsHitTestVisible="{Binding IsLeftConfigLocked, Converter={StaticResource InverseBoolConverter}}">
+
+                            <TextBlock
+                                x:Name="Card_class"
+                                Margin="15,10,0,0"
+                                FontSize="16"
+                                FontWeight="Bold"
+                                Text="{Binding CardModel, StringFormat='{}{0} 配置'}" />
+
+                            <StackPanel Margin="15,10,0,0" Orientation="Horizontal">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="15"
+                                    Text="测试任务：" />
+
+                                <ComboBox
+                                    Width="210"
+                                    Height="30"
+                                    FontSize="15"
+                                    ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                                    ItemsSource="{Binding AvailableTestTasks}"
+                                    SelectedItem="{Binding SelectedTestTask, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    Style="{StaticResource ConfigLockedComboBoxStyle}">
+                                    <ComboBox.IsEnabled>
+                                        <Binding Path="HasTestTaskOptions" />
+                                    </ComboBox.IsEnabled>
+                                </ComboBox>
+
+
+                            </StackPanel>
+
+                            <StackPanel Margin="15,10,0,0" Orientation="Horizontal">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="15"
+                                    Text="输出模式：" />
+
+                                <ComboBox
+                                    Width="210"
+                                    Height="30"
+                                    FontSize="15"
+                                    ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                                    ItemsSource="{Binding OutputModes}"
+                                    SelectedItem="{Binding SelectedOutputMode}"
+                                    Style="{StaticResource ConfigLockedComboBoxStyle}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <TextBlock
+                            Margin="15,10,0,0"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Text="通道信息" />
+
+                        <Border
+                            x:Name="Card_Cannel_info"
+                            Width="280"
+                            MaxHeight="370"
+                            Margin="15,10,0,8"
+                            HorizontalAlignment="Left"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            SnapsToDevicePixels="True"
+                            UseLayoutRounding="True">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="24" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <!--  表头行  -->
+                                <Grid Grid.Row="0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1*" />
+                                        <ColumnDefinition Width="1*" />
+                                        <ColumnDefinition Width="1*" />
+                                        <ColumnDefinition Width="1*" />
+                                        <ColumnDefinition Width="8" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!--  表头背景  -->
+                                    <Border
+                                        Grid.Column="0"
+                                        Grid.ColumnSpan="5"
+                                        Background="#F5F5F5"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="0,0,0,1" />
+
+                                    <!--  输入通道表头  -->
+                                    <Border
+                                        Grid.Column="0"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="0,0,1,0">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            FontWeight="Bold"
+                                            Text="输入" />
+                                    </Border>
+                                    <Border
+                                        Grid.Column="1"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="0,0,1,0">
+                                        <StackPanel
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Orientation="Horizontal">
+                                            <TextBlock
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                FontWeight="Bold"
+                                                Text="使能" />
+
+                                            <CheckBox
+                                                Margin="5,0,0,0"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                IsChecked="{Binding IsInputAllEnabled, Mode=TwoWay}"
+                                                IsEnabled="{Binding DataContext.CanEditChannelEnable, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                Style="{StaticResource EnableCheckBoxStyle}" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!--  输出通道表头  -->
+                                    <Border
+                                        Grid.Column="2"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="0,0,1,0">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            FontWeight="Bold"
+                                            Text="输出" />
+                                    </Border>
+                                    <Border Grid.Column="3" BorderBrush="#D9D9D9">
+                                        <StackPanel
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Orientation="Horizontal">
+                                            <TextBlock
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontSize="15"
+                                                FontWeight="Bold"
+                                                Text="使能" />
+
+                                            <CheckBox
+                                                Margin="5,0,0,0"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                IsChecked="{Binding IsOutputAllEnabled, Mode=TwoWay}"
+                                                IsEnabled="{Binding DataContext.CanEditChannelEnable, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                Style="{StaticResource EnableCheckBoxStyle}" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!--  可滚动的数据行区域  -->
+                                <ScrollViewer
+                                    Grid.Row="1"
+                                    FocusVisualStyle="{x:Null}"
+                                    Focusable="False"
+                                    HorizontalScrollBarVisibility="Disabled"
+                                    IsTabStop="False"
+                                    Style="{StaticResource SimpleScrollViewerStyle}"
+                                    VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding ChannelRows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Height="30" Background="White">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="1*" />
+                                                        <ColumnDefinition Width="1*" />
+                                                        <ColumnDefinition Width="1*" />
+                                                        <ColumnDefinition Width="1*" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Border
+                                                        Grid.Column="0"
+                                                        BorderBrush="#D9D9D9"
+                                                        BorderThickness="0,0,1,1">
+                                                        <TextBlock
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            FontSize="15"
+                                                            Text="{Binding InputChannel.ChannelName, TargetNullValue=''}" />
+                                                    </Border>
+
+                                                    <Border
+                                                        Grid.Column="1"
+                                                        BorderBrush="#D9D9D9"
+                                                        BorderThickness="0,0,1,1">
+                                                        <CheckBox
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            IsChecked="{Binding InputEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, TargetNullValue=False}"
+                                                            IsThreeState="False">
+                                                            <CheckBox.Style>
+                                                                <Style BasedOn="{StaticResource EnableCheckBoxStyle}" TargetType="CheckBox">
+                                                                    <Setter Property="IsEnabled" Value="False" />
+                                                                    <Style.Triggers>
+                                                                        <MultiDataTrigger>
+                                                                            <MultiDataTrigger.Conditions>
+                                                                                <Condition Binding="{Binding HasInputChannel}" Value="True" />
+                                                                                <Condition Binding="{Binding DataContext.CanEditChannelEnable, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True" />
+                                                                            </MultiDataTrigger.Conditions>
+                                                                            <Setter Property="IsEnabled" Value="True" />
+                                                                        </MultiDataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </CheckBox.Style>
+                                                        </CheckBox>
+                                                    </Border>
+
+                                                    <Border
+                                                        Grid.Column="2"
+                                                        BorderBrush="#D9D9D9"
+                                                        BorderThickness="0,0,1,1">
+                                                        <TextBlock
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            FontSize="15"
+                                                            Text="{Binding OutputChannel.ChannelName, TargetNullValue=''}" />
+                                                    </Border>
+
+                                                    <Border
+                                                        Grid.Column="3"
+                                                        BorderBrush="#D9D9D9"
+                                                        BorderThickness="0,0,0,1">
+                                                        <CheckBox
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            IsChecked="{Binding OutputEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, TargetNullValue=False}"
+                                                            IsThreeState="False">
+                                                            <CheckBox.Style>
+                                                                <Style BasedOn="{StaticResource EnableCheckBoxStyle}" TargetType="CheckBox">
+                                                                    <Setter Property="IsEnabled" Value="False" />
+                                                                    <Style.Triggers>
+                                                                        <MultiDataTrigger>
+                                                                            <MultiDataTrigger.Conditions>
+                                                                                <Condition Binding="{Binding HasOutputChannel}" Value="True" />
+                                                                                <Condition Binding="{Binding DataContext.CanEditChannelEnable, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True" />
+                                                                            </MultiDataTrigger.Conditions>
+                                                                            <Setter Property="IsEnabled" Value="True" />
+                                                                        </MultiDataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </CheckBox.Style>
+                                                        </CheckBox>
+                                                    </Border>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                        <StackPanel IsHitTestVisible="{Binding IsLeftConfigLocked, Converter={StaticResource InverseBoolConverter}}">
+                            <Grid>
+                                <Border Margin="10,0,0,0">
+                                    <Button
+                                        Width="80"
+                                        Height="32"
+                                        Margin="40,0,0,0"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        BorderThickness="0"
+                                        Command="{Binding SaveConfigCommand}">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Background" Value="#3b82f6" />
+                                                <Setter Property="Opacity" Value="1" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border
+                                                                x:Name="border"
+                                                                Background="{TemplateBinding Background}"
+                                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                                CornerRadius="3">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsPressed" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsConfigurationLocked}" Value="True">
+                                                        <Setter Property="IsEnabled" Value="False" />
+                                                        <Setter Property="Opacity" Value="0.5" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image
+                                                Width="18"
+                                                Height="18"
+                                                Margin="5,0,3,0"
+                                                Source="/Resources/Logo/save_white.png" />
+                                            <TextBlock
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                Foreground="White">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="保存配置" />
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Button>
+                                </Border>
+                                <Border Margin="10,0,0,0">
+                                    <Button
+                                        Width="80"
+                                        Height="32"
+                                        Margin="100,0,0,0"
+                                        VerticalAlignment="Center"
+                                        BorderThickness="0"
+                                        Command="{Binding ReloadConfigCommand}">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Background" Value="#3b82f6" />
+                                                <Setter Property="Opacity" Value="1" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border
+                                                                x:Name="border"
+                                                                Background="{TemplateBinding Background}"
+                                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                                CornerRadius="3">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsPressed" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsConfigurationLocked}" Value="True">
+                                                        <Setter Property="IsEnabled" Value="False" />
+                                                        <Setter Property="Opacity" Value="0.5" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image
+                                                Width="15"
+                                                Height="15"
+                                                Margin="5,0,3,0"
+                                                Source="/Resources/Logo/read.png" />
+                                            <TextBlock
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                Foreground="White">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="读取配置" />
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Button>
+                                </Border>
+                            </Grid>
+
+                        </StackPanel>
+
+                    </StackPanel>
+
+                </Grid>
+
+            </Border>
+
+
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="5.2*" />
+                    <RowDefinition Height="25*" />
+                    <RowDefinition Height="25*" />
+                </Grid.RowDefinitions>
+                <Border
+                    Margin="4,8,8,4"
+                    Background="White"
+                    BorderBrush="#D9D9D9"
+                    BorderThickness="1.5"
+                    CornerRadius="8">
+                    <StackPanel
+                        Height="30"
+                        Margin="15,0,0,0"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="15"
+                            Text="板卡名称：" />
+                        <Border
+                            x:Name="card_name"
+                            Width="120"
+                            Height="30"
+                            VerticalAlignment="Center"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBox
+                                x:Name="CardNameTextBox"
+                                Margin="10,0,0,0"
+                                VerticalAlignment="Center"
+                                BorderThickness="0"
+                                FontSize="15"
+                                LostFocus="CardNameTextBox_LostFocus"
+                                Text="{Binding CardName, UpdateSourceTrigger=PropertyChanged}" />
+                        </Border>
+
+                        <Border>
+                            <StackPanel
+                                Height="25"
+                                Margin="15,0,0,0"
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="15"
+                                    Text="连接状态：" />
+                                <Grid Width="18" Height="18">
+                                    <Ellipse
+                                        Width="18"
+                                        Height="18"
+                                        Stroke="#d1d5db"
+                                        StrokeThickness="0.5" />
+                                    <Ellipse
+                                        Width="16"
+                                        Height="16"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill">
+                                                    <Setter.Value>
+                                                        <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                            <GradientStop Offset="0" Color="#ff6b6b" />
+                                                            <GradientStop Offset="1" Color="#b91c1c" />
+                                                        </RadialGradientBrush>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsDeviceConnected}" Value="True">
+                                                        <Setter Property="Fill">
+                                                            <Setter.Value>
+                                                                <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                                    <GradientStop Offset="0" Color="#4ade80" />
+                                                                    <GradientStop Offset="1" Color="#16a34a" />
+                                                                </RadialGradientBrush>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                </Grid>
+                                <TextBlock
+                                    Margin="5,0,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="15"
+                                    Text="{Binding ConnectionStatus}" />
+
+                            </StackPanel>
+                        </Border>
+
+                        <Border Margin="15,0,0,0">
+                            <Button
+                                Width="80"
+                                Height="30"
+                                VerticalAlignment="Center"
+                                BorderThickness="0"
+                                Command="{Binding ToggleDeviceCommand}">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border
+                                            x:Name="border"
+                                            Background="#3b82f6"
+                                            CornerRadius="4">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Image
+                                                    x:Name="DeviceImage"
+                                                    Width="15"
+                                                    Height="15"
+                                                    Margin="5,0,5,0"
+                                                    Source="/Resources/Logo/export.png" />
+                                                <TextBlock
+                                                    x:Name="DeviceAction"
+                                                    Margin="0,0,5,0"
+                                                    VerticalAlignment="Center"
+                                                    Foreground="White"
+                                                    Text="打开板卡" />
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <!--  1. 已连接时的基础状态  -->
+                                            <DataTrigger Binding="{Binding IsDeviceConnected}" Value="True">
+                                                <Setter Property="Tag" Value="True" />
+                                                <Setter TargetName="DeviceImage" Property="Source" Value="/Resources/Logo/import.png" />
+                                                <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                                <Setter TargetName="DeviceAction" Property="Text" Value="关闭板卡" />
+                                            </DataTrigger>
+
+                                            <DataTrigger Binding="{Binding IsDeviceConnected}" Value="False">
+                                                <Setter Property="Tag" Value="False" />
+                                            </DataTrigger>
+
+                                            <!--  2. 未连接 + 悬停  -->
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="Tag" Value="False" />
+                                                    <Condition Property="IsMouseOver" Value="True" />
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                            </MultiTrigger>
+
+                                            <!--  3. 未连接 + 按下  -->
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="Tag" Value="False" />
+                                                    <Condition Property="IsPressed" Value="True" />
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                            </MultiTrigger>
+
+                                            <!--  4. 已连接 + 悬停（优先级更高，放在后面）  -->
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="Tag" Value="True" />
+                                                    <Condition Property="IsMouseOver" Value="True" />
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                            </MultiTrigger>
+
+                                            <!--  5. 已连接 + 按下  -->
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="Tag" Value="True" />
+                                                    <Condition Property="IsPressed" Value="True" />
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                            </MultiTrigger>
+
+                                            <!--  6. 禁用状态（最高优先级）  -->
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </Border>
+
+                        <Border Margin="15,0,0,0">
+                            <Button
+                                Width="80"
+                                Height="30"
+                                VerticalAlignment="Center"
+                                Background="#22c55e"
+                                BorderThickness="0"
+                                Command="{Binding ToggleOutputCommand}">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border
+                                            x:Name="border"
+                                            Background="{TemplateBinding Background}"
+                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                            CornerRadius="3">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Image
+                                                    x:Name="ActionIcon"
+                                                    Width="15"
+                                                    Height="15"
+                                                    Margin="5,0,5,0"
+                                                    Source="/Resources/Logo/begin.png" />
+                                                <TextBlock
+                                                    x:Name="ActionText"
+                                                    Margin="0,0,5,0"
+                                                    VerticalAlignment="Center"
+                                                    Foreground="White"
+                                                    Text="开始运行" />
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <!--  1. 基础状态：采集运行时变红色  -->
+                                            <DataTrigger Binding="{Binding IsOutputRunning}" Value="True">
+                                                <Setter Property="Tag" Value="True" />
+                                                <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                                <Setter TargetName="ActionIcon" Property="Source" Value="/Resources/Logo/stop.png" />
+                                                <Setter TargetName="ActionText" Property="Text" Value="停止运行" />
+                                            </DataTrigger>
+
+                                            <DataTrigger Binding="{Binding IsOutputRunning}" Value="False">
+                                                <Setter Property="Tag" Value="False" />
+                                            </DataTrigger>
+
+                                            <!--  2. 未连接 + 悬停  -->
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="Tag" Value="False" />
+                                                    <Condition Property="IsMouseOver" Value="True" />
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                            </MultiTrigger>
+
+                                            <!--  3. 未连接 + 按下  -->
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="Tag" Value="False" />
+                                                    <Condition Property="IsPressed" Value="True" />
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                            </MultiTrigger>
+
+                                            <!--  4. 已连接 + 悬停（优先级更高，放在后面）  -->
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="Tag" Value="True" />
+                                                    <Condition Property="IsMouseOver" Value="True" />
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                            </MultiTrigger>
+
+                                            <!--  5. 已连接 + 按下  -->
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="Tag" Value="True" />
+                                                    <Condition Property="IsPressed" Value="True" />
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                            </MultiTrigger>
+
+                                            <!--  6. 禁用状态（最高优先级）  -->
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="IsEnabled" Value="{Binding CanToggleOutput}" />
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Border>
+
+                        <Button
+                            Width="60"
+                            Height="30"
+                            Margin="15,0,0,0"
+                            Background="#3b82f6"
+                            BorderThickness="0"
+                            Command="{Binding OpenDm8600WindowCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="{TemplateBinding Background}"
+                                        CornerRadius="4">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image
+                                                Width="15"
+                                                Height="15"
+                                                Margin="5,0,5,0"
+                                                Source="/Resources/Logo/calibration.png" />
+                                            <TextBlock
+                                                Margin="0,0,5,0"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Foreground="White"
+                                                Text="配置" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                    </StackPanel>
+                </Border>
+
+                <!--  离散量输入区域  -->
+                <Border
+                    Grid.Row="1"
+                    Margin="4,4,8,4"
+                    Background="White"
+                    BorderBrush="#D9D9D9"
+                    BorderThickness="1.5"
+                    CornerRadius="8">
+                    <StackPanel Orientation="Vertical">
+                        <StackPanel Margin="15,10,0,2" Orientation="Horizontal">
+                            <TextBlock
+                                FontSize="16"
+                                FontWeight="Bold"
+                                Text="离散量输入" />
+
+                        </StackPanel>
+
+                        <!--  动态显示输入通道状态  -->
+                        <ScrollViewer
+                            MaxHeight="220"
+                            Margin="15,0,15,0"
+                            HorizontalScrollBarVisibility="Disabled"
+                            Style="{StaticResource SimpleScrollViewerStyle}"
+                            VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding InputStatusItems}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="8" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                                            <TextBlock
+                                                Margin="0,5,0,0"
+                                                HorizontalAlignment="Center"
+                                                FontSize="14"
+                                                Text="{Binding ChannelName}" />
+                                            <Grid
+                                                Width="23"
+                                                Height="23"
+                                                Margin="0,5,0,2">
+                                                <Ellipse
+                                                    Width="23"
+                                                    Height="23"
+                                                    Stroke="#d1d5db"
+                                                    StrokeThickness="0.5" />
+                                                <Ellipse
+                                                    x:Name="LampBody"
+                                                    Width="19"
+                                                    Height="19"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center">
+                                                    <Ellipse.Style>
+                                                        <Style TargetType="Ellipse">
+                                                            <Setter Property="Fill">
+                                                                <Setter.Value>
+                                                                    <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                                        <GradientStop Offset="0" Color="#ff6b6b" />
+                                                                        <GradientStop Offset="1" Color="#dc2626" />
+                                                                    </RadialGradientBrush>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Value}" Value="True">
+                                                                    <Setter Property="Fill">
+                                                                        <Setter.Value>
+                                                                            <RadialGradientBrush GradientOrigin="0.3,0.3">
+                                                                                <GradientStop Offset="0" Color="#4ade80" />
+                                                                                <GradientStop Offset="1" Color="#22c55e" />
+                                                                            </RadialGradientBrush>
+                                                                        </Setter.Value>
+                                                                    </Setter>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Ellipse.Style>
+                                                </Ellipse>
+                                            </Grid>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+
+                <!--  离散量输出区域  -->
+                <Border
+                    Grid.Row="2"
+                    Margin="4,4,8,8"
+                    Background="White"
+                    BorderBrush="#D9D9D9"
+                    BorderThickness="1.5"
+                    CornerRadius="8">
+                    <StackPanel Orientation="Vertical">
+                        <StackPanel Margin="15,10,0,0" Orientation="Horizontal">
+                            <TextBlock
+                                FontSize="16"
+                                FontWeight="Bold"
+                                Text="离散量输出" />
+
+                        </StackPanel>
+
+
+                        <!--  动态显示输出通道状态（点击指示灯切换状态）  -->
+                        <ScrollViewer
+                            MaxHeight="220"
+                            Margin="15,0,15,10"
+                            HorizontalScrollBarVisibility="Disabled"
+                            Style="{StaticResource SimpleScrollViewerStyle}"
+                            VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding OutputStatusItems}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="8" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                                            <TextBlock
+                                                Margin="0,5,0,1.5"
+                                                HorizontalAlignment="Center"
+                                                FontSize="14"
+                                                Text="{Binding ChannelName}" />
+
+                                            <!--  开关按钮样式：默认关(灰)，开为绿，点击切换并写入 DO  -->
+                                            <Button
+                                                Width="48"
+                                                Height="22"
+                                                Margin="0,5,0,1.5"
+                                                Padding="0"
+                                                HorizontalAlignment="Center"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Command="{Binding ToggleCommand}"
+                                                Cursor="Hand"
+                                                IsEnabled="{Binding DataContext.IsOutputRunning, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Grid Width="48" Height="22">
+                                                            <!--  背景条  -->
+                                                            <Border
+                                                                x:Name="Track"
+                                                                Background="#e5e7eb"
+                                                                CornerRadius="11" />
+                                                            <!--  滑块  -->
+                                                            <Border
+                                                                x:Name="Thumb"
+                                                                Width="20"
+                                                                Height="20"
+                                                                Margin="1,1,0,1"
+                                                                HorizontalAlignment="Left"
+                                                                Background="White"
+                                                                CornerRadius="10">
+                                                                <Border.Effect>
+                                                                    <DropShadowEffect
+                                                                        BlurRadius="4"
+                                                                        Opacity="0.3"
+                                                                        ShadowDepth="1" />
+                                                                </Border.Effect>
+                                                            </Border>
+                                                            <!--  文本  -->
+                                                            <TextBlock
+                                                                x:Name="ContentText"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                FontSize="11"
+                                                                Foreground="#374151"
+                                                                Text="关" />
+                                                        </Grid>
+                                                        <ControlTemplate.Triggers>
+                                                            <!--  开关状态：Value=True 表示开(写入1)  -->
+                                                            <DataTrigger Binding="{Binding Value}" Value="True">
+                                                                <Setter TargetName="Track" Property="Background" Value="#22c55e" />
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right" />
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,1,1,1" />
+                                                                <Setter TargetName="ContentText" Property="Text" Value="开" />
+                                                                <Setter TargetName="ContentText" Property="Foreground" Value="White" />
+                                                            </DataTrigger>
+                                                            <!--  鼠标按下时改变透明度  -->
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsEnabled}" Value="True" />
+                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsPressed}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter TargetName="Thumb" Property="Opacity" Value="0.8" />
+                                                            </MultiDataTrigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+        </Grid>
+    </Border>
+</UserControl>
