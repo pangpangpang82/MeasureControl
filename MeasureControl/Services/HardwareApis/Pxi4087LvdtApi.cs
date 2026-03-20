@@ -261,16 +261,28 @@ namespace MeasureControl.Services.HardwareApis
                 if (status != 0)
                     throw new InvalidOperationException($"pxi4087_setMode(sim) failed: {status}");
 
-                status = PXI4087Native.pxi4087_setIntExcSig(_handle, chIndex, config.ExcitationVoltage, config.ExcitationFrequency);
-                if (status != 0)
-                    throw new InvalidOperationException($"pxi4087_setIntExcSig failed: {status}");
-
-                if (!config.UseInternalExcitation)
+                if (config.UseInternalExcitation)
                 {
-                    status = PXI4087Native.pxi4087_setSelExcCh0Flag(_handle, chIndex, 0);
+                    status = PXI4087Native.pxi4087_setIntExcSig(_handle, chIndex, config.ExcitationVoltage, config.ExcitationFrequency);
                     if (status != 0)
-                        throw new InvalidOperationException($"pxi4087_setSelExcCh0Flag failed: {status}");
+                        throw new InvalidOperationException($"pxi4087_setIntExcSig failed: {status}");
                 }
+
+                status = PXI4087Native.pxi4087_setTransRatio(_handle, chIndex, config.TransmissionRatio);
+                if (status != 0)
+                    throw new InvalidOperationException($"pxi4087_setTransRatio failed: {status}");
+
+                status = PXI4087Native.pxi4087_setLvdtPhaseDelay(_handle, chIndex, config.PhaseDelay);
+                if (status != 0)
+                    throw new InvalidOperationException($"pxi4087_setLvdtPhaseDelay failed: {status}");
+
+                status = PXI4087Native.pxi4087_setLvdtAdcRange(_handle, chIndex, config.AdcRangeIndex);
+                if (status != 0)
+                    throw new InvalidOperationException($"pxi4087_setLvdtAdcRange failed: {status}");
+
+                status = PXI4087Native.pxi4087_setLvdtDataOutMode(_handle, chIndex, (ushort)PXI4087Constants.pxi4087_Lvdt_Data_Out_Fix);
+                if (status != 0)
+                    throw new InvalidOperationException($"pxi4087_setLvdtDataOutMode failed: {status}");
             }
             finally
             {

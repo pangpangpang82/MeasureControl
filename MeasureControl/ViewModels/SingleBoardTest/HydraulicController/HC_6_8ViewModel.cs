@@ -864,8 +864,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
             await _lvdt.SetVaVbAsync(LvdtChannel1, BleedLvdtVaV, BleedLvdtVbV, cancellationToken).ConfigureAwait(false);
             await _lvdt.StartAsync(LvdtChannel1, cancellationToken).ConfigureAwait(false);
-            try { await _lvdt.StopAsync(LvdtChannel2, cancellationToken).ConfigureAwait(false); } catch { }
-            await _lvdt.ConfigureSimulationChannelAsync(LvdtChannel2, CreateSimulationConfig(), cancellationToken).ConfigureAwait(false);
             await _lvdt.SetVaVbAsync(LvdtChannel2, BleedLvdtVaV, BleedLvdtVbV, cancellationToken).ConfigureAwait(false);
             await _lvdt.StartAsync(LvdtChannel2, cancellationToken).ConfigureAwait(false);
             Log($"通路共享预置: 保持RO0/RO1={BleedResistanceOhm:0.0}Ω, LVDT CH{LvdtChannel1}/CH{LvdtChannel2} VA={BleedLvdtVaV:0.0}V, VB={BleedLvdtVbV:0.0}V");

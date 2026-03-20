@@ -1041,7 +1041,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (low < 0 || high > 100 || low >= high)
                 return false;
 
-            var target = high;
+            var target = Math.Round((low + high) / 2.0, 1, MidpointRounding.AwayFromZero);
             point = new QuantityPoint($"({low},{high})%", target, low, high);
             return true;
         }
@@ -1086,10 +1086,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _currentQuantityPercent = quantityPercent;
             var (s1, s2) = CalculateSecondaryVoltages(quantityPercent);
             await _lvdt.SetVaVbAsync(LvdtSys1Channel, s1, s2, cancellationToken).ConfigureAwait(false);
-            await _lvdt.StartAsync(LvdtSys1Channel, cancellationToken).ConfigureAwait(false);
-            try { await _lvdt.StopAsync(LvdtSys2Channel, cancellationToken).ConfigureAwait(false); } catch { }
-            await _lvdt.ConfigureSimulationChannelAsync(LvdtSys2Channel, CreateSimulationConfig(), cancellationToken).ConfigureAwait(false);
             await _lvdt.SetVaVbAsync(LvdtSys2Channel, s1, s2, cancellationToken).ConfigureAwait(false);
+            await _lvdt.StartAsync(LvdtSys1Channel, cancellationToken).ConfigureAwait(false);
             await _lvdt.StartAsync(LvdtSys2Channel, cancellationToken).ConfigureAwait(false);
             Log($"LVDT输出: 目标油量={quantityPercent:0.###}%, S1={s1:0.00}Vrms, S2={s2:0.00}Vrms, Sum={SimulationSumVrms:0.00}Vrms");
         }
@@ -1340,8 +1338,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (records == null || records.Count == 0)
                 return null;
 
-            var vaRecord = TryGetCalibrationRecord(records, device.Id, $"CH{channel}{LvdtVaSuffix}");
-            var vbRecord = TryGetCalibrationRecord(records, device.Id, $"CH{channel}{LvdtVbSuffix}");
+            var vaRecord = TryGetCalibrationRecord(records, device.Id, $"CH{channel-1}{LvdtVaSuffix}");
+            var vbRecord = TryGetCalibrationRecord(records, device.Id, $"CH{channel-1}{LvdtVbSuffix}");
             if (vaRecord == null && vbRecord == null)
                 return null;
 
@@ -1415,8 +1413,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             var boundedQuantity = Math.Max(0.0, Math.Min(100.0, quantityPercent));
             var diff = (boundedQuantity / 100.0 - 0.5) * SimulationSumVrms;
-            var s1 = (SimulationSumVrms + diff) / 2.0; // 2.46 3.54
-            var s2 = (SimulationSumVrms - diff) / 2.0; //1.8 4.2  2.4 3.6 1.755 4.47   
+            var s1 = (SimulationSumVrms + diff) / 2.0;
+            var s2 = (SimulationSumVrms - diff) / 2.0; //1.8 4.2  2.4 3.6 1.755 4.47
 
             return (s1, s2);
         }
