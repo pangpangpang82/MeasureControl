@@ -1044,7 +1044,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Update="Views\**\*.xaml.cs">
-      <DependentUpon>%(Filename).xaml</DependentUpon>
+      <DependentUpon>%(Filename)</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
