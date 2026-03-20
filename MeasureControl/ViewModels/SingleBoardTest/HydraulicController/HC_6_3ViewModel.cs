@@ -320,9 +320,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        public bool CanMeasurePoint1 => IsManualTestRunning && CanMeasure && !_measured1;
-        public bool CanMeasurePoint2 => IsManualTestRunning && CanMeasure && !_measured2;
-        public bool CanMeasurePoint3 => IsManualTestRunning && CanMeasure && !_measured3;
+        public bool CanMeasurePoint1 => IsManualTestRunning && CanMeasure;
+        public bool CanMeasurePoint2 => IsManualTestRunning && CanMeasure;
+        public bool CanMeasurePoint3 => IsManualTestRunning && CanMeasure;
         public bool CanMeasureCustomPoint => IsManualTestRunning && CanMeasure && TryGetValidatedCustomResistance(out _);
         public bool CanStartManualTest => !IsManualTestBusy && !IsAutoTestBusy && !IsAutoTestRunning;
         public bool CanStartAutoTest => !IsManualTestBusy && !IsAutoTestBusy && !IsManualTestRunning;
@@ -804,6 +804,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private async Task OnMeasurePoint1Async()
         {
+            Temp1Text = "--";
+            Temp1BText = "--";
+            _temp1 = null;
+            _temp1B = null;
+            CanMeasure = false;
             var ok = await MeasurePointAsync(
                     "点1",
                     R1_Ohm,
@@ -813,6 +818,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     setValueB: v => _temp1B = v,
                     _manualCts?.Token ?? CancellationToken.None)
                 .ConfigureAwait(false);
+            CanMeasure = IsManualTestRunning;
             if (!IsManualTestRunning || _manualAborted) return;
             _measured1 = true;
             RefreshMeasureCommands();
@@ -824,6 +830,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private async Task OnMeasurePoint2Async()
         {
+            Temp2Text = "--";
+            Temp2BText = "--";
+            _temp2 = null;
+            _temp2B = null;
+            CanMeasure = false;
             var ok = await MeasurePointAsync(
                     "点2",
                     R2_Ohm,
@@ -833,6 +844,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     setValueB: v => _temp2B = v,
                     _manualCts?.Token ?? CancellationToken.None)
                 .ConfigureAwait(false);
+            CanMeasure = IsManualTestRunning;
             if (!IsManualTestRunning || _manualAborted) return;
             _measured2 = true;
             RefreshMeasureCommands();
@@ -844,6 +856,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private async Task OnMeasurePoint3Async()
         {
+            Temp3Text = "--";
+            Temp3BText = "--";
+            _temp3 = null;
+            _temp3B = null;
+            CanMeasure = false;
             var ok = await MeasurePointAsync(
                     "点3",
                     R3_Ohm,
@@ -853,6 +870,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     setValueB: v => _temp3B = v,
                     _manualCts?.Token ?? CancellationToken.None)
                 .ConfigureAwait(false);
+            CanMeasure = IsManualTestRunning;
             if (!IsManualTestRunning || _manualAborted) return;
             _measured3 = true;
             RefreshMeasureCommands();
@@ -903,7 +921,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Action<double?> setValueB,
             CancellationToken cancellationToken)
         {
-            if (!(IsAutoTestRunning || (IsManualTestRunning && CanMeasure)))
+            if (!IsAutoTestRunning && !IsManualTestRunning)
             {
                 Log($"{title}: 当前未处于测试状态");
                 return false;

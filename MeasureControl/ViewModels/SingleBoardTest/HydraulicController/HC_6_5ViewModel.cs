@@ -311,26 +311,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        public bool CanMeasure14
-        {
-            get
-            {
-                if (!(IsManualTestRunning && CanMeasure))
-                    return false;
-
-                switch (SelectedTabIndex)
-                {
-                    case 0:
-                        return !_measured4mA;
-                    case 1:
-                        return !_measured20mA;
-                    case 2:
-                        return !_measured10mA;
-                    default:
-                        return !_measured4mA;
-                }
-            }
-        }
+        public bool CanMeasure14 => IsManualTestRunning && CanMeasure;
 
         public bool CanMeasureCustomCurrent => IsManualTestRunning && CanMeasure && TryGetValidatedCustomCurrent(out _);
 
@@ -732,6 +713,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasure14Async()
         {
+            switch (SelectedTabIndex)
+            {
+                case 0:
+                    foreach (var ch in DptChannels) Set4mA(ch.SlotKey, "--");
+                    break;
+                case 1:
+                    foreach (var ch in DptChannels) Set20mA(ch.SlotKey, "--");
+                    break;
+                case 2:
+                    foreach (var ch in DptChannels) Set10mA(ch.SlotKey, "--");
+                    break;
+                default:
+                    foreach (var ch in DptChannels) Set4mA(ch.SlotKey, "--");
+                    break;
+            }
+            CanMeasure = false;
             var token = _manualCts?.Token ?? CancellationToken.None;
             var ok = false;
             switch (SelectedTabIndex)
@@ -749,7 +746,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     ok = await MeasureGroupAsync("当前档位", Current4mA, Set4mA, token).ConfigureAwait(false);
                     break;
             }
-
+            CanMeasure = IsManualTestRunning;
             if (!IsManualTestRunning || _manualAborted)
                 return;
 
@@ -846,7 +843,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task<bool> MeasureGroupAsync(string title, double currentmA, Action<string, string> setTextByName, CancellationToken cancellationToken)
         {
-            if (!(IsAutoTestRunning || (IsManualTestRunning && CanMeasure)))
+            if (!IsAutoTestRunning && !IsManualTestRunning)
             {
                 Log($"{title}: 当前未处于测试状态");
                 return false;

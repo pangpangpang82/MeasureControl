@@ -44,9 +44,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double QtyResolution = 1.0;
         private const int SamplesPerMeasure = 1;
         private const int SampleTimeoutMs = 5000;
-        private const int LvdtSettleMs = 2000;
+        private const int LvdtSettleMs = 500;
         private const int PostSwitchRxFlushMs = 120;
-        private const int ExcitationReadSettleMs = 120;
+        private const int ExcitationReadSettleMs = 80;
         //private const int ExcitationRestoreSettleMs = 120;
         private const string DmmTriggerDelayCommand= "TRIG:DEL 1";
         private const double ExcitationFreqMinHz = 3168.0;
@@ -90,7 +90,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private bool _measuredLow;
         private bool _measuredMid;
         private bool _measuredHigh;
-        private double _currentQuantityPercent;
 
         private bool _passedExc1;
         private bool _passedExc2;
@@ -267,11 +266,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        public bool CanMeasureExcitation1 => CanMeasure && IsManualTestRunning;
-        public bool CanMeasureExcitation2 => CanMeasure && IsManualTestRunning;
-        public bool CanMeasureLowPoint => CanMeasure && IsManualTestRunning;
-        public bool CanMeasureMidPoint => CanMeasure && IsManualTestRunning;
-        public bool CanMeasureHighPoint => CanMeasure && IsManualTestRunning;
+        public bool CanMeasureExcitation1 => CanMeasure && IsManualTestRunning && !_measuredExc1;
+        public bool CanMeasureExcitation2 => CanMeasure && IsManualTestRunning && !_measuredExc2;
+        public bool CanMeasureLowPoint => CanMeasure && IsManualTestRunning && !_measuredLow;
+        public bool CanMeasureMidPoint => CanMeasure && IsManualTestRunning && !_measuredMid;
+        public bool CanMeasureHighPoint => CanMeasure && IsManualTestRunning && !_measuredHigh;
         public bool CanMeasureCustomRange => CanMeasure && IsManualTestRunning && TryCreateCustomRangePoint(out _);
         public bool CanStartManualTest => !IsManualTestBusy && !IsAutoTestBusy && !IsAutoTestRunning;
         public bool CanStartAutoTest => !IsManualTestBusy && !IsAutoTestBusy && !IsManualTestRunning;
@@ -593,6 +592,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureArincRxAsync(_manualCts.Token).ConfigureAwait(false);
                 await EnsureLvdtAsync(_manualCts.Token).ConfigureAwait(false);
                 await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
+                await EnsureDmmAsync(_manualCts.Token).ConfigureAwait(false);
                 await ApplyQuantityOutputsAsync(0.0, _manualCts.Token).ConfigureAwait(false);
                 IsManualTestInitializing = false;
                 IsManualTestRunning = true;
@@ -661,6 +661,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
             await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
             await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+            await EnsureDmmAsync(cancellationToken).ConfigureAwait(false);
             await ApplyQuantityOutputsAsync(0.0, cancellationToken).ConfigureAwait(false);
             IsAutoTestInitializing = false;
             IsAutoTestRunning = true;
@@ -723,17 +724,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasureExcitation1Async()
         {
-            Pin3031FreqText = "--";
-            Pin3031VoltText = "--";
-            CanMeasure = false;
             var token = _manualCts?.Token ?? CancellationToken.None;
             _passedExc1 = await MeasureExcitationAsync("针脚30/31", LvdtSys1Channel, (f, v) =>
             {
                 Pin3031FreqText = f;
                 Pin3031VoltText = v;
             }, token).ConfigureAwait(false);
-            CanMeasure = IsManualTestRunning;
-            if (!IsManualTestRunning || _manualAborted) return;
             _measuredExc1 = true;
             RefreshMeasureCommands();
             await TryFinalizeAsync().ConfigureAwait(false);
@@ -765,17 +761,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasureExcitation2Async()
         {
-            Pin3334FreqText = "--";
-            Pin3334VoltText = "--";
-            CanMeasure = false;
             var token = _manualCts?.Token ?? CancellationToken.None;
             _passedExc2 = await MeasureExcitationAsync("针脚33/34", LvdtSys2Channel, (f, v) =>
             {
                 Pin3334FreqText = f;
                 Pin3334VoltText = v;
             }, token).ConfigureAwait(false);
-            CanMeasure = IsManualTestRunning;
-            if (!IsManualTestRunning || _manualAborted) return;
             _measuredExc2 = true;
             RefreshMeasureCommands();
             await TryFinalizeAsync().ConfigureAwait(false);
@@ -783,9 +774,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasureLowPointAsync()
         {
-            PointLowSys1Text = "--";
-            PointLowSys2Text = "--";
-            CanMeasure = false;
             var token = _manualCts?.Token ?? CancellationToken.None;
             _passedLow = await MeasureQuantityPointAsync(LowPoint, (sdi, text) =>
             {
@@ -794,8 +782,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 else if (sdi == 3)
                     PointLowSys2Text = text;
             }, token).ConfigureAwait(false);
-            CanMeasure = IsManualTestRunning;
-            if (!IsManualTestRunning || _manualAborted) return;
             _measuredLow = true;
             RefreshMeasureCommands();
             await TryFinalizeAsync().ConfigureAwait(false);
@@ -803,9 +789,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasureMidPointAsync()
         {
-            PointMidSys1Text = "--";
-            PointMidSys2Text = "--";
-            CanMeasure = false;
             var token = _manualCts?.Token ?? CancellationToken.None;
             _passedMid = await MeasureQuantityPointAsync(MidPoint, (sdi, text) =>
             {
@@ -814,8 +797,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 else if (sdi == 3)
                     PointMidSys2Text = text;
             }, token).ConfigureAwait(false);
-            CanMeasure = IsManualTestRunning;
-            if (!IsManualTestRunning || _manualAborted) return;
             _measuredMid = true;
             RefreshMeasureCommands();
             await TryFinalizeAsync().ConfigureAwait(false);
@@ -823,9 +804,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasureHighPointAsync()
         {
-            PointHighSys1Text = "--";
-            PointHighSys2Text = "--";
-            CanMeasure = false;
             var token = _manualCts?.Token ?? CancellationToken.None;
             _passedHigh = await MeasureQuantityPointAsync(HighPoint, (sdi, text) =>
             {
@@ -834,8 +812,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 else if (sdi == 3)
                     PointHighSys2Text = text;
             }, token).ConfigureAwait(false);
-            CanMeasure = IsManualTestRunning;
-            if (!IsManualTestRunning || _manualAborted) return;
             _measuredHigh = true;
             RefreshMeasureCommands();
             await TryFinalizeAsync().ConfigureAwait(false);
@@ -843,7 +819,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task<bool> MeasureExcitationAsync(string title, int channel, Action<string, string> setTexts, CancellationToken cancellationToken)
         {
-            if (!IsAutoTestRunning && !IsManualTestRunning)
+            if (!(IsAutoTestRunning || (IsManualTestRunning && CanMeasure)))
             {
                 Log($"{title}: 当前未处于测试状态");
                 return false;
@@ -861,7 +837,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     cancellationToken).ConfigureAwait(false);
                 var frequencyReading = await _dmm.ReadOnceAsync(
                     DmmMeasureMode.FREQ,
-                    new DmmReadOptions { TimeoutMilliseconds = 10000, FrequencyRangeIndex = DmmFrequencyRangeIndex, FrequencyApertureSeconds = 0.1 },
+                    new DmmReadOptions { TimeoutMilliseconds = 8000, FrequencyRangeIndex = DmmFrequencyRangeIndex },
                     cancellationToken).ConfigureAwait(false);
                 var voltage = voltageReading?.Value;
                 var frequency = frequencyReading?.Value;
@@ -890,7 +866,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 else if (IsAutoTestRunning)
                 {
                     await AbortAutoTestAsync($"{title}: 激励测量异常，自动测试中止: {ex.Message}").ConfigureAwait(false);
-                    throw;
                 }
 
                 return false;
@@ -901,14 +876,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     await ClearExcitationMeasurementRouteAsync(channel).ConfigureAwait(false);
                 }
-                catch { }
-                _measureLock.Release();
+                finally
+                {
+                    _measureLock.Release();
+                }
             }
         }
 
         private async Task<bool> MeasureQuantityPointAsync(QuantityPoint point, Action<byte, string> setText, CancellationToken cancellationToken)
         {
-            if (!IsAutoTestRunning && !IsManualTestRunning)
+            if (!(IsAutoTestRunning || (IsManualTestRunning && CanMeasure)))
             {
                 Log($"{point.Name}: 当前未处于测试状态");
                 return false;
@@ -1024,7 +1001,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 else if (IsAutoTestRunning)
                 {
                     await AbortAutoTestAsync($"{point.Name}: 油量测量异常，自动测试中止: {ex.Message}").ConfigureAwait(false);
-                    throw;
                 }
 
                 return false;
@@ -1033,7 +1009,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 try
                 {
-                    await StopQuantityOutputsAsync().ConfigureAwait(false);
+                    //await StopQuantityOutputsAsync().ConfigureAwait(false);
                 }
                 catch
                 {
@@ -1117,7 +1093,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task ApplyQuantityOutputsAsync(double quantityPercent, CancellationToken cancellationToken)
         {
-            _currentQuantityPercent = quantityPercent;
             var (s1, s2) = CalculateSecondaryVoltages(quantityPercent);
             await _lvdt.SetVaVbAsync(LvdtSys1Channel, s1, s2, cancellationToken).ConfigureAwait(false);
             await _lvdt.SetVaVbAsync(LvdtSys2Channel, s1, s2, cancellationToken).ConfigureAwait(false);
@@ -1376,8 +1351,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (records == null || records.Count == 0)
                 return null;
 
-            var vaRecord = TryGetCalibrationRecord(records, device.Id, $"CH{channel-1}{LvdtVaSuffix}");
-            var vbRecord = TryGetCalibrationRecord(records, device.Id, $"CH{channel-1}{LvdtVbSuffix}");
+            var vaRecord = TryGetCalibrationRecord(records, device.Id, $"CH{channel}{LvdtVaSuffix}");
+            var vbRecord = TryGetCalibrationRecord(records, device.Id, $"CH{channel}{LvdtVbSuffix}");
             if (vaRecord == null && vbRecord == null)
                 return null;
 
@@ -1466,7 +1441,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 ExcitationFrequency = 3200.0,
                 TransmissionRatio = 1.0,
                 PhaseDelay = 0,
-                AdcRangeIndex = 3
+                AdcRangeIndex = 4
             };
         }
 
@@ -1702,7 +1677,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private void ResetStateForNewRun()
         {
             CanMeasure = false;
-            _currentQuantityPercent = 0.0;
             _measuredExc1 = false;
             _measuredExc2 = false;
             _measuredLow = false;
