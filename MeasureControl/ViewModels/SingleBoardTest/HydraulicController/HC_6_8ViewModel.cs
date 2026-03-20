@@ -55,9 +55,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         // ARINC429 发送配置
         private const int TxChannelIndex = 0;
         private const int TxChannelIndex2 = 1;
-        private const double ArincRate = 12500.0;
+        private const int RxChannelIndex = 2;
+        private const double ArincRate = 100000.0;
         private const uint ArincPeriodMs = 100;
         private const uint SpecialArincPeriodMs = 15;
+
+        private const byte CloseFeedbackLabelDec = 53;
+        private const byte CloseFeedbackSdi = 0;
 
         private static readonly HashSet<uint> FastPeriodWords = new HashSet<uint>
         {
@@ -66,7 +70,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             0x000042BC,
         };
 
-        private static readonly string[] CloseSignalAoChannels = { "AO0", "AO1", "AO2" };
+        private static readonly string[] CloseSignalAoChannels = { "AO0", "AO1", "AO2", "AO3", "AO4", "AO5" };
+        private static readonly IReadOnlyList<string> SharedCloseAoHighChannels = new[] { "AO0", "AO2", "AO4" };
+        private static readonly IReadOnlyList<string> SharedCloseAoLowChannels = new[] { "AO1", "AO3", "AO5" };
+        private static readonly IReadOnlyList<int> SharedCloseDoIndices = new[] { 3, 20, 21, 22 };
+        private static readonly IReadOnlyList<int> SharedCloseRelayChannels = new[] { 1, 6 };
+        private static readonly IReadOnlyList<uint> SharedCloseChannel1Words = new uint[] { 0x000005C4, 0x000006C4, 0x80000524, 0x80000624, 0x00100294, 0x80100394, 0x96F6ED9D, 0x0000443D, 0x0000423D, 0x800009BD };
+        private static readonly IReadOnlyList<uint> SharedCloseChannel2Words = new uint[] { 0x000005C4, 0x000006C4, 0x80000524, 0x80000624, 0x0034019D, 0x80000ABD };
+        private static readonly IReadOnlyList<int> CloseMeasurementPins = new[] { 9, 10, 11, 12, 13, 14, 15 };
+        private static readonly IReadOnlyList<int> RequiredCloseFeedbackBits = new[] { 10, 11, 12, 13, 14, 15, 16 };
+        private const int CloseFeedbackTimeoutSeconds = 85;
         private const int LvdtSlotIndex = 2;
         private const int LvdtChannel1 = 1;
         private const int LvdtChannel2 = 2;
@@ -75,6 +88,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double BleedLvdtVaV = 2.4;
         private const double BleedLvdtVbV = 3.6;
         private const int CloseSignalSettleMs = 180;
+        private const int CloseFeedbackDebugLogIntervalMs = 2000;
 
         // 阻抗判据
         private const double OpenPassThresholdOhm = 100_000.0;   // 开路阻抗阈值：>100kΩ 为合格
@@ -105,8 +119,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private Task _txChannel2LoopTask = Task.CompletedTask;
         private bool _txChannel1Opened;
         private bool _txChannel2Opened;
+        private bool _rxChannelOpened;
         private bool _isMatrixCommonConnected;
         private int? _currentMeasuredPin;
+        private bool _isPtuPrePowerPrepared;
 
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
@@ -144,103 +160,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private readonly Dictionary<int, double?> _openValuesByPin = new Dictionary<int, double?>();
         private readonly Dictionary<int, double?> _closeValuesByPin = new Dictionary<int, double?>();
-
-        private sealed class CloseSignalDefinition
-        {
-            public int Pin { get; set; }
-            public string Name { get; set; }
-            public IReadOnlyList<uint> Channel1Words { get; set; }
-            public IReadOnlyList<uint> Channel2Words { get; set; }
-            public IReadOnlyList<string> AoChannels { get; set; } = Array.Empty<string>();
-            public IReadOnlyList<int> DoIndices { get; set; } = Array.Empty<int>();
-            public IReadOnlyList<int> RelayChannels { get; set; } = Array.Empty<int>();
-            public string ResistanceChannel { get; set; }
-            public double? ResistanceOhm { get; set; }
-            public int? LvdtChannel { get; set; }
-            public double? LvdtVaV { get; set; }
-            public double? LvdtVbV { get; set; }
-        }
-
-        private static readonly IReadOnlyList<CloseSignalDefinition> CloseSignals = new[]
-        {
-            new CloseSignalDefinition
-            {
-                Pin = 9,
-                Name = "EMP_1B_AUTO_ENABLE_DO",
-                Channel1Words = new uint[] { 0x800009BD, 0x800004BC, 0x0002C1B9, 0x80000624, 0x80000524, 0x00000623, 0x00000523 },
-                Channel2Words = new uint[] { 0x00000523, 0x00000623, 0x80000524, 0x80000624, 0x80000ABD },
-                AoChannels = new[] { "AO1", "AO2" },
-                DoIndices = new[] { 20 },
-                RelayChannels = new[] { 6 }
-            },
-            new CloseSignalDefinition
-            {
-                Pin = 10,
-                Name = "EMP_2B_AUTO_ENABLE_DO",
-                Channel1Words = new uint[] { 0x800009BD, 0x800004BC, 0x940001B9, 0x80000624, 0x80000524, 0x00000623, 0x00000523 },
-                Channel2Words = new uint[] { 0x00000523, 0x00000623, 0x80000524, 0x80000624, 0x80000ABD },
-                AoChannels = new[] { "AO0", "AO2" },
-                DoIndices = new[] { 21 },
-                RelayChannels = new[] { 6 }
-            },
-            new CloseSignalDefinition
-            {
-                Pin = 11,
-                Name = "EMP_3B_AUTO_ENABLE_DO",
-                Channel1Words = new uint[] { 0x00000523, 0x00000623, 0x80000524, 0x80000624, 0x82F401B9, 0x800040BC },
-                Channel2Words = new uint[] { 0x00000523, 0x00000623, 0x80000524, 0x80000624, 0x003401B9 },
-                AoChannels = new[] { "AO0", "AO1" },
-                DoIndices = new[] { 9, 22, 23 },
-                RelayChannels = new[] { 3, 6 }
-            },
-            new CloseSignalDefinition
-            {
-                Pin = 12,
-                Name = "EMP_3A_AUTO_ENABLE_DO",
-                Channel1Words = new uint[] { 0x00000523, 0x00000623, 0x80000524, 0x80000624, 0x002C01B9, 0x800040BC },
-                Channel2Words = new uint[] { 0x00000523, 0x00000623, 0x80000524, 0x80000624 },
-                AoChannels = new[] { "AO0", "AO1" },
-                DoIndices = new[] { 22 },
-                RelayChannels = new[] { 6 }
-            },
-            new CloseSignalDefinition
-            {
-                Pin = 13,
-                Name = "PTU_AUTO_ENABLE_DO",
-                Channel1Words = new uint[] { 0x00002DB9, 0x800004BC, 0x000042BC, 0x800009BD },
-                Channel2Words = new uint[] { 0x80000ABD },
-                DoIndices = new[] { 3 },
-                RelayChannels = new[] { 1 }
-            },
-            new CloseSignalDefinition
-            {
-                Pin = 14,
-                Name = "RSVR_2_ABV_BLEED_ENABLE_DO",
-                Channel1Words = new uint[] { 0x00100229, 0x800009BD },
-                Channel2Words = new uint[] { 0x80000ABD },
-                //DoIndices = new[] { 26 },
-                //RelayChannels = new[] { 7 },
-                ResistanceChannel = "RO0",
-                ResistanceOhm = BleedResistanceOhm,
-                LvdtChannel = LvdtChannel1,
-                LvdtVaV = BleedLvdtVaV,
-                LvdtVbV = BleedLvdtVbV,
-            },
-            new CloseSignalDefinition
-            {
-                Pin = 15,
-                Name = "RSVR_3_ABV_BLEED_ENABLE_DO",
-                Channel1Words = new uint[] { 0x80100329, 0x800009BD },
-                Channel2Words = new uint[] { 0x80000ABD },
-                //DoIndices = new[] { 15 },
-                //RelayChannels = new[] { 4 },
-                ResistanceChannel = "RO1",
-                ResistanceOhm = BleedResistanceOhm,
-                LvdtChannel = LvdtChannel2,
-                LvdtVaV = BleedLvdtVaV,
-                LvdtVbV = BleedLvdtVbV,
-            }
-        };
 
         public HC_6_8ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
         {
@@ -512,7 +431,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private async Task OnManualTestAsync()
         {
-            if (IsManualTestRunning)
+            if (IsManualTestStopping)
+            {
+                return;
+            }
+
+            if (IsManualTestRunning || IsManualTestInitializing)
             {
                 await StopManualTestAsync().ConfigureAwait(false);
                 return;
@@ -559,11 +483,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureLvdtAsync(_manualCts.Token).ConfigureAwait(false);
                 Log("LVDT板卡连接成功");
 
+                await EnsureArincRxAsync(_manualCts.Token).ConfigureAwait(false);
+                Log("ARINC429接收通道3已连接成功");
+
                 _dmm ??= new DmmSocketApi();
                 await _dmm.ConnectAsync(DmmIpAddress, _manualCts.Token).ConfigureAwait(false);
                 await ConfigureDmmAsync(_manualCts.Token).ConfigureAwait(false);
                 Log("万用表连接成功");
 
+                await PrepareCloseTestPowerPreconditionsAsync(_manualCts.Token).ConfigureAwait(false);
                 await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
                 Log("192.168.1.16已输出CH3 5V 1A、CH1 24V 1A，192.168.1.17已输出CH3 5V 1A，192.168.1.15已输出28V 1A");
 
@@ -584,7 +512,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private async Task OnAutoTestAsync()
         {
-            if (IsAutoTestRunning)
+            if (IsAutoTestStopping)
+            {
+                return;
+            }
+
+            if (IsAutoTestRunning || IsAutoTestInitializing)
             {
                 await StopAutoTestAsync().ConfigureAwait(false);
                 return;
@@ -667,11 +600,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
                 Log("LVDT板卡连接成功");
 
+                await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+                Log("ARINC429接收通道3已连接成功");
+
                 _dmm ??= new DmmSocketApi();
                 await _dmm.ConnectAsync(DmmIpAddress, cancellationToken).ConfigureAwait(false);
                 await ConfigureDmmAsync(cancellationToken).ConfigureAwait(false);
                 Log("万用表连接成功");
 
+                await PrepareCloseTestPowerPreconditionsAsync(cancellationToken).ConfigureAwait(false);
                 await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
                 Log("192.168.1.16已输出CH3 5V 1A、CH1 24V 1A，192.168.1.17已输出CH3 5V 1A，192.168.1.15已输出28V 1A");
 
@@ -828,21 +765,34 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                Log("通路: 按针脚逐项建立前置条件并测量阻抗");
-                foreach (var signal in CloseSignals)
+                Log("通路: 统一建立共享前置条件，待7个位全部到位后逐针脚测量阻抗");
+
+                await ApplySharedCloseSignalAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(CloseSignalSettleMs, cancellationToken).ConfigureAwait(false);
+
+                var readyBits = await WaitForAllCloseSignalsReadyAsync(cancellationToken).ConfigureAwait(false);
+                if (readyBits.Count != RequiredCloseFeedbackBits.Count)
+                {
+                    foreach (var pin in CloseMeasurementPins)
+                    {
+                        _closeValuesByPin[pin] = null;
+                        SetClosePinText(pin, "超时");
+                    }
+
+                    var missingBits = string.Join(", ", RequiredCloseFeedbackBits.Where(bit => !readyBits.Contains(bit)).Select(bit => $"bit{bit}"));
+                    Log($"通路: 在{CloseFeedbackTimeoutSeconds}s内未等到全部反馈位，缺失 {missingBits}");
+                    return false;
+                }
+
+                Log("通路: label=65(oct) sdi=0 的 bit10~bit16 已全部到位，开始顺序测量 PIN9~15 阻抗");
+
+                foreach (var pin in CloseMeasurementPins)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    Log($"通路: PIN{signal.Pin} => {signal.Name}，开始建立前置条件");
 
-                    await ApplyCloseSignalAsync(signal, cancellationToken).ConfigureAwait(false);
-                    await Task.Delay(CloseSignalSettleMs, cancellationToken).ConfigureAwait(false);
-
-                    var (value, text) = await MeasureOnePinResistanceAsync(signal.Pin, cancellationToken).ConfigureAwait(false);
-                    _closeValuesByPin[signal.Pin] = value;
-                    SetClosePinText(signal.Pin, text);
-
-                    Log($"通路: PIN{signal.Pin} => {signal.Name} 测量完成，开始清理前置条件");
-                    await ClearCloseSignalAsync(signal, CancellationToken.None).ConfigureAwait(false);
+                    var (value, text) = await MeasureOnePinResistanceAsync(pin, cancellationToken).ConfigureAwait(false);
+                    _closeValuesByPin[pin] = value;
+                    SetClosePinText(pin, text);
 
                     if (cancellationToken.IsCancellationRequested)
                         return false;
@@ -1039,87 +989,129 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return _closeValuesByPin.TryGetValue(pin, out var value) && value.HasValue && value.Value <= ClosePassThresholdOhm;
         }
 
-        private async Task ApplyCloseSignalAsync(CloseSignalDefinition signal, CancellationToken cancellationToken)
+        private async Task PrepareCloseTestPowerPreconditionsAsync(CancellationToken cancellationToken)
         {
-            await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
-            await StartPeriodicWordsAsync(TxChannelIndex, signal.Channel1Words, cancellationToken).ConfigureAwait(false);
-            await StartPeriodicWordsAsync(TxChannelIndex2, signal.Channel2Words, cancellationToken).ConfigureAwait(false);
+            if (_isPtuPrePowerPrepared)
+                return;
 
-            if (signal.AoChannels.Count > 0)
-            {
-                await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
-                await SetCloseSignalAoChannelsAsync(signal.AoChannels, CloseSignalAoVoltageV, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (signal.DoIndices.Count > 0)
-            {
-                await EnsureJy7131ReadyAsync(cancellationToken).ConfigureAwait(false);
-                foreach (var doIndex in signal.DoIndices)
-                {
-                    await _jy7131.WriteDoAsync($"DO{doIndex}", true, cancellationToken).ConfigureAwait(false);
-                    Log($"7131 DO{doIndex}=1");
-                }
-            }
-
-            if (signal.RelayChannels.Count > 0)
-            {
-                await EnsureJy7131ReadyAsync(cancellationToken).ConfigureAwait(false);
-                foreach (var relayChannel in signal.RelayChannels)
-                {
-                    await _jy7131.SetRelayAsync(relayChannel - 1, true, cancellationToken).ConfigureAwait(false);
-                    Log($"485继电器第{relayChannel}路已闭合");
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(signal.ResistanceChannel) && signal.ResistanceOhm.HasValue)
-            {
-                await EnsureResistanceAsync(cancellationToken).ConfigureAwait(false);
-                await SetResistanceChannelAsync(signal.ResistanceChannel, signal.ResistanceOhm.Value, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (signal.LvdtChannel.HasValue && signal.LvdtVaV.HasValue && signal.LvdtVbV.HasValue)
-            {
-                await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
-                await _lvdt.SetVaVbAsync(signal.LvdtChannel.Value, signal.LvdtVaV.Value, signal.LvdtVbV.Value, cancellationToken).ConfigureAwait(false);
-                await _lvdt.StartAsync(signal.LvdtChannel.Value, cancellationToken).ConfigureAwait(false);
-                Log($"LVDT CH{signal.LvdtChannel.Value}: VA={signal.LvdtVaV.Value:0.0}V, VB={signal.LvdtVbV.Value:0.0}V");
-            }
+            await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
+            await _lvdt.SetVaVbAsync(LvdtChannel1, BleedLvdtVaV, BleedLvdtVbV, cancellationToken).ConfigureAwait(false);
+            await _lvdt.StartAsync(LvdtChannel1, cancellationToken).ConfigureAwait(false);
+            _isPtuPrePowerPrepared = true;
+            Log($"PTU通路预置: 上电前保持LVDT CH{LvdtChannel1} VA={BleedLvdtVaV:0.0}V, VB={BleedLvdtVbV:0.0}V");
         }
 
-        private async Task ClearCloseSignalAsync(CloseSignalDefinition signal, CancellationToken cancellationToken)
+        private async Task<HashSet<int>> WaitForAllCloseSignalsReadyAsync(CancellationToken cancellationToken)
         {
-            if (signal.LvdtChannel.HasValue && _lvdt != null)
-            {
-                try { await _lvdt.StopAsync(signal.LvdtChannel.Value, cancellationToken).ConfigureAwait(false); } catch { }
-                try { await _lvdt.SetVaVbAsync(signal.LvdtChannel.Value, 0.0, 0.0, cancellationToken).ConfigureAwait(false); } catch { }
-            }
+            await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+            _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            if (!string.IsNullOrWhiteSpace(signal.ResistanceChannel) && _res != null && _res.IsConnected)
+            var waitBits = new HashSet<int>(RequiredCloseFeedbackBits);
+            var readyBits = new HashSet<int>();
+            var deadline = DateTime.UtcNow.AddSeconds(CloseFeedbackTimeoutSeconds);
+            var nextDebugLogAt = DateTime.MinValue;
+            while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
             {
-                try { await _res.SetRelayStateAsync(signal.ResistanceChannel, false, false).ConfigureAwait(false); } catch { }
-                try { await _res.WriteChannelAsync(signal.ResistanceChannel, 0.0).ConfigureAwait(false); } catch { }
-            }
-
-            if (_jy7131 != null)
-            {
-                foreach (var relayChannel in signal.RelayChannels)
+                var words = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 512, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                foreach (var word in words)
                 {
-                    try { await _jy7131.SetRelayAsync(relayChannel - 1, false, cancellationToken).ConfigureAwait(false); } catch { }
+                    TryLogCloseFeedbackDebugFrame(word.Data429, ref nextDebugLogAt);
+
+                    foreach (var waitBitIndex in waitBits)
+                    {
+                        if (readyBits.Contains(waitBitIndex))
+                            continue;
+
+                        if (TryMatchCloseFeedbackBit(word.Data429, waitBitIndex, out var bitValue) && bitValue)
+                        {
+                            readyBits.Add(waitBitIndex);
+                            Log($"通路: 已收到反馈 label=65(oct) sdi=0 bit{waitBitIndex}=1");
+                        }
+                    }
                 }
 
-                foreach (var doIndex in signal.DoIndices)
-                {
-                    try { await _jy7131.WriteDoAsync($"DO{doIndex}", false, cancellationToken).ConfigureAwait(false); } catch { }
-                }
+                if (readyBits.Count == waitBits.Count)
+                    return readyBits;
+
+                await Task.Delay(10, cancellationToken).ConfigureAwait(false);
             }
 
-            if (signal.AoChannels.Count > 0 && _mtx532 != null && _mtx532.IsConnected)
+            return readyBits;
+        }
+
+        private void TryLogCloseFeedbackDebugFrame(uint rawWord, ref DateTime nextDebugLogAt)
+        {
+            if (_arinc == null)
+                return;
+
+            _arinc.ParseRawWord(rawWord, out var label, out var sdi, out var data19, out var ssm);
+            if (_arinc.ReverseLabel(label) != CloseFeedbackLabelDec || sdi != CloseFeedbackSdi)
+                return;
+
+            var now = DateTime.UtcNow;
+            if (now < nextDebugLogAt)
+                return;
+
+            var data19Binary = Convert.ToString(data19, 2).PadLeft(19, '0');
+            Log($"通路调试: 收到反馈 label=65(oct) sdi={CloseFeedbackSdi} data19={data19Binary}");
+            nextDebugLogAt = now.AddMilliseconds(CloseFeedbackDebugLogIntervalMs);
+        }
+
+        private bool TryMatchCloseFeedbackBit(uint rawWord, int bitIndex, out bool bitValue)
+        {
+            bitValue = false;
+            if (_arinc == null)
+                return false;
+
+            _arinc.ParseRawWord(rawWord, out var label, out var sdi, out var data19, out var ssm);
+            if (_arinc.ReverseLabel(label) != CloseFeedbackLabelDec || sdi != CloseFeedbackSdi)
+                return false;
+
+            if (bitIndex < 0 || bitIndex > 31)
+                return false;
+
+            bitValue = ((rawWord >> bitIndex) & 0x1u) == 1u;
+            return true;
+        }
+
+        private async Task ApplySharedCloseSignalAsync(CancellationToken cancellationToken)
+        {
+            await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
+            await SetCloseSignalAoChannelsAsync(SharedCloseAoHighChannels, CloseSignalAoVoltageV, cancellationToken).ConfigureAwait(false);
+            await SetCloseSignalAoChannelsAsync(SharedCloseAoLowChannels, 0.0, cancellationToken).ConfigureAwait(false);
+
+            await EnsureJy7131ReadyAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var doIndex in SharedCloseDoIndices)
             {
-                try { await SetCloseSignalAoChannelsAsync(signal.AoChannels, 0.0, cancellationToken).ConfigureAwait(false); } catch { }
+                await _jy7131.WriteDoAsync($"DO{doIndex}", true, cancellationToken).ConfigureAwait(false);
+                Log($"7131 DO{doIndex}=1");
             }
 
-            try { await StopPeriodicWordsAsync(TxChannelIndex2, cancellationToken).ConfigureAwait(false); } catch { }
-            try { await StopPeriodicWordsAsync(TxChannelIndex, cancellationToken).ConfigureAwait(false); } catch { }
+            foreach (var relayChannel in SharedCloseRelayChannels)
+            {
+                await _jy7131.SetRelayAsync(relayChannel - 1, true, cancellationToken).ConfigureAwait(false);
+                Log($"485继电器第{relayChannel}路已闭合");
+            }
+
+            await EnsureResistanceAsync(cancellationToken).ConfigureAwait(false);
+            await SetResistanceChannelAsync("RO0", BleedResistanceOhm, cancellationToken).ConfigureAwait(false);
+            await SetResistanceChannelAsync("RO1", BleedResistanceOhm, cancellationToken).ConfigureAwait(false);
+
+            await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
+            if (!_isPtuPrePowerPrepared)
+            {
+                await _lvdt.SetVaVbAsync(LvdtChannel1, BleedLvdtVaV, BleedLvdtVbV, cancellationToken).ConfigureAwait(false);
+                await _lvdt.StartAsync(LvdtChannel1, cancellationToken).ConfigureAwait(false);
+                Log($"LVDT CH{LvdtChannel1}: VA={BleedLvdtVaV:0.0}V, VB={BleedLvdtVbV:0.0}V");
+            }
+
+            await _lvdt.SetVaVbAsync(LvdtChannel2, BleedLvdtVaV, BleedLvdtVbV, cancellationToken).ConfigureAwait(false);
+            await _lvdt.StartAsync(LvdtChannel2, cancellationToken).ConfigureAwait(false);
+            Log($"LVDT CH{LvdtChannel2}: VA={BleedLvdtVaV:0.0}V, VB={BleedLvdtVbV:0.0}V");
+
+            await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
+            await StartPeriodicWordsAsync(TxChannelIndex, SharedCloseChannel1Words, cancellationToken).ConfigureAwait(false);
+            await StartPeriodicWordsAsync(TxChannelIndex2, SharedCloseChannel2Words, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task ClearAllCloseSignalOutputsAsync(CancellationToken cancellationToken)
@@ -1291,6 +1283,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        private async Task EnsureArincRxAsync(CancellationToken cancellationToken)
+        {
+            await EnsureArincTxAsync(cancellationToken).ConfigureAwait(false);
+
+            if (_rxChannelOpened)
+                return;
+
+            await _arinc.OpenRxAsync(RxChannelIndex, cancellationToken).ConfigureAwait(false);
+            await _arinc.ConfigureRxAsync(RxChannelIndex, ArincRate, Art4229Parity.Odd, Art4229WordFormat.Standard429, false, 512, false, cancellationToken).ConfigureAwait(false);
+            await _arinc.StartRxAsync(RxChannelIndex, cancellationToken).ConfigureAwait(false);
+            _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, 4096, false, false, cancellationToken).ConfigureAwait(false);
+            _rxChannelOpened = true;
+        }
+
         /// <summary>
         /// 在 PXI 机箱中查找 ARINC429 板卡（4227/4229）
         /// </summary>
@@ -1404,6 +1410,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private async Task StopManualTestAsync()
         {
+            if (IsManualTestStopping)
+            {
+                return;
+            }
+
             IsManualTestStopping = true;
             IsManualTestInitializing = false;
             try
@@ -1497,6 +1508,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// </summary>
         private async Task StopAutoTestAsync()
         {
+            if (IsAutoTestStopping)
+            {
+                return;
+            }
+
             IsAutoTestStopping = true;
             IsAutoTestInitializing = false;
             try
@@ -1614,22 +1630,36 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (on)
                 {
                     await EnsureJy7131ReadyAsync(cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        await _jy7131.WriteDoAsync("DO25", true, cancellationToken).ConfigureAwait(false);
+                        Log("7131 DO25=1");
+                    }
+                    catch { }
+
+                    try
+                    {
+                        await _jy7131.SetRelayAsync(6, true, cancellationToken).ConfigureAwait(false);
+                        Log("485继电器第7路已闭合");
+                    }
+                    catch { }
                 }
                 else
                 {
                     if (_jy7131 != null)
                     {
-                        foreach (var signal in CloseSignals)
+                        foreach (var relayChannel in SharedCloseRelayChannels.Distinct())
                         {
-                            foreach (var relayChannel in signal.RelayChannels.Distinct())
-                            {
-                                try { await _jy7131.SetRelayAsync(relayChannel - 1, false, cancellationToken).ConfigureAwait(false); } catch { }
-                            }
-                            foreach (var doIndex in signal.DoIndices.Distinct())
-                            {
-                                try { await _jy7131.WriteDoAsync($"DO{doIndex}", false, cancellationToken).ConfigureAwait(false); } catch { }
-                            }
+                            try { await _jy7131.SetRelayAsync(relayChannel - 1, false, cancellationToken).ConfigureAwait(false); } catch { }
                         }
+
+                        foreach (var doIndex in SharedCloseDoIndices.Distinct())
+                        {
+                            try { await _jy7131.WriteDoAsync($"DO{doIndex}", false, cancellationToken).ConfigureAwait(false); } catch { }
+                        }
+
+                        try { await _jy7131.WriteDoAsync("DO25", false, cancellationToken).ConfigureAwait(false); } catch { }
+                        try { await _jy7131.SetRelayAsync(6, false, cancellationToken).ConfigureAwait(false); } catch { }
                     }
                 }
             }
@@ -1884,6 +1914,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         try { await _arinc.CloseTxAsync(TxChannelIndex2, CancellationToken.None).ConfigureAwait(false); } catch { }
                     }
 
+                    if (_rxChannelOpened)
+                    {
+                        try { await _arinc.StopRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                        try { await _arinc.CloseRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    }
+
                     try { await _arinc.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _arinc.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
@@ -1902,6 +1938,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 _txChannel2LoopTask = Task.CompletedTask;
                 _txChannel1Opened = false;
                 _txChannel2Opened = false;
+                _rxChannelOpened = false;
             }
         }
 
@@ -1946,6 +1983,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             finally
             {
                 _lvdt = null;
+                _isPtuPrePowerPrepared = false;
             }
         }
 

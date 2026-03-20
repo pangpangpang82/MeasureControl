@@ -230,7 +230,7 @@
                                 <Border Grid.Row="1" Grid.ColumnSpan="4" Background="White" />
                                 <TextBlock Grid.Row="1" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="(1)" />
                                 <TextBlock Grid.Row="1" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="发送PH引脚高电平指令 " />
-                                <Button Grid.Row="1" Grid.Column="2" Width="70" Height="30" HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Step1SendFrame1Command}">
+                                <Button Grid.Row="1" Grid.Column="2" Width="70" Height="30" HorizontalAlignment="Left" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Step1SendFrame1Command}" Margin="10,0,0,0">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
@@ -291,7 +291,7 @@
                                 <Border Grid.Row="3" Grid.ColumnSpan="4" Background="White" />
                                 <TextBlock Grid.Row="3" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="(3)" />
                                 <TextBlock Grid.Row="3" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="发送PH引脚高电平指令" />
-                                <Button Grid.Row="3" Grid.Column="2" Width="70" Height="30" HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Step3SendFrame2Command}">
+                                <Button Grid.Row="3" Grid.Column="2" Width="70" Height="30" HorizontalAlignment="Left" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Step3SendFrame2Command}" Margin="10,0,0,0">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border x:Name="border" Background="#3b82f6" CornerRadius="6">

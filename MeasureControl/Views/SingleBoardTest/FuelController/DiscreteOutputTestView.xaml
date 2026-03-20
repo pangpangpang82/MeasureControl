@@ -356,7 +356,7 @@
                                             <StackPanel Grid.Row="0" Grid.Column="0" Margin="2">
                                                 <TextBlock Text="J6" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
                                                 <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
-                                                    <TextBlock Text="{Binding ImpedanceJ6, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                    <TextBlock Text="{Binding ImpedanceJ6, StringFormat={}{0:F3}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
                                                 </Border>
                                                 <Button Command="{Binding MeasureJ6Command}" Height="20" Margin="0,2">
                                                     <Button.Template>
@@ -380,7 +380,7 @@
                                             <StackPanel Grid.Row="0" Grid.Column="1" Margin="2">
                                                 <TextBlock Text="J7" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
                                                 <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
-                                                    <TextBlock Text="{Binding ImpedanceJ7, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                    <TextBlock Text="{Binding ImpedanceJ7, StringFormat={}{0:F3}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
                                                 </Border>
                                                 <Button Command="{Binding MeasureJ7Command}" Height="20" Margin="0,2">
                                                     <Button.Template>
@@ -404,7 +404,7 @@
                                             <StackPanel Grid.Row="0" Grid.Column="2" Margin="2">
                                                 <TextBlock Text="J8" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
                                                 <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
-                                                    <TextBlock Text="{Binding ImpedanceJ8, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                    <TextBlock Text="{Binding ImpedanceJ8, StringFormat={}{0:F3}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
                                                 </Border>
                                                 <Button Command="{Binding MeasureJ8Command}" Height="20" Margin="0,2">
                                                     <Button.Template>
@@ -428,7 +428,7 @@
                                             <StackPanel Grid.Row="0" Grid.Column="3" Margin="2">
                                                 <TextBlock Text="J9" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
                                                 <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
-                                                    <TextBlock Text="{Binding ImpedanceJ9, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                    <TextBlock Text="{Binding ImpedanceJ9, StringFormat={}{0:F3}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
                                                 </Border>
                                                 <Button Command="{Binding MeasureJ9Command}" Height="20" Margin="0,2">
                                                     <Button.Template>
@@ -452,7 +452,7 @@
                                             <StackPanel Grid.Row="0" Grid.Column="4" Margin="2">
                                                 <TextBlock Text="J10" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
                                                 <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
-                                                    <TextBlock Text="{Binding ImpedanceJ10, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                    <TextBlock Text="{Binding ImpedanceJ10, StringFormat={}{0:F3}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
                                                 </Border>
                                                 <Button Command="{Binding MeasureJ10Command}" Height="20" Margin="0,2">
                                                     <Button.Template>
@@ -476,7 +476,7 @@
                                             <StackPanel Grid.Row="0" Grid.Column="5" Margin="2">
                                                 <TextBlock Text="J11" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
                                                 <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
-                                                    <TextBlock Text="{Binding ImpedanceJ11, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                    <TextBlock Text="{Binding ImpedanceJ11, StringFormat={}{0:F3}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
                                                 </Border>
                                                 <Button Command="{Binding MeasureJ11Command}" Height="20" Margin="0,2">
                                                     <Button.Template>
@@ -500,7 +500,7 @@
                                             <StackPanel Grid.Row="0" Grid.Column="6" Margin="2">
                                                 <TextBlock Text="J12" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
                                                 <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
-                                                    <TextBlock Text="{Binding ImpedanceJ12, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                    <TextBlock Text="{Binding ImpedanceJ12, StringFormat={}{0:F3}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
                                                 </Border>
                                                 <Button Command="{Binding MeasureJ12Command}" Height="20" Margin="0,2">
                                                     <Button.Template>
@@ -524,7 +524,7 @@
                                             <StackPanel Grid.Row="0" Grid.Column="7" Margin="2">
                                                 <TextBlock Text="J13" FontWeight="Bold" HorizontalAlignment="Center" FontSize="11"/>
                                                 <Border Background="#f8fafc" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="3" Padding="3,2" Margin="0,2">
-                                                    <TextBlock Text="{Binding ImpedanceJ13, StringFormat={}{0:F1}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
+                                                    <TextBlock Text="{Binding ImpedanceJ13, StringFormat={}{0:F3}}" HorizontalAlignment="Center" FontSize="10" FontFamily="Consolas"/>
                                                 </Border>
                                                 <Button Command="{Binding MeasureJ13Command}" Height="20" Margin="0,2">
                                                     <Button.Template>

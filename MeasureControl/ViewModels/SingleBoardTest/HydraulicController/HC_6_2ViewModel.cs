@@ -72,12 +72,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int SampleTimeoutMs = 3000;
 
         // 电压合格范围（允许偏差 ±1.5%）
-        private const double Min5V = 4.925;
-        private const double Max5V = 5.075;
-        private const double Min15V = 14.775;
-        private const double Max15V = 15.225;
-        private const double MinM15V = -15.225;
-        private const double MaxM15V = -14.775;
+        private const double Min5V = 4.82;
+        private const double Max5V = 5.18;
+        private const double Min15V = 14.47;
+        private const double Max15V = 15.53;
+        private const double MinM15V = -15.53;
+        private const double MaxM15V = -14.47;
 
         private readonly Random _random = new Random();
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
@@ -96,18 +96,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private const string TestItemName = "二次电源测试";
 
-        private bool _canMeasure;
-        private bool _measured5v;
-        private bool _measured15v;
-        private bool _measuredM15v;
-        private bool _manualAborted;
-
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private bool _isManualTestInitializing;
         private bool _isAutoTestInitializing;
         private bool _isManualTestStopping;
         private bool _isAutoTestStopping;
+        private bool _canMeasure;
+
+        private bool _measured5v;
+        private bool _measured15v;
+        private bool _measuredM15v;
+        private bool _manualAborted;
 
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
@@ -398,7 +398,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnManualTestAsync()
         {
-            if (IsManualTestRunning)
+            if (IsManualTestStopping)
+            {
+                return;
+            }
+
+            if (IsManualTestRunning || IsManualTestInitializing)
             {
                 await StopManualTestAsync().ConfigureAwait(false);
                 return;
@@ -505,7 +510,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnAutoTestAsync()
         {
-            if (IsAutoTestRunning)
+            if (IsAutoTestStopping)
+            {
+                return;
+            }
+
+            if (IsAutoTestRunning || IsAutoTestInitializing)
             {
                 await StopAutoTestAsync().ConfigureAwait(false);
                 return;

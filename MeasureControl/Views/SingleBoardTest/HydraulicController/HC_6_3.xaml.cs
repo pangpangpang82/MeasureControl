@@ -104,11 +104,6 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
             }
 
             var formatted = FormatResistanceText(textBox.Text);
-            if (string.Equals(textBox.Text, formatted, System.StringComparison.Ordinal))
-            {
-                return;
-            }
-
             try
             {
                 _isUpdatingCustomInput = true;
@@ -118,6 +113,11 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
             finally
             {
                 _isUpdatingCustomInput = false;
+            }
+
+            if (DataContext is HC_6_3ViewModel viewModel)
+            {
+                viewModel.CustomResistanceInput = formatted;
             }
         }
 
@@ -181,6 +181,7 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
                 return sanitized;
             }
 
+            value = System.Math.Max(716.1d, System.Math.Min(2146.7d, value));
             value = System.Math.Truncate(value * 10d) / 10d;
             return value.ToString("0.0", CultureInfo.InvariantCulture);
         }
