@@ -304,7 +304,7 @@
                             IsEnabled="{Binding CanEditStepControls}"
                             ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                             ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}" />
+                            SelectedItem="{Binding EnterAtpTxChannel, Mode=OneWay}" />
 
                         <Border
                             Width="180"
