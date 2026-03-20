@@ -37,18 +37,15 @@
                         FontWeight="Bold"
                         Text="离散量输出测试" />
                     <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                        <Button Width="80">
-                            <TextBlock Text="临时lvdt输出按钮"/>
-                        </Button>
                         <Button
                             Width="100"
                             Height="32"
                             Margin="0,0,20,0"
                             VerticalAlignment="Center"
-                            Visibility="Collapsed"
                             BorderThickness="0"
+                            Command="{Binding ManualTestCommand}"
                             IsEnabled="{Binding CanStartManualTest, FallbackValue=True}"
-                            Command="{Binding ManualTestCommand}">
+                            Visibility="Collapsed">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border
@@ -142,8 +139,8 @@
                             Margin="0,0,30,0"
                             VerticalAlignment="Center"
                             BorderThickness="0"
-                            IsEnabled="{Binding CanStartAutoTest, FallbackValue=True}"
-                            Command="{Binding AutoTestCommand}">
+                            Command="{Binding AutoTestCommand}"
+                            IsEnabled="{Binding CanStartAutoTest, FallbackValue=True}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border
@@ -422,13 +419,13 @@
                                     VerticalAlignment="Center">
                                     <Button
                                         Width="50"
-                                        Visibility="Collapsed"
                                         Height="28"
                                         Margin="30,20,0,0"
                                         VerticalAlignment="Center"
                                         BorderThickness="0"
                                         Command="{Binding MeasureOpenCommand}"
-                                        IsEnabled="{Binding CanMeasureOpen, FallbackValue=False}">
+                                        IsEnabled="{Binding CanMeasureOpen, FallbackValue=False}"
+                                        Visibility="Collapsed">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border
@@ -635,11 +632,11 @@
                                         Width="50"
                                         Height="28"
                                         Margin="30,20,0,0"
-                                        Visibility="Collapsed"
                                         VerticalAlignment="Center"
                                         BorderThickness="0"
                                         Command="{Binding MeasureCloseCommand}"
-                                        IsEnabled="{Binding CanMeasureClose, FallbackValue=False}">
+                                        IsEnabled="{Binding CanMeasureClose, FallbackValue=False}"
+                                        Visibility="Collapsed">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border

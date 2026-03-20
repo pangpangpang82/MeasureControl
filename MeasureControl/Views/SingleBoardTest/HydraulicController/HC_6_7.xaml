@@ -38,13 +38,6 @@
                         Text="离散量采集测试" />
                     <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                         <Button
-                            Width="120"
-                            Height="32"
-                            Margin="0,0,12,0"
-                            VerticalAlignment="Center"
-                            Command="{Binding TempLvdtOutputCommand}"
-                            Content="Temp LVDT输出" />
-                        <Button
                             Width="100"
                             Height="32"
                             Margin="0,0,20,0"

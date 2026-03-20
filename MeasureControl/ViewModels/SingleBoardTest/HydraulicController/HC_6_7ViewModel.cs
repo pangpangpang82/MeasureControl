@@ -34,11 +34,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int Mtx532ReadyTimeoutMs = 6000;
         private const int Mtx532ReadyPollMs = 200;
         private const double Mtx532Ao0VoltageV = 4.0;
-        private const int TempLvdtSlotIndex = 2;
-        private const int TempLvdtChannel1 = 1;
-        private const int TempLvdtChannel2 = 2;
-        private const double TempLvdtVaV = 2.4;
-        private const double TempLvdtVbV = 3.6;
         private const byte DiscreteLabelDec = 103;
         private const byte AtpLabelDec = 16; // 十进制
         private const byte AtpStatusLabelDec = 20;
@@ -100,7 +95,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private IPowerSupplyApi _power;
         private IJy7131Api _jy7131;
         private IArt4229Api _arinc;
-        private IPxi4087LvdtApi _tempLvdt;
         private IMtx532Api _mtx532;
         private bool _isRelay485On;
         private bool _txOpened;
@@ -131,7 +125,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
             Measure14Command = new DelegateCommand(async () => await OnMeasure14Async(), () => CanMeasure14);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
-            TempLvdtOutputCommand = new DelegateCommand(async () => await OnTempLvdtOutputAsync());
 
             ResetMeasurementState();
             LoadLastTestResultFromProject();
@@ -141,7 +134,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public DelegateCommand AutoTestCommand { get; }
         public DelegateCommand Measure14Command { get; }
         public DelegateCommand ClearLogCommand { get; }
-        public DelegateCommand TempLvdtOutputCommand { get; }
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
 
@@ -743,32 +735,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             ResetPinTextsForMeasurement();
             RaisePropertyChanged(nameof(CanMeasure14));
             Measure14Command?.RaiseCanExecuteChanged();
-        }
-
-        private async Task OnTempLvdtOutputAsync()
-        {
-            try
-            {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                await EnsureTempLvdtAsync(cts.Token).ConfigureAwait(false);
-                await _tempLvdt.SetVaVbAsync(TempLvdtChannel1, TempLvdtVaV, TempLvdtVbV, cts.Token).ConfigureAwait(false);
-                await _tempLvdt.StartAsync(TempLvdtChannel1, cts.Token).ConfigureAwait(false);
-                await _tempLvdt.SetVaVbAsync(TempLvdtChannel2, TempLvdtVaV, TempLvdtVbV, cts.Token).ConfigureAwait(false);
-                await _tempLvdt.StartAsync(TempLvdtChannel2, cts.Token).ConfigureAwait(false);
-                Log($"TempLVDT输出完成: CH{TempLvdtChannel1}/CH{TempLvdtChannel2}, VA={TempLvdtVaV:0.0}V, VB={TempLvdtVbV:0.0}V");
-            }
-            catch (Exception ex)
-            {
-                Log($"TempLVDT输出失败: {ex.Message}");
-                MessageBox.Show($"TempLVDT输出失败: {ex.Message}", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private async Task EnsureTempLvdtAsync(CancellationToken cancellationToken)
-        {
-            _tempLvdt ??= new Pxi4087LvdtApi();
-            if (!_tempLvdt.IsConnected)
-                await _tempLvdt.ConnectAsync(TempLvdtSlotIndex, cancellationToken).ConfigureAwait(false);
         }
 
         private void ResetPinTextsForMeasurement()
