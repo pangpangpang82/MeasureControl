@@ -62,7 +62,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             //0x000042BC,
         };
 
-        private static readonly string[] CloseSignalAoChannels = { "AO0", "AO1", "AO2", "AO3", "AO4", "AO5" };
+        private static readonly string[] CloseSignalAoChannels = { "AO2", "AO3", "AO4", "AO5" };
         private static readonly IReadOnlyList<int> CloseMeasurementPins = new[] { 9, 10, 11, 12, 13, 14, 15 };
         private static readonly IReadOnlyList<int> CloseFeedbackBits = new[] { 10, 11, 12, 13, 14, 15, 16 };
         private static readonly IReadOnlyList<int> AllCloseDoIndices = new[] { 3, 21 };
@@ -114,6 +114,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private CancellationTokenSource _txChannel2LoopCts;
         private Task _txChannel1LoopTask = Task.CompletedTask;
         private Task _txChannel2LoopTask = Task.CompletedTask;
+
         private bool _txChannel1Opened;
         private bool _txChannel2Opened;
         private bool _rxChannelOpened;
@@ -1034,10 +1035,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     try { await _res.SetRelayStateAsync("RO0", false, false).ConfigureAwait(false); } catch { }
                     try { await _res.WriteChannelAsync("RO0", 0.0).ConfigureAwait(false); } catch { }
+                    try { await _res.SetRelayStateAsync("RO1", false, false).ConfigureAwait(false); } catch { }
+                    try { await _res.WriteChannelAsync("RO1", 0.0).ConfigureAwait(false); } catch { }
                 }
-
-                try { await _res.SetRelayStateAsync("RO1", false, false).ConfigureAwait(false); } catch { }
-                try { await _res.WriteChannelAsync("RO1", 0.0).ConfigureAwait(false); } catch { }
             }
         }
 
