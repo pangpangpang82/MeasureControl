@@ -40,6 +40,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const byte AtpStatusLabelDec2 = 102;
         private const byte PbitLabelDec = 21;
         private const byte SsmNormal = 0;
+        private const byte AtpSsmNormal = 0;
         private const bool UsePeriodicAtpRequest = true;
         private const string TestItemName = "离散量采集测试";
 
@@ -534,10 +535,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                             && !IsExpectedLabel(label, PbitLabelDec))
                             continue;
 
-                        if (IsExpectedLabel(label, PbitLabelDec))
-                        {
-                            Log($"{Convert.ToString(word.Data429, 2)}");
-                        }
+                        //if (IsExpectedLabel(label, PbitLabelDec))
+                        //{
+                        //    Log($"{Convert.ToString(word.Data429, 2)}");
+                        //}
 
                         if (ssm != SsmNormal)
                             continue;
@@ -989,22 +990,34 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _atpRequestLoopCts?.Dispose();
             _atpRequestLoopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    while (!_atpRequestLoopCts.IsCancellationRequested)
-                    {
-                        await SendAtpRequestSingleAsync(true, _atpRequestLoopCts.Token).ConfigureAwait(false);
-                        await Task.Delay(AtpRequestPeriodMs, _atpRequestLoopCts.Token).ConfigureAwait(false);
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                }
-            }, _atpRequestLoopCts.Token);
-
+            uint data19 = 0x1u;
+            var label = GetAtpLabelForTx();
+            var word = _arinc.BuildRawWord(label, 0, data19, AtpSsmNormal, true);
+            Log($"ATP：True,raw=0x{word:X8}");
+            await _arinc.SendWordsPeriodAsync(TxChannelIndex, new[] { word }, AtpRequestPeriodMs, 0, Art4229Parity.Odd, _atpRequestLoopCts.Token).ConfigureAwait(false);
             Log("已启动ATP请求周期发送(100ms)");
+            return;
+
+            //_atpRequestLoopCts?.Cancel();
+            //_atpRequestLoopCts?.Dispose();
+            //_atpRequestLoopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            //_ = Task.Run(async () =>
+            //{
+            //    try
+            //    {
+            //        while (!_atpRequestLoopCts.IsCancellationRequested)
+            //        {
+            //            await SendAtpRequestSingleAsync(true, _atpRequestLoopCts.Token).ConfigureAwait(false);
+            //            await Task.Delay(AtpRequestPeriodMs, _atpRequestLoopCts.Token).ConfigureAwait(false);
+            //        }
+            //    }
+            //    catch (OperationCanceledException)
+            //    {
+            //    }
+            //}, _atpRequestLoopCts.Token);
+
+            //Log("已启动ATP请求周期发送(100ms)");
         }
 
         private async Task StopAtpRequestAsync(bool sendRelease, CancellationToken cancellationToken)
