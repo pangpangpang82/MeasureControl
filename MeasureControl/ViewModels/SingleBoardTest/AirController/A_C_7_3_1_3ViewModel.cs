@@ -573,8 +573,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             Application.Current?.Dispatcher?.Invoke(() =>
             {
                 var absV = voltage.HasValue ? (double?)Math.Abs(voltage.Value) : null;
-                var vText = absV.HasValue ? $"{absV.Value:F3} V" : "--";
-                var pass = ok && absV.HasValue && absV.Value >= VoltageMin && absV.Value <= VoltageMax;
+                var vText = voltage.HasValue ? $"{voltage.Value:F3} V" : "--";
+
+                var polarityOk = voltage.HasValue && (isFirst ? voltage.Value > 0 : voltage.Value < 0);
+                var magnitudeOk = absV.HasValue && absV.Value >= VoltageMin && absV.Value <= VoltageMax;
+                var pass = ok && polarityOk && magnitudeOk;
                 var r = pass ? "PASS" : "FAIL";
 
                 if (isFirst)
