@@ -72,8 +72,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// <summary>阻抗判定阈值（Ω），大于此值为PASS</summary>
         private const double ImpedanceThreshold = 500.0;
         
-        /// <summary>继电器控制通道，使用7131板卡的DO15</summary>
-        private const string RelayControlChannel = "DO15";
+        /// <summary>继电器控制通道，使用7131板卡的DO14（物理DO15映射到API的DO14）</summary>
+        private const string RelayControlChannel = "DO14";
         
         /// <summary>硬件初始化默认超时时间（毫秒）</summary>
         private const int DefaultTimeoutMs = 3000;
@@ -473,94 +473,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// 所有测试点阻抗 > 500Ω → 综合结果 PASS
         /// 任一测试点阻抗 ≤ 500Ω → 综合结果 FAIL
         /// </summary>
-        private void StartAutoTest()
+        private async void StartAutoTest()
         {
-            // 防止与手动测试冲突
             if (IsManualTestRunning) return;
 
             _opCts?.Cancel();
             _opCts = new CancellationTokenSource();
 
-            IsAutoTestRunning = true;
-            ClearResults();
-            AddLog("自动测试开始");
-
-            Task.Run(async () =>
+            try
             {
-                var token = _opCts.Token;
-                try
-                {
-                    // ========== 步骤1: 初始化硬件 ==========
-                    AddLog("步骤1: 初始化硬件设备（7131板卡、万用表）...");
-                    await InitializeHardwareWithTimeoutAsync(token);
-                    if (token.IsCancellationRequested) return;
-
-                    // ========== 步骤1.5: 继电器供电上电 ==========
-                    AddLog("步骤1.5: 继电器供电上电（24V）...");
-                    await PowerOnRelaySupplyWithTimeoutAsync(token);
-                    if (token.IsCancellationRequested) return;
-
-                    // ========== 步骤2: 激活继电器 ==========
-                    AddLog("步骤2: 激活继电器，隔离产品与试验台...");
-                    await ActivateRelayWithTimeoutAsync(token);
-                    if (token.IsCancellationRequested) return;
-
-                    // ========== 步骤3-6: 依次测量四个测试点 ==========
-                    AddLog("步骤3: 测量 J3-J4 阻抗（外部28V对地）");
-                    await MeasureImpedanceWithTimeoutAsync("A", token);
-                    if (token.IsCancellationRequested) return;
-
-                    AddLog("步骤4: 测量 J14-J24 阻抗（内部28对地）");
-                    await MeasureImpedanceWithTimeoutAsync("B", token);
-                    if (token.IsCancellationRequested) return;
-
-                    AddLog("步骤5: 测量 J3-J5 阻抗（外部28V对壳体）");
-                    await MeasureImpedanceWithTimeoutAsync("C", token);
-                    if (token.IsCancellationRequested) return;
-
-                    AddLog("步骤6: 测量 J14-J5 阻抗（内部28对壳体）");
-                    await MeasureImpedanceWithTimeoutAsync("D", token);
-                    if (token.IsCancellationRequested) return;
-
-                    // ========== 步骤7: 评估结果并复位 ==========
-                    EvaluateOverallResult();
-                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                    AddLog($"自动测试完成，综合结果: {OverallResult}");
-
-                    AddLog("步骤7: 复位硬件设备...");
-                    await ResetHardwareAsync(CancellationToken.None);
-                }
-                catch (OperationCanceledException)
-                {
-                    AddLog("自动测试已取消");
-                    try { await ResetHardwareAsync(CancellationToken.None); } catch { }
-                }
-                catch (TimeoutException ex)
-                {
-                    AddLog($"自动测试超时: {ex.Message}");
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        ReMessageBox.Show($"自动测试超时: {ex.Message}", "超时提示",
-                            MessageBoxButton.OK, MessageBoxImage.Warning);
-                    });
-                    try { await ResetHardwareAsync(CancellationToken.None); } catch { }
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"自动测试异常: {ex.Message}");
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        ReMessageBox.Show($"自动测试异常: {ex.Message}", "错误",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
-                    });
-                    try { await ResetHardwareAsync(CancellationToken.None); } catch { }
-                }
-                finally
-                {
-                    // 无论成功失败，都要更新运行状态
-                    Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
-                }
-            });
+                await ExecuteAutoTestAsync(_opCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // 已在 ExecuteAutoTestAsync 中处理
+            }
+            catch (Exception ex)
+            {
+                AddLog($"自动测试异常: {ex.Message}");
+            }
+            finally
+            {
+                _opCts?.Dispose();
+                _opCts = null;
+            }
         }
 
         /// <summary>
@@ -593,6 +529,108 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     });
                 }
             });
+        }
+
+        /// <summary>
+        /// 供外部（整板自动测试）调用的异步测试方法
+        /// 支持 await 等待完成，并通过 CancellationToken 实现取消
+        /// </summary>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>测试结果："合格" 或 "不合格"</returns>
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning)
+            {
+                _opCts?.Cancel();
+                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            if (IsManualTestRunning)
+            {
+                _opCts?.Cancel();
+                IsManualTestRunning = false;
+                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            _opCts?.Cancel();
+            _opCts?.Dispose();
+            _opCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                return await ExecuteAutoTestAsync(_opCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
+
+        /// <summary>
+        /// 执行自动测试的核心逻辑（可等待版本）
+        /// </summary>
+        private async Task<string> ExecuteAutoTestAsync(CancellationToken token)
+        {
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsAutoTestRunning = true;
+                ClearResults();
+            });
+            AddLog("自动测试开始");
+
+            try
+            {
+                AddLog("步骤1: 初始化硬件设备（7131板卡、万用表）...");
+                await InitializeHardwareWithTimeoutAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                AddLog("步骤1.5: 继电器供电上电（24V）...");
+                await PowerOnRelaySupplyWithTimeoutAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                AddLog("步骤2: 激活继电器，隔离产品与试验台...");
+                await ActivateRelayWithTimeoutAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                AddLog("步骤3: 测量 J3-J4 阻抗（外部28V对地）");
+                await MeasureImpedanceWithTimeoutAsync("A", token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                AddLog("步骤4: 测量 J14-J24 阻抗（内部28对地）");
+                await MeasureImpedanceWithTimeoutAsync("B", token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                AddLog("步骤5: 测量 J3-J5 阻抗（外部28V对壳体）");
+                await MeasureImpedanceWithTimeoutAsync("C", token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                AddLog("步骤6: 测量 J14-J5 阻抗（内部28对壳体）");
+                await MeasureImpedanceWithTimeoutAsync("D", token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                EvaluateOverallResult();
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                AddLog($"自动测试完成，综合结果: {OverallResult}");
+
+                AddLog("步骤7: 复位硬件设备...");
+                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+
+                return OverallResult;
+            }
+            catch (OperationCanceledException)
+            {
+                AddLog("自动测试已取消");
+                try { await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                throw;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"自动测试异常: {ex.Message}");
+                try { await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                return "不合格";
+            }
         }
 
         #endregion
@@ -1042,14 +1080,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     {
                         var mask = await _jy7131Api.ReadDoBitmaskAsync(timeoutCts.Token);
                         var ok = int.TryParse(RelayControlChannel.Substring(2), out var doIdx);
-                        var bit = ok ? (doIdx == 0 ? 0 : doIdx - 1) : 14;
+                        var bit = ok ? doIdx : 14;
                         AddLog($"DO写回读取: mask=0x{mask:X8}，{RelayControlChannel}={(mask & (1u << bit)) != 0}");
                     }
                     catch (Exception ex)
                     {
                         AddLog($"DO写回读取失败: {ex.Message}");
                     }
-                    AddLog("DO15输出完成，继电器线圈得电");
+                    AddLog("DO14输出完成，继电器线圈得电");
                 }
                 else
                 {
@@ -1123,14 +1161,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     {
                         var mask = await _jy7131Api.ReadDoBitmaskAsync(timeoutCts.Token);
                         var ok = int.TryParse(RelayControlChannel.Substring(2), out var doIdx);
-                        var bit = ok ? (doIdx == 0 ? 0 : doIdx - 1) : 14;
+                        var bit = ok ? doIdx : 14;
                         AddLog($"DO写回读取: mask=0x{mask:X8}，{RelayControlChannel}={(mask & (1u << bit)) != 0}");
                     }
                     catch (Exception ex)
                     {
                         AddLog($"DO写回读取失败: {ex.Message}");
                     }
-                    AddLog("DO15输出完成，继电器线圈失电");
+                    AddLog("DO14输出完成，继电器线圈失电");
                 }
                 else
                 {
