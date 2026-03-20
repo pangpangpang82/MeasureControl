@@ -703,6 +703,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 Log("开路: 停止429发送并保持通路专用信号断开");
                 await ClearAllCloseSignalOutputsAsync(CancellationToken.None).ConfigureAwait(false);
 
+                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
                 var (value, text) = await MeasureOpenResultFromPowerAsync(cancellationToken).ConfigureAwait(false);
                 foreach (var pin in CloseMeasurementPins)
                 {
@@ -933,7 +934,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return;
             }
 
-            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(500, cancellationToken).ConfigureAwait(false);
             var (value, text) = await MeasureCloseResultFromPowerAsync(groupName, divisor, cancellationToken).ConfigureAwait(false);
             foreach (var pin in pins)
             {
