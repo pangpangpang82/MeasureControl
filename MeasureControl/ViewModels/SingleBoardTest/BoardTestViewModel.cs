@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -60,13 +60,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "6.5.2.5A控制通道ARINC接收通道5测试", () => new A_C_6_5_2_5View() },
                         { "6.5.2.6A控制通道ARINC接收通道6测试", () => new A_C_6_5_2_6View() },
                         { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
+                        { "8.3.2 S安全通道ARINC429接收通道1测试", () => new S_C_8_3_2View() },
+                        { "8.3.3 S安全通道ARINC429接收通道2测试", () => new S_C_8_3_3View() },
+                        { "8.10.1 S通道OFV/TRV直流电机驱动模块速度控制测试", () => new S_C_8_10_1View() },
                         { "7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试", () => new A_C_7_3_1_1_2View() },
                         { "7.3.1.2 A控制通道功率板RATA直流电机驱动模块速度控制测试", () => new A_C_7_3_1_2View() },
                         { "7.3.1.3 A控制通道功率板RATA直流电机驱动模块方向控制测试", () => new A_C_7_3_1_3View() },
                         { "7.3.2.1 A控制通道功率板AVV直流电机驱动模块供电测试", () => new A_C_7_3_2_1View() },
                         { "7.3.2.2 A控制通道功率板AVV直流电机驱动模块速度控制测试", () => new A_C_7_3_2_2View() },
+                        { "7.3.2.3 A控制通道功率板AVV直流电机驱动模块方向控制测试", () => new A_C_7_3_2_3View() },
                         { "7.3.3.1B控制通道功率板RAIA直流电机驱动模块供电测试", () => new A_C_7_3_3_1View() },
+                        { "7.3.3.3B控制通道功率板RAIA直流电机驱动模块方向控制测试", () => new A_C_7_3_3_3View() },
                         { "7.3.4.1B控制通道功率板CBV直流电机驱动模块供电电流测试", () => new A_C_7_3_4_1View() },
+                        { "7.3.4.2B控制通道功率板CBV直流电机驱动模块方向控制测试", () => new A_C_7_3_4_2View() },
                         { "7.3.3.2 B控制通道PWM/FPGA速度控制测试", () => new B_C_7_3_3_2View() },
                         { "7.4.1.1A控制通道功率板TCV步进电机驱动模块输出测试", () => new A_C_7_4_1_1View() },
                         { "7.4.2.1A控制通道功率板驾驶舱TAV步进电机驱动模块输出测试", () => new A_C_7_4_2_1View() },
@@ -679,8 +685,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("7.3.1.3 A控制通道功率板RATA直流电机驱动模块方向控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.3.2.1 A控制通道功率板AVV直流电机驱动模块供电测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.3.2.2 A控制通道功率板AVV直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.2.3 A控制通道功率板AVV直流电机驱动模块方向控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.3.3.1B控制通道功率板RAIA直流电机驱动模块供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.3.3B控制通道功率板RAIA直流电机驱动模块方向控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.3.4.1B控制通道功率板CBV直流电机驱动模块供电电流测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.4.2B控制通道功率板CBV直流电机驱动模块方向控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.3.3.2 B控制通道PWM/FPGA速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.4.1.1A控制通道功率板TCV步进电机驱动模块输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.4.2.1A控制通道功率板驾驶舱TAV步进电机驱动模块输出测试"));
