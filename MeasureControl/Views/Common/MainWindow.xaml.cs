@@ -519,6 +519,15 @@ namespace MeasureControl.Views.Common
             if (sender is TreeViewItem tvi)
             {
                 tvi.IsSelected = true;
+
+                if (ReferenceEquals(e.OriginalSource, tvi)
+                    && tvi.DataContext is ProjectItem projectItem
+                    && IsSingleBoardTestTaskNode(projectItem)
+                    && _viewModel?.TreeItemDoubleClickCommand?.CanExecute(projectItem) == true)
+                {
+                    _viewModel.TreeItemDoubleClickCommand.Execute(projectItem);
+                }
+
                 e.Handled = true;
             }
         }
