@@ -28,7 +28,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] AbOfvtrvFinger8 = { 0x07, 0x05, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] OfvtrvFingerTelemetryPrefix4 = { 0x07, 0x05, 0x01, 0x02 };
 
-        private const string AoChannel = "AO1";
+        private const string AoChannel = "AO13";
         private const string FixedTxChannel = "429_CH0";
         private const string FixedRxChannel = "429_CH2";
 
@@ -317,6 +317,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         private async Task RunManualTestAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -338,11 +351,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     ExitAtpRxDataText = "--";
                     IsInAtp = false;
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
-                    _simulation.SimProductArincRate = ArincRate;
-                    _simulation.SimProductRxChannelIndex = 4;
-                    _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
 
@@ -389,6 +399,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsBusy = false;
                 }
             }
@@ -678,11 +689,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
                     catch { }
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
-                    _simulation.SimProductArincRate = ArincRate;
-                    _simulation.SimProductRxChannelIndex = 4;
-                    _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
@@ -762,6 +770,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 finally
                 {
                     try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
+
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsAutoTestRunning = false;
                     IsBusy = false;
                 }

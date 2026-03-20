@@ -47,7 +47,7 @@ namespace MeasureControl.Simulations.Common
 
             await OpenArincDeviceAsync(log);
 
-            int benchTxIndex = ParseChannelIndex(benchTxChannel);
+            int benchTxIndex = ParseChannelIndex(benchTxChannel);//429_CH0对应的0/1
             int benchRxIndex = ParseChannelIndex(benchRxChannel);
 
             ValidateChannelIndices(benchTxIndex, benchRxIndex);
@@ -407,7 +407,7 @@ namespace MeasureControl.Simulations.Common
             }
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] ARINC429 通道已配置: benchTX={benchTxIndex}, benchRX={benchRxIndex}, simRX={SimProductRxChannelIndex}, simTX={SimProductTxChannelIndex}");
-        }
+        }//当 IsRealProduct == true 时，打开配置一对接收/发送通道
 
         protected async Task ConfigureArincChannelsAsyncMulti(IReadOnlyList<int> benchTxIndices, IReadOnlyList<int> benchRxIndices, Action<string> log)
         {

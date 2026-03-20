@@ -54,7 +54,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             SendSetControllerResistorCommand = new DelegateCommand(async () => await SendSetControllerResistorAsync(), () => !IsResistorMeasuring)
                 .ObservesProperty(() => IsResistorMeasuring);
             TestControllerTemperatureCommand = new DelegateCommand(async () => await OnTestControllerTemperatureAsync());
-            TestTemperatureTelemetryCommand = new DelegateCommand(async () => await OnTestTemperatureTelemetryAsync());
             SendExitAtpCommand = new DelegateCommand(async () => await OnSendExitAtpAsync());
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
@@ -71,6 +70,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
         private CancellationTokenSource _autoTestCts;
         private bool _autoTestEnteredAtp;
+
+        private CancellationTokenSource _telemetryListeningCts;
+        private Task _telemetryListeningTask;
+
+        private byte[] _lastTemperatureTelemetryFrame;
+        private byte[] _lastTemperatureRawFrame;
+        private double? _lastTelemetryTemperatureC;
 
         private string _enterAtpTxChannel;
         private string _enterAtpRxChannel;
@@ -214,7 +220,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public DelegateCommand SendEnterAtpCommand { get; }
         public DelegateCommand SendSetControllerResistorCommand { get; }
         public DelegateCommand TestControllerTemperatureCommand { get; }
-        public DelegateCommand TestTemperatureTelemetryCommand { get; }
         public DelegateCommand SendExitAtpCommand { get; }
         public DelegateCommand ClearLogCommand { get; }
         public DelegateCommand ManualTestCommand { get; }
@@ -357,32 +362,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 TemperatureTelemetryValueText = "--";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：温度回采值，RX={TemperatureTelemetryRxChannel}");
 
-                try { await _simulation.ClearRxFifoAsync(TemperatureTelemetryRxChannel); } catch { }
-                await Task.Delay(30);
+                StartTemperatureTelemetryListeningIfNeeded();
+                await Task.Delay(500);
 
-                bool ok = await _simulation.EnsureBenchRxChannelAsync(TemperatureTelemetryRxChannel, msg => AddLog(msg));
-                if (!ok)
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采测试失败：通道未就绪");
-                    return;
-                }
-
-                var (temp8, raw8) = await _simulation.WaitTelemetryAsync(
-                    TemperatureTelemetryRxChannel,
-                    timeoutMs: 2000,
-                    msg => AddLog(msg),
-                    CancellationToken.None);
+                var temp8 = _lastTemperatureTelemetryFrame;
+                var tempC = _lastTelemetryTemperatureC;
 
                 if (temp8 != null)
-                {
                     TemperatureTelemetryRxDataText = "0x" + FormatData(temp8);
-                    double tempValue = ParseTemperatureFromBytes(temp8);
-                    TemperatureTelemetryValueText = $"{tempValue:F2}°C";
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值={tempValue:F2}°C");
+
+                if (tempC.HasValue)
+                {
+                    TemperatureTelemetryValueText = $"{tempC.Value:F2}°C";
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值={tempC.Value:F2}°C");
                 }
                 else
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 未收到温度遥测帧");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 缓存中无温度遥测帧");
                 }
             }
             catch (Exception ex)
@@ -445,6 +441,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = StartManualTestAsync();
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         private async Task StartManualTestAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -466,12 +475,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 catch { }
 
-                _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                _simulation.IsRealProduct = true;
                 _simulation.GetCurrentResistorGear = () => ResistorGear;
                 _simulation.GetCurrentAmbientTemperatureSelection = () => AmbientTemperatureSelection;
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：429板卡已就绪");
+
+                StartTemperatureTelemetryListeningIfNeeded();
             }
             catch (Exception ex)
             {
@@ -496,6 +507,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试停止：关闭设备");
                 IsManualTestRunning = false;
 
+                await StopTemperatureTelemetryListeningAsync();
+
                 await _simulation.StopAsync(msg => AddLog(msg));
                 await DisconnectResistorAsync();
 
@@ -508,6 +521,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             finally
             {
+                try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 _manualTestLock.Release();
             }
         }
@@ -525,6 +539,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (!await _autoTestLock.WaitAsync(0))
                     return;
+
+                await StopTemperatureTelemetryListeningAsync();
                 IsAutoTestRunning = true;
                 _autoTestCts = new CancellationTokenSource();
                 _autoTestEnteredAtp = false;
@@ -573,10 +589,105 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsAutoTestRunning = false;
                     _autoTestLock.Release();
                 }
             });
+        }
+
+        private void StartTemperatureTelemetryListeningIfNeeded()
+        {
+            if (_telemetryListeningTask != null)
+                return;
+            if (!IsManualTestRunning && !IsAutoTestRunning)
+                return;
+            if (string.IsNullOrWhiteSpace(TemperatureTelemetryRxChannel))
+                return;
+
+            _telemetryListeningCts?.Cancel();
+            _telemetryListeningCts?.Dispose();
+            _telemetryListeningCts = new CancellationTokenSource();
+            var token = _telemetryListeningCts.Token;
+
+            _telemetryListeningTask = Task.Run(async () =>
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        var (tempData, rawData) = await _simulation.WaitTelemetryAsync(
+                            TemperatureTelemetryRxChannel,
+                            timeoutMs: 300,
+                            log: _ => { },
+                            token: token);
+
+                        if (tempData != null)
+                        {
+                            _lastTemperatureTelemetryFrame = tempData;
+                            if (rawData != null)
+                                _lastTemperatureRawFrame = rawData;
+                            var tempValue = ParseTemperatureFromBytes(tempData);
+                            _lastTelemetryTemperatureC = tempValue;
+                            var dispatcher = Application.Current?.Dispatcher;
+                            if (dispatcher != null && !dispatcher.CheckAccess())
+                            {
+                                dispatcher.BeginInvoke(new Action(() =>
+                                {
+                                    TemperatureTelemetryRxDataText = "0x" + FormatData(tempData);
+                                    TemperatureTelemetryValueText = $"{tempValue:F2}°C";
+                                }));
+                            }
+                            else
+                            {
+                                TemperatureTelemetryRxDataText = "0x" + FormatData(tempData);
+                                TemperatureTelemetryValueText = $"{tempValue:F2}°C";
+                            }
+                        }
+                        else
+                        {
+                            await Task.Delay(50, token);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                    catch
+                    {
+                        try { await Task.Delay(100, token); } catch { break; }
+                    }
+                }
+            }, token);
+        }
+
+        private async Task StopTemperatureTelemetryListeningAsync()
+        {
+            try
+            {
+                _telemetryListeningCts?.Cancel();
+            }
+            catch { }
+
+            var task = _telemetryListeningTask;
+            if (task != null)
+            {
+                try
+                {
+                    await Task.WhenAny(task, Task.Delay(500));
+                }
+                catch { }
+            }
+
+            _telemetryListeningTask = null;
+
+            try
+            {
+                _telemetryListeningCts?.Dispose();
+            }
+            catch { }
+
+            _telemetryListeningCts = null;
         }
 
         private async Task RunTestSequenceAsync(CancellationToken token)
@@ -774,6 +885,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 _autoTestCts?.Cancel();
+                _telemetryListeningCts?.Cancel();
                 _simulation?.Dispose();
                 if (_resistorDriver != null)
                 {

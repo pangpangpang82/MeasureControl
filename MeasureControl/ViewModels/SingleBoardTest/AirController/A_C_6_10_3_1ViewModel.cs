@@ -277,8 +277,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             SendControllerPressureTestCommand = new DelegateCommand(async () => await OnSendControllerPressureTestAsync());
 
-            TestPressureTelemetryCommand = new DelegateCommand(async () => await OnReadPressureTelemetryAsync());
-
 
 
             _simulation.GetCurrentGearIndex = () => CurrentGearIndex <= 0 ? 1 : CurrentGearIndex;
@@ -383,8 +381,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public DelegateCommand SendSetControllerVoltageCommand { get; }
 
         public DelegateCommand SendControllerPressureTestCommand { get; }
-
-        public DelegateCommand TestPressureTelemetryCommand { get; }
 
 
 
@@ -742,6 +738,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         private void OnToggleMtx532Hardware()
         {
             _ = ToggleMtx532HardwareAsync();
@@ -816,11 +825,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     LastTestTime = "--";
                     LastTestResult = "--";
 
-                    _simulation.IsRealProduct = false;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
-                    _simulation.SimProductArincRate = ArincRate;
-                    _simulation.SimProductRxChannelIndex = 4;
-                    _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：打开ARINC429");
 
@@ -930,6 +936,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsManualTestRunning = false;
                     IsBusy = false;
                 }
@@ -974,11 +981,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
                     catch { }
 
-                    _simulation.IsRealProduct = false;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
-                    _simulation.SimProductArincRate = ArincRate;
-                    _simulation.SimProductRxChannelIndex = 4;
-                    _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
@@ -1064,6 +1068,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     catch
                     {
                     }
+
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
                     IsAutoTestRunning = false;
                     IsBusy = false;
@@ -1602,138 +1608,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器压力测试异常：{ex.Message}");
-
-            }
-
-            finally
-
-            {
-
-                _arincOpLock.Release();
-
-            }
-
-        }
-
-
-
-        private async Task OnReadPressureTelemetryAsync()
-
-        {
-
-            if (!IsManualTestRunning || IsBusy)
-
-                return;
-
-
-
-            if (CurrentGearIndex is < 1 or > 3)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 请先选择接入电压挡位");
-
-                return;
-
-            }
-
-
-
-            if (!IsInAtp)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 请先进入ATP模式");
-
-                return;
-
-            }
-
-
-
-            await _arincOpLock.WaitAsync();
-
-            try
-
-            {
-
-                IsBusy = true;
-
-                try
-
-                {
-
-                    PressureTelemetryValueText = "--";
-
-                    PressureTelemetryRxDataText = "--";
-
-
-
-                    var token = CancellationToken.None;
-
-                    await _simulation.ClearRxFifoAsync(PressureTelemetryRxChannel);
-
-                    await Task.Delay(20, token);
-
-
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待压力遥测(07 03 03 02)：RX={PressureTelemetryRxChannel}");
-
-                    var tel = await _simulation.WaitPressureTelemetryAsync(PressureTelemetryRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: token);
-
-                    if (tel == null)
-
-                    {
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测超时");
-
-                        SetLastTestResult("FAIL");
-
-                        return;
-
-                    }
-
-
-
-                    PressureTelemetryRxDataText = "0x" + FormatData(tel);
-
-                    if (!TryParseTelemetryPressure(tel, out var pressurePsia))
-
-                    {
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测解析失败");
-
-                        SetLastTestResult("FAIL");
-
-                        PressureTelemetryValueText = "--";
-
-                        return;
-
-                    }
-
-
-
-                    PressureTelemetryValueText = pressurePsia.ToString("0.####", CultureInfo.InvariantCulture);
-
-                    SetLastTestResult(IsPressureQualified(CurrentGearIndex, pressurePsia) ? "PASS" : "FAIL");
-
-                }
-
-                finally
-
-                {
-
-                    IsBusy = false;
-
-                }
-
-            }
-
-            catch (Exception ex)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 压力回采异常：{ex.Message}");
 
             }
 

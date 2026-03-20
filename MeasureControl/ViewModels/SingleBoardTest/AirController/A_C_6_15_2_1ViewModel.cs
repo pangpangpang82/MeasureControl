@@ -41,7 +41,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private TcpClient _scopeTcpClient;
         private NetworkStream _scopeTcpStream;
-        private IFrequencyCounterApi _frequencyCounter;
 
         private bool _matrixRouted;
 
@@ -51,7 +50,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _testRxChannel = FixedRxChannel;
 
         private string _oscilloscopeIpAddress = "192.168.1.18";
-        private string _frequencyCounterIpAddress = "192.168.1.14";
 
         private bool _isBusy;
         private bool _isManualTestRunning;
@@ -140,12 +138,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _oscilloscopeIpAddress;
             set => SetProperty(ref _oscilloscopeIpAddress, value);
-        }
-
-        public string FrequencyCounterIpAddress
-        {
-            get => _frequencyCounterIpAddress;
-            set => SetProperty(ref _frequencyCounterIpAddress, value);
         }
 
         public bool IsBusy
@@ -314,6 +306,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         private async Task RunManualTestAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -334,11 +339,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     IsManualTestRunning = true;
                     await Task.Yield();
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
-                    _simulation.SimProductArincRate = ArincRate;
-                    _simulation.SimProductRxChannelIndex = 4;
-                    _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
 
@@ -386,6 +388,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsBusy = false;
                 }
             }
@@ -425,11 +428,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 try
                 {
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
-                    _simulation.SimProductArincRate = ArincRate;
-                    _simulation.SimProductRxChannelIndex = 4;
-                    _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
@@ -484,6 +484,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
                     try { await DisconnectInstrumentsAndMatrixAsync(CancellationToken.None); } catch { }
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 }
             }
             finally
@@ -513,6 +514,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _simulation.ClearRxFifoAsync(TestRxChannel);
             await Task.Delay(20, token);
             await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
+
+            if (!cmd8.SequenceEqual(EnterAtpCommand8) && !cmd8.SequenceEqual(ExitAtpCommand8))
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送完成（不等待回读）");
+                return true;
+            }
 
             var resp = await _simulation.WaitBenchResponse8Async(
                 TestRxChannel,
@@ -590,12 +597,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task<bool> MeasureAndQualifyPwmAsync(int pwmPercent, CancellationToken token)
         {
-            if (!AppConstants.Arinc429IsRealProduct)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] [SIM] PWM={pwmPercent}%：跳过示波器/频率计判据（仿真模式）");
-                return true;
-            }
-
             await _instrumentLock.WaitAsync(token);
             try
             {
@@ -696,13 +697,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             var vpp = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VPP", token);
 
             var freq = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? FREQuency", token);
-            double? dutyPct = await QueryScopeDutyPctAsync(1, token);
-            if (!dutyPct.HasValue)
-            {
-                var pw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? PWIDth", token);
-                var nw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? NWIDth", token);
-                dutyPct = TryCalcDutyPctFromPulseWidths(pw, nw);
-            }
+            var dutyPct = await QueryScopeDutyPctAsync(1, token);
 
             return new PwmMeasurement
             {
@@ -715,21 +710,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 FreqHz = freq,
                 DutyPct = dutyPct
             };
-        }
-
-        private static double? TryCalcDutyPctFromPulseWidths(double? pw, double? nw)
-        {
-            if (!pw.HasValue || !nw.HasValue)
-                return null;
-
-            if (double.IsNaN(pw.Value) || double.IsInfinity(pw.Value) || double.IsNaN(nw.Value) || double.IsInfinity(nw.Value))
-                return null;
-
-            var sum = pw.Value + nw.Value;
-            if (sum <= 0)
-                return null;
-
-            return pw.Value / sum * 100.0;
         }
 
         private async Task MeasureAndUpdateUiAsync(int pwmPercent)
@@ -1095,22 +1075,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         sb.Append(ch);
                 }
                 return sb.ToString().Trim();
-            }
-        }
-
-        private async Task<double?> ReadFrequencyCounterValueAsync(FrequencyCounterMeasureMode mode, FrequencyCounterChannel channel, CancellationToken token)
-        {
-            if (_frequencyCounter == null)
-                return null;
-
-            try
-            {
-                var reading = await _frequencyCounter.ReadOnceAsync(mode, channel, new FrequencyCounterReadOptions { TimeoutMilliseconds = 8000 }, token);
-                return reading?.Value;
-            }
-            catch
-            {
-                return null;
             }
         }
 

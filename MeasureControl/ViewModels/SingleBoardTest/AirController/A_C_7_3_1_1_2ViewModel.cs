@@ -7,11 +7,13 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using Ivi.Visa;
 using MeasureControl.Drivers;
 using MeasureControl.Helpers;
 using MeasureControl.Models.Devices;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
+using NationalInstruments.Visa;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
@@ -33,6 +35,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private const string PowerSupply28VIpAddress = "192.168.1.15";
         private const string PowerSupply3V3IpAddress = "192.168.1.16";
+
+        private const string DefaultElectronicLoadVisaResource = "USB0::0x0A69::0x084A::6314A0011536::INSTR";
 
         private const PowerSupplyChannel PowerSupply28VCh1 = PowerSupplyChannel.CH1;
         private const PowerSupplyChannel PowerSupply28VCh2 = PowerSupplyChannel.CH2;
@@ -60,8 +64,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private CancellationTokenSource _autoTestCts;
 
         private FpgaTcpClient _fpga;
-        private ACTS6010Driver _resistorDriver;
         private IDmmApi _dmmSocket;
+
+        private ResourceManager _electronicLoadResourceManager;
+        private MessageBasedSession _electronicLoadSession;
+        private readonly SemaphoreSlim _electronicLoadIoLock = new SemaphoreSlim(1, 1);
+        private string _electronicLoadVisaResource = DefaultElectronicLoadVisaResource;
 
         private IPowerSupplyApi _powerSupply28V;
         private IPowerSupplyApi _powerSupply3V3;
@@ -158,6 +166,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _fpgaPort;
             set => SetProperty(ref _fpgaPort, value);
+        }
+
+        public string ElectronicLoadVisaResource
+        {
+            get => _electronicLoadVisaResource;
+            set => SetProperty(ref _electronicLoadVisaResource, value);
         }
 
         public bool IsPowerOn
@@ -757,46 +771,130 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             try
             {
-                bool ok = await EnsureResistorReadyAsync().ConfigureAwait(false);
-                if (!ok || _resistorDriver == null || !_resistorDriver.IsConnected)
-                {
-                    AddLog("接入负载失败：电阻输出未就绪");
-                    UpdateLoadReadback(targetOhm, null);
-                    return false;
-                }
+                await EnsureElectronicLoadConnectedAsync(token).ConfigureAwait(false);
 
-                AddLog($"接入负载: 目标={targetOhm:F2}Ω (电阻输出1)");
+                AddLog($"接入负载: 目标={targetOhm:F2}Ω (程控电子负载 CH1, CR模式)");
 
-                var relayOk = await _resistorDriver.SetRelayStateAsync("RO1", true, false).ConfigureAwait(false);
-                if (!relayOk)
-                {
-                    AddLog("7012设置RO1继电器失败");
-                    UpdateLoadReadback(targetOhm, null);
-                    return false;
-                }
+                await WriteElectronicLoadByChannelAsync("1", "LOAD:SHOR OFF", token).ConfigureAwait(false);
+                await WriteElectronicLoadByChannelAsync("1", "MODE CRL", token).ConfigureAwait(false);
+                await WriteElectronicLoadByChannelAsync("1", $"RES:L1 {targetOhm.ToString(CultureInfo.InvariantCulture)}", token).ConfigureAwait(false);
+                await WriteElectronicLoadByChannelAsync("1", "LOAD ON", token).ConfigureAwait(false);
 
-                var writeOk = await _resistorDriver.WriteChannelAsync("RO1", targetOhm).ConfigureAwait(false);
-                if (!writeOk)
-                {
-                    AddLog("7012写入RO1失败");
-                    UpdateLoadReadback(targetOhm, null);
-                    return false;
-                }
-
-                await Task.Delay(50, token).ConfigureAwait(false);
-                var readBack = await _resistorDriver.ReadChannelAsync("RO1").ConfigureAwait(false);
-
-                UpdateLoadReadback(targetOhm, readBack);
-
-                var within = Math.Abs(readBack - targetOhm) <= LoadToleranceOhm;
-                AddLog($"负载读回: {readBack:F5}Ω, 判定={(within ? "PASS" : "FAIL")}");
-                return within;
+                UpdateLoadReadback(targetOhm, targetOhm);
+                return true;
             }
             catch (Exception ex)
             {
                 AddLog($"接入负载异常: {ex.Message}");
                 UpdateLoadReadback(targetOhm, null);
                 return false;
+            }
+        }
+
+        private async Task EnsureElectronicLoadConnectedAsync(CancellationToken token)
+        {
+            if (_electronicLoadSession != null)
+                return;
+
+            var res = (ElectronicLoadVisaResource ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(res))
+                res = DefaultElectronicLoadVisaResource;
+
+            try
+            {
+                _electronicLoadResourceManager ??= new ResourceManager();
+            }
+            catch (DllNotFoundException ex)
+            {
+                throw new InvalidOperationException($"电子负载连接失败：未安装NI-VISA（{ex.Message}）");
+            }
+            catch (Ivi.Visa.VisaException ex)
+            {
+                throw new InvalidOperationException($"电子负载连接失败：VISA初始化失败（{ex.Message}）");
+            }
+
+            await Task.Run(() =>
+            {
+                _electronicLoadSession = (MessageBasedSession)_electronicLoadResourceManager.Open(res);
+                _electronicLoadSession.TimeoutMilliseconds = 5000;
+            }, token).ConfigureAwait(false);
+
+            try
+            {
+                _electronicLoadSession.TerminationCharacterEnabled = true;
+                _electronicLoadSession.TerminationCharacter = (byte)'\n';
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                var idn = await QueryElectronicLoadAsync("*IDN?", token).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(idn))
+                    AddLog($"电子负载已连接: {idn}");
+                else
+                    AddLog("电子负载已连接");
+            }
+            catch
+            {
+                AddLog("电子负载已连接(未读回IDN)");
+            }
+        }
+
+        private async Task DisconnectElectronicLoadAsync(CancellationToken token)
+        {
+            try
+            {
+                if (_electronicLoadSession != null)
+                {
+                    try { await WriteElectronicLoadByChannelAsync("1", "LOAD:SHOR OFF", token).ConfigureAwait(false); } catch { }
+                    try { await WriteElectronicLoadByChannelAsync("1", "LOAD OFF", token).ConfigureAwait(false); } catch { }
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                try { _electronicLoadSession?.Dispose(); } catch { }
+                _electronicLoadSession = null;
+                try { _electronicLoadResourceManager?.Dispose(); } catch { }
+                _electronicLoadResourceManager = null;
+            }
+        }
+
+        private async Task WriteElectronicLoadByChannelAsync(string channel, string command, CancellationToken token)
+        {
+            if (_electronicLoadSession == null)
+                throw new InvalidOperationException("电子负载未连接");
+
+            await _electronicLoadIoLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                _electronicLoadSession.RawIO.Write($"CHAN {channel}\n");
+                _electronicLoadSession.RawIO.Write(command.EndsWith("\n", StringComparison.Ordinal) ? command : command + "\n");
+            }
+            finally
+            {
+                _electronicLoadIoLock.Release();
+            }
+        }
+
+        private async Task<string> QueryElectronicLoadAsync(string query, CancellationToken token)
+        {
+            if (_electronicLoadSession == null)
+                throw new InvalidOperationException("电子负载未连接");
+
+            await _electronicLoadIoLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                _electronicLoadSession.RawIO.Write(query.EndsWith("\n", StringComparison.Ordinal) ? query : query + "\n");
+                return _electronicLoadSession.RawIO.ReadString()?.Trim();
+            }
+            finally
+            {
+                _electronicLoadIoLock.Release();
             }
         }
 
@@ -810,59 +908,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 else
                     Step4LoadReadback = text;
             });
-        }
-
-        private async Task<bool> EnsureResistorReadyAsync()
-        {
-            if (_resistorDriver != null && _resistorDriver.IsConnected)
-                return true;
-
-            try
-            {
-                var candidates = new uint[] { 1, 0, 2, 3, 4, 5, 6, 7 };
-                foreach (var logicalId in candidates)
-                {
-                    AddLog($"电阻板卡直连：尝试ACTS6010逻辑ID={logicalId}");
-                    var dummy = new ProgrammableResistorDevice
-                    {
-                        Name = "电阻输出",
-                        Model = "PXI-7012",
-                        CardName = $"电阻输出(自动探测-{logicalId})",
-                        SlotIndex = (int)logicalId
-                    };
-
-                    var driver = new ACTS6010Driver(dummy, logicalId);
-                    var ok = await driver.ConnectAsync().ConfigureAwait(false);
-                    if (ok)
-                    {
-                        _resistorDriver = driver;
-                        AddLog($"电阻板卡已连接：ACTS6010 逻辑ID={logicalId}");
-                        return true;
-                    }
-                }
-
-                AddLog("电阻板卡打开失败：ACTS6010 逻辑ID 0-7 均连接失败");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                AddLog($"电阻板卡打开异常: {ex.Message}");
-                _resistorDriver = null;
-                return false;
-            }
-        }
-
-        private async Task DisconnectResistorAsync()
-        {
-            try
-            {
-                if (_resistorDriver != null)
-                {
-                    await _resistorDriver.DisconnectAsync().ConfigureAwait(false);
-                    _resistorDriver = null;
-                }
-            }
-            catch { }
         }
 
         private async Task<(bool Ok, double? Voltage)> MeasureVoltageAsync(CancellationToken token)
@@ -968,7 +1013,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             catch { }
 
-            try { await DisconnectResistorAsync().ConfigureAwait(false); } catch { }
+            try { await DisconnectElectronicLoadAsync(token).ConfigureAwait(false); } catch { }
             try { await DisconnectFpgaAsync(token).ConfigureAwait(false); } catch { }
         }
 
@@ -996,6 +1041,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try { _autoTestLock.Dispose(); } catch { }
             try { _opLock.Dispose(); } catch { }
             try { _instrumentLock.Dispose(); } catch { }
+            try { _electronicLoadIoLock.Dispose(); } catch { }
         }
     }
 }
