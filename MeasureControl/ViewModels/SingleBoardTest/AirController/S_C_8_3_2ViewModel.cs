@@ -229,6 +229,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = StartManualTestAsync();
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         private async Task StartManualTestAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -250,15 +263,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     LastTestResult = "--";
                     CurrentStepImage = CreateImageSource("/Resources/Logo/begin.png");
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
                     _simulation.SimProductArincRate = ArincRate;
-
-                    if (!_simulation.IsRealProduct)
-                    {
-                        if (!TrySetupSimChannelMapping(out var mapError))
-                            throw new InvalidOperationException(mapError);
-                    }
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：TX={TestTxChannel}, RX={TestRxChannel}");
 
@@ -312,6 +319,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsBusy = false;
                 }
             }
@@ -590,15 +598,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
                     catch { }
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
                     _simulation.SimProductArincRate = ArincRate;
-
-                    if (!_simulation.IsRealProduct)
-                    {
-                        if (!TrySetupSimChannelMapping(out var mapError))
-                            throw new InvalidOperationException(mapError);
-                    }
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");
 
@@ -697,6 +699,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     catch
                     {
                     }
+
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
                     IsAutoTestRunning = false;
                     IsBusy = false;

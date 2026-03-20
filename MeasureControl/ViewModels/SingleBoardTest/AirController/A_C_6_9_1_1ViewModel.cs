@@ -178,6 +178,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private Task _telemetryListeningTask;
 
+        private int _pressureTelemetrySeq;
+
+        private byte[] _lastPressureTelemetryFrame;
+
 
 
         public A_C_6_9_1_1ViewModel()
@@ -277,8 +281,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             SendSetControllerVoltageCommand = new DelegateCommand(async () => await OnSetSelectedGearVoltageAsync());
 
             SendControllerPressureTestCommand = new DelegateCommand(async () => await OnSendControllerPressureTestAsync());
-
-            TestPressureTelemetryCommand = new DelegateCommand(async () => await OnReadPressureTelemetryAsync());
 
 
 
@@ -413,8 +415,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
         public DelegateCommand SendControllerPressureTestCommand { get; }
-
-        public DelegateCommand TestPressureTelemetryCommand { get; }
 
 
 
@@ -1002,138 +1002,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-        private async Task OnReadPressureTelemetryAsync()
-
-        {
-
-            if (!IsManualTestRunning || IsBusy)
-
-                return;
-
-
-
-            if (CurrentGearIndex is < 1 or > 3)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 请先选择接入电压挡位");
-
-                return;
-
-            }
-
-
-
-            if (!IsInAtp)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 请先进入ATP模式");
-
-                return;
-
-            }
-
-
-
-            await _arincOpLock.WaitAsync();
-
-            try
-
-            {
-
-                IsBusy = true;
-
-                try
-
-                {
-
-                    PressureTelemetryValueText = "--";
-
-                    PressureTelemetryRxDataText = "--";
-
-
-
-                    var token = CancellationToken.None;
-
-                    await _simulation.ClearRxFifoAsync(PressureTelemetryRxChannel);
-
-                    await Task.Delay(20, token);
-
-
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待温度遥测(07 02 01 02)：RX={PressureTelemetryRxChannel}");
-
-                    var tel = await _simulation.WaitPressureTelemetryAsync(PressureTelemetryRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: token);
-
-                    if (tel == null)
-
-                    {
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测超时");
-
-                        SetLastTestResult("FAIL");
-
-                        return;
-
-                    }
-
-
-
-                    PressureTelemetryRxDataText = "0x" + FormatData(tel);
-
-                    if (!TryParseTelemetryPressure(tel, out var pressureBar))
-
-                    {
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测解析失败");
-
-                        SetLastTestResult("FAIL");
-
-                        PressureTelemetryValueText = "--";
-
-                        return;
-
-                    }
-
-
-
-                    PressureTelemetryValueText = pressureBar.ToString("0.####", CultureInfo.InvariantCulture);
-
-                    SetLastTestResult(IsPressureQualified(CurrentGearIndex, pressureBar) ? "PASS" : "FAIL");
-
-                }
-
-                finally
-
-                {
-
-                    IsBusy = false;
-
-                }
-
-            }
-
-            catch (Exception ex)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采异常：{ex.Message}");
-
-            }
-
-            finally
-
-            {
-
-                _arincOpLock.Release();
-
-            }
-
-        }
-
-
-
         private void EnsureOneGearSelected()
 
         {
@@ -1182,6 +1050,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 {
 
+                    await StopPressureTelemetryListeningAsync();
+
                     await _simulation.ClearRxFifoAsync(ExitAtpRxChannel);
 
                     await Task.Delay(20);
@@ -1219,6 +1089,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP超时");
 
                         SetLastTestResult("FAIL");
+
+                        if (IsInAtp)
+
+                            StartPressureTelemetryListeningIfNeeded();
 
                         return;
 
@@ -1547,6 +1421,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+
+        {
+
+            try
+
+            {
+
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(IComponentPowerStateApi)) as IComponentPowerStateApi;
+
+                if (api != null)
+
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+
+            }
+
+            catch
+
+            {
+
+            }
+
+        }
+
+
+
         private void OnToggleMtx532Hardware()
 
         {
@@ -1695,15 +1595,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-                    _simulation.IsRealProduct = false;
+                    _simulation.IsRealProduct = true;
 
                     _simulation.ArincRate = ArincRate;
-
-                    _simulation.SimProductArincRate = ArincRate;
-
-                    _simulation.SimProductRxChannelIndex = 4;
-
-                    _simulation.SimProductTxChannelIndex = 5;
 
 
 
@@ -1919,6 +1813,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 {
 
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+
                     IsManualTestRunning = false;
 
                     IsBusy = false;
@@ -1999,17 +1895,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-                    _simulation.IsRealProduct = false;
+                    _simulation.IsRealProduct = true;
 
                     _simulation.ArincRate = ArincRate;
-
-                    _simulation.SimProductArincRate = ArincRate;
-
-                    _simulation.SimProductRxChannelIndex = 4;
-
-                    _simulation.SimProductTxChannelIndex = 5;
-
-
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");
 
@@ -2055,6 +1943,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     }
 
+                    EnterAtpRxDataText = "0x" + FormatData(enterOk);
+                    IsInAtp = true;
+                    StartPressureTelemetryListeningIfNeeded();
+
 
 
                     await _simulation.ClearRxFifoAsync(TestRxChannel);
@@ -2082,6 +1974,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     await _simulation.ClearRxFifoAsync(TestRxChannel);
 
                     await Task.Delay(20, token);
+
+                    await StopPressureTelemetryListeningAsync();
 
 
 
@@ -2165,6 +2059,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 {
 
+                    try { await StopPressureTelemetryListeningAsync(); } catch { }
+
+                    IsInAtp = false;
+
                     try
 
                     {
@@ -2178,6 +2076,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     {
 
                     }
+
+
+
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
 
 
@@ -2279,9 +2181,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：等待温度遥测(07 02 01 02)");
+            var startSeq = Volatile.Read(ref _pressureTelemetrySeq);
+            Interlocked.Exchange(ref _lastPressureTelemetryFrame, null);
 
-            var tel = await _simulation.WaitPressureTelemetryAsync(TestRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：等待温度遥测(07 02 01 02)[持续监听]");
+
+            var tel = await WaitNextPressureTelemetryFrameAsync(startSeq, timeoutMs: 1500, token: token);
 
             if (tel == null)
 
@@ -2421,9 +2326,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待温度遥测：RX={PressureTelemetryRxChannel}");
+                    StartPressureTelemetryListeningIfNeeded();
 
-                    var tel = await _simulation.WaitPressureTelemetryAsync(PressureTelemetryRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: token);
+                    var startSeq = Volatile.Read(ref _pressureTelemetrySeq);
+
+                    Interlocked.Exchange(ref _lastPressureTelemetryFrame, null);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待温度遥测：RX={PressureTelemetryRxChannel}[持续监听]");
+
+                    var tel = await WaitNextPressureTelemetryFrameAsync(startSeq, timeoutMs: 1500, token: token);
 
                     if (tel == null)
 
@@ -2901,6 +2812,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 return;
 
+            if (!IsInAtp)
+
+                return;
+
+            if (!IsManualTestRunning && !IsAutoTestRunning)
+
+                return;
+
 
 
             _telemetryListeningCts?.Cancel();
@@ -2943,6 +2862,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                         {
 
+                            var frameCopy = tel.ToArray();
+
+                            Interlocked.Exchange(ref _lastPressureTelemetryFrame, frameCopy);
+
+                            Interlocked.Increment(ref _pressureTelemetrySeq);
+
                             // 更新UI（需要在UI线程）
 
                             var dispatcher = Application.Current?.Dispatcher;
@@ -2955,7 +2880,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                                 {
 
-                                    PressureTelemetryRxDataText = "0x" + FormatData(tel);
+                                    PressureTelemetryRxDataText = "0x" + FormatData(frameCopy);
 
                                     PressureTelemetryValueText = pressureBar.ToString("0.####", CultureInfo.InvariantCulture);
 
@@ -2967,7 +2892,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                             {
 
-                                PressureTelemetryRxDataText = "0x" + FormatData(tel);
+                                PressureTelemetryRxDataText = "0x" + FormatData(frameCopy);
 
                                 PressureTelemetryValueText = pressureBar.ToString("0.####", CultureInfo.InvariantCulture);
 
@@ -3060,6 +2985,40 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             catch { }
 
             _telemetryListeningCts = null;
+
+        }
+
+        private async Task<byte[]> WaitNextPressureTelemetryFrameAsync(int startSeq, int timeoutMs, CancellationToken token)
+
+        {
+
+            var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
+
+            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
+
+            {
+
+                if (Volatile.Read(ref _pressureTelemetrySeq) > startSeq)
+
+                {
+
+                    var frame = Interlocked.CompareExchange(ref _lastPressureTelemetryFrame, null, null);
+
+                    if (frame != null)
+
+                        return frame;
+
+                }
+
+
+
+                await Task.Delay(20, token);
+
+            }
+
+
+
+            return null;
 
         }
 
