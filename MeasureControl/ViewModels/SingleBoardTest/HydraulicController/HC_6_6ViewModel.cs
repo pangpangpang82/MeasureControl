@@ -578,6 +578,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _manualCts = new CancellationTokenSource();
 
             Log("开始手动测试");
+            Log("正在初始化设备...");
 
             try
             {
@@ -620,6 +621,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             CurrentTestResult = "--";
             _manualAborted = false;
             Log("开始自动测试");
+            Log("正在初始化设备...");
+
 
             _autoCts?.Cancel();
             _autoCts?.Dispose();
@@ -676,8 +679,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _measuredExc2 = true;
 
             // 激励测量完成后启动 LVDT，供油量档位测量使用
-            await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
-            await ApplyQuantityOutputsAsync(0.0, cancellationToken).ConfigureAwait(false);
+            await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);            
+            await ApplyQuantityOutputsAsync(0.0, cancellationToken).ConfigureAwait(false);            
 
             _passedLow = await MeasureQuantityPointAsync(LowPoint, (sdi, text) =>
             {
@@ -690,6 +693,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return CurrentTestResult ?? "--";
             _measuredLow = true;
 
+            await Task.Delay(500, cancellationToken).ConfigureAwait(false);
             _passedMid = await MeasureQuantityPointAsync(MidPoint, (sdi, text) =>
             {
                 if (sdi == 2)
@@ -701,6 +705,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return CurrentTestResult ?? "--";
             _measuredMid = true;
 
+            await Task.Delay(500, cancellationToken).ConfigureAwait(false);
             _passedHigh = await MeasureQuantityPointAsync(HighPoint, (sdi, text) =>
             {
                 if (sdi == 2)
@@ -744,6 +749,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return;
             }
 
+            CustomRangeSys1Text = "--";
+            CustomRangeSys2Text = "--";
+            CanMeasure = false;
             var token = _manualCts?.Token ?? CancellationToken.None;
             var pass = await MeasureQuantityPointAsync(point, (sdi, text) =>
             {
@@ -752,6 +760,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 else if (sdi == 3)
                     CustomRangeSys2Text = text;
             }, token).ConfigureAwait(false);
+            CanMeasure = IsManualTestRunning;
 
             if (!IsManualTestRunning || _manualAborted)
                 return;
@@ -943,7 +952,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             try
             {
                 await ApplyQuantityOutputsAsync(point.Target, cancellationToken).ConfigureAwait(false);
-                await Task.Delay(LvdtSettleMs, cancellationToken).ConfigureAwait(false);
                 _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, 4096, false, false, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(PostSwitchRxFlushMs, cancellationToken).ConfigureAwait(false);
 
@@ -1146,6 +1154,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _lvdt.SetVaVbAsync(LvdtSys2Channel, s1, s2, cancellationToken).ConfigureAwait(false);
             await _lvdt.StartAsync(LvdtSys1Channel, cancellationToken).ConfigureAwait(false);
             await _lvdt.StartAsync(LvdtSys2Channel, cancellationToken).ConfigureAwait(false);
+            Log($"LVDT输出: 目标油量={quantityPercent:0.###}%, S1(Va)={s1:0.00}Vrms, S2(Vb)={s2:0.00}Vrms, Sum={SimulationSumVrms:0.00}Vrms");
+            await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task ApplyExcitationMeasurementRouteAsync(int channel, CancellationToken cancellationToken)
@@ -1349,6 +1359,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _lvdt.ConfigureSimulationChannelAsync(LvdtSys2Channel, config, cancellationToken).ConfigureAwait(false);
             await _lvdt.StartAsync(LvdtSys1Channel, cancellationToken).ConfigureAwait(false);
             await _lvdt.StartAsync(LvdtSys2Channel, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(500, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task RestoreLvdtChannelsAsync()

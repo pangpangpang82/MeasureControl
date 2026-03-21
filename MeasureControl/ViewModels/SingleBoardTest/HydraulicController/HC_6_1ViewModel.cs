@@ -455,7 +455,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _autoCts = new CancellationTokenSource();
 
             Log("开始自动测试");
-            Log($"判据: R14>{PassThresholdOhm:0}Ω && R182>{PassThresholdOhm:0}Ω");
+            Log("正在初始化设备...");         
 
             try
             {
@@ -496,6 +496,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Resistance182Text = "--";
 
             Log("开始自动测试");
+            Log("正在初始化设备...");
             Log($"判据: R14>{PassThresholdOhm:0}Ω && R182>{PassThresholdOhm:0}Ω");
 
             try
