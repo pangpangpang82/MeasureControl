@@ -46,9 +46,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int SampleTimeoutMs = 5000;
         private const int LvdtSettleMs = 2000;
         private const int PostSwitchRxFlushMs = 120;
-        private const int ExcitationReadSettleMs = 120;
-        //private const int ExcitationRestoreSettleMs = 120;
-        private const string DmmTriggerDelayCommand= "TRIG:DEL 1";
+        private const int ExcitationReadSettleMs = 200;   // 矩阵切换后信号稳定
+        private const int FreqModeSettleMs = 200;          // ACV读完后切FREQ档的稳定等待
+        private const string DmmTriggerDelayCommand = "TRIG:DEL 0.5";
         private const double ExcitationFreqMinHz = 3168.0;
         private const double ExcitationFreqMaxHz = 3232.0;
         private const double ExcitationVoltMinVrms = 5.0;
@@ -584,7 +584,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log($"LVDT: 固定使用PXI槽号 {LvdtSlotIndex}, CH1对应30/31与71/72/73, CH2对应33/34与75/76/77, 激励6Vrms/3200Hz");
             Log($"电源: CH1 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
             Log($"DMM: IP={DmmIpAddress}, 激励测量使用 ACV/FREQ, 频率档位={DmmFrequencyRangeIndex}");
-            Log($"矩阵: EXC1+=I1-O{ExcitationPlusOutputNode}(slot{MatrixSlotExcitationSignal}), EXC1-=I1-O{ExcitationMinusOutputNode}(slot{MatrixSlotExcitationSignal}), COM=I4-O2(slot{MatrixSlotExcitationCommon}), IP={MatrixIpAddress}");
+            Log($"矩阵: EXC1+=I1-O{ExcitationPlusOutputNode}(slot{MatrixSlotExcitationSignal}), EXC2+=I1-O{ExcitationMinusOutputNode}(slot{MatrixSlotExcitationSignal}), COM=I4-O2(slot{MatrixSlotExcitationCommon}), IP={MatrixIpAddress}");
 
             try
             {
@@ -659,12 +659,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await EnsureRelay485Async(true, cancellationToken).ConfigureAwait(false);
             await EnsureGroundDoAsync(true, cancellationToken).ConfigureAwait(false);
             await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
-            await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
             await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
-            await ApplyQuantityOutputsAsync(0.0, cancellationToken).ConfigureAwait(false);
             IsAutoTestInitializing = false;
             IsAutoTestRunning = true;
 
+            // 激励测量在 LVDT 启动前执行，避免 LVDT 输出干扰矩阵测量回路
             _passedExc1 = await MeasureExcitationAsync("针脚30/31", LvdtSys1Channel, (f, v) =>
             {
                 Pin3031FreqText = f;
@@ -682,6 +681,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!IsAutoTestRunning)
                 return CurrentTestResult ?? "--";
             _measuredExc2 = true;
+
+            // 激励测量完成后启动 LVDT，供油量档位测量使用
+            await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
+            await ApplyQuantityOutputsAsync(0.0, cancellationToken).ConfigureAwait(false);
 
             _passedLow = await MeasureQuantityPointAsync(LowPoint, (sdi, text) =>
             {
@@ -853,16 +856,39 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             try
             {
                 await EnsureDmmAsync(cancellationToken).ConfigureAwait(false);
+
+                if (_lvdt != null)
+                {
+                    try { await _lvdt.StopAsync(LvdtSys1Channel, cancellationToken).ConfigureAwait(false); } catch { }
+                    try { await _lvdt.StopAsync(LvdtSys2Channel, cancellationToken).ConfigureAwait(false); } catch { }
+                    Log($"{title}: 暂停LVDT输出");
+                }
+
                 await ApplyExcitationMeasurementRouteAsync(channel, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(ExcitationReadSettleMs, cancellationToken).ConfigureAwait(false);
+
+                // ① 先读频率
+                var frequencyReading = await _dmm.ReadOnceAsync(
+                    DmmMeasureMode.FREQ,
+                    new DmmReadOptions
+                    {
+                        TimeoutMilliseconds = 10000,
+                        FrequencyRangeIndex = 10,          // ← 改为10(V)，不是档位索引
+                        FrequencyApertureSeconds = 0.1
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                // ② FREQ读完后等一下，再切ACV档
+                await Task.Delay(FreqModeSettleMs, cancellationToken).ConfigureAwait(false);
+
+                // ③ 再读电压
                 var voltageReading = await _dmm.ReadOnceAsync(
                     DmmMeasureMode.ACV,
                     new DmmReadOptions { TimeoutMilliseconds = 8000 },
                     cancellationToken).ConfigureAwait(false);
-                var frequencyReading = await _dmm.ReadOnceAsync(
-                    DmmMeasureMode.FREQ,
-                    new DmmReadOptions { TimeoutMilliseconds = 10000, FrequencyRangeIndex = DmmFrequencyRangeIndex, FrequencyApertureSeconds = 0.1 },
-                    cancellationToken).ConfigureAwait(false);
+
+
+
                 var voltage = voltageReading?.Value;
                 var frequency = frequencyReading?.Value;
                 var freqText = frequency.HasValue ? $"{frequency.Value:0.0} Hz" : "--";
@@ -902,6 +928,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     await ClearExcitationMeasurementRouteAsync(channel).ConfigureAwait(false);
                 }
                 catch { }
+
+                if (_lvdt != null)
+                {
+                    try { await _lvdt.StartAsync(LvdtSys1Channel, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _lvdt.StartAsync(LvdtSys2Channel, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    Log($"{title}: 恢复LVDT输出");
+                }
+
                 _measureLock.Release();
             }
         }
@@ -973,7 +1007,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         }
 
                         list.Add(value.Value);
-                        
+
 
                         if (list.Count >= SamplesPerMeasure && !assignedText.Contains(sdi))
                         {
@@ -1376,8 +1410,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (records == null || records.Count == 0)
                 return null;
 
-            var vaRecord = TryGetCalibrationRecord(records, device.Id, $"CH{channel-1}{LvdtVaSuffix}");
-            var vbRecord = TryGetCalibrationRecord(records, device.Id, $"CH{channel-1}{LvdtVbSuffix}");
+            var vaRecord = TryGetCalibrationRecord(records, device.Id, $"CH{channel - 1}{LvdtVaSuffix}");
+            var vbRecord = TryGetCalibrationRecord(records, device.Id, $"CH{channel - 1}{LvdtVbSuffix}");
             if (vaRecord == null && vbRecord == null)
                 return null;
 
