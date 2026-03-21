@@ -861,7 +861,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 {
                     try { await _lvdt.StopAsync(LvdtSys1Channel, cancellationToken).ConfigureAwait(false); } catch { }
                     try { await _lvdt.StopAsync(LvdtSys2Channel, cancellationToken).ConfigureAwait(false); } catch { }
-                    Log($"{title}: 暂停LVDT输出");
+                    try { await _lvdt.ResetAsync(cancellationToken).ConfigureAwait(false); } catch { }
+                    Log($"{title}: 已关闭LVDT两通道");
                 }
 
                 await ApplyExcitationMeasurementRouteAsync(channel, cancellationToken).ConfigureAwait(false);
@@ -931,9 +932,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                 if (_lvdt != null)
                 {
-                    try { await _lvdt.StartAsync(LvdtSys1Channel, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _lvdt.StartAsync(LvdtSys2Channel, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    Log($"{title}: 恢复LVDT输出");
+                    try { await RestoreLvdtChannelsAsync().ConfigureAwait(false); } catch { }
+                    Log($"{title}: 已按原配置恢复LVDT两通道");
                 }
 
                 _measureLock.Release();
@@ -1211,7 +1211,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task TryFinalizeAsync()
         {
-            if (!IsAutoTestRunning)
+            if (!IsAutoTestRunning && !IsManualTestRunning)
                 return;
 
             if (!(_measuredExc1 && _measuredExc2 && _measuredLow && _measuredMid && _measuredHigh))
@@ -1362,6 +1362,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _lvdt.ConfigureSimulationChannelAsync(LvdtSys2Channel, config, cancellationToken).ConfigureAwait(false);
             await _lvdt.StartAsync(LvdtSys1Channel, cancellationToken).ConfigureAwait(false);
             await _lvdt.StartAsync(LvdtSys2Channel, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task RestoreLvdtChannelsAsync()
+        {
+            if (_lvdt == null)
+                return;
+
+            await ConfigureLvdtOutputCalibrationAsync(LvdtSys1Channel, CancellationToken.None).ConfigureAwait(false);
+            await ConfigureLvdtOutputCalibrationAsync(LvdtSys2Channel, CancellationToken.None).ConfigureAwait(false);
+
+            var config = CreateSimulationConfig();
+            await _lvdt.ConfigureSimulationChannelAsync(LvdtSys1Channel, config, CancellationToken.None).ConfigureAwait(false);
+            await _lvdt.ConfigureSimulationChannelAsync(LvdtSys2Channel, config, CancellationToken.None).ConfigureAwait(false);
+
+            await ApplyQuantityOutputsAsync(_currentQuantityPercent, CancellationToken.None).ConfigureAwait(false);
         }
 
         private async Task EnsureArincRxAsync(CancellationToken cancellationToken)

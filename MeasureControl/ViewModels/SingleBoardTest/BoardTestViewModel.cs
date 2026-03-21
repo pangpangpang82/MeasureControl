@@ -315,7 +315,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 if (_isStoppingCurrentTest)
                 {
-                    RaisePropertyChanged(nameof(SelectedTestItem));
+                    System.Windows.Application.Current?.Dispatcher.InvokeAsync(
+                        () => RaisePropertyChanged(nameof(SelectedTestItem)),
+                        System.Windows.Threading.DispatcherPriority.Loaded);
                     return;
                 }
 
@@ -324,7 +326,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 if (!ReferenceEquals(value, _selectedTestItem) && _selectedTestItem != null && currentTestState == CurrentTestState.Stopping)
                 {
                     ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                    RaisePropertyChanged(nameof(SelectedTestItem));
+                    System.Windows.Application.Current?.Dispatcher.InvokeAsync(
+                        () => RaisePropertyChanged(nameof(SelectedTestItem)),
+                        System.Windows.Threading.DispatcherPriority.Loaded);
                     return;
                 }
 
@@ -333,14 +337,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
                     if (result != System.Windows.MessageBoxResult.Yes)
                     {
-                        RaisePropertyChanged(nameof(SelectedTestItem));
+                        System.Windows.Application.Current?.Dispatcher.InvokeAsync(
+                            () => RaisePropertyChanged(nameof(SelectedTestItem)),
+                            System.Windows.Threading.DispatcherPriority.Loaded);
                         return;
                     }
 
                     _ = StopCurrentTestAndContinueAsync(
                         onCompleted: () => SelectedTestItem = value,
-                        onFailed: () => RaisePropertyChanged(nameof(SelectedTestItem)));
-                    RaisePropertyChanged(nameof(SelectedTestItem));
+                        onFailed: () => System.Windows.Application.Current?.Dispatcher.InvokeAsync(
+                            () => RaisePropertyChanged(nameof(SelectedTestItem)),
+                            System.Windows.Threading.DispatcherPriority.Loaded));
+                    System.Windows.Application.Current?.Dispatcher.InvokeAsync(
+                        () => RaisePropertyChanged(nameof(SelectedTestItem)),
+                        System.Windows.Threading.DispatcherPriority.Loaded);
                     return;
                 }
 
@@ -513,6 +523,53 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 return CurrentTestState.Idle;
             }
+        }
+
+        public bool TryHandlePreviewSelection(TestSequenceItem nextItem)
+        {
+            if (nextItem == null)
+            {
+                return false;
+            }
+
+            if (ReferenceEquals(nextItem, _selectedTestItem))
+            {
+                return true;
+            }
+
+            if (_selectedTestItem == null)
+            {
+                return true;
+            }
+
+            if (_isStoppingCurrentTest)
+            {
+                ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return false;
+            }
+
+            var currentTestState = GetCurrentTestState();
+            if (currentTestState == CurrentTestState.Stopping)
+            {
+                ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return false;
+            }
+
+            if (currentTestState == CurrentTestState.Running)
+            {
+                var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                if (result != System.Windows.MessageBoxResult.Yes)
+                {
+                    return false;
+                }
+
+                _ = StopCurrentTestAndContinueAsync(
+                    onCompleted: () => SelectedTestItem = nextItem,
+                    onFailed: null);
+                return false;
+            }
+
+            return true;
         }
 
         private async Task<bool> TryStopCurrentTestAsync()
