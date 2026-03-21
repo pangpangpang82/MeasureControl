@@ -1062,14 +1062,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
-                try
-                {
-                    await StopQuantityOutputsAsync().ConfigureAwait(false);
-                }
-                catch
-                {
-                }
-
                 _measureLock.Release();
             }
         }
