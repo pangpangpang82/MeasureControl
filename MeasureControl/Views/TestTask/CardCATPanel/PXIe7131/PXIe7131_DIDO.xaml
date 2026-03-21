@@ -410,7 +410,7 @@
                                                             HorizontalAlignment="Center"
                                                             VerticalAlignment="Center"
                                                             FontSize="15"
-                                                            Text="{Binding InputChannel.ChannelName, TargetNullValue=''}" />
+                                                            Text="{Binding InputChannel.DisplayChannelName, TargetNullValue=''}" />
                                                     </Border>
 
                                                     <Border
@@ -447,7 +447,7 @@
                                                             HorizontalAlignment="Center"
                                                             VerticalAlignment="Center"
                                                             FontSize="15"
-                                                            Text="{Binding OutputChannel.ChannelName, TargetNullValue=''}" />
+                                                            Text="{Binding OutputChannel.DisplayChannelName, TargetNullValue=''}" />
                                                     </Border>
 
                                                     <Border
@@ -981,7 +981,7 @@
                                                 Margin="0,5,0,0"
                                                 HorizontalAlignment="Center"
                                                 FontSize="14"
-                                                Text="{Binding ChannelName}" />
+                                                Text="{Binding DisplayChannelName}" />
                                             <Grid
                                                 Width="23"
                                                 Height="23"
@@ -1069,7 +1069,7 @@
                                                 Margin="0,5,0,1.5"
                                                 HorizontalAlignment="Center"
                                                 FontSize="14"
-                                                Text="{Binding ChannelName}" />
+                                                Text="{Binding DisplayChannelName}" />
 
                                             <!--  开关按钮样式：默认关(灰)，开为绿，点击切换并写入 DO  -->
                                             <Button
