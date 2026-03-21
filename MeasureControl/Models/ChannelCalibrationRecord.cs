@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using Prism.Mvvm;
 
 namespace MeasureControl.Models
@@ -41,6 +42,7 @@ namespace MeasureControl.Models
             }
         }
 
+        [JsonIgnore]
         public string DisplayChannelName
         {
             get
