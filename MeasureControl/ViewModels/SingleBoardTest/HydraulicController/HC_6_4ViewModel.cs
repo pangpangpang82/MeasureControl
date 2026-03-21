@@ -532,6 +532,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _manualCts = new CancellationTokenSource();
 
             Log("开始手动测试");
+            Log("正在初始化设备...");
+
 
             try
             {
@@ -776,6 +778,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return;
             }
 
+            CustomPressureSys1Text = "--";
+            CustomPressureSys2Text = "--";
+            CustomPressureSys3Text = "--";
+            CanMeasure = false;
             var ok = await MeasurePointAllSystemsAsync($"自定义点({voltage:0.##}V)", voltage,
                 setSys1: t => CustomPressureSys1Text = t,
                 setSys2: t => CustomPressureSys2Text = t,
@@ -784,6 +790,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 setV2: v => { },
                 setV3: v => { },
                 _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+            CanMeasure = IsManualTestRunning;
 
             if (!IsManualTestRunning || _manualAborted || !ok)
                 return;
@@ -828,18 +835,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
-                try
-                {
-                    if (_mtx532 != null && _mtx532.IsConnected)
-                    {
-                        await SetAo012Async(0.0, CancellationToken.None).ConfigureAwait(false);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log($"{title}: 测量结束后停止AO输出失败: {ex.Message}");
-                }
-
                 _measureLock.Release();
             }
         }
