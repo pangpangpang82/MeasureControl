@@ -555,6 +555,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _manualCts = new CancellationTokenSource();
 
             Log("开始手动测试");
+            Log("正在初始化设备...");
+
 
             try
             {
@@ -610,6 +612,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _autoCts = new CancellationTokenSource();
 
             Log("开始自动测试");
+            Log("正在初始化设备...");
+
 
             try
             {
@@ -777,8 +781,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return;
             }
 
+            foreach (var ch in DptChannels) SetCustomCurrent(ch.SlotKey, "--");
+            CanMeasure = false;
             var token = _manualCts?.Token ?? CancellationToken.None;
             var ok = await MeasureGroupAsync($"自定义点({currentmA:0.0}mA)", currentmA, SetCustomCurrent, token).ConfigureAwait(false);
+            CanMeasure = IsManualTestRunning;
             if (!IsManualTestRunning || _manualAborted || !ok)
                 return;
 
@@ -872,8 +879,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                     foreach (var w in words)
                     {
-                        //if (!_arinc.VerifyOddParity(w.Data429))
-                        //    continue;
 
                         _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out var ssm);
                         var definition = ResolveChannel(label, wordSdi);
@@ -965,18 +970,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
-                try
-                {
-                    if (_mtx532 != null && _mtx532.IsConnected)
-                    {
-                        await SetAo67891011Async(0.0, CancellationToken.None).ConfigureAwait(false);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log($"{title}: 测量结束后停止AO输出失败: {ex.Message}");
-                }
-
                 _measureLock.Release();
             }
         }
@@ -1160,9 +1153,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
             await _power.ApplyAsync(PowerSupplyChannel.CH1, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
-            //await _power.ApplyAsync(PowerSupplyChannel.CH2, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
             await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-            //await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, true, cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 

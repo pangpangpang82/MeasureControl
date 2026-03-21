@@ -530,7 +530,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _autoCts = new CancellationTokenSource();
 
             Log("开始自动测试");
-            Log($"判据: 开路>={OpenPassThresholdOhm:0}Ω, 通路<={ClosePassThresholdOhm:0}Ω");
+            Log("正在初始化设备...");
+
 
             try
             {
@@ -566,6 +567,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _closeValuesByPin.Clear();
 
             Log("开始自动测试");
+            Log("正在初始化设备...");
             Log($"判据: 开路>={OpenPassThresholdOhm:0}Ω, 通路<={ClosePassThresholdOhm:0}Ω");
 
             try
@@ -689,7 +691,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 await ClearAllCloseSignalOutputsAsync(CancellationToken.None).ConfigureAwait(false);
 
-                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
                 var (value, text) = await MeasureOpenResultFromPowerAsync(cancellationToken).ConfigureAwait(false);
                 foreach (var pin in CloseMeasurementPins)
                 {
@@ -917,7 +919,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return;
             }
 
-            await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
             var (value, text) = await MeasureCloseResultFromPowerAsync(groupName, divisor, cancellationToken).ConfigureAwait(false);
             foreach (var pin in pins)
             {
