@@ -551,8 +551,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _manualCts = new CancellationTokenSource();
 
             Log("开始手动测试");
-            Log($"电源: CH1 {InputVoltageV:0.###}V {InputCurrentA:0.###}A, IP={PowerSupplyIpAddress}");
-            Log($"ARINC429: RX通道{RxChannelIndex + 1}, 码率 {ArincRate:0}bps, 温度Label=175(oct), SDI=2对应112~114, SDI=3对应116~118");
 
             try
             {
@@ -564,7 +562,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 IsManualTestInitializing = false;
                 IsManualTestRunning = true;
                 CanMeasure = true;
-                Log("手动测试初始化完成，可分别点击三档固定电阻或输入自定义阻值测量温度");
+                Log("手动测试初始化完成，可点击三档固定电阻或输入自定义阻值测量温度");
             }
             catch (Exception ex)
             {
@@ -597,9 +595,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             TempCustomBText = "--";
 
             Log("开始自动测试");
-            Log($"点1: R={R1_Ohm:0.###}Ω SDI=2对应112~114, SDI=3对应116~118 温度[{T1_Min:0.###},{T1_Max:0.###}]℃");
-            Log($"点2: R={R2_Ohm:0.###}Ω SDI=2对应112~114, SDI=3对应116~118 温度[{T2_Min:0.###},{T2_Max:0.###}]℃");
-            Log($"点3: R={R3_Ohm:0.###}Ω SDI=2对应112~114, SDI=3对应116~118 温度[{T3_Min:0.###},{T3_Max:0.###}]℃");
 
             try
             {
@@ -612,7 +607,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 IsAutoTestRunning = true;
 
                 await MeasurePointAsync(
-                        "点1",
+                        "763.3±2.0Ω",
                         R1_Ohm,
                         setTextA: t => Temp1Text = t,
                         setValueA: v => _temp1 = v,
@@ -625,7 +620,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await Task.Delay(80, cancellationToken).ConfigureAwait(false);
 
                 await MeasurePointAsync(
-                        "点2",
+                        "1758.6±4.0Ω",
                         R2_Ohm,
                         setTextA: t => Temp2Text = t,
                         setValueA: v => _temp2 = v,
@@ -638,7 +633,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await Task.Delay(80, cancellationToken).ConfigureAwait(false);
 
                 await MeasurePointAsync(
-                        "点3",
+                        "1155.4±1.6Ω",
                         R3_Ohm,
                         setTextA: t => Temp3Text = t,
                         setValueA: v => _temp3 = v,
@@ -723,9 +718,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _autoCts = new CancellationTokenSource();
 
             Log("开始自动测试");
-            Log($"点1: R={R1_Ohm:0.###}Ω SDI=2对应112~114, SDI=3对应116~118 温度[{T1_Min:0.###},{T1_Max:0.###}]℃");
-            Log($"点2: R={R2_Ohm:0.###}Ω SDI=2对应112~114, SDI=3对应116~118 温度[{T2_Min:0.###},{T2_Max:0.###}]℃");
-            Log($"点3: R={R3_Ohm:0.###}Ω SDI=2对应112~114, SDI=3对应116~118 温度[{T3_Min:0.###},{T3_Max:0.###}]℃");
 
             try
             {
@@ -899,7 +891,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!IsManualTestRunning || _manualAborted || !ok)
                 return;
 
-            Log($"自定义电阻测量完成: {resistanceOhm:0.0}Ω，可继续修改阻值并重复测量");
+            Log($"自定义电阻测量完成: {resistanceOhm:0.0}Ω，可继续测量");
         }
 
         /// <summary>
@@ -935,8 +927,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await Task.Delay(ResistanceSettleMs, cancellationToken).ConfigureAwait(false);
                 _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-                Log($"{title}: 开始接收温度数据，Label=175(oct)，SDI=2更新112~114，SDI=3更新116~118");
-
                 var samplesA = new List<double>(SamplesPerMeasure);
                 var samplesB = new List<double>(SamplesPerMeasure);
                 var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
@@ -966,7 +956,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                             if (wordSdi == TempChannel112To114Sdi)
                             {
-                                Log($"{Convert.ToString(w.Data429, 2)}");
                                 if (samplesA.Count < SamplesPerMeasure)
                                     samplesA.Add(v.Value);
                                 setTextA($"{v.Value:0} ℃");
@@ -993,7 +982,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                                 setTextA($"{avgA:0} ℃");
                                 setTextB($"{avgB:0} ℃");
 
-                                Log($"{title}: 完成，112~114平均={avgA:0.###}℃ 116~118平均={avgB:0.###}℃");
+                                Log($"{title}: 完成，针脚112~114={avgA:0.###}℃ 针脚112~114={avgB:0.###}℃");
                                 return true;
                             }
                         }
@@ -1011,7 +1000,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (IsManualTestRunning)
                 {
                     Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效温度数据");
-                    Log($"{title}: 本次测量按超时结束处理，结果保留为--");
                 }
                 else if (IsAutoTestRunning)
                 {
@@ -1093,10 +1081,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             SaveTestResultToProject();
 
-            Log($"判据: 点1[{T1_Min:0.###},{T1_Max:0.###}] => {FormatBool(p1)}");
-            Log($"判据: 点2[{T2_Min:0.###},{T2_Max:0.###}] => {FormatBool(p2)}");
-            Log($"判据: 点3[{T3_Min:0.###},{T3_Max:0.###}] => {FormatBool(p3)}");
-            Log($"最终结果: {resultText}");
+            Log($"判据: 763.3±2.0Ω => [{T1_Min:0.###},{T1_Max:0.###}] => {FormatBool(p1)}");
+            Log($"判据: 1758.6±4.0Ω => [{T2_Min:0.###},{T2_Max:0.###}] => {FormatBool(p2)}");
+            Log($"判据: 1155.4±1.6Ω => [{T3_Min:0.###},{T3_Max:0.###}] => {FormatBool(p3)}");
+            Log($"测试结果: {resultText}");
         }
 
         /// <summary>
@@ -1144,7 +1132,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log("手动测试停止/结束，正在按反序断开电阻箱、28V、429、DO27、485继电器...");
+            Log("手动测试停止/结束，正在断开设备...");
             try
             {
                 await CleanupIoAsync().ConfigureAwait(false);
@@ -1180,7 +1168,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log("自动测试停止/结束，正在按反序断开电阻箱、28V、429、DO27、485继电器...");
+            Log("自动测试停止/结束，正在断开设备...");
             try
             {
                 await CleanupIoAsync().ConfigureAwait(false);
@@ -1378,12 +1366,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     }
 
                     await _jy7131.SetRelayAsync(Relay485ChannelIndex, true, cancellationToken).ConfigureAwait(false);
-                    Log($"485继电器板 第{Relay485ChannelIndex + 1}路已闭合");
 
                     await Task.Delay(100, cancellationToken).ConfigureAwait(false);
 
                     _isRelay485On = true;
-                    Log($"485继电器准备完成: 第{Relay485ChannelIndex + 1}路=ON");
                 }
                 else
                 {
@@ -1397,7 +1383,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         try
                         {
                             await _jy7131.SetRelayAsync(Relay485ChannelIndex, false, cancellationToken).ConfigureAwait(false);
-                            Log($"485继电器板 第{Relay485ChannelIndex + 1}路已断开");
                         }
                         catch (Exception ex)
                         {
@@ -1406,7 +1391,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     }
 
                     _isRelay485On = false;
-                    Log($"485继电器已关闭: 第{Relay485ChannelIndex + 1}路=OFF");
                 }
             }
             finally
@@ -1446,10 +1430,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task WriteInitDosAsync(bool on, CancellationToken cancellationToken)
         {
             await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
-            Log($"7131 DO{RelayAuxDoIndex} 已{(on ? "置位" : "复位")}");
-
-            //await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", on, cancellationToken).ConfigureAwait(false);
-            //Log($"7131 DO{RelayGroundDoIndex} 已{(on ? "置位" : "复位")}");
         }
 
         /// <summary>
@@ -1548,9 +1528,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!(ok0 && ok1))
                 throw new InvalidOperationException(openCircuit ? "恢复ACTS6010断路状态失败" : "取消ACTS6010断路状态失败");
 
-            Log(openCircuit
-                ? "程控电阻 RO0/RO1 已恢复断路状态"
-                : "程控电阻 RO0/RO1 已取消断路状态");
         }
 
         /// <summary>
