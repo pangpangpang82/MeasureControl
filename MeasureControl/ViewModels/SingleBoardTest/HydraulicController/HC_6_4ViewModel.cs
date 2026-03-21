@@ -835,18 +835,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
-                try
-                {
-                    if (_mtx532 != null && _mtx532.IsConnected)
-                    {
-                        await SetAo012Async(0.0, CancellationToken.None).ConfigureAwait(false);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log($"{title}: 测量结束后停止AO输出失败: {ex.Message}");
-                }
-
                 _measureLock.Release();
             }
         }
