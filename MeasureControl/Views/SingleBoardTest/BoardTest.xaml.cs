@@ -21,6 +21,7 @@ using MeasureControl.ViewModels;
 using MeasureControl.ViewModels.Common;
 using MeasureControl.ViewModels.SingleBoardTest;
 using MeasureControl.Views.Dialogs;
+using static MeasureControl.ViewModels.SingleBoardTest.BoardTestViewModel;
 
 namespace MeasureControl.Views.SingleBoardTest
 {
@@ -73,6 +74,29 @@ namespace MeasureControl.Views.SingleBoardTest
             double scrollAmount = e.Delta > 0 ? -50 : 50;
             scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset + scrollAmount);
             e.Handled = true;
+        }
+
+        private void TestSequenceItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not ListBoxItem item)
+            {
+                return;
+            }
+
+            if (item.DataContext is not TestSequenceItem nextItem)
+            {
+                return;
+            }
+
+            if (DataContext is not BoardTestViewModel vm)
+            {
+                return;
+            }
+
+            if (!vm.TryHandlePreviewSelection(nextItem))
+            {
+                e.Handled = true;
+            }
         }
 
         private void PxiChassis_Loaded(object sender, RoutedEventArgs e)

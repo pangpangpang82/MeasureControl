@@ -18,6 +18,7 @@
         <helpers:CalibrationStatusToTextConverter x:Key="CalibrationStatusToTextConverter" />
         <helpers:CalibrationValueConverter x:Key="CalibrationValueConverter" />
         <helpers:CalibrationTimeConverter x:Key="CalibrationTimeConverter" />
+        <helpers:ChannelAddressDisplayConverter x:Key="ChannelAddressDisplayConverter" />
 
         <!--  简洁的滚动条样式  -->
         <Style x:Key="SimpleScrollBarStyle" TargetType="ScrollBar">
@@ -139,7 +140,7 @@
                                         VerticalAlignment="Center"
                                         BorderThickness="0"
                                         FontSize="14"
-                                        Text="{Binding ChannelName, UpdateSourceTrigger=PropertyChanged}" />
+                                        Text="{Binding DisplayChannelName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 </Border>
                             </StackPanel>
 
@@ -163,6 +164,11 @@
                                     <ComboBox.Resources>
                                         <Style BasedOn="{StaticResource SimpleScrollViewerStyle}" TargetType="ScrollViewer" />
                                     </ComboBox.Resources>
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource ChannelAddressDisplayConverter}}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
                                 </ComboBox>
 
                             </StackPanel>
@@ -837,7 +843,7 @@
                                                             Margin="3"
                                                             HorizontalAlignment="Left"
                                                             FontSize="14"
-                                                            Text="{Binding ChannelName}" />
+                                                            Text="{Binding DisplayChannelName}" />
                                                         <Border
                                                             Width="40"
                                                             Height="20"

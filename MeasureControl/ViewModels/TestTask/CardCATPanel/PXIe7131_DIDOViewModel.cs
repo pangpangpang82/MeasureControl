@@ -77,9 +77,9 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         private DelegateCommand _relayAllOnCommand;
         private DelegateCommand _relayAllOffCommand;
 
-        private const string ThresholdComPort = "COM22"; // DAC DI阈值
+        private const string ThresholdComPort = "COM12"; // DAC DI阈值
 
-        private const string RelayComPort = "COM12"; // 485电源/继电器
+        private const string RelayComPort = "COM21"; // 485电源/继电器
         private const int RelayBaudRate = 9600;
         private const byte RelaySlaveAddress = 1;
         private const ushort RelayStartCoilAddress = 0;
@@ -2833,7 +2833,24 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         public string ChannelName
         {
             get => _channelName;
-            set => SetProperty(ref _channelName, value);
+            set
+            {
+                if (SetProperty(ref _channelName, value))
+                    RaisePropertyChanged(nameof(DisplayChannelName));
+            }
+        }
+
+        public string DisplayChannelName
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_channelName)) return _channelName;
+                int i = 0;
+                while (i < _channelName.Length && !char.IsDigit(_channelName[i])) i++;
+                if (i > 0 && i < _channelName.Length && int.TryParse(_channelName.Substring(i), out int num))
+                    return $"{_channelName.Substring(0, i)}{num + 1}";
+                return _channelName;
+            }
         }
 
         public bool IsEnabled
@@ -2962,7 +2979,24 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         public string ChannelName
         {
             get => _channelName;
-            set => SetProperty(ref _channelName, value);
+            set
+            {
+                if (SetProperty(ref _channelName, value))
+                    RaisePropertyChanged(nameof(DisplayChannelName));
+            }
+        }
+
+        public string DisplayChannelName
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_channelName)) return _channelName;
+                int i = 0;
+                while (i < _channelName.Length && !char.IsDigit(_channelName[i])) i++;
+                if (i > 0 && i < _channelName.Length && int.TryParse(_channelName.Substring(i), out int num))
+                    return $"{_channelName.Substring(0, i)}{num + 1}";
+                return _channelName;
+            }
         }
 
         /// <summary>

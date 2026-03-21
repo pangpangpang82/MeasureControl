@@ -45,7 +45,7 @@ namespace MeasureControl.Drivers
         private readonly Dictionary<string, ChannelConfig> _channelConfigs = new Dictionary<string, ChannelConfig>();
 
         //外部电源控制（ASCII，需填写实际串口/命令）
-        private const string PowerControlComPort = "COM12"; // 485继电器/电源串口 
+        private const string PowerControlComPort = "COM21"; // 485继电器/电源串口 
         private const string PowerSetOutputOnBody = "w12=1,";    // 开启输出
         private const string PowerSetOutputOffBody = "w12=0,";  // 关闭输出
         private static readonly byte[] PowerGroupAddresses = { 7, 8, 9, 10 };

@@ -288,6 +288,7 @@
                                                 SelectedItem="{Binding SelectedTestItem, Mode=TwoWay}">
                                                 <ListBox.ItemContainerStyle>
                                                     <Style TargetType="ListBoxItem">
+                                                        <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TestSequenceItem_PreviewMouseLeftButtonDown" />
                                                         <Setter Property="Padding" Value="0" />
                                                         <Setter Property="Margin" Value="0" />
                                                         <Setter Property="HorizontalContentAlignment" Value="Stretch" />

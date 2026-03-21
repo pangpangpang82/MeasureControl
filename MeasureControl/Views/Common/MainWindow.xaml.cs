@@ -1004,7 +1004,7 @@ namespace MeasureControl.Views.Common
 
                 vm = new TestProgressDialogViewModel
                 {
-                    HeaderText = boardName,
+                    HeaderText = $"{boardName}测试",
                     StatusText = "准备开始...",
                     Progress = 0,
                     Total = steps.Length,
