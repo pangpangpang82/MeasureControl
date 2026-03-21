@@ -770,6 +770,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     break;
             }
             RefreshMeasureCommand();
+            await TryFinalizeAsync().ConfigureAwait(false);
         }
 
         private async Task OnMeasureCustomCurrentAsync()
