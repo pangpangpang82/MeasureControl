@@ -139,7 +139,7 @@
                                         VerticalAlignment="Center"
                                         BorderThickness="0"
                                         FontSize="14"
-                                        Text="{Binding ChannelName, UpdateSourceTrigger=PropertyChanged}" />
+                                        Text="{Binding DisplayChannelName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 </Border>
                             </StackPanel>
 
@@ -837,7 +837,7 @@
                                                             Margin="3"
                                                             HorizontalAlignment="Left"
                                                             FontSize="14"
-                                                            Text="{Binding ChannelName}" />
+                                                            Text="{Binding DisplayChannelName}" />
                                                         <Border
                                                             Width="40"
                                                             Height="20"
