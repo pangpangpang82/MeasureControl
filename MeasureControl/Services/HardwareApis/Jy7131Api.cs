@@ -84,10 +84,10 @@ namespace MeasureControl.Services.HardwareApis
     /// </summary>
     public sealed class Jy7131Api : IJy7131Api
     {
-        private const string ThresholdComPort = "COM22";  // DI 阈值设置串口 加放油
+        private const string ThresholdComPort = "COM12";  // DI 阈值设置串口 加放油
         private const int ThresholdBaudRate = 115200;
 
-        private const string RelayComPort = "COM12";      // 外部 485 继电器控制串口 加放油
+        private const string RelayComPort = "COM21";      // 外部 485 继电器控制串口 加放油
         private const int RelayBaudRate = 9600;
         private const byte RelaySlaveAddress = 1;
         private const ushort RelayStartCoilAddress = 0;

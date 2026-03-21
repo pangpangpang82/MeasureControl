@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using Prism.Mvvm;
 
 namespace MeasureControl.Models
@@ -34,7 +35,25 @@ namespace MeasureControl.Models
         public string ChannelName
         {
             get => _channelName;
-            set => SetProperty(ref _channelName, value);
+            set
+            {
+                if (SetProperty(ref _channelName, value))
+                    RaisePropertyChanged(nameof(DisplayChannelName));
+            }
+        }
+
+        [JsonIgnore]
+        public string DisplayChannelName
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_channelName)) return _channelName;
+                int i = 0;
+                while (i < _channelName.Length && !char.IsDigit(_channelName[i])) i++;
+                if (i > 0 && i < _channelName.Length && int.TryParse(_channelName.Substring(i), out int num))
+                    return $"{_channelName.Substring(0, i)}{num + 1}";
+                return _channelName;
+            }
         }
 
         /// <summary>

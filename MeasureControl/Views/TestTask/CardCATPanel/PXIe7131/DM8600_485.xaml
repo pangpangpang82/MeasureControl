@@ -198,7 +198,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="15"
                                 FontWeight="SemiBold"
-                                Text="DI0-3" />
+                                Text="DI1-4" />
                             <TextBlock
                                 Grid.Row="0"
                                 Grid.Column="1"
@@ -206,7 +206,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="15"
                                 FontWeight="SemiBold"
-                                Text="DI4-7" />
+                                Text="DI5-8" />
                             <TextBlock
                                 Grid.Row="0"
                                 Grid.Column="2"
@@ -214,7 +214,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="15"
                                 FontWeight="SemiBold"
-                                Text="DI8-11" />
+                                Text="DI9-12" />
                             <TextBlock
                                 Grid.Row="0"
                                 Grid.Column="3"
@@ -222,7 +222,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="15"
                                 FontWeight="SemiBold"
-                                Text="DI12-15" />
+                                Text="DI13-16" />
                             <TextBlock
                                 Grid.Row="0"
                                 Grid.Column="4"
@@ -230,7 +230,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="15"
                                 FontWeight="SemiBold"
-                                Text="DI16-19" />
+                                Text="DI17-20" />
                             <TextBlock
                                 Grid.Row="0"
                                 Grid.Column="5"
@@ -238,7 +238,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="15"
                                 FontWeight="SemiBold"
-                                Text="DI20-23" />
+                                Text="DI21-24" />
                             <TextBlock
                                 Grid.Row="0"
                                 Grid.Column="6"
@@ -246,7 +246,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="15"
                                 FontWeight="SemiBold"
-                                Text="DI24-27" />
+                                Text="DI25-28" />
                             <TextBlock
                                 Grid.Row="0"
                                 Grid.Column="7"
@@ -254,7 +254,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="15"
                                 FontWeight="SemiBold"
-                                Text="DI28-31" />
+                                Text="DI29-32" />
                             <Border
                                 Grid.RowSpan="2"
                                 Grid.Column="0"
@@ -508,7 +508,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="15"
                                 FontWeight="SemiBold"
-                                Text="DO0-7" />
+                                Text="DO1-8" />
                             <TextBlock
                                 Grid.Row="0"
                                 Grid.Column="1"
@@ -516,7 +516,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="15"
                                 FontWeight="SemiBold"
-                                Text="DO8-15" />
+                                Text="DO9-16" />
                             <TextBlock
                                 Grid.Row="0"
                                 Grid.Column="2"
@@ -524,7 +524,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="15"
                                 FontWeight="SemiBold"
-                                Text="DO16-23" />
+                                Text="DO17-24" />
                             <TextBlock
                                 Grid.Row="0"
                                 Grid.Column="3"
@@ -532,7 +532,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="15"
                                 FontWeight="SemiBold"
-                                Text="DO24-31" />
+                                Text="DO25-32" />
 
                             <TextBox
                                 Grid.Row="1"
@@ -676,7 +676,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="0"
-                                Content="DO0"
+                                Content="DO1"
                                 FontSize="16"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -715,7 +715,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="1"
-                                Content="DO1"
+                                Content="DO2"
                                 FontSize="16"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -754,7 +754,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="2"
-                                Content="DO2"
+                                Content="DO3"
                                 FontSize="16"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -793,7 +793,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="3"
-                                Content="DO3"
+                                Content="DO4"
                                 FontSize="16"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -832,7 +832,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="4"
-                                Content="DO4"
+                                Content="DO5"
                                 FontSize="16"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -871,7 +871,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="5"
-                                Content="DO5"
+                                Content="DO6"
                                 FontSize="16"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -910,7 +910,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="6"
-                                Content="DO6"
+                                Content="DO7"
                                 FontSize="16"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -949,7 +949,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="7"
-                                Content="DO7"
+                                Content="DO8"
                                 FontSize="16"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -996,7 +996,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="8"
-                                Content="DO8"
+                                Content="DO9"
                                 FontSize="16"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -1035,7 +1035,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="9"
-                                Content="DO9"
+                                Content="DO10"
                                 FontSize="16"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -1074,7 +1074,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="10"
-                                Content="DO10"
+                                Content="DO11"
                                 FontSize="16"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -1114,7 +1114,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="11"
-                                Content="DO11"
+                                Content="DO12"
                                 FontSize="16"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -1154,7 +1154,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="12"
-                                Content="DO12"
+                                Content="DO13"
                                 FontSize="16"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -1194,7 +1194,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="13"
-                                Content="DO13"
+                                Content="DO14"
                                 FontSize="16"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -1234,7 +1234,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="14"
-                                Content="DO14"
+                                Content="DO15"
                                 FontSize="14"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
@@ -1274,7 +1274,7 @@
                                 Background="White"
                                 Command="{Binding ToggleRelayCommand}"
                                 CommandParameter="15"
-                                Content="DO15"
+                                Content="DO16"
                                 FontSize="15"
                                 IsEnabled="{Binding CanUseRelay}">
                                 <Button.Template>
