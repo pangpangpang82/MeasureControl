@@ -1352,7 +1352,7 @@ namespace MeasureControl.Views.Common
                     return new SingleBoardExcelReportConfig
                     {
                         TemplateFileName = "液压测试报表模板.xlsx",
-                        OutputFolderName = "TestResults",
+                        OutputFolderName = "单板测试结果",
                         FileNamePrefix = "液压测试",
                         FillAction = FillHydraulicBoardExcelReportStable
                     };
@@ -1360,7 +1360,7 @@ namespace MeasureControl.Views.Common
                     return new SingleBoardExcelReportConfig
                     {
                         TemplateFileName = "加放油报表模板.xlsx",
-                        OutputFolderName = "TestResults",
+                        OutputFolderName = "单板测试结果",
                         FileNamePrefix = "加放油测试",
                         FillAction = FillFuelBoardExcelReport
                     };

@@ -878,6 +878,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 return;
             }
 
+            TempCustomText = "--";
+            TempCustomBText = "--";
+            CanMeasure = false;
             var ok = await MeasurePointAsync(
                     $"自定义点({resistanceOhm:0.0}Ω)",
                     resistanceOhm,
@@ -887,6 +890,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     setValueB: v => { },
                     _manualCts?.Token ?? CancellationToken.None)
                 .ConfigureAwait(false);
+            CanMeasure = IsManualTestRunning;
 
             if (!IsManualTestRunning || _manualAborted || !ok)
                 return;

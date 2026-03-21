@@ -384,6 +384,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _manualCts = new CancellationTokenSource();
 
             Log("开始手动测试");
+            Log("正在初始化设备...");
+
 
             try
             {
@@ -457,6 +459,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             ResetMeasurementState();
 
             Log("开始自动测试");
+            Log("正在初始化设备...");
+
 
             try
             {
