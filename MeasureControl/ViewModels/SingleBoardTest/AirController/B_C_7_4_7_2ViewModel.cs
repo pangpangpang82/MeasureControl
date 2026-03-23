@@ -402,6 +402,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        private async Task<bool> SendDirHighCommandAsync(CancellationToken token)
+        {
+            var okInit = await SendFpgaCommandAsync(DeviceInitCommandFrame, "设备初始化", token).ConfigureAwait(false);
+            if (!okInit)
+                return false;
+
+            return await SendFpgaCommandAsync(DirHighCommand, "DIR高电平", token).ConfigureAwait(false);
+        }
+
         public void Dispose()
         {
             try { _autoTestCts?.Cancel(); } catch { }
