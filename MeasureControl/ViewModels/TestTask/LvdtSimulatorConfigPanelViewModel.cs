@@ -739,8 +739,8 @@ namespace MeasureControl.ViewModels.TestTask
 
         private void ApplyVaVbCalibration(ushort channelIndex, ref double va, ref double vb)
         {
-            va = ApplySingleOutputCalibration($"CH{channelIndex}_VA", va);
-            vb = ApplySingleOutputCalibration($"CH{channelIndex}_VB", vb);
+            va = ApplySingleOutputCalibration($"CH{channelIndex - 1}_VA", va);
+            vb = ApplySingleOutputCalibration($"CH{channelIndex - 1}_VB", vb);
         }
 
         private void TryRestoreBackgroundConnection()

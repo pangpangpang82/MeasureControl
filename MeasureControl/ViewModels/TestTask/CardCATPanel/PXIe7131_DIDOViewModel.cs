@@ -77,13 +77,9 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         private DelegateCommand _relayAllOnCommand;
         private DelegateCommand _relayAllOffCommand;
 
-        //private const string ThresholdComPort = "COM14"; // 加放油
-        private const string ThresholdComPort = "COM17"; // 液压
-        //private const string ThresholdComPort = "COM9"; // 第三套
+        private const string ThresholdComPort = "COM40"; // DAC DI阈值
 
-        //private const string RelayComPort = "COM13"; // 加放油
-        private const string RelayComPort = "COM21"; // 液压
-        //private const string RelayComPort = "COM9"; // 第三套
+        private const string RelayComPort = "COM30"; // 485电源/继电器
         private const int RelayBaudRate = 9600;
         private const byte RelaySlaveAddress = 1;
         private const ushort RelayStartCoilAddress = 0;
@@ -2837,7 +2833,24 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         public string ChannelName
         {
             get => _channelName;
-            set => SetProperty(ref _channelName, value);
+            set
+            {
+                if (SetProperty(ref _channelName, value))
+                    RaisePropertyChanged(nameof(DisplayChannelName));
+            }
+        }
+
+        public string DisplayChannelName
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_channelName)) return _channelName;
+                int i = 0;
+                while (i < _channelName.Length && !char.IsDigit(_channelName[i])) i++;
+                if (i > 0 && i < _channelName.Length && int.TryParse(_channelName.Substring(i), out int num))
+                    return $"{_channelName.Substring(0, i)}{num + 1}";
+                return _channelName;
+            }
         }
 
         public bool IsEnabled
@@ -2966,7 +2979,24 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         public string ChannelName
         {
             get => _channelName;
-            set => SetProperty(ref _channelName, value);
+            set
+            {
+                if (SetProperty(ref _channelName, value))
+                    RaisePropertyChanged(nameof(DisplayChannelName));
+            }
+        }
+
+        public string DisplayChannelName
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_channelName)) return _channelName;
+                int i = 0;
+                while (i < _channelName.Length && !char.IsDigit(_channelName[i])) i++;
+                if (i > 0 && i < _channelName.Length && int.TryParse(_channelName.Substring(i), out int num))
+                    return $"{_channelName.Substring(0, i)}{num + 1}";
+                return _channelName;
+            }
         }
 
         /// <summary>

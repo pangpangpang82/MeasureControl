@@ -659,13 +659,14 @@
                                         Source="/Resources/Logo/paste.png"
                                         Stretch="Uniform" />
                                 </Button>
-                                <!--  Start/Pause 合并按钮  -->
+                                <!--  28V 上电/下电切换按钮  -->
                                 <Button
                                     Width="30"
                                     Height="25"
                                     Margin="10,0,0,0"
+                                    Command="{Binding ToggleHydraulicPowerCommand}"
                                     Style="{StaticResource ToolButtonStyle}"
-                                    ToolTip="{Binding ToolTipContent}">
+                                    ToolTip="28V 上电/下电">
                                     <Image
                                         Width="25"
                                         Height="20"
@@ -674,30 +675,13 @@
                                             <Style TargetType="Image">
                                                 <Setter Property="Source" Value="/Resources/Logo/start.png" />
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsTestRunning}" Value="True">
-                                                        <Setter Property="Source" Value="/Resources/Logo/pause.png" />
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding IsTestPaused}" Value="True">
-                                                        <Setter Property="Source" Value="/Resources/Logo/start.png" />
+                                                    <DataTrigger Binding="{Binding IsHydraulicPowered}" Value="True">
+                                                        <Setter Property="Source" Value="/Resources/Logo/over.png" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </Image.Style>
                                     </Image>
-                                </Button>
-                                <!--  Stop 按钮  -->
-                                <Button
-                                    Width="30"
-                                    Height="25"
-                                    Margin="10,0,0,0"
-                                    Command="{Binding StopTestCommand}"
-                                    Style="{StaticResource ToolButtonStyle}"
-                                    ToolTip="停止测试">
-                                    <Image
-                                        Width="25"
-                                        Height="20"
-                                        Source="/Resources/Logo/over.png"
-                                        Stretch="Uniform" />
                                 </Button>
                                 <Button
                                     Width="30"
@@ -713,6 +697,24 @@
                                         Stretch="Uniform" />
                                 </Button>
                             </StackPanel>
+                            <TextBlock
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Foreground="White"
+                                FontWeight="Bold">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="组件已下电" />
+                                        <Setter Property="Foreground" Value="#888888" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsHydraulicPowered}" Value="True">
+                                                <Setter Property="Text" Value="组件已上电28V" />
+                                                <Setter Property="Foreground" Value="#00cc66" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             <TextBlock
                                 Grid.Column="2"
                                 Margin="0,0,10,0"
