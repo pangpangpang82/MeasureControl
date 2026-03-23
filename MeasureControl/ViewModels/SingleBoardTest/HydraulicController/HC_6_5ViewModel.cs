@@ -38,7 +38,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const string PressureUnit = "Psid";
         private const int SamplesPerMeasure = 1;
         private const int SampleTimeoutMs = 3000;
-        private const int AoSettleMs = 500;
+        private const int AoSettleMs = 800;
         private const int Mtx532ReadyTimeoutMs = 6000;
         private const int Mtx532ReadyPollMs = 200;
         private const int PostSwitchRxFlushMs = 120;

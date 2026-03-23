@@ -9,6 +9,10 @@ namespace MeasureControl.Services
     public interface IHydraulicPowerService
     {
         bool IsHydraulicPowered { get; }
+        /// <summary>
+        /// 当前已上电的单板类型（null 表示未上电），与 IsHydraulicPowered 同步更新
+        /// </summary>
+        string PoweredBoardType { get; }
         event EventHandler IsHydraulicPoweredChanged;
         Task PowerOnAsync(CancellationToken cancellationToken = default);
         Task PowerOffAsync(CancellationToken cancellationToken = default);
@@ -24,7 +28,10 @@ namespace MeasureControl.Services
         private const double Voltage28V = 28.0;
         private const double Current1A = 1.0;
 
+        private const string HydraulicBoardTypeName = "液压单板";
+
         private bool _isHydraulicPowered;
+        private string _poweredBoardType;
 
         public bool IsHydraulicPowered
         {
@@ -38,6 +45,12 @@ namespace MeasureControl.Services
             }
         }
 
+        public string PoweredBoardType
+        {
+            get => _poweredBoardType;
+            private set => SetProperty(ref _poweredBoardType, value);
+        }
+
         public event EventHandler IsHydraulicPoweredChanged;
 
         public async Task PowerOnAsync(CancellationToken cancellationToken = default)
@@ -49,6 +62,7 @@ namespace MeasureControl.Services
                 await api.ApplyAsync(PowerSupplyChannel.CH1, Voltage28V, Current1A, cancellationToken).ConfigureAwait(false);
                 await api.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
                 IsHydraulicPowered = true;
+                PoweredBoardType = HydraulicBoardTypeName;
             }
             finally
             {
@@ -65,6 +79,7 @@ namespace MeasureControl.Services
                 await api.ConnectAsync(IpAddress, cancellationToken).ConfigureAwait(false);
                 await api.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, cancellationToken).ConfigureAwait(false);
                 IsHydraulicPowered = false;
+                PoweredBoardType = null;
             }
             finally
             {
@@ -76,6 +91,7 @@ namespace MeasureControl.Services
         public void SetPoweredState(bool powered)
         {
             IsHydraulicPowered = powered;
+            PoweredBoardType = powered ? HydraulicBoardTypeName : null;
         }
     }
 }
