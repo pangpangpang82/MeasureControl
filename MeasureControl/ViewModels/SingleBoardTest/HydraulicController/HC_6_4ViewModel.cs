@@ -706,6 +706,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _p1Sys2 = null;
             _p1Sys3 = null;
             CanMeasure = false;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
             var ok = await MeasurePointAllSystemsAsync("0.5V", Point1VoltageV,
                 setSys1: t => PressurePoint1Sys1Text = t,
                 setSys2: t => PressurePoint1Sys2Text = t,
@@ -730,6 +731,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _p2Sys2 = null;
             _p2Sys3 = null;
             CanMeasure = false;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
             var ok = await MeasurePointAllSystemsAsync("7.17V", Point2VoltageV,
                 setSys1: t => PressurePoint2Sys1Text = t,
                 setSys2: t => PressurePoint2Sys2Text = t,
@@ -754,6 +756,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _p3Sys2 = null;
             _p3Sys3 = null;
             CanMeasure = false;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
             var ok = await MeasurePointAllSystemsAsync("3.0V", Point3VoltageV,
                 setSys1: t => PressurePoint3Sys1Text = t,
                 setSys2: t => PressurePoint3Sys2Text = t,
@@ -782,6 +785,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             CustomPressureSys2Text = "--";
             CustomPressureSys3Text = "--";
             CanMeasure = false;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
             var ok = await MeasurePointAllSystemsAsync($"自定义点({voltage:0.##}V)", voltage,
                 setSys1: t => CustomPressureSys1Text = t,
                 setSys2: t => CustomPressureSys2Text = t,
