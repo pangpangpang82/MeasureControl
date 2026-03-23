@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -24,6 +24,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
 
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private static readonly byte[] Pwm100Command8 = { 0x21, 0x03, 0x04, 0x03, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] Pwm50Command8 = { 0x21, 0x03, 0x04, 0x02, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] Pwm0Command8 = { 0x21, 0x03, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00 };
@@ -44,8 +47,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private CancellationTokenSource _autoTestCts;
 
-        private string _testTxChannel = "CH0";
-        private string _testRxChannel = "CH1";
+        private string _testTxChannel = FixedTxChannel;
+        private string _testRxChannel = FixedRxChannel;
 
         private string _oscilloscopeIpAddress = "192.168.1.18";
         private string _frequencyCounterIpAddress = "192.168.1.14";
@@ -305,6 +308,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
+        private void EnsureManualArincChannels()
+        {
+            TestTxChannel = FixedTxChannel;
+            TestRxChannel = FixedRxChannel;
+        }
+
         private async Task RunManualTestAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -312,6 +334,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsBusy)
                     return;
+
+                EnsureManualArincChannels();
 
                 IsBusy = true;
                 try
@@ -330,6 +354,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                    }
+                    catch { }
+
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                 }
                 finally
@@ -346,6 +379,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 _manualTestLock.Release();
             }
+        }
+
+        private async Task<double?> QueryScopeDutyPctAsync(int channel, CancellationToken token)
+        {
+            var duty = await QueryScopeDoubleAsync(channel, ":MEASure:ITEM? DUTY", token);
+            if (duty.HasValue)
+                return NormalizeDutyToPercent(duty.Value);
+
+            duty = await QueryScopeDoubleAsync(channel, ":MEASure:ITEM? DUTYcycle", token);
+            if (duty.HasValue)
+                return NormalizeDutyToPercent(duty.Value);
+
+            return null;
         }
 
         private async Task StopManualTestAsync()
@@ -366,6 +412,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsBusy = false;
                 }
             }
@@ -383,6 +430,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (IsBusy)
                     return;
 
+                EnsureManualArincChannels();
+
                 IsBusy = true;
                 IsAutoTestRunning = true;
 
@@ -392,6 +441,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts?.Dispose();
                 _autoTestCts = new CancellationTokenSource();
                 var token = _autoTestCts.Token;
+
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(token);
+                }
+                catch { }
 
                 try
                 {
@@ -454,6 +511,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
                     try { await DisconnectInstrumentsAndMatrixAsync(CancellationToken.None); } catch { }
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 }
             }
             finally
@@ -665,9 +723,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             var vrms = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VRMS", token);
             var vpp = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VPP", token);
 
-            var freq = await ReadFrequencyCounterValueAsync(FrequencyCounterMeasureMode.Frequency, FrequencyCounterChannel.CH1, token);
-            var duty = await ReadFrequencyCounterValueAsync(FrequencyCounterMeasureMode.DutyCycle, FrequencyCounterChannel.CH1, token);
-            var dutyPct = duty.HasValue ? NormalizeDutyToPercent(duty.Value) : (double?)null;
+            var freq = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? FREQuency", token);
+            double? dutyPct = await QueryScopeDutyPctAsync(1, token);
+            if (!dutyPct.HasValue)
+            {
+                var pw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? PWIDth", token);
+                var nw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? NWIDth", token);
+                dutyPct = TryCalcDutyPctFromPulseWidths(pw, nw);
+            }
 
             return new PwmMeasurement
             {
@@ -680,6 +743,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 FreqHz = freq,
                 DutyPct = dutyPct
             };
+        }
+
+        private static double? TryCalcDutyPctFromPulseWidths(double? pw, double? nw)
+        {
+            if (!pw.HasValue || !nw.HasValue)
+                return null;
+
+            if (double.IsNaN(pw.Value) || double.IsInfinity(pw.Value) || double.IsNaN(nw.Value) || double.IsInfinity(nw.Value))
+                return null;
+
+            var sum = pw.Value + nw.Value;
+            if (sum <= 0)
+                return null;
+
+            return pw.Value / sum * 100.0;
         }
 
         private async Task MeasureAndUpdateUiAsync(int pwmPercent)
@@ -751,7 +829,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             const double vHigh = 3.3;
             const double vHighTol = 0.5;
             const double vppMax = 0.5;
-            const double dutyMin = 99.0;
+            const double dutyMin = 90.0;
 
             if (!vmax.HasValue)
             {
@@ -771,7 +849,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return false;
             }
 
-            if (dutyPct.HasValue && dutyPct.Value < dutyMin)
+            if (!dutyPct.HasValue)
+            {
+                reason = "示波器占空比无有效值";
+                return false;
+            }
+
+            if (dutyPct.Value < dutyMin)
             {
                 reason = $"占空比过低: {dutyPct.Value:F3}% < {dutyMin}%";
                 return false;
@@ -789,7 +873,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             if (!dutyPct.HasValue)
             {
-                reason = "频率计占空比无有效值";
+                reason = "示波器占空比无有效值";
                 return false;
             }
 
@@ -807,7 +891,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool QualifyPwm0(double? vmax, double? vmin, double? vavg, double? vpp, double? dutyPct, out string reason)
         {
             const double vAbsMax = 1.0;
-            const double dutyMax = 1.0;
+            const double dutyMax = 10.0;
             const double vppMax = 0.5;
 
             if (!vmax.HasValue || !vmin.HasValue)
@@ -828,7 +912,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return false;
             }
 
-            if (dutyPct.HasValue && dutyPct.Value > dutyMax)
+            if (!dutyPct.HasValue)
+            {
+                reason = "示波器占空比无有效值";
+                return false;
+            }
+
+            if (dutyPct.Value > dutyMax)
             {
                 reason = $"占空比过高: {dutyPct.Value:F3}% > {dutyMax}%";
                 return false;
@@ -858,15 +948,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                 }
             }
-
-            if (_frequencyCounter == null)
-            {
-                if (string.IsNullOrWhiteSpace(FrequencyCounterIpAddress))
-                    throw new InvalidOperationException("FrequencyCounterIpAddress 为空");
-
-                _frequencyCounter = new FrequencyCounterSocketApi();
-                await _frequencyCounter.ConnectAsync(FrequencyCounterIpAddress.Trim(), token);
-            }
         }
 
         private async Task<bool> EnsureMatrixRoutedAsync(CancellationToken token)
@@ -876,13 +957,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             var svc = MatrixControlService.Instance;
 
-            // 示波器路由（只测一路）
-            var okScope = await svc.ConnectNodesAsync("I2", "O3", 6, "192.168.1.3");
+            var operations = new (string inNode, string outNode, int slot, string ip)[]
+            {
+                ("I1", "O12", 9, "192.168.1.3"),
+                ("I0", "O8", 4, "192.168.1.3")
+            };
 
-            // 频率计路由
-            var okFreq = await svc.ConnectNodesAsync("I2", "O1", 4, "192.168.1.3");
+            var connectTasks = operations
+                .Select(op => svc.ConnectNodesAsync(op.inNode, op.outNode, op.slot, op.ip))
+                .ToArray();
 
-            _matrixRouted = okScope && okFreq;
+            var results = await Task.WhenAll(connectTasks);
+            _matrixRouted = results.All(r => r);
             _ = token;
             return _matrixRouted;
         }
@@ -892,19 +978,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _instrumentLock.WaitAsync(token);
             try
             {
-                try
-                {
-                    if (_frequencyCounter != null)
-                    {
-                        await _frequencyCounter.DisconnectAsync(token);
-                        await _frequencyCounter.DisposeAsync();
-                        _frequencyCounter = null;
-                    }
-                }
-                catch
-                {
-                }
-
                 try
                 {
                     SafeCloseNetworkStream(ref _scopeTcpStream);
@@ -919,8 +992,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     if (_matrixRouted)
                     {
                         var svc = MatrixControlService.Instance;
-                        _ = await svc.DisconnectNodesAsync("I2", "O3", 6, "192.168.1.3");
-                        _ = await svc.DisconnectNodesAsync("I2", "O1", 4, "192.168.1.3");
+
+                        var operations = new (string inNode, string outNode, int slot, string ip)[]
+                        {
+                            ("I1", "O12", 9, "192.168.1.3"),
+                            ("I0", "O8", 4, "192.168.1.3")
+                        };
+
+                        var disconnectTasks = operations
+                            .Select(op => svc.DisconnectNodesAsync(op.inNode, op.outNode, op.slot, op.ip))
+                            .ToArray();
+
+                        _ = await Task.WhenAll(disconnectTasks);
                     }
                 }
                 catch

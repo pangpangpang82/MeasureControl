@@ -238,6 +238,7 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="a) 接地测试" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Column="1" Text="提供[0,2V]电压输入，所有采集通道结果均为1" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666"/>
@@ -271,7 +272,26 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Border>
-                                        <Button Grid.Column="3" Command="{Binding GroundedTestCommand}" Height="26" Width="80">
+                                        <!-- 接地信号按钮 -->
+                                        <Button Grid.Column="3" Command="{Binding SetGroundedSignalCommand}" Height="26" Width="60" Margin="0,0,5,0">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="border" Background="#f59e0b" CornerRadius="4" Padding="8,3">
+                                                        <TextBlock Text="接地" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="border" Property="Background" Value="#d97706"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsEnabled" Value="False">
+                                                            <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                        <!-- 接地测试按钮 -->
+                                        <Button Grid.Column="4" Command="{Binding GroundedTestCommand}" Height="26" Width="80">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
                                                     <Border x:Name="border" Background="#3b82f6" CornerRadius="4" Padding="10,3">
@@ -320,6 +340,7 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="b) 开路测试" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Column="1" Text="置为开路时，所有采集通道结果均为0" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666"/>
@@ -353,7 +374,26 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Border>
-                                        <Button Grid.Column="3" Command="{Binding OpenTestCommand}" Height="26" Width="80">
+                                        <!-- 开路信号按钮 -->
+                                        <Button Grid.Column="3" Command="{Binding SetOpenSignalCommand}" Height="26" Width="60" Margin="0,0,5,0">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="border" Background="#f59e0b" CornerRadius="4" Padding="8,3">
+                                                        <TextBlock Text="开路" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="border" Property="Background" Value="#d97706"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsEnabled" Value="False">
+                                                            <Setter TargetName="border" Property="Background" Value="#9ca3af"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                        <!-- 开路测试按钮 -->
+                                        <Button Grid.Column="4" Command="{Binding OpenTestCommand}" Height="26" Width="80">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
                                                     <Border x:Name="border" Background="#3b82f6" CornerRadius="4" Padding="10,3">
@@ -390,15 +430,6 @@
                                             <TextBlock Text="{Binding Bank1OpenResults}" FontFamily="Consolas" HorizontalAlignment="Center"/>
                                         </Border>
                                     </Grid>
-                                </StackPanel>
-                            </Border>
-                            
-                            <!-- 判据说明 -->
-                            <Border Margin="0,10,0,0" Background="#f0fdf4" BorderBrush="#22c55e" BorderThickness="1" CornerRadius="6" Padding="6">
-                                <StackPanel>
-                                    <TextBlock FontWeight="Bold" Foreground="#166534" Text="测试判据："/>
-                                    <TextBlock Margin="0,5,0,0" Foreground="#166534" Text="• a) 提供[0, 2V]电压输入时，所有采集通道结果均为1"/>
-                                    <TextBlock Margin="0,2,0,0" Foreground="#166534" Text="• b) 置为开路时，所有采集通道结果均为0"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>

@@ -108,7 +108,7 @@
                         VerticalAlignment="Center"
                         Orientation="Vertical">
                         <TextBlock
-                             Margin="0,0,0,5"
+                            Margin="0,0,0,5"
                             HorizontalAlignment="Center"
                             FontSize="14"
                             Foreground="#2d354d"

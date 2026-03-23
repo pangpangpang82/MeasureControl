@@ -8,27 +8,6 @@
     d:DesignHeight="550"
     d:DesignWidth="970"
     mc:Ignorable="d">
-    <UserControl.Resources>
-        <x:Array x:Key="Arinc429Channels" Type="sys:String">
-            <sys:String>429_CH0</sys:String>
-            <sys:String>429_CH1</sys:String>
-            <sys:String>429_CH2</sys:String>
-            <sys:String>429_CH3</sys:String>
-            <sys:String>429_CH4</sys:String>
-            <sys:String>429_CH5</sys:String>
-            <sys:String>429_CH6</sys:String>
-            <sys:String>429_CH7</sys:String>
-            <sys:String>429_CH8</sys:String>
-            <sys:String>429_CH9</sys:String>
-            <sys:String>429_CH10</sys:String>
-            <sys:String>429_CH11</sys:String>
-            <sys:String>429_CH12</sys:String>
-            <sys:String>429_CH13</sys:String>
-            <sys:String>429_CH14</sys:String>
-            <sys:String>429_CH15</sys:String>
-        </x:Array>
-    </UserControl.Resources>
-
     <Grid
         x:Name="RootGrid"
         Background="White"
@@ -269,35 +248,36 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="TX" />
-                            <ComboBox
+                            <Border
                                 Width="100"
                                 Height="28"
                                 Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                                VerticalAlignment="Center"
+                                Background="AliceBlue"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock
+                                    Margin="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding EnterAtpTxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="220"
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="AliceBlue"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="AliceBlue"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
                                     Text="0x00 01 00 01 00 00 00 00" />
                             </Border>
@@ -342,41 +322,45 @@
                             </Button>
                         </StackPanel>
 
-                        <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
+                        <StackPanel
+                            Grid.Row="1"
+                            Margin="115,5,5,5"
+                            Orientation="Horizontal">
                             <TextBlock
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="RX" />
-                            <ComboBox
+                            <Border
                                 Width="100"
                                 Height="28"
                                 Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                                VerticalAlignment="Center"
+                                Background="AliceBlue"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock
+                                    Margin="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding EnterAtpRxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="220"
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="AliceBlue"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="AliceBlue"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
                                     Text="{Binding EnterAtpRxDataText}" />
                             </Border>
@@ -394,43 +378,44 @@
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
                                 FontSize="16"
-                                Text="发送测试命令：" />
+                                Text="发送测试指令AB_A429TX0_TRANSMIT：" />
                             <TextBlock
                                 Margin="0,0,0,0"
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="TX" />
-                            <ComboBox
+                            <Border
                                 Width="100"
                                 Height="28"
                                 Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding TestTxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                                VerticalAlignment="Center"
+                                Background="AliceBlue"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock
+                                    Margin="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding TestTxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="220"
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="AliceBlue"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="AliceBlue"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
-                                    Text="0x04 01 01 02 AA AA AA AA" />
+                                    Text="0x04 01 01 01 00 00 00 00" />
                             </Border>
 
                             <Button
@@ -473,41 +458,45 @@
                             </Button>
                         </StackPanel>
 
-                        <StackPanel Grid.Row="1" Margin="150,5,5,5" Orientation="Horizontal">
+                        <StackPanel
+                            Grid.Row="1"
+                            Margin="150,5,5,5"
+                            Orientation="Horizontal">
                             <TextBlock
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="RX" />
-                            <ComboBox
+                            <Border
                                 Width="100"
                                 Height="28"
                                 Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding TestRxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                                VerticalAlignment="Center"
+                                Background="AliceBlue"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock
+                                    Margin="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding TestRxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="220"
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="AliceBlue"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="AliceBlue"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
                                     Text="{Binding RxConfirmText}" />
                             </Border>
@@ -517,14 +506,14 @@
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="LightYellow"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="LightYellow"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
                                     Text="{Binding RxDataText}" />
                             </Border>
@@ -548,35 +537,36 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="TX" />
-                            <ComboBox
+                            <Border
                                 Width="100"
                                 Height="28"
                                 Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                                VerticalAlignment="Center"
+                                Background="AliceBlue"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock
+                                    Margin="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding ExitAtpTxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="220"
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="AliceBlue"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="AliceBlue"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
                                     Text="0x00 02 00 01 00 00 00 01" />
                             </Border>
@@ -621,41 +611,45 @@
                             </Button>
                         </StackPanel>
 
-                        <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
+                        <StackPanel
+                            Grid.Row="1"
+                            Margin="115,5,5,5"
+                            Orientation="Horizontal">
                             <TextBlock
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="RX" />
-                            <ComboBox
+                            <Border
                                 Width="100"
                                 Height="28"
                                 Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                                VerticalAlignment="Center"
+                                Background="AliceBlue"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock
+                                    Margin="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding ExitAtpRxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="220"
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="AliceBlue"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="AliceBlue"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
                                     Text="{Binding ExitAtpRxDataText}" />
                             </Border>
@@ -716,19 +710,18 @@
                         Grid.Row="1"
                         Grid.RowSpan="3"
                         Grid.Column="1"
-                        Margin="0,0,5,0"
                         Width="350"
                         Height="350"
+                        Margin="0,0,5,0"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         BorderBrush="#D9D9D9"
                         BorderThickness="1.5"
                         CornerRadius="4">
                         <Grid>
-                           
+
 
                             <ListBox
-                               
                                 Margin="5"
                                 BorderThickness="0"
                                 ItemsSource="{Binding Logs}"

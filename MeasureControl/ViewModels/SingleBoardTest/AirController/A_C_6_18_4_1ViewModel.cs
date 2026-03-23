@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -16,6 +16,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public sealed class A_C_6_18_4_1ViewModel : BindableBase, IDisposable
     {
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
@@ -53,6 +56,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _j174VoltageText;
         private string _j174JudgeText;
 
+        private double? _j175Voltage;
+        private string _j175VoltageText;
+        private string _j175JudgeText;
+
+        private double? _j176Voltage;
+        private string _j176VoltageText;
+        private string _j176JudgeText;
+
+        private double? _j238Voltage;
+        private string _j238VoltageText;
+        private string _j238JudgeText;
+
         private string _lastTestTime;
         private string _lastTestResult;
         private string _previousTestTime;
@@ -67,8 +82,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public A_C_6_18_4_1ViewModel()
         {
-            _testTxChannel = "429_CH0";
-            _testRxChannel = "429_CH1";
+            _testTxChannel = FixedTxChannel;
+            _testRxChannel = FixedRxChannel;
 
             _enterAtpTxChannel = _testTxChannel;
             _enterAtpRxChannel = _testRxChannel;
@@ -80,6 +95,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             J174VoltageText = "--";
             J174JudgeText = "--";
+            J175VoltageText = "--";
+            J175JudgeText = "--";
+            J176VoltageText = "--";
+            J176JudgeText = "--";
+            J238VoltageText = "--";
+            J238JudgeText = "--";
 
             LastTestTime = "--";
             LastTestResult = "--";
@@ -94,6 +115,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             SendEnterAtpCommand = new DelegateCommand(async () => await OnSendEnterAtpAsync());
             SendTestCommand = new DelegateCommand(async () => await OnSendTestAsync());
             MeasureVoltageCommand = new DelegateCommand(async () => await OnMeasureVoltageAsync());
+            MeasureJ175VoltageCommand = new DelegateCommand(async () => await OnMeasureJ175VoltageAsync());
+            MeasureJ176VoltageCommand = new DelegateCommand(async () => await OnMeasureJ176VoltageAsync());
+            MeasureJ238VoltageCommand = new DelegateCommand(async () => await OnMeasureJ238VoltageAsync());
             SendExitAtpCommand = new DelegateCommand(async () => await OnSendExitAtpAsync());
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
         }
@@ -105,43 +129,40 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public DelegateCommand SendEnterAtpCommand { get; }
         public DelegateCommand SendTestCommand { get; }
         public DelegateCommand MeasureVoltageCommand { get; }
+        public DelegateCommand MeasureJ175VoltageCommand { get; }
+        public DelegateCommand MeasureJ176VoltageCommand { get; }
+        public DelegateCommand MeasureJ238VoltageCommand { get; }
         public DelegateCommand SendExitAtpCommand { get; }
         public DelegateCommand ClearLogCommand { get; }
 
         public string TestTxChannel
         {
             get => _testTxChannel;
-            set => SetProperty(ref _testTxChannel, value);
         }
 
         public string TestRxChannel
         {
             get => _testRxChannel;
-            set => SetProperty(ref _testRxChannel, value);
         }
 
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
         }
 
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
         }
 
         public double ArincRate
@@ -178,6 +199,42 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _j174JudgeText;
             private set => SetProperty(ref _j174JudgeText, value);
+        }
+
+        public string J175VoltageText
+        {
+            get => _j175VoltageText;
+            private set => SetProperty(ref _j175VoltageText, value);
+        }
+
+        public string J175JudgeText
+        {
+            get => _j175JudgeText;
+            private set => SetProperty(ref _j175JudgeText, value);
+        }
+
+        public string J176VoltageText
+        {
+            get => _j176VoltageText;
+            private set => SetProperty(ref _j176VoltageText, value);
+        }
+
+        public string J176JudgeText
+        {
+            get => _j176JudgeText;
+            private set => SetProperty(ref _j176JudgeText, value);
+        }
+
+        public string J238VoltageText
+        {
+            get => _j238VoltageText;
+            private set => SetProperty(ref _j238VoltageText, value);
+        }
+
+        public string J238JudgeText
+        {
+            get => _j238JudgeText;
+            private set => SetProperty(ref _j238JudgeText, value);
         }
 
         public string LastTestTime
@@ -274,6 +331,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         private async Task StartManualTestAsync()
         {
             if (IsBusy)
@@ -294,6 +364,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     J174VoltageText = "--";
                     J174JudgeText = "--";
                     _j174Voltage = null;
+                    J175VoltageText = "--";
+                    J175JudgeText = "--";
+                    _j175Voltage = null;
+                    J176VoltageText = "--";
+                    J176JudgeText = "--";
+                    _j176Voltage = null;
+                    J238VoltageText = "--";
+                    J238JudgeText = "--";
+                    _j238Voltage = null;
                     LastTestTime = "--";
                     LastTestResult = "--";
 
@@ -304,6 +383,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：开始打开设备");
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                    }
+                    catch { }
+
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试已启动：可发送测试指令");
                 }
@@ -346,6 +434,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsManualTestRunning = false;
                     IsBusy = false;
                 }
@@ -513,7 +602,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 try
                 {
                     var token = CancellationToken.None;
-                    var v = await ReadDmmVoltageAsync(token);
+                    var v = await ReadDmmVoltageAsync("J174", GetMatrixOpsForJ174(), token);
                     _j174Voltage = v;
 
                     if (v.HasValue)
@@ -545,7 +634,139 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private async Task<double?> ReadDmmVoltageAsync(CancellationToken token)
+        private async Task OnMeasureJ175VoltageAsync()
+        {
+            if (!IsManualTestRunning || IsBusy)
+                return;
+
+            await _arincOpLock.WaitAsync();
+            try
+            {
+                IsBusy = true;
+                try
+                {
+                    var token = CancellationToken.None;
+                    var v = await ReadDmmVoltageAsync("J175", GetMatrixOpsForJ175(), token);
+                    _j175Voltage = v;
+
+                    if (v.HasValue)
+                    {
+                        J175VoltageText = $"{v.Value:0.00000} V";
+                        bool pass = v.Value >= VoltageLowerLimit && v.Value <= VoltageUpperLimit;
+                        J175JudgeText = pass ? "PASS" : "FAIL";
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] J175 电压={v.Value:0.00000} V, 判据[{VoltageLowerLimit:0.0},{VoltageUpperLimit:0.0}]V -> {J175JudgeText}");
+                    }
+                    else
+                    {
+                        J175VoltageText = "--";
+                        J175JudgeText = "FAIL";
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] J175 电压测量无有效值");
+                    }
+                }
+                finally
+                {
+                    IsBusy = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 电压测量异常: {ex.Message}");
+            }
+            finally
+            {
+                _arincOpLock.Release();
+            }
+        }
+
+        private async Task OnMeasureJ176VoltageAsync()
+        {
+            if (!IsManualTestRunning || IsBusy)
+                return;
+
+            await _arincOpLock.WaitAsync();
+            try
+            {
+                IsBusy = true;
+                try
+                {
+                    var token = CancellationToken.None;
+                    var v = await ReadDmmVoltageAsync("J176", GetMatrixOpsForJ176(), token);
+                    _j176Voltage = v;
+
+                    if (v.HasValue)
+                    {
+                        J176VoltageText = $"{v.Value:0.00000} V";
+                        bool pass = v.Value >= VoltageLowerLimit && v.Value <= VoltageUpperLimit;
+                        J176JudgeText = pass ? "PASS" : "FAIL";
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] J176 电压={v.Value:0.00000} V, 判据[{VoltageLowerLimit:0.0},{VoltageUpperLimit:0.0}]V -> {J176JudgeText}");
+                    }
+                    else
+                    {
+                        J176VoltageText = "--";
+                        J176JudgeText = "FAIL";
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] J176 电压测量无有效值");
+                    }
+                }
+                finally
+                {
+                    IsBusy = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 电压测量异常: {ex.Message}");
+            }
+            finally
+            {
+                _arincOpLock.Release();
+            }
+        }
+
+        private async Task OnMeasureJ238VoltageAsync()
+        {
+            if (!IsManualTestRunning || IsBusy)
+                return;
+
+            await _arincOpLock.WaitAsync();
+            try
+            {
+                IsBusy = true;
+                try
+                {
+                    var token = CancellationToken.None;
+                    var v = await ReadDmmVoltageAsync("J238", GetMatrixOpsForJ238(), token);
+                    _j238Voltage = v;
+
+                    if (v.HasValue)
+                    {
+                        J238VoltageText = $"{v.Value:0.00000} V";
+                        bool pass = v.Value >= VoltageLowerLimit && v.Value <= VoltageUpperLimit;
+                        J238JudgeText = pass ? "PASS" : "FAIL";
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] J238 电压={v.Value:0.00000} V, 判据[{VoltageLowerLimit:0.0},{VoltageUpperLimit:0.0}]V -> {J238JudgeText}");
+                    }
+                    else
+                    {
+                        J238VoltageText = "--";
+                        J238JudgeText = "FAIL";
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] J238 电压测量无有效值");
+                    }
+                }
+                finally
+                {
+                    IsBusy = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 电压测量异常: {ex.Message}");
+            }
+            finally
+            {
+                _arincOpLock.Release();
+            }
+        }
+
+        private async Task<double?> ReadDmmVoltageAsync(string pointName, (string inNode, string outNode, int slot, int? basePort)[] ops, CancellationToken token)
         {
             if (!IsRealProduct)
             {
@@ -553,7 +774,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return 3.3;
             }
 
-            bool matrixOk = await ConnectMatrixForJ174Async(token);
+            bool matrixOk = await ConnectMatrixAsync(pointName, ops, token);
             if (!matrixOk)
                 throw new InvalidOperationException("矩阵开关通路建立失败");
 
@@ -571,22 +792,36 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             finally
             {
                 try { await dmm.DisconnectAsync(token); } catch { }
-                await DisconnectMatrixForJ174Async(token);
+                await DisconnectMatrixAsync(pointName, ops, token);
             }
         }
 
-        private async Task<bool> ConnectMatrixForJ174Async(CancellationToken token)
+        private async Task<bool> ConnectMatrixAsync(string pointName, (string inNode, string outNode, int slot, int? basePort)[] ops, CancellationToken token)
         {
             await _matrixSwitchLock.WaitAsync(token);
             try
             {
-                bool ok1 = await MatrixControlService.Instance.ConnectNodesAsync("I1", "O1", MatrixSlotIndex, MatrixIpAddress);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路: I1->O1 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok1}");
+                var tasks = ops.Select(op =>
+                {
+                    if (op.basePort.HasValue)
+                        return MatrixControlService.Instance.ConnectNodesAsync(op.inNode, op.outNode, op.slot, MatrixIpAddress, op.basePort.Value);
+                    return MatrixControlService.Instance.ConnectNodesAsync(op.inNode, op.outNode, op.slot, MatrixIpAddress);
+                }).ToArray();
 
-                bool ok2 = await MatrixControlService.Instance.ConnectNodesAsync("I2", "O2", MatrixSlotIndex, MatrixIpAddress);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路: I2->O2 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok2}");
+                var results = await Task.WhenAll(tasks);
+                for (int i = 0; i < ops.Length; i++)
+                {
+                    var op = ops[i];
+                    bool okOne = i < results.Length && results[i];
+                    string type = op.basePort.HasValue ? "3022" : "2601";
+                    string portText = op.basePort.HasValue ? $" basePort={op.basePort.Value}" : string.Empty;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {pointName} 矩阵开关通路({type}): {op.inNode}->{op.outNode} slot={op.slot} ip={MatrixIpAddress}{portText}, ok={okOne}");
+                }
 
-                return ok1 && ok2;
+                bool allOk = results.All(r => r);
+                if (allOk)
+                    await Task.Delay(200, token);
+                return allOk;
             }
             finally
             {
@@ -594,16 +829,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private async Task DisconnectMatrixForJ174Async(CancellationToken token)
+        private async Task DisconnectMatrixAsync(string pointName, (string inNode, string outNode, int slot, int? basePort)[] ops, CancellationToken token)
         {
             await _matrixSwitchLock.WaitAsync(token);
             try
             {
-                bool ok1 = await MatrixControlService.Instance.DisconnectNodesAsync("I1", "O1", MatrixSlotIndex, MatrixIpAddress);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开: I1->O1 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok1}");
+                var tasks = ops.Select(op =>
+                {
+                    if (op.basePort.HasValue)
+                        return MatrixControlService.Instance.DisconnectNodesAsync(op.inNode, op.outNode, op.slot, MatrixIpAddress, op.basePort.Value);
+                    return MatrixControlService.Instance.DisconnectNodesAsync(op.inNode, op.outNode, op.slot, MatrixIpAddress);
+                }).ToArray();
 
-                bool ok2 = await MatrixControlService.Instance.DisconnectNodesAsync("I2", "O2", MatrixSlotIndex, MatrixIpAddress);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开: I2->O2 slot={MatrixSlotIndex} ip={MatrixIpAddress}, ok={ok2}");
+                var results = await Task.WhenAll(tasks);
+                for (int i = 0; i < ops.Length; i++)
+                {
+                    var op = ops[i];
+                    bool ok = i < results.Length && results[i];
+                    string type = op.basePort.HasValue ? "3022" : "2601";
+                    string portText = op.basePort.HasValue ? $" basePort={op.basePort.Value}" : string.Empty;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {pointName} 矩阵开关断开({type}): {op.inNode}->{op.outNode} slot={op.slot} ip={MatrixIpAddress}{portText}, ok={ok}");
+                }
             }
             catch (Exception ex)
             {
@@ -613,6 +859,42 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 _matrixSwitchLock.Release();
             }
+        }
+
+        private static (string inNode, string outNode, int slot, int? basePort)[] GetMatrixOpsForJ174()
+        {
+            return new (string inNode, string outNode, int slot, int? basePort)[]
+            {
+                ("I0", "O45", 3, 50300),
+                ("I4", "O11", MatrixSlotIndex, null)
+            };
+        }
+
+        private static (string inNode, string outNode, int slot, int? basePort)[] GetMatrixOpsForJ175()
+        {
+            return new (string inNode, string outNode, int slot, int? basePort)[]
+            {
+                ("I0", "O46", 3, 50300),
+                ("I4", "O11", MatrixSlotIndex, null)
+            };
+        }
+
+        private static (string inNode, string outNode, int slot, int? basePort)[] GetMatrixOpsForJ176()
+        {
+            return new (string inNode, string outNode, int slot, int? basePort)[]
+            {
+                ("I0", "O47", 3, 50300),
+                ("I4", "O11", MatrixSlotIndex, null)
+            };
+        }
+
+        private static (string inNode, string outNode, int slot, int? basePort)[] GetMatrixOpsForJ238()
+        {
+            return new (string inNode, string outNode, int slot, int? basePort)[]
+            {
+                ("I0", "O60", 3, 50300),
+                ("I4", "O11", MatrixSlotIndex, null)
+            };
         }
 
         private async Task RunAutoTestAsync()
@@ -635,6 +917,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     J174VoltageText = "--";
                     J174JudgeText = "--";
                     _j174Voltage = null;
+                    J175VoltageText = "--";
+                    J175JudgeText = "--";
+                    _j175Voltage = null;
+                    J176VoltageText = "--";
+                    J176JudgeText = "--";
+                    _j176Voltage = null;
+                    J238VoltageText = "--";
+                    J238JudgeText = "--";
+                    _j238Voltage = null;
                     LastTestTime = "--";
                     LastTestResult = "--";
 
@@ -643,6 +934,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _autoTestCts = new CancellationTokenSource();
 
                     var token = _autoTestCts.Token;
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(token);
+                    }
+                    catch { }
 
                     _simulation.IsRealProduct = IsRealProduct;
                     _simulation.ArincRate = ArincRate;
@@ -681,28 +980,82 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤2：发送测试指令（无回包）");
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, TestCommand8, msg => AddLog(msg), token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：万用表测量J174电压");
-                    var v = await ReadDmmVoltageAsync(token);
-                    _j174Voltage = v;
+                    bool passAll = true;
 
-                    if (v.HasValue)
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：万用表测量J174电压");
+                    var v174 = await ReadDmmVoltageAsync("J174", GetMatrixOpsForJ174(), token);
+                    _j174Voltage = v174;
+                    if (v174.HasValue)
                     {
-                        J174VoltageText = $"{v.Value:0.00000} V";
-                        bool pass = v.Value >= VoltageLowerLimit && v.Value <= VoltageUpperLimit;
+                        J174VoltageText = $"{v174.Value:0.00000} V";
+                        bool pass = v174.Value >= VoltageLowerLimit && v174.Value <= VoltageUpperLimit;
                         J174JudgeText = pass ? "PASS" : "FAIL";
-                        SetLastTestResult(pass ? "PASS" : "FAIL");
+                        passAll &= pass;
                     }
                     else
                     {
                         J174VoltageText = "--";
                         J174JudgeText = "FAIL";
-                        SetLastTestResult("FAIL");
+                        passAll = false;
                     }
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤4：万用表测量J175电压");
+                    var v175 = await ReadDmmVoltageAsync("J175", GetMatrixOpsForJ175(), token);
+                    _j175Voltage = v175;
+                    if (v175.HasValue)
+                    {
+                        J175VoltageText = $"{v175.Value:0.00000} V";
+                        bool pass = v175.Value >= VoltageLowerLimit && v175.Value <= VoltageUpperLimit;
+                        J175JudgeText = pass ? "PASS" : "FAIL";
+                        passAll &= pass;
+                    }
+                    else
+                    {
+                        J175VoltageText = "--";
+                        J175JudgeText = "FAIL";
+                        passAll = false;
+                    }
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤5：万用表测量J176电压");
+                    var v176 = await ReadDmmVoltageAsync("J176", GetMatrixOpsForJ176(), token);
+                    _j176Voltage = v176;
+                    if (v176.HasValue)
+                    {
+                        J176VoltageText = $"{v176.Value:0.00000} V";
+                        bool pass = v176.Value >= VoltageLowerLimit && v176.Value <= VoltageUpperLimit;
+                        J176JudgeText = pass ? "PASS" : "FAIL";
+                        passAll &= pass;
+                    }
+                    else
+                    {
+                        J176VoltageText = "--";
+                        J176JudgeText = "FAIL";
+                        passAll = false;
+                    }
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤6：万用表测量J238电压");
+                    var v238 = await ReadDmmVoltageAsync("J238", GetMatrixOpsForJ238(), token);
+                    _j238Voltage = v238;
+                    if (v238.HasValue)
+                    {
+                        J238VoltageText = $"{v238.Value:0.00000} V";
+                        bool pass = v238.Value >= VoltageLowerLimit && v238.Value <= VoltageUpperLimit;
+                        J238JudgeText = pass ? "PASS" : "FAIL";
+                        passAll &= pass;
+                    }
+                    else
+                    {
+                        J238VoltageText = "--";
+                        J238JudgeText = "FAIL";
+                        passAll = false;
+                    }
+
+                    SetLastTestResult(passAll ? "PASS" : "FAIL");
 
                     await _simulation.ClearRxFifoAsync(TestRxChannel);
                     await Task.Delay(20, token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤4：退出ATP");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤7：退出ATP");
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, ExitAtpCommand8, msg => AddLog(msg), token);
 
                     var exitOk = await _simulation.WaitBenchResponse8Async(
@@ -743,6 +1096,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     catch
                     {
                     }
+
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
                     IsAutoTestRunning = false;
                     IsBusy = false;

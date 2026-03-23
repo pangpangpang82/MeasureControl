@@ -8,25 +8,6 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <x:Array x:Key="Arinc429Channels" Type="sys:String">
-            <sys:String>CH0</sys:String>
-            <sys:String>CH1</sys:String>
-            <sys:String>CH2</sys:String>
-            <sys:String>CH3</sys:String>
-            <sys:String>CH4</sys:String>
-            <sys:String>CH5</sys:String>
-            <sys:String>CH6</sys:String>
-            <sys:String>CH7</sys:String>
-            <sys:String>CH8</sys:String>
-            <sys:String>CH9</sys:String>
-            <sys:String>CH10</sys:String>
-            <sys:String>CH11</sys:String>
-            <sys:String>CH12</sys:String>
-            <sys:String>CH13</sys:String>
-            <sys:String>CH14</sys:String>
-            <sys:String>CH15</sys:String>
-        </x:Array>
-
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
         <Style x:Key="PrimaryBlueButtonStyle" TargetType="Button">
@@ -37,7 +18,10 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4">
+                        <Border
+                            x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4">
                             <ContentPresenter
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
@@ -146,8 +130,14 @@
                 <ColumnDefinition Width="2*" />
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Row="0" Grid.Column="0" Margin="10" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="4">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+            <Border
+                Grid.Row="0"
+                Grid.Column="0"
+                Margin="10"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1"
+                CornerRadius="4">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <Grid Margin="10">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -161,9 +151,16 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" FontSize="20" FontWeight="Bold" Text="测试步骤" />
+                        <TextBlock
+                            Grid.Row="0"
+                            FontSize="20"
+                            FontWeight="Bold"
+                            Text="测试步骤" />
 
-                        <Grid Grid.Row="1" Margin="0,14,0,0" VerticalAlignment="Center">
+                        <Grid
+                            Grid.Row="1"
+                            Margin="0,14,0,0"
+                            VerticalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="Auto" />
@@ -173,7 +170,11 @@
                                 <ColumnDefinition Width="90" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="16" Text="1.进入ATP模式：" />
+                            <TextBlock
+                                Grid.Column="0"
+                                VerticalAlignment="Center"
+                                FontSize="16"
+                                Text="1.进入ATP模式：" />
 
                             <Grid Grid.Column="1" VerticalAlignment="Center">
                                 <Grid.RowDefinitions>
@@ -183,22 +184,42 @@
 
                                 <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
-                                    <ComboBox
+                                    <Border
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding EnterAtpTxChannelDisplay, Mode=TwoWay}" />
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding EnterAtpTxChannelDisplay}" />
+                                    </Border>
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                    <ComboBox
+                                    <Border
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding EnterAtpRxChannelDisplay, Mode=TwoWay}" />
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding EnterAtpRxChannelDisplay}" />
+                                    </Border>
                                 </StackPanel>
                             </Grid>
 
@@ -208,12 +229,36 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" Height="28" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding EnterAtpCmdText}" />
+                                <Border
+                                    Grid.Row="0"
+                                    Height="28"
+                                    VerticalAlignment="Center"
+                                    Background="AliceBlue"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding EnterAtpCmdText}" />
                                 </Border>
 
-                                <Border Grid.Row="1" Height="28" Margin="0,6,0,0" VerticalAlignment="Center" Background="White" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxDataText}" TextTrimming="CharacterEllipsis" />
+                                <Border
+                                    Grid.Row="1"
+                                    Height="28"
+                                    Margin="0,6,0,0"
+                                    VerticalAlignment="Center"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding EnterAtpRxDataText}"
+                                        TextTrimming="CharacterEllipsis" />
                                 </Border>
                             </Grid>
 
@@ -227,7 +272,10 @@
                                 Style="{StaticResource PrimaryBlueButtonStyle}" />
                         </Grid>
 
-                        <Grid Grid.Row="2" Margin="0,14,0,0" VerticalAlignment="Center">
+                        <Grid
+                            Grid.Row="2"
+                            Margin="0,14,0,0"
+                            VerticalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="Auto" />
@@ -237,7 +285,11 @@
                                 <ColumnDefinition Width="90" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="16" Text="2.输出28V信号(ACK)：" />
+                            <TextBlock
+                                Grid.Column="0"
+                                VerticalAlignment="Center"
+                                FontSize="16"
+                                Text="2.输出28V信号(ACK)：" />
 
                             <Grid Grid.Column="1" VerticalAlignment="Center">
                                 <Grid.RowDefinitions>
@@ -247,22 +299,42 @@
 
                                 <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
-                                    <ComboBox
+                                    <Border
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=TwoWay}" />
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding TestTxChannelDisplay}" />
+                                    </Border>
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                    <ComboBox
+                                    <Border
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=TwoWay}" />
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding TestRxChannelDisplay}" />
+                                    </Border>
                                 </StackPanel>
                             </Grid>
 
@@ -272,12 +344,36 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" Height="28" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding Out28vCmdText}" />
+                                <Border
+                                    Grid.Row="0"
+                                    Height="28"
+                                    VerticalAlignment="Center"
+                                    Background="AliceBlue"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding Out28vCmdText}" />
                                 </Border>
 
-                                <Border Grid.Row="1" Height="28" Margin="0,6,0,0" VerticalAlignment="Center" Background="White" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding Out28vAckRxDataText}" TextTrimming="CharacterEllipsis" />
+                                <Border
+                                    Grid.Row="1"
+                                    Height="28"
+                                    Margin="0,6,0,0"
+                                    VerticalAlignment="Center"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding Out28vAckRxDataText}"
+                                        TextTrimming="CharacterEllipsis" />
                                 </Border>
                             </Grid>
 
@@ -303,7 +399,10 @@
                             <TextBlock FontSize="14" Text="通道3提示：测量负载两端实际电压值，计算负载电流。" />
                         </Border>
 
-                        <Grid Grid.Row="4" Margin="0,14,0,0" VerticalAlignment="Center">
+                        <Grid
+                            Grid.Row="4"
+                            Margin="0,14,0,0"
+                            VerticalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="Auto" />
@@ -313,7 +412,11 @@
                                 <ColumnDefinition Width="90" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="16" Text="3.上传离散和AD回采：" />
+                            <TextBlock
+                                Grid.Column="0"
+                                VerticalAlignment="Center"
+                                FontSize="16"
+                                Text="3.上传离散和AD回采：" />
 
                             <Grid Grid.Column="1" VerticalAlignment="Center">
                                 <Grid.RowDefinitions>
@@ -323,22 +426,42 @@
 
                                 <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
-                                    <ComboBox
+                                    <Border
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=TwoWay}" />
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding TestTxChannelDisplay}" />
+                                    </Border>
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                    <ComboBox
+                                    <Border
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=TwoWay}" />
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding TestRxChannelDisplay}" />
+                                    </Border>
                                 </StackPanel>
                             </Grid>
 
@@ -348,12 +471,36 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" Height="28" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding Upload28vCmdText}" />
+                                <Border
+                                    Grid.Row="0"
+                                    Height="28"
+                                    VerticalAlignment="Center"
+                                    Background="AliceBlue"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding Upload28vCmdText}" />
                                 </Border>
 
-                                <Border Grid.Row="1" Height="28" Margin="0,6,0,0" VerticalAlignment="Center" Background="White" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding Upload28vRxDataText}" TextTrimming="CharacterEllipsis" />
+                                <Border
+                                    Grid.Row="1"
+                                    Height="28"
+                                    Margin="0,6,0,0"
+                                    VerticalAlignment="Center"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding Upload28vRxDataText}"
+                                        TextTrimming="CharacterEllipsis" />
                                 </Border>
                             </Grid>
 
@@ -367,7 +514,10 @@
                                 Style="{StaticResource PrimaryBlueButtonStyle}" />
                         </Grid>
 
-                        <Grid Grid.Row="5" Margin="0,14,0,0" VerticalAlignment="Center">
+                        <Grid
+                            Grid.Row="5"
+                            Margin="0,14,0,0"
+                            VerticalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="Auto" />
@@ -377,7 +527,11 @@
                                 <ColumnDefinition Width="90" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="16" Text="4.输出OC信号(ACK)：" />
+                            <TextBlock
+                                Grid.Column="0"
+                                VerticalAlignment="Center"
+                                FontSize="16"
+                                Text="4.输出OC信号(ACK)：" />
 
                             <Grid Grid.Column="1" VerticalAlignment="Center">
                                 <Grid.RowDefinitions>
@@ -387,22 +541,42 @@
 
                                 <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
-                                    <ComboBox
+                                    <Border
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=TwoWay}" />
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding TestTxChannelDisplay}" />
+                                    </Border>
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                    <ComboBox
+                                    <Border
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=TwoWay}" />
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding TestRxChannelDisplay}" />
+                                    </Border>
                                 </StackPanel>
                             </Grid>
 
@@ -412,12 +586,36 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" Height="28" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding OutOcCmdText}" />
+                                <Border
+                                    Grid.Row="0"
+                                    Height="28"
+                                    VerticalAlignment="Center"
+                                    Background="AliceBlue"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding OutOcCmdText}" />
                                 </Border>
 
-                                <Border Grid.Row="1" Height="28" Margin="0,6,0,0" VerticalAlignment="Center" Background="White" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding OutOcAckRxDataText}" TextTrimming="CharacterEllipsis" />
+                                <Border
+                                    Grid.Row="1"
+                                    Height="28"
+                                    Margin="0,6,0,0"
+                                    VerticalAlignment="Center"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding OutOcAckRxDataText}"
+                                        TextTrimming="CharacterEllipsis" />
                                 </Border>
                             </Grid>
 
@@ -431,7 +629,10 @@
                                 Style="{StaticResource PrimaryBlueButtonStyle}" />
                         </Grid>
 
-                        <Grid Grid.Row="6" Margin="0,14,0,0" VerticalAlignment="Center">
+                        <Grid
+                            Grid.Row="6"
+                            Margin="0,14,0,0"
+                            VerticalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="Auto" />
@@ -441,7 +642,11 @@
                                 <ColumnDefinition Width="90" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="16" Text="5.上传离散回采：" />
+                            <TextBlock
+                                Grid.Column="0"
+                                VerticalAlignment="Center"
+                                FontSize="16"
+                                Text="5.上传离散回采：" />
 
                             <Grid Grid.Column="1" VerticalAlignment="Center">
                                 <Grid.RowDefinitions>
@@ -451,22 +656,42 @@
 
                                 <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
-                                    <ComboBox
+                                    <Border
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestTxChannelDisplay, Mode=TwoWay}" />
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding TestTxChannelDisplay}" />
+                                    </Border>
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                    <ComboBox
+                                    <Border
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding TestRxChannelDisplay, Mode=TwoWay}" />
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding TestRxChannelDisplay}" />
+                                    </Border>
                                 </StackPanel>
                             </Grid>
 
@@ -476,12 +701,36 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" Height="28" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding UploadOcCmdText}" />
+                                <Border
+                                    Grid.Row="0"
+                                    Height="28"
+                                    VerticalAlignment="Center"
+                                    Background="AliceBlue"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding UploadOcCmdText}" />
                                 </Border>
 
-                                <Border Grid.Row="1" Height="28" Margin="0,6,0,0" VerticalAlignment="Center" Background="White" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding UploadOcRxDataText}" TextTrimming="CharacterEllipsis" />
+                                <Border
+                                    Grid.Row="1"
+                                    Height="28"
+                                    Margin="0,6,0,0"
+                                    VerticalAlignment="Center"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding UploadOcRxDataText}"
+                                        TextTrimming="CharacterEllipsis" />
                                 </Border>
                             </Grid>
 
@@ -495,7 +744,10 @@
                                 Style="{StaticResource PrimaryBlueButtonStyle}" />
                         </Grid>
 
-                        <Grid Grid.Row="7" Margin="0,14,0,0" VerticalAlignment="Center">
+                        <Grid
+                            Grid.Row="7"
+                            Margin="0,14,0,0"
+                            VerticalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="Auto" />
@@ -505,7 +757,11 @@
                                 <ColumnDefinition Width="90" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="16" Text="6.退出ATP模式：" />
+                            <TextBlock
+                                Grid.Column="0"
+                                VerticalAlignment="Center"
+                                FontSize="16"
+                                Text="6.退出ATP模式：" />
 
                             <Grid Grid.Column="1" VerticalAlignment="Center">
                                 <Grid.RowDefinitions>
@@ -515,22 +771,42 @@
 
                                 <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
-                                    <ComboBox
+                                    <Border
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding ExitAtpTxChannelDisplay, Mode=TwoWay}" />
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding ExitAtpTxChannelDisplay}" />
+                                    </Border>
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                    <ComboBox
+                                    <Border
                                         Width="90"
                                         Height="28"
                                         Margin="5,0,0,0"
-                                        ItemsSource="{StaticResource Arinc429Channels}"
-                                        SelectedItem="{Binding ExitAtpRxChannelDisplay, Mode=TwoWay}" />
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding ExitAtpRxChannelDisplay}" />
+                                    </Border>
                                 </StackPanel>
                             </Grid>
 
@@ -540,12 +816,36 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" Height="28" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding ExitAtpCmdText}" />
+                                <Border
+                                    Grid.Row="0"
+                                    Height="28"
+                                    VerticalAlignment="Center"
+                                    Background="AliceBlue"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding ExitAtpCmdText}" />
                                 </Border>
 
-                                <Border Grid.Row="1" Height="28" Margin="0,6,0,0" VerticalAlignment="Center" Background="White" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding ExitAtpRxDataText}" TextTrimming="CharacterEllipsis" />
+                                <Border
+                                    Grid.Row="1"
+                                    Height="28"
+                                    Margin="0,6,0,0"
+                                    VerticalAlignment="Center"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding ExitAtpRxDataText}"
+                                        TextTrimming="CharacterEllipsis" />
                                 </Border>
                             </Grid>
 
@@ -562,7 +862,14 @@
                 </ScrollViewer>
             </Border>
 
-            <Border Grid.Row="0" Grid.Column="1" Margin="10" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="4" Padding="10">
+            <Border
+                Grid.Row="0"
+                Grid.Column="1"
+                Margin="10"
+                Padding="10"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1"
+                CornerRadius="4">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -570,15 +877,33 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock FontSize="16" FontWeight="Bold" Text="测试信息" />
-                        <Button Width="90" Height="28" Margin="10,0,0,0" Command="{Binding ClearContentCommand}" Content="清除内容" />
+                        <TextBlock
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Text="测试信息" />
+                        <Button
+                            Width="90"
+                            Height="28"
+                            Margin="10,0,0,0"
+                            Command="{Binding ClearContentCommand}"
+                            Content="清除内容" />
                     </StackPanel>
 
-                    <ListBox Grid.Row="1" Margin="0,10,0,0" ItemsSource="{Binding Logs}" />
+                    <ListBox
+                        Grid.Row="1"
+                        Margin="0,10,0,0"
+                        ItemsSource="{Binding Logs}" />
                 </Grid>
             </Border>
 
-            <Border Grid.Row="1" Grid.ColumnSpan="2" Margin="10,0,10,10" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="4" Padding="10">
+            <Border
+                Grid.Row="1"
+                Grid.ColumnSpan="2"
+                Margin="10,0,10,10"
+                Padding="10"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1"
+                CornerRadius="4">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -589,14 +914,41 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Text="测试结果：" />
-                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="{Binding LastTestResult}" TextTrimming="CharacterEllipsis" />
+                    <StackPanel
+                        Grid.Row="0"
+                        Grid.ColumnSpan="2"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Text="测试结果：" />
+                        <TextBlock
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="16"
+                            Text="{Binding LastTestResult}"
+                            TextTrimming="CharacterEllipsis" />
                     </StackPanel>
 
-                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,8,0,0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Text="测试时间：" />
-                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="{Binding LastTestTime}" TextTrimming="CharacterEllipsis" />
+                    <StackPanel
+                        Grid.Row="1"
+                        Grid.Column="0"
+                        Margin="0,8,0,0"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            FontWeight="Bold"
+                            Text="测试时间：" />
+                        <TextBlock
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="{Binding LastTestTime}"
+                            TextTrimming="CharacterEllipsis" />
                     </StackPanel>
                 </Grid>
             </Border>

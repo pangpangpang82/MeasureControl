@@ -59,6 +59,19 @@ namespace MeasureControl.Events
         public string Source { get; set; }
     }
 
+    public class StartSingleBoardAutoTestEvent : PubSubEvent<StartSingleBoardAutoTestEventArgs>
+    {
+    }
+
+    public sealed class StartSingleBoardAutoTestEventArgs
+    {
+        public string TestTaskName { get; set; }
+
+        public string BoardType { get; set; }
+
+        public string ParentChassisName { get; set; }
+    }
+
     #endregion
 
     #region Floating Window Events

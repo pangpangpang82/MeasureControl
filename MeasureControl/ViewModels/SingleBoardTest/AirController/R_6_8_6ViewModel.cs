@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.Generic;
@@ -12,9 +12,7 @@ using System.Windows;
 using MeasureControl.Helpers;
 using MeasureControl.Drivers;
 using MeasureControl.Models.Devices;
-using MeasureControl.Services;
 using MeasureControl.Simulations.R_6_8_6;
-using NationalInstruments.Visa;
 using Prism.Ioc;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
@@ -34,19 +32,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public R_6_8_6ViewModel()
         {
             _enterAtpTxChannel = "429_CH0";
-            _enterAtpRxChannel = "429_CH1";
+            _enterAtpRxChannel = "429_CH2";
             _controllerTemperatureTestTxChannel = "429_CH0";
-            _controllerTemperatureTestRxChannel = "429_CH1";
-            _temperatureTelemetryRxChannel = "429_CH1";
+            _temperatureTelemetryRxChannel = "429_CH2";
             _exitAtpTxChannel = "429_CH0";
-            _exitAtpRxChannel = "429_CH1";
+            _exitAtpRxChannel = "429_CH2";
 
             _enterAtpRxDataText = "--";
-            _controllerTemperatureTestRxDataText = "--";
             _temperatureTelemetryRxDataText = "--";
             _exitAtpRxDataText = "--";
 
             _resistorGear = "1挡";
+            _ambientTemperatureSelection = "10~50℃";
             ResistorGearValueText = _resistorGear;
             MeasuredResistanceValueText = "--";
             TemperatureTelemetryValueText = "--";
@@ -78,17 +75,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _enterAtpTxChannel;
         private string _enterAtpRxChannel;
         private string _controllerTemperatureTestTxChannel;
-        private string _controllerTemperatureTestRxChannel;
         private string _temperatureTelemetryRxChannel;
         private string _exitAtpTxChannel;
         private string _exitAtpRxChannel;
 
         private string _enterAtpRxDataText;
-        private string _controllerTemperatureTestRxDataText;
         private string _temperatureTelemetryRxDataText;
         private string _exitAtpRxDataText;
 
         private string _resistorGear;
+        private string _ambientTemperatureSelection;
         private string _resistorGearValueText;
         private string _measuredResistanceValueText;
         private string _temperatureTelemetryValueText;
@@ -181,13 +177,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
         }
 
         public string EnterAtpRxDataText
@@ -206,6 +200,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     ResistorGearValueText = _resistorGear;
                 }
             }
+        }
+
+        public string AmbientTemperatureSelection
+        {
+            get => _ambientTemperatureSelection;
+            set => SetProperty(ref _ambientTemperatureSelection, value);
         }
 
         public string ResistorGearValueText
@@ -229,25 +229,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string ControllerTemperatureTestTxChannel
         {
             get => _controllerTemperatureTestTxChannel;
-            set => SetProperty(ref _controllerTemperatureTestTxChannel, value);
-        }
-
-        public string ControllerTemperatureTestRxChannel
-        {
-            get => _controllerTemperatureTestRxChannel;
-            set => SetProperty(ref _controllerTemperatureTestRxChannel, value);
-        }
-
-        public string ControllerTemperatureTestRxDataText
-        {
-            get => _controllerTemperatureTestRxDataText;
-            private set => SetProperty(ref _controllerTemperatureTestRxDataText, value);
         }
 
         public string TemperatureTelemetryRxChannel
         {
             get => _temperatureTelemetryRxChannel;
-            set => SetProperty(ref _temperatureTelemetryRxChannel, value);
         }
 
         public string TemperatureTelemetryRxDataText
@@ -259,13 +245,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
         }
 
         public string ExitAtpRxDataText
@@ -316,6 +300,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = StartAutoTestAsync();
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         private async Task StartManualTestAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -329,8 +326,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 LastTestResult = "--";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：开始打开设备");
 
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                }
+                catch { }
+
                 _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
                 _simulation.GetCurrentResistorGear = () => ResistorGear;
+                _simulation.GetCurrentAmbientTemperatureSelection = () => AmbientTemperatureSelection;
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：429板卡已就绪");
@@ -370,6 +376,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             finally
             {
+                try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 _manualTestLock.Release();
             }
         }
@@ -396,6 +403,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts = new CancellationTokenSource();
                 var token = _autoTestCts.Token;
 
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(token);
+                }
+                catch { }
+
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动");
                 await RunAutoTestAsync(token);
             }
@@ -415,6 +430,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：开始打开设备");
                 _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
                 _simulation.GetCurrentResistorGear = () => ResistorGear;
+                _simulation.GetCurrentAmbientTemperatureSelection = () => AmbientTemperatureSelection;
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
                 var enteredAtpOk = await AutoEnterAtpAsync(token);
@@ -466,6 +482,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
                 try { await DisconnectResistorAsync(); } catch { }
 
+                try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+
                 _suppressResultUpdates = false;
                 IsAutoTestRunning = false;
             }
@@ -495,7 +513,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return;
             }
 
-            var (min, max) = GetQualifiedTemperatureRangeForGear(gear);
+            var (min, max) = GetQualifiedTemperatureRangeForGear(gear, AmbientTemperatureSelection);
             if (t.Value < min || t.Value > max)
             {
                 failures.Add($"{gear}回采温度={t.Value.ToString("F2", CultureInfo.InvariantCulture)}℃ 不在[{min.ToString("F2", CultureInfo.InvariantCulture)},{max.ToString("F2", CultureInfo.InvariantCulture)}]℃");
@@ -585,6 +603,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：进入ATP，TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}, Label=0x{DefaultLabel:X2}");
 
                 _simulation.GetCurrentResistorGear = () => ResistorGear;
+                _simulation.GetCurrentAmbientTemperatureSelection = () => AmbientTemperatureSelection;
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
                 try { await _simulation.ClearRxFifoAsync(EnterAtpRxChannel); } catch { }
@@ -616,13 +635,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private static (double Min, double Max) GetQualifiedTemperatureRangeForGear(string gear)
+        private static (double Min, double Max) GetQualifiedTemperatureRangeForGear(string gear, string ambientSelection)
         {
+            bool isNormalAmbient = string.Equals(ambientSelection, "10~50℃", StringComparison.OrdinalIgnoreCase);
             return gear switch
             {
-                "1挡" => (-65.93, -64.07),
-                "2挡" => (24.75, 26.61),
-                "3挡" => (134.06, 135.94),
+                "1挡" => isNormalAmbient ? (-65.93, -64.07) : (-69.05, -60.95),
+                "2挡" => isNormalAmbient ? (24.75, 26.61) : (21.63, 29.73),
+                "3挡" => isNormalAmbient ? (134.06, 135.94) : (130.94, 139.06),
                 _ => (double.NegativeInfinity, double.PositiveInfinity)
             };
         }
@@ -641,9 +661,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             };
         }
 
-        private static bool IsTemperatureQualified(string gear, double temperature)
+        private static bool IsTemperatureQualified(string gear, double temperature, string ambientSelection)
         {
-            var (min, max) = GetQualifiedTemperatureRangeForGear(gear);
+            var (min, max) = GetQualifiedTemperatureRangeForGear(gear, ambientSelection);
             return temperature >= min && temperature <= max;
         }
 
@@ -689,24 +709,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _arincOpLock.WaitAsync();
             try
             {
-                ControllerTemperatureTestRxDataText = "--";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：AB_CAR_DTS_Temperature，TX={ControllerTemperatureTestTxChannel}, RX={ControllerTemperatureTestRxChannel}, Label=0x{DefaultLabel:X2}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：AB_CAR_DTS_Temperature，TX={ControllerTemperatureTestTxChannel}, Label=0x{DefaultLabel:X2}");
 
-                try { await _simulation.ClearRxFifoAsync(ControllerTemperatureTestRxChannel); } catch { }
-                await Task.Delay(30);
-
-                var resp = await _simulation.SendBenchCommandAndWaitAsync(
-                    ControllerTemperatureTestTxChannel, ControllerTemperatureTestRxChannel,
-                    DefaultLabel, AbCarDtsTemperature,
-                    b => b != null && b.Length == 8 && b.SequenceEqual(AbCarDtsTemperature),
-                    timeoutMs: 800,
-                    msg => AddLog(msg), CancellationToken.None);
-
-                if (resp != null)
-                {
-                    ControllerTemperatureTestRxDataText = "0x" + FormatData(resp);
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] AB_CAR_DTS_Temperature 收到回包");
-                }
+                await _simulation.SendBenchCommandOnlyAsync(
+                    ControllerTemperatureTestTxChannel,
+                    DefaultLabel,
+                    AbCarDtsTemperature,
+                    msg => AddLog(msg),
+                    CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -779,7 +789,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
                     else
                     {
-                        var qualified = IsTemperatureQualified(ResistorGear, temperature);
+                        var qualified = IsTemperatureQualified(ResistorGear, temperature, AmbientTemperatureSelection);
                         LastTestResult = qualified
                             ? $"{FormatGearForResult(ResistorGear)}电阻温度PASS"
                             : $"{FormatGearForResult(ResistorGear)}电阻温度不通过";
@@ -879,58 +889,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             };
         }
 
-        private static async Task<(MessageBasedSession Session, ResourceManager Rm)> OpenDmmAsync()
-        {
-            var rm = new ResourceManager();
-            var resource = "TCPIP0::192.168.1.13::inst0::INSTR";
-            try
-            {
-                var session = (MessageBasedSession)rm.Open(resource);
-                session.TimeoutMilliseconds = 3000;
-                session.RawIO.Write("*CLS\n");
-                session.RawIO.Write(":SYST:REM\n");
-                session.RawIO.Write(":CONF:RES\n");
-                await Task.Yield();
-                return (session, rm);
-            }
-            catch
-            {
-                try { rm.Dispose(); } catch { }
-                throw;
-            }
-        }
-
-        private static double QueryDmmResistance(MessageBasedSession session)
-        {
-            session.RawIO.Write(":MEAS:RES?\n");
-            var resp = session.RawIO.ReadString();
-            if (double.TryParse(resp?.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var r))
-            {
-                return r;
-            }
-
-            if (double.TryParse(resp?.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out r))
-            {
-                return r;
-            }
-
-            return double.NaN;
-        }
-
-        private static DeviceBase Resolve7012Device(string chassisName, IPxiChassisService pxiChassisService)
-        {
-            if (pxiChassisService == null) return null;
-
-            var chassis = pxiChassisService.GetAllChassis()?.FirstOrDefault(c =>
-                string.Equals(c?.Name, chassisName, StringComparison.OrdinalIgnoreCase));
-
-            var devices = chassis?.Devices;
-            if (devices == null) return null;
-
-            return devices.FirstOrDefault(d => d is ProgrammableResistorDevice)
-                   ?? devices.FirstOrDefault(d => (d?.Model ?? string.Empty).ToUpperInvariant().Contains("7012"));
-        }
-
         private async Task<bool> EnsureResistorReadyAsync()
         {
             if (_resistorDriver != null && _resistorDriver.IsConnected)
@@ -999,16 +957,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             IsResistorMeasuring = true;
             MeasuredResistanceValueText = "--";
 
-            MessageBasedSession dmmSession = null;
-            ResourceManager dmmRm = null;
-            bool matrix1Connected = false;
-            bool matrix2Connected = false;
-            bool resistorReady = false;
-
             try
             {
                 // 优先使用上游新增的"电阻板卡直连(逻辑ID探测)"能力，不依赖机箱上下文
-                resistorReady = await EnsureResistorReadyAsync();
+                bool resistorReady = await EnsureResistorReadyAsync();
                 if (!resistorReady || _resistorDriver == null || !_resistorDriver.IsConnected)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 接入电阻失败：电阻板卡未就绪");
@@ -1034,35 +986,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 await Task.Delay(50);
 
-                var matrixSvc = MatrixControlService.Instance;
-                matrix1Connected = await matrixSvc.ConnectNodesAsync("I1", "O8", 6, "192.168.1.3");
-                if (!matrix1Connected)
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关1连接失败(I1->O8 slot6)");
-                    return;
-                }
-
-                matrix2Connected = await matrixSvc.ConnectNodesAsync("I4", "O2", 4, "192.168.1.3");
-                if (!matrix2Connected)
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关2连接失败(I4->O2 slot4)");
-                    return;
-                }
-
-                (dmmSession, dmmRm) = await OpenDmmAsync();
-                await Task.Delay(200);
-                var measured = QueryDmmResistance(dmmSession);
-
-                if (double.IsNaN(measured))
-                {
-                    MeasuredResistanceValueText = "NaN";
-                }
-                else
-                {
-                    MeasuredResistanceValueText = $"{measured.ToString("F5", CultureInfo.InvariantCulture)}Ω";
-                }
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 万用表实测电阻：{MeasuredResistanceValueText}");
+                var readBack = await _resistorDriver.ReadChannelAsync("RO0");
+                MeasuredResistanceValueText = $"{readBack.ToString("F5", CultureInfo.InvariantCulture)}Ω";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡读回电阻：{MeasuredResistanceValueText}");
             }
             catch (Exception ex)
             {
@@ -1070,49 +996,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             finally
             {
-                var matrixSvc = MatrixControlService.Instance;
-
                 try
                 {
-                    if (matrix2Connected)
-                    {
-                        await matrixSvc.DisconnectNodesAsync("I4", "O2", 4, "192.168.1.3");
-                    }
-                }
-                catch { }
-
-                try
-                {
-                    if (matrix1Connected)
-                    {
-                        await matrixSvc.DisconnectNodesAsync("I1", "O8", 6, "192.168.1.3");
-                    }
-                }
-                catch { }
-
-                try
-                {
-                    if (dmmSession != null)
-                    {
-                        try { dmmSession.RawIO.Write(":SYST:LOC\n"); } catch { }
-                        try { dmmSession.Dispose(); } catch { }
-                    }
-                }
-                catch { }
-
-                try
-                {
-                    if (dmmRm != null)
-                    {
-                        try { dmmRm.Dispose(); } catch { }
-                    }
-                }
-                catch { }
-
-                try
-                {
-                    if (resistorReady)
-                        await DisconnectResistorAsync();
+                    await DisconnectResistorAsync();
                 }
                 catch { }
 

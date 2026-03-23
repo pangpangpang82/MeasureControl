@@ -29,6 +29,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] OfvtrvFingerTelemetryPrefix4 = { 0x07, 0x05, 0x01, 0x02 };
 
         private const string AoChannel = "AO1";
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
 
         private readonly A_C_6_12_1_1Simulation _simulation = new A_C_6_12_1_1Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
@@ -51,8 +53,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _exitAtpRxDataText;
 
         private string _fingerTestTxChannel;
-        private string _fingerTestRxChannel;
-        private string _fingerTestRxDataText;
 
         private string _fingerTelemetryRxChannel;
         private string _fingerTelemetryValueText;
@@ -77,19 +77,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public A_C_6_12_1_1ViewModel()
         {
-            _testTxChannel = "CH0";
-            _testRxChannel = "CH1";
+            _testTxChannel = FixedTxChannel;
+            _testRxChannel = FixedRxChannel;
 
-            _enterAtpTxChannel = null;
-            _enterAtpRxChannel = null;
-            _exitAtpTxChannel = null;
-            _exitAtpRxChannel = null;
-
-            _fingerTestTxChannel = null;
-            _fingerTestRxChannel = null;
-            _fingerTestRxDataText = "--";
-
-            _fingerTelemetryRxChannel = null;
+            // 固定通道显示/使用（与 6.13.2 一致：界面下拉框禁用，仅做固定展示）
+            _enterAtpTxChannel = _testTxChannel;
+            _enterAtpRxChannel = _testRxChannel;
+            _exitAtpTxChannel = _testTxChannel;
+            _exitAtpRxChannel = _testRxChannel;
+            _fingerTestTxChannel = _testTxChannel;
+            _fingerTelemetryRxChannel = _testRxChannel;
 
             EnterAtpRxDataText = "--";
             ExitAtpRxDataText = "--";
@@ -140,38 +137,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public string TestTxChannel
         {
-            get => _testTxChannel;
-            set => SetProperty(ref _testTxChannel, value);
+            get => FixedTxChannel;
         }
 
         public string TestRxChannel
         {
-            get => _testRxChannel;
-            set => SetProperty(ref _testRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public string EnterAtpTxChannel
         {
-            get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
+            get => FixedTxChannel;
         }
 
         public string EnterAtpRxChannel
         {
-            get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public string ExitAtpTxChannel
         {
-            get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
+            get => FixedTxChannel;
         }
 
         public string ExitAtpRxChannel
         {
-            get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public string EnterAtpRxDataText
@@ -224,26 +215,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public string FingerTestTxChannel
         {
-            get => _fingerTestTxChannel;
-            set => SetProperty(ref _fingerTestTxChannel, value);
-        }
-
-        public string FingerTestRxChannel
-        {
-            get => _fingerTestRxChannel;
-            set => SetProperty(ref _fingerTestRxChannel, value);
-        }
-
-        public string FingerTestRxDataText
-        {
-            get => _fingerTestRxDataText;
-            private set => SetProperty(ref _fingerTestRxDataText, value);
+            get => FixedTxChannel;
         }
 
         public string FingerTelemetryRxChannel
         {
-            get => _fingerTelemetryRxChannel;
-            set => SetProperty(ref _fingerTelemetryRxChannel, value);
+            get => FixedRxChannel;
         }
 
         public string FingerTelemetryValueText
@@ -340,6 +317,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         private async Task RunManualTestAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -357,7 +347,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     FingerTelemetryValueText = "--";
                     FingerTelemetryRxDataText = "--";
-                    FingerTestRxDataText = "--";
                     EnterAtpRxDataText = "--";
                     ExitAtpRxDataText = "--";
                     IsInAtp = false;
@@ -369,6 +358,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                    }
+                    catch { }
+
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                 }
                 finally
@@ -404,6 +402,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsBusy = false;
                 }
             }
@@ -572,16 +571,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
                 try
                 {
-                    FingerTestRxDataText = "--";
-
                     var token = CancellationToken.None;
-                    await _simulation.ClearRxFifoAsync(FingerTestRxChannel);
-                    await Task.Delay(20, token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_OFVTRV_FINGER：TX={FingerTestTxChannel}, RX={FingerTestRxChannel}, Data={FormatData(AbOfvtrvFinger8)}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_OFVTRV_FINGER：TX={FingerTestTxChannel}, Data={FormatData(AbOfvtrvFinger8)}");
                     await _simulation.SendBenchCommandOnlyAsync(FingerTestTxChannel, AbOfvtrvFinger8, msg => AddLog(msg), token);
-
-                    FingerTestRxDataText = "已发送";
                 }
                 finally
                 {
@@ -691,6 +684,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _autoTestCts = new CancellationTokenSource();
                     var token = _autoTestCts.Token;
 
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(token);
+                    }
+                    catch { }
+
                     _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
                     _simulation.ArincRate = ArincRate;
                     _simulation.SimProductArincRate = ArincRate;
@@ -775,6 +776,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 finally
                 {
                     try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
+
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsAutoTestRunning = false;
                     IsBusy = false;
                 }
@@ -1014,23 +1017,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private void EnsureManualArincChannels()
         {
-            var tx = FirstNonEmpty(EnterAtpTxChannel, ExitAtpTxChannel, FingerTestTxChannel, TestTxChannel);
-            var rx = FirstNonEmpty(EnterAtpRxChannel, ExitAtpRxChannel, FingerTestRxChannel, FingerTelemetryRxChannel, TestRxChannel);
-
-            tx ??= "CH0";
-            rx ??= "CH1";
-
-            TestTxChannel = tx;
-            TestRxChannel = rx;
-
-            EnterAtpTxChannel ??= tx;
-            EnterAtpRxChannel ??= rx;
-            ExitAtpTxChannel ??= tx;
-            ExitAtpRxChannel ??= rx;
-
-            FingerTestTxChannel ??= tx;
-            FingerTestRxChannel ??= rx;
-            FingerTelemetryRxChannel ??= rx;
         }
 
         private static string FirstNonEmpty(params string[] values)

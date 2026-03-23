@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using MeasureControl.Constants;
 using MeasureControl.Helpers.OKAIPXIDevice;
 using MeasureControl.Models;
 using MeasureControl.Models.Devices;
@@ -12,10 +13,13 @@ using MeasureControl.Models.Channels;
 using MeasureControl.Services;
 using MeasureControl.Events;
 using Prism.Commands;
+using Prism.Ioc;
 using Prism.Mvvm;
 using Prism.Events;
+using Prism.Regions;
 using MeasureControl.Views;
 using MeasureControl.Views.Dialogs;
+using MeasureControl.Helpers;
 
 namespace MeasureControl.ViewModels.TestTask
 {
@@ -529,6 +533,7 @@ namespace MeasureControl.ViewModels.TestTask
         public ICommand SaveCalibrationCommand { get; }
         public ICommand LoadCalibrationCommand { get; }
         public ICommand ToggleDeviceCommand { get; }
+        public ICommand NavigateToCalibrationCommand { get; }
         // Dual channel output helpers
         // Device name for UI display
         public string DeviceName => CardName;
@@ -584,6 +589,8 @@ namespace MeasureControl.ViewModels.TestTask
             ReloadConfigCommand = new DelegateCommand(() => ReloadCardConfig());
             SaveCalibrationCommand = new DelegateCommand(async () => await OnSaveCalibrationAsync(), () => IsConnected);
             LoadCalibrationCommand = new DelegateCommand(async () => await OnLoadCalibrationAsync(), () => IsConnected);
+            NavigateToCalibrationCommand = new DelegateCommand(OnNavigateToCalibration, () => !IsOutputRunning)
+                .ObservesProperty(() => IsOutputRunning);
 
             // 顶部通道选择命令
             SelectChannelCommand = new DelegateCommand<LvdtChannelConfigViewModel>(
@@ -664,6 +671,76 @@ namespace MeasureControl.ViewModels.TestTask
             InitializeChannels();
 
             TryRestoreBackgroundConnection();
+        }
+
+        private void OnNavigateToCalibration()
+        {
+            if (Device == null || IsOutputRunning)
+            {
+                return;
+            }
+
+            try
+            {
+                var container = (System.Windows.Application.Current as App)?.Container;
+                var regionManager = container?.Resolve(typeof(IRegionManager)) as IRegionManager;
+                if (regionManager == null || !regionManager.Regions.ContainsRegionWithName(AppConstants.MainRegionName))
+                {
+                    ReMessageBox.Show("导航服务不可用，无法打开标定界面", "错误",
+                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    return;
+                }
+
+                var navigationService = regionManager.Regions[AppConstants.MainRegionName].NavigationService;
+                if (navigationService == null)
+                {
+                    ReMessageBox.Show("导航服务不可用，无法打开标定界面", "错误",
+                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    return;
+                }
+
+                var navParams = new NavigationParameters
+                {
+                    { "ChassisName", ChassisName },
+                    { "CardName", CardName ?? CardModel ?? string.Empty },
+                    { "ChannelName", null },
+                    { "ChannelType", "LVDT_VAVB" },
+                    { "SignalName", null },
+                    { "ConfigTabelName", null },
+                    { "IsCalibrationNavigation", true }
+                };
+
+                navigationService.RequestNavigate(new Uri("PxiChassis", UriKind.Relative), navParams);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[LVDT板卡] 导航到标定页面失败: {ex.Message}");
+                ReMessageBox.Show($"导航到标定页面失败: {ex.Message}", "错误",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        private double ApplySingleOutputCalibration(string signalAddress, double targetValue)
+        {
+            if (string.IsNullOrWhiteSpace(signalAddress) || Device == null)
+            {
+                return targetValue;
+            }
+
+            var scopedKey = string.IsNullOrWhiteSpace(Device.Id) ? signalAddress : $"{Device.Id}/{signalAddress}";
+            var (slope, intercept, isCalibrated) = CalibrationService.Instance.GetCalibrationParams(scopedKey);
+            if (!isCalibrated)
+            {
+                return targetValue;
+            }
+
+            return targetValue * slope + intercept;
+        }
+
+        private void ApplyVaVbCalibration(ushort channelIndex, ref double va, ref double vb)
+        {
+            va = ApplySingleOutputCalibration($"CH{channelIndex}_VA", va);
+            vb = ApplySingleOutputCalibration($"CH{channelIndex}_VB", vb);
         }
 
         private void TryRestoreBackgroundConnection()
@@ -806,6 +883,8 @@ namespace MeasureControl.ViewModels.TestTask
                         // 硬件映射：param1对应物理VA，param2对应物理VB
                         double param1 = ch.VaVoltage;
                         double param2 = ch.VbVoltage;
+
+                        ApplyVaVbCalibration(idx, ref param1, ref param2);
 
                         if (ch.VaInverse) param1 = -param1;
                         if (ch.VbInverse) param2 = -param2;
@@ -1752,6 +1831,8 @@ namespace MeasureControl.ViewModels.TestTask
                             // 修正硬件映射：第一个参数对应物理VA，第二个参数对应物理VB
                             double param1 = channelConfig.VaVoltage; // 下发到硬件第一个参数（物理VA）
                             double param2 = channelConfig.VbVoltage; // 下发到硬件第二个参数（物理VB）
+
+                            ApplyVaVbCalibration(chIndex, ref param1, ref param2);
 
                             if (channelConfig.VaInverse) param1 = -param1;
                             if (channelConfig.VbInverse) param2 = -param2;

@@ -15,6 +15,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public class AirSimpleSequenceViewModel : BindableBase
     {
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private const byte DefaultLabel = 0x6A;
 
         private static readonly byte[] AtpR = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
@@ -41,6 +44,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private readonly SemaphoreSlim _powerSupplyLock = new SemaphoreSlim(1, 1);
 
         private string _title = "测试";
+        private bool _isFixedArincChannels;
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private string _lastTestTime = "--";
@@ -65,12 +69,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public AirSimpleSequenceViewModel()
         {
-            _enterAtpTxChannel = "429_CH0";
-            _enterAtpRxChannel = "429_CH1";
-            _setVoltageTxChannel = "429_CH2";
-            _telemetryRxChannel = "429_CH4";
-            _exitAtpTxChannel = "429_CH5";
-            _exitAtpRxChannel = "429_CH6";
+            _enterAtpTxChannel = FixedTxChannel;
+            _enterAtpRxChannel = FixedRxChannel;
+            _setVoltageTxChannel = FixedTxChannel;
+            _telemetryRxChannel = FixedRxChannel;
+            _exitAtpTxChannel = FixedTxChannel;
+            _exitAtpRxChannel = FixedRxChannel;
             _dmmChannel = "Port1";
 
             DmmVoltageText = "--";
@@ -87,12 +91,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             SendEnterAtpCommand = new DelegateCommand(async () => await OnSendEnterAtpAsync());
             SendSetVoltageCommand = new DelegateCommand(async () => await OnSendAb28vSupplyAsync());
             SendExitAtpCommand = new DelegateCommand(async () => await OnSendExitAtpAsync());
+
+            // In case Title keeps default value; View may overwrite Title afterwards.
+            ApplyFixedArincChannelPolicy();
         }
 
         public string Title
         {
             get => _title;
-            set => SetProperty(ref _title, value);
+            set
+            {
+                if (SetProperty(ref _title, value))
+                {
+                    ApplyFixedArincChannelPolicy();
+                }
+            }
+        }
+
+        public bool IsFixedArincChannels
+        {
+            get => _isFixedArincChannels;
+            private set => SetProperty(ref _isFixedArincChannels, value);
         }
 
         public string PowerSupplyIpAddress
@@ -114,19 +133,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
         }
 
         public string SetVoltageTxChannel
         {
             get => _setVoltageTxChannel;
-            set => SetProperty(ref _setVoltageTxChannel, value);
         }
 
         public string DmmChannel
@@ -138,19 +154,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string TelemetryRxChannel
         {
             get => _telemetryRxChannel;
-            set => SetProperty(ref _telemetryRxChannel, value);
         }
 
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
+        }
+
+        private void ApplyFixedArincChannelPolicy()
+        {
+            IsFixedArincChannels = true;
+
+            // Force all TX/RX used by this sequence to the fixed channels.
+            SetProperty(ref _enterAtpTxChannel, FixedTxChannel);
+            SetProperty(ref _enterAtpRxChannel, FixedRxChannel);
+            SetProperty(ref _setVoltageTxChannel, FixedTxChannel);
+            SetProperty(ref _telemetryRxChannel, FixedRxChannel);
+            SetProperty(ref _exitAtpTxChannel, FixedTxChannel);
+            SetProperty(ref _exitAtpRxChannel, FixedRxChannel);
         }
 
         public string DmmVoltageText
@@ -261,6 +287,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 LastTestResult = "--";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：开始打开设备");
 
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                }
+                catch { }
+
                 await EnsurePowerSupplyConnectedAsync(CancellationToken.None);
                 await _arinc.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
@@ -329,6 +363,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts?.Dispose();
                 _autoTestCts = new CancellationTokenSource();
                 var token = _autoTestCts.Token;
+
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(token);
+                }
+                catch { }
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动");
                 await RunAutoTestAsync(token);

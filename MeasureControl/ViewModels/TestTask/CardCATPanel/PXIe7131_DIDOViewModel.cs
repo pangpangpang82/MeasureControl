@@ -77,13 +77,10 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         private DelegateCommand _relayAllOnCommand;
         private DelegateCommand _relayAllOffCommand;
 
-        private const string ThresholdComPort = "COM12"; //第一套
-        //private const string ThresholdComPort = "COM10"; //第二套
-        //private const string ThresholdComPort = "COM9"; //第三套
-
-        private const string RelayComPort = "COM27"; //第一套
-        //private const string RelayComPort = "COM11"; //第二套
-        //private const string RelayComPort = "COM9"; //第三套
+        private const string LocalThresholdComPort = "COM12";
+        private const string UpstreamThresholdComPort = "COM17";
+        private const string LocalRelayComPort = "COM27";
+        private const string UpstreamRelayComPort = "COM21";
         private const int RelayBaudRate = 9600;
         private const byte RelaySlaveAddress = 1;
         private const ushort RelayStartCoilAddress = 0;
@@ -810,7 +807,8 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         {
             try
             {
-                using var cli = new DacGroupsSerialClient(ThresholdComPort, 115200, dtrEnable: false, rtsEnable: false);
+                var thresholdComPort = GetThresholdComPort();
+                using var cli = new DacGroupsSerialClient(thresholdComPort, 115200, dtrEnable: false, rtsEnable: false);
                 cli.Send8Groups(
                     ParseDIThreshold(DIport1),
                     ParseDIThreshold(DIport2),
@@ -2166,7 +2164,8 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
             {
                 // 添加超时处理，避免卡住
                 var timeoutTask = Task.Delay(2000);
-                var acquireTask = SerialPortMutex.AcquireAsync(RelayComPort);
+                var relayComPort = GetRelayComPort();
+                var acquireTask = SerialPortMutex.AcquireAsync(relayComPort);
                 var completedTask = await Task.WhenAny(acquireTask, timeoutTask);
                 
                 if (completedTask == timeoutTask)
@@ -2179,7 +2178,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
                 {
                     await Task.Run(() =>
                     {
-                        using var cli = new RelayModbusClient(RelayComPort, RelaySlaveAddress, RelayBaudRate);
+                        using var cli = new RelayModbusClient(relayComPort, RelaySlaveAddress, RelayBaudRate);
                         cli.SetAll(RelayStartCoilAddress, RelayChannelCount, false);
                     });
                 }
@@ -2201,12 +2200,13 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         {
             try
             {
+                var relayComPort = GetRelayComPort();
                 bool[] states;
-                using (await SerialPortMutex.AcquireAsync(RelayComPort))
+                using (await SerialPortMutex.AcquireAsync(relayComPort))
                 {
                     states = await Task.Run(() =>
                     {
-                        using var cli = new RelayModbusClient(RelayComPort, RelaySlaveAddress, RelayBaudRate);
+                        using var cli = new RelayModbusClient(relayComPort, RelaySlaveAddress, RelayBaudRate);
                         return cli.ReadCoils(RelayStartCoilAddress, (ushort)RelayChannelCount);
                     });
                 }
@@ -2231,7 +2231,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
                     try
                     {
                         ReMessageBox.Show(
-                            "485继电器串口打开/回读失败（COM15/9600）。请检查串口是否被占用。",
+                            $"485继电器串口打开/回读失败（{relayComPort}/{RelayBaudRate}）。请检查串口是否被占用。",
                             "提示",
                             System.Windows.MessageBoxButton.OK,
                             System.Windows.MessageBoxImage.Warning);
@@ -2275,11 +2275,12 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
             IsBusy = true;
             try
             {
-                using (await SerialPortMutex.AcquireAsync(RelayComPort))
+                var relayComPort = GetRelayComPort();
+                using (await SerialPortMutex.AcquireAsync(relayComPort))
                 {
                     await Task.Run(() =>
                     {
-                        using var cli = new RelayModbusClient(RelayComPort, RelaySlaveAddress, RelayBaudRate);
+                        using var cli = new RelayModbusClient(relayComPort, RelaySlaveAddress, RelayBaudRate);
                         cli.WriteSingleCoil((ushort)index, target);
                     });
                 }
@@ -2312,11 +2313,12 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
             IsBusy = true;
             try
             {
-                using (await SerialPortMutex.AcquireAsync(RelayComPort))
+                var relayComPort = GetRelayComPort();
+                using (await SerialPortMutex.AcquireAsync(relayComPort))
                 {
                     await Task.Run(() =>
                     {
-                        using var cli = new RelayModbusClient(RelayComPort, RelaySlaveAddress, RelayBaudRate);
+                        using var cli = new RelayModbusClient(relayComPort, RelaySlaveAddress, RelayBaudRate);
                         cli.SetAll(RelayStartCoilAddress, RelayChannelCount, on);
                     });
                 }
@@ -2798,9 +2800,10 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
                 {
                     try
                     {
-                        using (SerialPortMutex.AcquireAsync(RelayComPort).GetAwaiter().GetResult())
+                        var relayComPort = GetRelayComPort();
+                        using (SerialPortMutex.AcquireAsync(relayComPort).GetAwaiter().GetResult())
                         {
-                            using var cli = new RelayModbusClient(RelayComPort, RelaySlaveAddress, RelayBaudRate);
+                            using var cli = new RelayModbusClient(relayComPort, RelaySlaveAddress, RelayBaudRate);
                             cli.SetAll(RelayStartCoilAddress, RelayChannelCount, false);
                         }
                     }
@@ -2821,6 +2824,37 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
             }
 
             _disposed = true;
+        }
+
+        private string GetThresholdComPort()
+        {
+            return IsInertRelatedContext() ? LocalThresholdComPort : UpstreamThresholdComPort;
+        }
+
+        private string GetRelayComPort()
+        {
+            return IsInertRelatedContext() ? LocalRelayComPort : UpstreamRelayComPort;
+        }
+
+        private bool IsInertRelatedContext()
+        {
+            return ContainsInertKeyword(SelectedTestTask)
+                || ContainsInertKeyword(CardName)
+                || ContainsInertKeyword(ChassisName)
+                || ContainsInertKeyword(Device?.Name)
+                || ContainsInertKeyword(Device?.DisplayName)
+                || ContainsInertKeyword(Device?.ParentNode)
+                || ContainsInertKeyword(Device?.Description)
+                || ContainsInertKeyword(Device?.Model)
+                || ContainsInertKeyword(Device?.Details)
+                || ContainsInertKeyword(Device?.DeviceTypeName);
+        }
+
+        private static bool ContainsInertKeyword(string value)
+        {
+            return !string.IsNullOrWhiteSpace(value)
+                && (value.IndexOf("惰化", StringComparison.OrdinalIgnoreCase) >= 0
+                    || value.IndexOf("Inert", StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         #endregion

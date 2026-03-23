@@ -10,24 +10,6 @@
     d:DesignWidth="970"
     mc:Ignorable="d">
     <UserControl.Resources>
-        <x:Array x:Key="Arinc429Channels" Type="sys:String">
-            <sys:String>ARINC429 CH0</sys:String>
-            <sys:String>ARINC429 CH1</sys:String>
-            <sys:String>ARINC429 CH2</sys:String>
-            <sys:String>ARINC429 CH3</sys:String>
-            <sys:String>ARINC429 CH4</sys:String>
-            <sys:String>ARINC429 CH5</sys:String>
-            <sys:String>ARINC429 CH6</sys:String>
-            <sys:String>ARINC429 CH7</sys:String>
-            <sys:String>ARINC429 CH8</sys:String>
-            <sys:String>ARINC429 CH9</sys:String>
-            <sys:String>ARINC429 CH10</sys:String>
-            <sys:String>ARINC429 CH11</sys:String>
-            <sys:String>ARINC429 CH12</sys:String>
-            <sys:String>ARINC429 CH13</sys:String>
-            <sys:String>ARINC429 CH14</sys:String>
-            <sys:String>ARINC429 CH15</sys:String>
-        </x:Array>
         <x:Array x:Key="DmmChannels" Type="sys:String">
             <sys:String>Port1</sys:String>
             <sys:String>Port2</sys:String>
@@ -60,7 +42,7 @@
                         VerticalAlignment="Center"
                         FontSize="30"
                         FontWeight="Bold"
-                        Text="PT500温度传感器测试" />
+                        Text="6.8.1控制通道PDTS传感器测试" />
                     <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                         <Button
                             Width="110"
@@ -255,21 +237,22 @@
                             VerticalAlignment="Center"
                             FontSize="20"
                             Text="进入ATP模式" />
-                        <ComboBox
+                        <Border
                             Width="170"
                             Height="30"
                             Margin="15,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="16"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedIndex="0">
-                            <ComboBox.Style>
-                                <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                    <Setter Property="Opacity" Value="1" />
-                                </Style>
-                            </ComboBox.Style>
-                        </ComboBox>
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="16"
+                                Text="429_CH0" />
+                        </Border>
                         <Button
                             Width="80"
                             Height="30"
@@ -310,21 +293,22 @@
                             VerticalAlignment="Center"
                             FontSize="20"
                             Text="控制器接入电阻" />
-                        <ComboBox
+                        <Border
                             Width="170"
                             Height="30"
                             Margin="15,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="16"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedIndex="0">
-                            <ComboBox.Style>
-                                <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                    <Setter Property="Opacity" Value="1" />
-                                </Style>
-                            </ComboBox.Style>
-                        </ComboBox>
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="16"
+                                Text="429_CH0" />
+                        </Border>
                         <Button
                             Width="80"
                             Height="30"
@@ -442,21 +426,22 @@
                             VerticalAlignment="Center"
                             FontSize="20"
                             Text="电阻回采值" />
-                        <ComboBox
+                        <Border
                             Width="170"
                             Height="30"
                             Margin="15,0,0,0"
-                            HorizontalAlignment="Left"
-                            FontSize="16"
-                            ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                            ItemsSource="{StaticResource Arinc429Channels}"
-                            SelectedIndex="0">
-                            <ComboBox.Style>
-                                <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                    <Setter Property="Opacity" Value="1" />
-                                </Style>
-                            </ComboBox.Style>
-                        </ComboBox>
+                            VerticalAlignment="Center"
+                            Background="AliceBlue"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="16"
+                                Text="429_CH2" />
+                        </Border>
                         <Border
                             Width="140"
                             Height="30"

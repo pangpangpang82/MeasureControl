@@ -84,6 +84,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private const string AiVoltageChannel = "AI1";
 
+        /// <summary>第二个电源IP地址（运放供电+15V）</summary>
+        private const string PowerSupply2IpAddress = "192.168.1.16";
+        /// <summary>第三个电源IP地址（DI上拉信号+15V）</summary>
+        private const string PowerSupply3IpAddress = "192.168.1.17";
+        /// <summary>运放供电电压（V）</summary>
+        private const double OpAmpSupplyVoltage = 15.0;
+        /// <summary>运放供电电流限制（A）</summary>
+        private const double OpAmpSupplyCurrent = 1.0;
+
         #endregion
 
         #region 依赖服务
@@ -108,6 +117,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private IDmmApi _dmmSocket;                                                 // DmmSocketApi实例
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);    // 测量操作锁
+
+        #endregion
+
+        #region 运放供电和DI上拉电源
+
+        private IPowerSupplyApi _powerSupply2;  // 第二个电源（运放供电+15V）
+        private IPowerSupplyApi _powerSupply3;  // 第三个电源（DI上拉信号+15V）
+        private bool _opAmpPowerOn;             // 运放供电是否已开启
 
         #endregion
 
@@ -534,69 +551,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// <summary>
         /// 启动自动测试
         /// </summary>
-        private void StartAutoTest()
+        private async void StartAutoTest()
         {
             _opCts?.Cancel();
             _opCts = new CancellationTokenSource();
-            var token = _opCts.Token;
 
-            IsAutoTestRunning = true;
-            ClearResults();
-            AddLog("自动测试开始");
-
-            Task.Run(async () =>
+            try
             {
-                try
-                {
-                    // 步骤1: 初始化硬件
-                    AddLog("步骤1: 初始化硬件设备（28V供电，万用表）...");
-                    await InitializeHardwareWithTimeoutAsync(token);
-                    if (token.IsCancellationRequested) return;
-
-                    // 步骤2: 测量电压
-                    AddLog("步骤2: 测量CRM_PIN1-PIN18电压（+5V电源）");
-                    await MeasureVoltageWithTimeoutAsync(token);
-                    if (token.IsCancellationRequested) return;
-
-                    // 步骤3: 评估结果
-                    EvaluateOverallResult();
-                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                    AddLog($"测试完成，综合结果: {OverallResult}");
-
-                    // 步骤4: 复位硬件
-                    AddLog("步骤4: 复位硬件...");
-                    await ResetHardwareAsync(token);
-                    AddLog("硬件复位完成");
-                }
-                catch (TimeoutException ex)
-                {
-                    AddLog($"超时: {ex.Message}");
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        ReMessageBox.Show(ex.Message, "超时提示",
-                            MessageBoxButton.OK, MessageBoxImage.Warning);
-                    });
-                    try { await ResetHardwareAsync(CancellationToken.None); } catch { }
-                }
-                catch (OperationCanceledException)
-                {
-                    AddLog("测试已取消");
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"错误: {ex.Message}");
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        ReMessageBox.Show($"测试出错: {ex.Message}", "错误",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
-                    });
-                    try { await ResetHardwareAsync(CancellationToken.None); } catch { }
-                }
-                finally
-                {
-                    Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
-                }
-            });
+                await ExecuteAutoTestAsync(_opCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // 已在 ExecuteAutoTestAsync 中处理
+            }
+            catch (Exception ex)
+            {
+                AddLog($"自动测试异常: {ex.Message}");
+            }
+            finally
+            {
+                _opCts?.Dispose();
+                _opCts = null;
+            }
         }
 
         /// <summary>
@@ -626,6 +602,75 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     });
                 }
             });
+        }
+
+        /// <summary>
+        /// 供外部（整板自动测试）调用的异步测试方法
+        /// </summary>
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                _opCts?.Cancel();
+                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            _opCts?.Cancel();
+            _opCts?.Dispose();
+            _opCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                return await ExecuteAutoTestAsync(_opCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
+
+        private async Task<string> ExecuteAutoTestAsync(CancellationToken token)
+        {
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsAutoTestRunning = true;
+                ClearResults();
+            });
+            AddLog("自动测试开始");
+
+            try
+            {
+                AddLog("步骤1: 初始化硬件设备（28V供电，万用表）...");
+                await InitializeHardwareWithTimeoutAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                AddLog("步骤2: 测量CRM_PIN1-PIN18电压（+5V电源）");
+                await MeasureVoltageWithTimeoutAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                EvaluateOverallResult();
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                AddLog($"测试完成，综合结果: {OverallResult}");
+
+                AddLog("步骤3: 复位硬件...");
+                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+
+                return OverallResult;
+            }
+            catch (OperationCanceledException)
+            {
+                AddLog("自动测试已取消");
+                try { await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                throw;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"自动测试异常: {ex.Message}");
+                try { await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                return "不合格";
+            }
         }
 
         #endregion
@@ -692,6 +737,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     });
                     throw;
                 }
+
+                // ========== 步骤4：设置运放供电和DI上拉信号（+15V） ==========
+                await InitializeOpAmpAndDiPullUpPowerAsync(timeoutCts.Token);
 
                 _hardwareInitialized = true;
                 AddLog("硬件初始化完成");
@@ -766,9 +814,115 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
             }
 
+            // 关闭运放供电和DI上拉电源
+            await ShutdownOpAmpAndDiPullUpPowerAsync();
 
             _hardwareInitialized = false;
             UpdateCommandStates();
+        }
+
+        /// <summary>
+        /// 初始化运放供电（+15V）和DI上拉信号（+15V）
+        /// 通过第二个电源（192.168.1.16）的CH3提供运放供电
+        /// 通过第三个电源（192.168.1.17）的CH3提供DI上拉信号
+        /// </summary>
+        private async Task InitializeOpAmpAndDiPullUpPowerAsync(CancellationToken token)
+        {
+            AddLog("正在初始化运放供电和DI上拉信号（+15V）...");
+
+            // 连接第二个电源（运放供电+15V）
+            try
+            {
+                AddLog($"正在连接电源2（运放供电）{PowerSupply2IpAddress}...");
+                _powerSupply2 = new PowerSupplySocketApi();
+                await _powerSupply2.ConnectAsync(PowerSupply2IpAddress, token);
+                
+                // 配置CH3输出+15V
+                await _powerSupply2.ApplyAsync(PowerSupplyChannel.CH3, OpAmpSupplyVoltage, OpAmpSupplyCurrent, token);
+                await _powerSupply2.SetOutputEnabledAsync(PowerSupplyChannel.CH3, true, token);
+                AddLog($"电源2 CH3已配置: +{OpAmpSupplyVoltage:F1}V（运放供电）");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"电源2连接失败: {ex.Message}，运放供电将使用仿真");
+                _powerSupply2 = null;
+            }
+
+            // 连接第三个电源（DI上拉信号+15V）
+            try
+            {
+                AddLog($"正在连接电源3（DI上拉）{PowerSupply3IpAddress}...");
+                _powerSupply3 = new PowerSupplySocketApi();
+                await _powerSupply3.ConnectAsync(PowerSupply3IpAddress, token);
+                
+                // 配置CH3输出+15V
+                await _powerSupply3.ApplyAsync(PowerSupplyChannel.CH3, OpAmpSupplyVoltage, OpAmpSupplyCurrent, token);
+                await _powerSupply3.SetOutputEnabledAsync(PowerSupplyChannel.CH3, true, token);
+                AddLog($"电源3 CH3已配置: +{OpAmpSupplyVoltage:F1}V（DI上拉信号）");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"电源3连接失败: {ex.Message}，DI上拉信号将使用仿真");
+                _powerSupply3 = null;
+            }
+
+            _opAmpPowerOn = (_powerSupply2 != null) || (_powerSupply3 != null);
+            if (_opAmpPowerOn)
+                AddLog("运放供电和DI上拉信号初始化完成");
+            else
+                AddLog("运放供电和DI上拉信号初始化失败，使用仿真模式");
+        }
+
+        /// <summary>
+        /// 关闭运放供电和DI上拉电源
+        /// </summary>
+        private async Task ShutdownOpAmpAndDiPullUpPowerAsync()
+        {
+            // 关闭电源2（运放供电）
+            if (_powerSupply2 != null)
+            {
+                try
+                {
+                    if (_powerSupply2.IsConnected)
+                    {
+                        await _powerSupply2.SetOutputEnabledAsync(PowerSupplyChannel.CH3, false);
+                        AddLog("电源2 CH3已关闭（运放供电）");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"关闭电源2异常: {ex.Message}");
+                }
+                finally
+                {
+                    try { await _powerSupply2.DisposeAsync(); } catch { }
+                    _powerSupply2 = null;
+                }
+            }
+
+            // 关闭电源3（DI上拉信号）
+            if (_powerSupply3 != null)
+            {
+                try
+                {
+                    if (_powerSupply3.IsConnected)
+                    {
+                        await _powerSupply3.SetOutputEnabledAsync(PowerSupplyChannel.CH3, false);
+                        AddLog("电源3 CH3已关闭（DI上拉信号）");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"关闭电源3异常: {ex.Message}");
+                }
+                finally
+                {
+                    try { await _powerSupply3.DisposeAsync(); } catch { }
+                    _powerSupply3 = null;
+                }
+            }
+
+            _opAmpPowerOn = false;
         }
 
         /// <summary>

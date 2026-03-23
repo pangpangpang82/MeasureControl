@@ -31,6 +31,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const double QualifyDutyTargetPct = 50.0;
         private const double QualifyDutyTolPct = 5.0;
 
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private readonly A_C_6_16_1_1_2Simulation _simulation = new A_C_6_16_1_1_2Simulation();
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
@@ -46,8 +49,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private CancellationTokenSource _autoTestCts;
 
-        private string _testTxChannel = "CH0";
-        private string _testRxChannel = "CH1";
+        private string _testTxChannel = FixedTxChannel;
+        private string _testRxChannel = FixedRxChannel;
 
         private string _oscilloscopeIpAddress = "192.168.1.18";
 
@@ -62,7 +65,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private string _freqHzText = "--";
         private string _dutyPctText = "--";
-        private string _scopeVppText = "--";
 
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
@@ -160,12 +162,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _dutyPctText, value);
         }
 
-        public string ScopeVppText
-        {
-            get => _scopeVppText;
-            private set => SetProperty(ref _scopeVppText, value);
-        }
-
         public string LastTestTime
         {
             get => _lastTestTime;
@@ -190,6 +186,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _previousTestResult, value);
         }
 
+        private void EnsureManualArincChannels()
+        {
+            TestTxChannel = FixedTxChannel;
+            TestRxChannel = FixedRxChannel;
+        }
+
         private void OnManualTest()
         {
             if (IsManualTestRunning)
@@ -212,6 +214,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         private async Task RunManualTestAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -219,6 +234,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsBusy)
                     return;
+
+                EnsureManualArincChannels();
 
                 IsBusy = true;
                 try
@@ -237,6 +254,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                    }
+                    catch { }
+
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                 }
                 finally
@@ -273,6 +299,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsBusy = false;
                 }
             }
@@ -290,6 +317,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (IsBusy)
                     return;
 
+                EnsureManualArincChannels();
+
                 IsBusy = true;
                 IsAutoTestRunning = true;
 
@@ -299,6 +328,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts?.Dispose();
                 _autoTestCts = new CancellationTokenSource();
                 var token = _autoTestCts.Token;
+
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(token);
+                }
+                catch { }
 
                 try
                 {
@@ -355,6 +392,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
                     try { await DisconnectInstrumentsAndMatrixAsync(CancellationToken.None); } catch { }
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 }
             }
             finally
@@ -531,10 +569,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     FreqHzText = FormatNum(m.FreqHz);
                     DutyPctText = FormatNum(m.DutyPct);
-                    ScopeVppText = FormatNum(m.Vpp);
                 });
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 测量完成：F={FormatNum(m.FreqHz)} Hz, DUTY={FormatNum(m.DutyPct)} %, VPP={FormatNum(m.Vpp)} V");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测量完成：F={FormatNum(m.FreqHz)} Hz, DUTY={FormatNum(m.DutyPct)} %");
             }
             catch (Exception ex)
             {
@@ -566,7 +603,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     FreqHzText = FormatNum(m.FreqHz);
                     DutyPctText = FormatNum(m.DutyPct);
-                    ScopeVppText = FormatNum(m.Vpp);
                 });
 
                 if (!m.FreqHz.HasValue)
@@ -615,7 +651,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             public double? FreqHz { get; set; }
             public double? DutyPct { get; set; }
-            public double? Vpp { get; set; }
         }
 
         private async Task<Measurement> MeasureRawCoreAsync(CancellationToken token)
@@ -630,18 +665,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await EnsureInstrumentsConnectedAsync(token);
             await Task.Delay(200, token);
 
-            var vpp = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VPP", token);
-
             var freq = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? FREQuency", token);
-            var pw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? PWIDth", token);
-            var nw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? NWIDth", token);
-            var dutyPct = TryCalcDutyPctFromPulseWidths(pw, nw);
+            double? dutyPct = await QueryScopeDutyPctAsync(1, token);
+            if (!dutyPct.HasValue)
+            {
+                var pw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? PWIDth", token);
+                var nw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? NWIDth", token);
+                dutyPct = TryCalcDutyPctFromPulseWidths(pw, nw);
+            }
 
             return new Measurement
             {
                 FreqHz = freq,
-                DutyPct = dutyPct,
-                Vpp = vpp
+                DutyPct = dutyPct
             };
         }
 
@@ -649,7 +685,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             FreqHzText = "--";
             DutyPctText = "--";
-            ScopeVppText = "--";
         }
 
         private async Task EnsureInstrumentsConnectedAsync(CancellationToken token)
@@ -680,9 +715,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             var svc = MatrixControlService.Instance;
 
-            var okScope = await svc.ConnectNodesAsync("I2", "O3", 6, "192.168.1.3");
+            var operations = new (string inNode, string outNode, int slot, string ip)[]
+            {
+                ("I1", "O5", 9, "192.168.1.3"),
+                ("I0", "O8", 4, "192.168.1.3")
+            };
 
-            _matrixRouted = okScope;
+            var connectTasks = operations
+                .Select(op => svc.ConnectNodesAsync(op.inNode, op.outNode, op.slot, op.ip))
+                .ToArray();
+
+            var results = await Task.WhenAll(connectTasks);
+            _matrixRouted = results.All(r => r);
             _ = token;
             return _matrixRouted;
         }
@@ -706,7 +750,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     if (_matrixRouted)
                     {
                         var svc = MatrixControlService.Instance;
-                        _ = await svc.DisconnectNodesAsync("I2", "O3", 6, "192.168.1.3");
+
+                        var operations = new (string inNode, string outNode, int slot, string ip)[]
+                        {
+                            ("I1", "O5", 9, "192.168.1.3"),
+                            ("I0", "O8", 4, "192.168.1.3")
+                        };
+
+                        var disconnectTasks = operations
+                            .Select(op => svc.DisconnectNodesAsync(op.inNode, op.outNode, op.slot, op.ip))
+                            .ToArray();
+
+                        _ = await Task.WhenAll(disconnectTasks);
                     }
                 }
                 catch
@@ -838,6 +893,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (!v.HasValue || double.IsNaN(v.Value) || double.IsInfinity(v.Value))
                 return "--";
             return v.Value.ToString("F6", CultureInfo.InvariantCulture);
+        }
+
+        private static double NormalizeDutyToPercent(double dutyValue)
+        {
+            if (double.IsNaN(dutyValue) || double.IsInfinity(dutyValue))
+                return dutyValue;
+            if (dutyValue <= 1.0)
+                return dutyValue * 100.0;
+            return dutyValue;
+        }
+
+        private async Task<double?> QueryScopeDutyPctAsync(int channel, CancellationToken token)
+        {
+            var duty = await QueryScopeDoubleAsync(channel, ":MEASure:ITEM? DUTY", token);
+            if (duty.HasValue)
+                return NormalizeDutyToPercent(duty.Value);
+
+            duty = await QueryScopeDoubleAsync(channel, ":MEASure:ITEM? DUTYcycle", token);
+            if (duty.HasValue)
+                return NormalizeDutyToPercent(duty.Value);
+
+            return null;
         }
 
         private void AddLog(string message)

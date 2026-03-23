@@ -16,8 +16,8 @@ namespace MeasureControl.Simulations.A_C_6_5_1_1
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
 
-        private static readonly byte[] TestCommand8 = { 0x04, 0x01, 0x01, 0x02, 0xAA, 0xAA, 0xAA, 0xAA };
-        private static readonly byte[] TestData4 = { 0x7F, 0x00, 0xAA, 0x55 };
+        private static readonly byte[] AbA429Tx0TransmitCommand8 = { 0x04, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] FixedSendData4 = { 0x7F, 0x00, 0xAA, 0x55 };
 
         private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
         private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
@@ -34,6 +34,65 @@ namespace MeasureControl.Simulations.A_C_6_5_1_1
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送: tx={txIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
 
             await SendMultiLabelFrameOnChannelAsync(txIndex, BenchTxFragmentLabels, command8, log, token);
+        }
+
+        public async Task<byte[]> WaitBenchData4Async(string benchRxChannel, byte label0, byte label1, int timeoutMs, Action<string> log, CancellationToken token)
+        {
+            if (!_started || _arincDriver == null)
+                throw new InvalidOperationException("Simulation not started");
+
+            int rxIndex = ParseChannelIndex(benchRxChannel);
+            var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
+
+            ushort? part0 = null;
+            ushort? part1 = null;
+            var firstSeen = DateTime.UtcNow;
+            var assemblyTimeout = TimeSpan.FromMilliseconds(200);
+
+            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
+            {
+                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
+                if (list != null && list.Count > 0)
+                {
+                    foreach (var item in list)
+                    {
+                        if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
+                            continue;
+
+                        if ((DateTime.UtcNow - firstSeen) > assemblyTimeout)
+                        {
+                            part0 = null;
+                            part1 = null;
+                            firstSeen = DateTime.UtcNow;
+                        }
+
+                        if (rxLabel == label0)
+                        {
+                            part0 = payload;
+                        }
+                        else if (rxLabel == label1)
+                        {
+                            part1 = payload;
+                        }
+
+                        if (part0.HasValue && part1.HasValue)
+                        {
+                            var b = new byte[4];
+                            b[0] = (byte)((part0.Value >> 8) & 0xFF);
+                            b[1] = (byte)(part0.Value & 0xFF);
+                            b[2] = (byte)((part1.Value >> 8) & 0xFF);
+                            b[3] = (byte)(part1.Value & 0xFF);
+
+                            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 4字节拼包完成 labels=0x{label0:X2}/0x{label1:X2} data4={FormatBytes(b)}");
+                            return b;
+                        }
+                    }
+                }
+
+                await Task.Delay(10, token);
+            }
+
+            return null;
         }
 
         public async Task<byte[]> WaitBenchResponse8Async(string benchRxChannel, Func<byte[], bool> isExpected, int timeoutMs, Action<string> log, CancellationToken token)
@@ -184,14 +243,11 @@ namespace MeasureControl.Simulations.A_C_6_5_1_1
                                         log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP -> 回复OK");
                                         await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, ExitAtpOk8, log, token);
                                     }
-                                    else if (cmd8.SequenceEqual(TestCommand8))
+                                    else if (cmd8.SequenceEqual(AbA429Tx0TransmitCommand8))
                                     {
-                                        log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到测试命令 -> 回复确认并发送数据");
-                                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, TestCommand8, log, token);
-
+                                        log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到AB_A429TX0_TRANSMIT -> 发送LABEL50/51测试信息");
                                         await Task.Delay(30, token);
-
-                                        await SendTwoFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels[0], ProductTxFragmentLabels[1], TestData4, log, token);
+                                        await SendTwoFrameOnChannelAsync(SimProductTxChannelIndex, 0x50, 0x51, FixedSendData4, log, token);
                                     }
                                 }
                             }

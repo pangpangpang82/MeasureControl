@@ -13,14 +13,16 @@ using Prism.Events;
 using Prism.Mvvm;
 using Prism.Regions;
 using System.Windows;
+using System.Threading.Tasks;
 
 namespace MeasureControl.ViewModels.SingleBoardTest
 {
-    public class BoardTestViewModel : BindableBase, INavigationAware
+    public class BoardTestViewModel : BindableBase, INavigationAware, IConfirmNavigationRequest, ICloseGuard
     {
         private readonly IEventAggregator _eventAggregator;
         private readonly MeasureControl.Services.ISingleBoardTestContextService _singleBoardTestContext;
         private const string CommonBoardTypeKey = "Common";
+        private bool _isStoppingCurrentTest;
 
         private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, Func<UserControl>>> TestItemViewFactoriesByBoardType =
             new Dictionary<string, IReadOnlyDictionary<string, Func<UserControl>>>(StringComparer.OrdinalIgnoreCase)
@@ -29,17 +31,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     "空气单板",
                     new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
                     {
-                        { "电源对地阻抗检查", () => new PowerToGroundImpedanceTestView() },
-                        { "控制通道光耦供电测试", () => new AC_6_4CommTabView() },
-                        { "控制通道GND/OC离散输入通道输入测试", () => new GndOcDiscreteInputTestView() },
-                        { "GND/OC型100mA离散输出通道3输出测试", () => new GndOcDiscreteOutputCh3TestView() },
-                        { "GND/OC型100mA离散输出通道2输出测试", () => new GndOcDiscreteOutputCh2TestView() },
-                        { "A控制通道28V/OC型100mA离散输出通道1输出测试", () => new A28vOc100mADiscreteOutputCh1TestView() },
-                        { "A控制通道28V/OC型100mA离散输出通道2输出测试", () => new A28vOc100mADiscreteOutputCh2TestView() },
-                        { "A控制通道28V/OC型400mA离散输出通道1输出测试", () => new A28vOc400mADiscreteOutputCh1TestView() },
-                        { "A控制通道28V/OC型400mA离散输出通道2输出测试", () => new A28vOc400mADiscreteOutputCh2TestView() },
-                        { "A控制通道28V/OC型400mA离散输出通道3输出测试", () => new A28vOc400mADiscreteOutputCh3TestView() },
-                        { "PT500型温度传感器测试", () => new PT500TemperatureSensorCommTabView() },
+                        { "6.1电源对地阻抗检查", () => new PowerToGroundImpedanceTestView() },
+                        { "8.1电源对地阻抗测试", () => new A_C_8_1View() },
+                        { "7.1功率板电源对地阻抗测试", () => new A_C_7_1View() },
+                        { "6.4控制通道光耦供电测试", () => new AC_6_4CommTabView() },
+                        { "6.14.1控制通道GND/OC离散输入通道输入测试", () => new GndOcDiscreteInputTestView() },
+                        { "6.15.1.1GND/OC型离散输出通道3输出测试", () => new GndOcDiscreteOutputCh3TestView() },
+                        { "6.15.1.2GND/OC型100mA离散输出通道2输出测试", () => new GndOcDiscreteOutputCh2TestView() },
+                        { "6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试", () => new A28vOc100mADiscreteOutputCh1TestView() },
+                        { "6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试", () => new A28vOc100mADiscreteOutputCh2TestView() },
+                        { "6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试", () => new A28vOc400mADiscreteOutputCh1TestView() },
+                        { "6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试", () => new A28vOc400mADiscreteOutputCh2TestView() },
+                        { "6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试", () => new A28vOc400mADiscreteOutputCh3TestView() },
+                        { "6.8.1控制通道PDTS传感器测试", () => new PT500TemperatureSensorCommTabView() },
                         { "6.8.2控制通道MIXTS传感器测试", () => new R_6_8_2View() },
                         { "6.8.3控制通道CAR_TS传感器测试", () => new R_6_8_3View() },
                         { "6.8.4控制通道CKPT_DTS传感器测试", () => new R_6_8_4View() },
@@ -53,17 +57,62 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "6.5.2.1A控制通道ARINC接收通道1测试", () => new A_C_6_5_2_1View() },
                         { "6.5.2.2A控制通道ARINC接收通道2测试", () => new A_C_6_5_2_2View() },
                         { "6.5.2.3A控制通道ARINC接收通道3测试", () => new A_C_6_5_2_3View() },
+                        { "6.5.2.4A控制通道ARINC接收通道4测试", () => new A_C_6_5_2_4View() },
+                        { "6.5.2.5A控制通道ARINC接收通道5测试", () => new A_C_6_5_2_5View() },
                         { "6.5.2.6A控制通道ARINC接收通道6测试", () => new A_C_6_5_2_6View() },
                         { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
-                        { "8.3.2 S安全通道ARINC429接收通道1测试", () => new S_C_8_3_2View() },
-                        { "8.3.3 S安全通道ARINC429接收通道2测试", () => new S_C_8_3_3View() },
+                        { "7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试", () => new A_C_7_3_1_1_2View() },
+                        { "7.3.1.2 A控制通道功率板RATA直流电机驱动模块速度控制测试", () => new A_C_7_3_1_2View() },
+                        { "7.3.1.3 A控制通道功率板RATA直流电机驱动模块方向控制测试", () => new A_C_7_3_1_3View() },
+                        { "7.3.2.1 A控制通道功率板AVV直流电机驱动模块供电测试", () => new A_C_7_3_2_1View() },
+                        { "7.3.2.2 A控制通道功率板AVV直流电机驱动模块速度控制测试", () => new A_C_7_3_2_2View() },
+                        { "7.3.3.1B控制通道功率板RAIA直流电机驱动模块供电测试", () => new A_C_7_3_3_1View() },
+                        { "7.3.4.1B控制通道功率板CBV直流电机驱动模块供电电流测试", () => new A_C_7_3_4_1View() },
+                        { "7.3.3.2 B控制通道PWM/FPGA速度控制测试", () => new B_C_7_3_3_2View() },
+                        { "7.4.1.1A控制通道功率板TCV步进电机驱动模块输出测试", () => new A_C_7_4_1_1View() },
+                        { "7.4.2.1A控制通道功率板驾驶舱TAV步进电机驱动模块输出测试", () => new A_C_7_4_2_1View() },
+                        { "7.4.3.1A控制通道功率板前后客舱TAV步进电机驱动模块输出测试", () => new A_C_7_4_3_1View() },
+                        { "7.4.4.1A控制通道功率板前货舱TAV步进电机驱动模块供电电流测试", () => new A_C_7_4_4_1View() },
+                        { "7.4.5.1B控制通道功率板TCV步进电机驱动模块输出测试", () => new B_C_7_4_5_1View() },
+                        { "7.4.6.1B控制通道功率板驾驶舱TAV步进电机驱动模块输出测试", () => new B_C_7_4_6_1View() },
+                        { "7.4.7.1B控制通道功率板前后客舱TAV步进电机驱动模块输出测试", () => new B_C_7_4_7_1View() },
+                        { "7.4.8.1B控制通道功率板前货舱TAV步进电机驱动模块供电电流测试", () => new B_C_7_4_8_1View() },
+                        { "7.4.1.2 A控制通道功率板TCV步进电机驱动模块方向测试", () => new A_C_7_4_1_2View() },
+                        { "7.4.2.2 A控制通道功率板驾驶舱TAV步进电机驱动模块方向测试", () => new A_C_7_4_2_2View() },
+                        { "7.4.3.2 A控制通道功率板前后客舱TAV步进电机驱动模块方向测试", () => new A_C_7_4_3_2View() },
+                        { "7.4.4.2 A控制通道功率板前货舱TAV步进电机驱动模块方向测试", () => new A_C_7_4_4_2View() },
+                        { "7.4.5.2 B控制通道功率板TCV步进电机驱动模块方向测试", () => new B_C_7_4_5_2View() },
+                        { "7.4.6.2 B控制通道功率板驾驶舱TAV步进电机驱动模块方向测试", () => new B_C_7_4_6_2View() },
+                        { "7.4.7.2 B控制通道功率板前后客舱TAV步进电机驱动模块方向测试", () => new B_C_7_4_7_2View() },
+                        { "7.4.8.2 B控制通道功率板前货舱TAV步进电机驱动模块方向测试", () => new B_C_7_4_8_2View() },
+                        { "7.5.1.1 A控制通道功率板FAV力矩电机驱动测试", () => new A_C_7_5_1_1_2View() },
+                        { "7.5.2.1 A控制通道功率板PRSOV力矩电机驱动测试", () => new A_C_7_5_2_1View() },
+                        { "7.5.3.1 A控制通道功率板FCV力矩电机驱动测试", () => new A_C_7_5_3_1View() },
+                        { "7.5.4.1 A控制通道功率板WAIV力矩电机驱动测试", () => new A_C_7_5_4_1View() },
+                        { "7.5.5.1 B控制通道功率板FAV力矩电机驱动测试", () => new B_C_7_5_5_1View() },
+                        { "7.5.6.1 B控制通道功率板PRSOV力矩电机驱动测试", () => new B_C_7_5_6_1View() },
+                        { "7.5.7.1 B控制通道功率板FCV力矩电机驱动测试", () => new B_C_7_5_7_1View() },
+                        { "7.5.8.1 B控制通道功率板WAIV力矩电机驱动测试", () => new A_C_7_5_8_1View() },
                         { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
+                        { "6.2.1A控制通道供电测试", () => new AirSimpleSequenceView("6.2.1A控制通道供电测试") },
                         { "5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
+                        { "6.3 5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
                         { "A控制通道功率板供电测试", () => new PowerBoardSupplyTestView("A", "A控制通道功率板供电测试") },
+                        { "7.2.1A控制通道功率板供电测试", () => new PowerBoardSupplyTestView("A", "7.2.1A控制通道功率板供电测试") },
                         { "B控制通道功率板供电测试", () => new PowerBoardSupplyTestView("B", "B控制通道功率板供电测试") },
+                        { "7.2.2B控制通道功率板供电测试", () => new PowerBoardSupplyTestView("B", "7.2.2B控制通道功率板供电测试") },
                         { "CAN发送测试", () => new CanCommTestView() },
+                        { "6.6.1CAN发送测试", () => new CanCommTestView() },
                         { "CAN接收测试", () => new CanReceiveTestView() },
+                        { "6.6.2CAN接收测试", () => new CanReceiveTestView() },
                         { "安全板CAN测试", () => new AirSimpleSequenceView("安全板CAN测试") },
+                        { "8.5.1安全通道CAN发送测试", () => new S_C_8_5_1View() },
+                        { "8.5.2安全通道CAN接收测试", () => new S_C_8_5_2View() },
+                        { "8.6.1 S安全通道WAITS1传感器测试", () => new S_C_8_6_1View() },
+                        { "8.6.2 S安全通道WAITS2传感器测试", () => new S_C_8_6_2View() },
+                        { "8.7.1S安全通道FWD_AVENTS1传感器测试", () => new S_C_8_7_1View() },
+                        { "8.7.2S安全通道FWD_AVENTS2传感器测试", () => new S_C_8_7_2View() },
+                        { "8.7.3S安全通道AFT_AVENTS传感器测试", () => new S_C_8_7_3View() },
                         { "RS422通信测试", () => new RS422CommTabView() },
                         { "控制通道422发送测试", () => new RS422Control422TransmitTestView() },
                         { "控制通道422接收测试", () => new RS422Control422ReceiveTestView() },
@@ -72,6 +121,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "6.9.2控制通道CAB_VENTS传感器测试", () => new A_C_6_9_2_1View() },
                         { "6.10.1控制通道BMPS压力传感器测试", () => new A_C_6_10_1_1View() },
                         { "6.10.2A控制通道BPS传感器测试", () => new A_C_6_10_2_1View() },
+                        { "6.10.3控制通道WAIPSI1传感器测试", () => new A_C_6_10_3_1View() },
+                        { "6.10.4控制通道WAIPSI2传感器测试", () => new A_C_6_10_4_1View() },
+                        { "6.10.5控制通道PDPS传感器测试", () => new A_C_6_10_5_1View() },
+                        { "6.10.6A控制通道PIFS传感器测试", () => new A_C_6_10_6_1View() },
                         { "6.13.1控制通道压力传感器采集测试", () => new A_C_6_13_1_1View() },
                         { "6.13.2 S安全通道压力传感器测试", () => new S_C_6_13_2_1View() },
                         { "6.10.7控制通道RAIA_POS传感器测试", () => new A_C_6_10_7_1View() },
@@ -159,10 +212,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     {
                         { "电源阻抗测试", "\t a) 阻抗值大于500Ω；\r\n \t b) 阻抗值大于500Ω。" },
                         { "二次电源测试", "\t a) 5V隔离二次电源输出电压范围在[4.925，5.075]V；\r\n \t b) 15V隔离二次电源输出电压范围在[14.775，15.225]V；\r\n \t c) -15V隔离二次电源输出电压范围在[-14.775，-15.225]V。" },
-                        { "温度采集测试", "\t a) 阻值为763.3±2.0Ω，温度值在[-66.6,-53.4]°C;\r\n \t b) 阻值为763.3±2.0Ω，温度值在[193.4,206.6]°C;\r\n \t c) 阻值为763.3±2.0Ω，温度值在[32.4,46.6]°C。" },
-                        { "压力传感器信号采集测试", "\t a) 电压供电0.5±0.0717，压力值在[0,3.4]Psia;\r\n \t b) 电压供电7.17±0.0717V，压力值在[3915,4000]Psia;\r\n \t c) 电压供电3.0±0.0717V，压差力在[1414,1585]Psia。" },
-                        { "压差传感器信号采集测试", "\t a) 电流供电4±0.2mA，压力值在[0,85]Psid;\r\n \t b) 电流供电20±0.2mA，压力值在[121.5,128.4]Psid;\r\n \t c) 电流供电10±0.2mA，压力值在[43.44,50.31]Psid。" },
-                        { "油量传感器信号采集测试", "\t a);\r\n \t b);\r\n \t c)。" },
+                        { "温度采集测试", "\t a) 阻值为763.3±2.0Ω，温度值在[-66.6,-53.4]°C;\r\n \t b) 阻值为1758.6±2.0Ω，温度值在[193.4,206.6]°C;\r\n \t c) 阻值为1155.4±2.0Ω，温度值在[32.4,46.6]°C。" },
+                        { "压力传感器信号采集测试", "\t a) 电压供电0.5±0.0717，压力值在[0,85]Psia;\r\n \t b) 电压供电7.17±0.0717V，压力值在[3915,4000]Psia;\r\n \t c) 电压供电3.0±0.0717V，压差力在[1414,1585]Psia。" },
+                        { "压差传感器信号采集测试", "\t a) 电流供电4±0.2mA，压力值在[0,3.4]Psid;\r\n \t b) 电流供电20±0.2mA，压力值在[121.5,128.4]Psid;\r\n \t c) 电流供电10±0.2mA，压力值在[43.44,50.31]Psid。" },
+                        { "油量传感器信号采集测试", "\t a) 31-32/33-34针脚采集信号频率3200±32Hz，电压有效值6±1Vrms;\r\n \t b)2/3号系统油量处于范围内。\r\n \t " },
                         { "离散量采集测试", "\t 采集结果均为1。" },
                         { "离散量输出测试", "\t a) 置为开路时，针脚9~15对地阻抗均大于100kΩ;\r\n \t b) 置为通路时，针脚9~15对地阻抗均小于10Ω。" },
                     }
@@ -209,16 +262,72 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     "空气单板",
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
-                        { "电源对地阻抗检查", "\t 电源的对地阻抗应不小于200Ω。" },
-                        { "A控制通道28V/OC型100mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
-                        { "A控制通道28V/OC型100mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
-                        { "A控制通道28V/OC型400mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
-                        { "A控制通道28V/OC型400mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
-                        { "A控制通道28V/OC型400mA离散输出通道3输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
-                        { "6.13.1控制通道压力传感器采集测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1095.21,1104.79]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1496.21,1504.79]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1995.21,2004.79]mbar。" },
-                        { "6.13.2 S安全通道压力传感器测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1082,1118]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1482,1518]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1982,2018]mbar。" },
+                        { "6.1电源对地阻抗检查", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "8.1电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "7.1功率板电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试", "\t a) 接入50±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS；\r\n\t b) 接入12±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS。" },
+                        { "7.3.2.1 A控制通道功率板AVV直流电机驱动模块供电测试", "\t a) 接入50±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS；\r\n\t b) 接入12±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS。" },
+                        { "7.3.3.1B控制通道功率板RAIA直流电机驱动模块供电测试", "\t a) 接入50±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS；\r\n\t b) 接入12±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS。" },
+                        { "7.3.4.1B控制通道功率板CBV直流电机驱动模块供电电流测试", "\t a) 接入50±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS；\r\n\t b) 接入12±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS。" },
+                        { "7.4.1.1A控制通道功率板TCV步进电机驱动模块输出测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J96与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.2.1A控制通道功率板驾驶舱TAV步进电机驱动模块输出测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J33与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.3.1A控制通道功率板前后客舱TAV步进电机驱动模块输出测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J158与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.4.1A控制通道功率板前货舱TAV步进电机驱动模块供电电流测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J221与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.5.1B控制通道功率板TCV步进电机驱动模块输出测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J96与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.6.1B控制通道功率板驾驶舱TAV步进电机驱动模块输出测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J33与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.7.1B控制通道功率板前后客舱TAV步进电机驱动模块输出测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J158与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.8.1B控制通道功率板前货舱TAV步进电机驱动模块供电电流测试", "\t a) 输出端接入50±1Ω负载；\r\n\t b) 发送测试指令，使步进电机驱动芯片 STEP 引脚输入1000Hz频率脉冲；\r\n\t c) 检测J221与J27之间输出波形；\r\n\t d) 示波器显示频率(1000/4±1)Hz 的方波波形为PASS。" },
+                        { "7.4.1.2 A控制通道功率板TCV步进电机驱动模块方向测试", "\t a) 发送DIR高电平指令(0A 55 02 07 05)；\r\n\t b) 检测J96(第一相)与J98(第二相)输出波形并判断相位差；\r\n\t c) 发送DIR低电平指令(0A 55 02 07 0D)；\r\n\t d) 检测J96(第一相)与J98(第二相)输出波形并判断相位差；\r\n\t e) DIR高电平：J98相位落后J96约90°±20°为PASS；DIR低电平：J98相位落后J96约270°±20°为PASS。" },
+                        { "7.4.2.2 A控制通道功率板驾驶舱TAV步进电机驱动模块方向测试", "\t a) 发送DIR高电平指令(0A 55 02 07 05)；\r\n\t b) 检测J33(第一相)与J35(第二相)输出波形并判断相位差；\r\n\t c) 发送DIR低电平指令(0A 55 02 07 0D)；\r\n\t d) 检测J33(第一相)与J35(第二相)输出波形并判断相位差；\r\n\t e) DIR高电平：J35相位落后J33约90°±20°为PASS；DIR低电平：J35相位落后J33约270°±20°为PASS。" },
+                        { "7.4.3.2 A控制通道功率板前后客舱TAV步进电机驱动模块方向测试", "\t a) 发送DIR高电平指令(0A 55 02 07 05)；\r\n\t b) 检测J158(第一相)与J160(第二相)输出波形并判断相位差；\r\n\t c) 发送DIR低电平指令(0A 55 02 07 0D)；\r\n\t d) 检测J158(第一相)与J160(第二相)输出波形并判断相位差；\r\n\t e) DIR高电平：J160相位落后J158约90°±20°为PASS；DIR低电平：J160相位落后J158约270°±20°为PASS。" },
+                        { "7.4.4.2 A控制通道功率板前货舱TAV步进电机驱动模块方向测试", "\t a) 发送DIR高电平指令(0A 55 02 07 05)；\r\n\t b) 检测J221(第一相)与J223(第二相)输出波形并判断相位差；\r\n\t c) 发送DIR低电平指令(0A 55 02 07 0D)；\r\n\t d) 检测J221(第一相)与J223(第二相)输出波形并判断相位差；\r\n\t e) DIR高电平：J223相位落后J221约90°±20°为PASS；DIR低电平：J223相位落后J221约270°±20°为PASS。" },
+                        { "7.4.5.2 B控制通道功率板TCV步进电机驱动模块方向测试", "\t a) 发送DIR高电平指令(0A 55 02 07 05)；\r\n\t b) 检测J96(第一相)与J98(第二相)输出波形并判断相位差；\r\n\t c) 发送DIR低电平指令(0A 55 02 07 0D)；\r\n\t d) 检测J96(第一相)与J98(第二相)输出波形并判断相位差；\r\n\t e) DIR高电平：J98相位落后J96约90°±20°为PASS；DIR低电平：J98相位落后J96约270°±20°为PASS。" },
+                        { "7.4.6.2 B控制通道功率板驾驶舱TAV步进电机驱动模块方向测试", "\t a) 发送DIR高电平指令(0A 55 02 07 05)；\r\n\t b) 检测J33(第一相)与J35(第二相)输出波形并判断相位差；\r\n\t c) 发送DIR低电平指令(0A 55 02 07 0D)；\r\n\t d) 检测J33(第一相)与J35(第二相)输出波形并判断相位差；\r\n\t e) DIR高电平：J35相位落后J33约90°±20°为PASS；DIR低电平：J35相位落后J33约270°±20°为PASS。" },
+                        { "7.4.7.2 B控制通道功率板前后客舱TAV步进电机驱动模块方向测试", "\t a) 发送DIR高电平指令(0A 55 02 07 05)；\r\n\t b) 检测J158(第一相)与J160(第二相)输出波形并判断相位差；\r\n\t c) 发送DIR低电平指令(0A 55 02 07 0D)；\r\n\t d) 检测J158(第一相)与J160(第二相)输出波形并判断相位差；\r\n\t e) DIR高电平：J160相位落后J158约90°±20°为PASS；DIR低电平：J160相位落后J158约270°±20°为PASS。" },
+                        { "7.4.8.2 B控制通道功率板前货舱TAV步进电机驱动模块方向测试", "\t a) 发送DIR高电平指令(0A 55 02 07 05)；\r\n\t b) 检测J221(第一相)与J223(第二相)输出波形并判断相位差；\r\n\t c) 发送DIR低电平指令(0A 55 02 07 0D)；\r\n\t d) 检测J221(第一相)与J223(第二相)输出波形并判断相位差；\r\n\t e) DIR高电平：J223相位落后J221约90°±20°为PASS；DIR低电平：J223相位落后J221约270°±20°为PASS。" },
+                        { "7.5.1.1 A控制通道功率板FAV力矩电机驱动测试", "\t a) 电流设定0mA：DMM测量电压在[0.0，0.41]V且电流回采在[0.0，0.03]A为PASS；\r\n\t b) 电流设定400mA：DMM测量电压在[15.21，16.81]V且电流回采在[0.37，0.43]A为PASS。" },
+                        { "7.5.2.1 A控制通道功率板PRSOV力矩电机驱动测试", "\t a) 电流设定0mA：DMM测量电压在[0.0，0.41]V且电流回采在[0.0，0.03]A为PASS；\r\n\t b) 电流设定400mA：DMM测量电压在[15.21，16.81]V且电流回采在[0.37，0.43]A为PASS。" },
+                        { "7.5.5.1 B控制通道功率板FAV力矩电机驱动测试", "\t a) 电流设定0mA：DMM测量电压在[0.0，0.41]V且电流回采在[0.0，0.03]A为PASS；\r\n\t b) 电流设定400mA：DMM测量电压在[15.21，16.81]V且电流回采在[0.37，0.43]A为PASS。" },
+                        { "7.5.6.1 B控制通道功率板PRSOV力矩电机驱动测试", "\t a) 电流设定0mA：DMM测量电压在[0.0，0.41]V且电流回采在[0.0，0.03]A为PASS；\r\n\t b) 电流设定400mA：DMM测量电压在[15.21，16.81]V且电流回采在[0.37，0.43]A为PASS。" },
+                        { "7.5.3.1 A控制通道功率板FCV力矩电机驱动测试", "\t a) 电流设定0mA：DMM测量电压在[0.0，0.41]V且电流回采在[0.0，0.023]A为PASS；\r\n\t b) 电流设定250mA：DMM测量电压在[9.36，10.66]V且电流回采在[0.227，0.273]A为PASS。" },
+                        { "7.5.4.1 A控制通道功率板WAIV力矩电机驱动测试", "\t a) 电流设定0mA：DMM测量电压在[0.0，0.41]V且电流回采在[0.0，0.023]A为PASS；\r\n\t b) 电流设定250mA：DMM测量电压在[9.36，10.66]V且电流回采在[0.227，0.273]A为PASS。" },
+                        { "7.5.7.1 B控制通道功率板FCV力矩电机驱动测试", "\t a) 电流设定0mA：DMM测量电压在[0.0，0.41]V且电流回采在[0.0，0.023]A为PASS；\r\n\t b) 电流设定250mA：DMM测量电压在[9.36，10.66]V且电流回采在[0.227，0.273]A为PASS。" },
+                        { "7.5.8.1 B控制通道功率板WAIV力矩电机驱动测试", "\t a) 电流设定0mA：DMM测量电压在[0.0，0.41]V且电流回采在[0.0，0.023]A为PASS；\r\n\t b) 电流设定250mA：DMM测量电压在[9.36，10.66]V且电流回采在[0.227，0.273]A为PASS。" },
+                        { "6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "8.5.1安全通道CAN发送测试", "\t 上位机显示\"01010101\"（对应CAN帧后4字节为01 01 01 01）则检查通过。" },
+                        { "8.5.2安全通道CAN接收测试", "\t 上位机显示\"01010101\"则检查通过。" },
+                        { "8.6.1 S安全通道WAITS1传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电阻：351.65Ω、550.0Ω、693.53Ω；\r\n\t b) 发送测试指令（15 01 01 01 00 00 00 00）；\r\n\t c) 1挡温度范围[-77.05, -72.95]℃(10~50℃环境)或[-79.05, -70.95]℃；\r\n\t   2挡温度范围[23.63, 27.73]℃(10~50℃环境)或[21.63, 29.73]℃；\r\n\t   3挡温度范围[97.95, 102.05]℃(10~50℃环境)或[95.95, 104.05]℃。" },
+                        { "8.6.2 S安全通道WAITS2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电阻：351.65Ω、550.0Ω、693.53Ω；\r\n\t b) 发送测试指令（15 01 02 01 00 00 00 00）；\r\n\t c) 1挡温度范围[-77.05, -72.95]℃(10~50℃环境)或[-79.05, -70.95]℃；\r\n\t   2挡温度范围[23.63, 27.73]℃(10~50℃环境)或[21.63, 29.73]℃；\r\n\t   3挡温度范围[97.95, 102.05]℃(10~50℃环境)或[95.95, 104.05]℃。" },
+                        { "8.7.1S安全通道FWD_AVENTS1传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t b) 每挡发送S_FWDAVENTS_MEA01(15 02 01 01 00 00 00 00)，接收温度遥测(15 02 01 02 .. .. .. ..)；\r\n\t c) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                        { "8.7.2S安全通道FWD_AVENTS2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t b) 每挡发送S_FWDAVENTS_MEA02(15 02 02 01 00 00 00 00)，接收温度遥测(15 02 02 02 .. .. .. ..)；\r\n\t c) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                        { "8.7.3S安全通道AFT_AVENTS传感器测试", "\t a) 测试J55、J56；\r\n\t b) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t c) 每挡发送S_AFTAVENTS_MEA(15 02 03 01 00 00 00 00)，接收温度遥测(15 02 03 02 .. .. .. ..)；\r\n\t d) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                        { "6.10.4控制通道WAIPSI2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：0.25V、5.00V、9.75V；\r\n\t b) 每挡发送压力测试指令(07 03 04 01 00 00 00 00)，接收压力遥测(07 03 04 02 .. .. .. ..)；\r\n\t c) 1挡压力范围[-3.7473, -1.5305]psia，2挡[46.3916, 48.6084]psia，3挡[96.5305, 98.7473]psia。" },
                     }
                 }
+            };
+
+        private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> NotesByBoardType =
+            new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                {
+                    "液压单板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        {
+                            "温度采集测试",
+                            ""
+                        },
+                        {
+                            "压差传感器信号采集测试",
+                            ""
+                        },
+                        {
+                            "离散量采集测试",
+                            ""
+                        },
+
+                    }
+                },
             };
 
         private string _testTaskName;
@@ -228,6 +337,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         private object _rightPanelContent;
         private TestSequenceItem _selectedTestItem;
         private string _selectedTestCriteriaText;
+        private string _selectedTestNotesText;
+
+        /// <summary>右侧"操作步骤"面板标题</summary>
+        public string TestNotesTitle => "注意事项";
+
+        /// <summary>右侧"操作步骤"内容，随左侧选中测试项联动更新</summary>
+        public string SelectedTestNotesText
+        {
+            get => _selectedTestNotesText;
+            private set => SetProperty(ref _selectedTestNotesText, value);
+        }
 
         private readonly HashSet<string> _navigationLockSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -296,6 +416,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     catch
                     {
                     }
+
+                    RaisePropertyChanged(nameof(SelectedTestItem));
+                    return;
+                }
+
+                if (_isStoppingCurrentTest)
+                {
+                    RaisePropertyChanged(nameof(SelectedTestItem));
+                    return;
+                }
+
+                if (!ReferenceEquals(value, _selectedTestItem) && _selectedTestItem != null && IsCurrentTestRunning())
+                {
+                    var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                    if (result != System.Windows.MessageBoxResult.Yes)
+                    {
+                        RaisePropertyChanged(nameof(SelectedTestItem));
+                        return;
+                    }
+
+                    _ = StopCurrentTestAndContinueAsync(
+                        onCompleted: () => SelectedTestItem = value,
+                        onFailed: () => RaisePropertyChanged(nameof(SelectedTestItem)));
                     RaisePropertyChanged(nameof(SelectedTestItem));
                     return;
                 }
@@ -306,10 +449,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     {
                         RightPanelContent = null;
                         SelectedTestCriteriaText = string.Empty;
+                        SelectedTestNotesText = string.Empty;
                         return;
                     }
 
                     SelectedTestCriteriaText = ResolveCriteriaText(BoardType, value.Name);
+                    SelectedTestNotesText = ResolveNotesText(BoardType, value.Name);
 
                     if (TryGetViewFactory(BoardType, value.Name, out var viewFactory))
                     {
@@ -355,8 +500,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             TestTaskName = parameters?.GetValue<string>("TestTaskName") ?? string.Empty;
             BoardType = parameters?.GetValue<string>("BoardType") ?? string.Empty;
             ParentChassisName = parameters?.GetValue<string>("ParentChassisName")
-                                ?? parameters?.GetValue<string>("ChassisName")
-                                ?? string.Empty;
+                             ?? parameters?.GetValue<string>("ChassisName")
+                             ?? string.Empty;
 
             var instanceId = string.IsNullOrWhiteSpace(ParentChassisName) ? TestTaskName : $"{ParentChassisName}-{TestTaskName}";
             PageKey = string.IsNullOrWhiteSpace(instanceId) ? "BoardTest" : $"BoardTest_{instanceId}";
@@ -365,6 +510,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
             LoadFixedTestItems(BoardType);
 
+            // ── FIX：直接赋值触发 setter，setter 内部会同时更新判据与操作步骤 ──
+            // 原代码末尾多余的 SelectedTestNotesText = ResolveNotesText(BoardType, value.Name)
+            // 已删除（value 在此方法中未定义，是编译错误的根源）
             SelectedTestItem = TestSequenceItems.FirstOrDefault();
         }
 
@@ -375,6 +523,186 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
         public void OnNavigatedFrom(NavigationContext navigationContext)
         {
+        }
+
+        public void ConfirmNavigationRequest(NavigationContext navigationContext, Action<bool> continuationCallback)
+        {
+            if (continuationCallback == null)
+            {
+                return;
+            }
+
+            if (IsCurrentTestRunning())
+            {
+                var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                if (result != System.Windows.MessageBoxResult.Yes)
+                {
+                    continuationCallback(false);
+                    return;
+                }
+
+                _ = StopCurrentTestAndContinueAsync(
+                    onCompleted: () => continuationCallback(true),
+                    onFailed: () => continuationCallback(false));
+                return;
+            }
+
+            continuationCallback(true);
+        }
+
+        public bool CanClose()
+        {
+            if (IsCurrentTestRunning())
+            {
+                var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并关闭窗口？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                if (result != System.Windows.MessageBoxResult.Yes)
+                {
+                    return false;
+                }
+
+                _ = StopCurrentTestAndContinueAsync(onCompleted: null, onFailed: null);
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool IsCurrentTestRunning()
+        {
+            if (RightPanelContent is not System.Windows.FrameworkElement element)
+            {
+                return false;
+            }
+
+            var dc = element.DataContext;
+            if (dc == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                var type = dc.GetType();
+                var pManual = type.GetProperty("IsManualTestRunning");
+                var pAuto = type.GetProperty("IsAutoTestRunning");
+
+                var manual = pManual?.PropertyType == typeof(bool) && (bool)(pManual.GetValue(dc) ?? false);
+                var auto = pAuto?.PropertyType == typeof(bool) && (bool)(pAuto.GetValue(dc) ?? false);
+
+                return manual || auto;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<bool> TryStopCurrentTestAsync()
+        {
+            if (RightPanelContent is not System.Windows.FrameworkElement element)
+            {
+                return true;
+            }
+
+            var dc = element.DataContext;
+            if (dc == null)
+            {
+                return true;
+            }
+
+            try
+            {
+                var type = dc.GetType();
+                var pManual = type.GetProperty("IsManualTestRunning");
+                var pAuto = type.GetProperty("IsAutoTestRunning");
+
+                var manual = pManual?.PropertyType == typeof(bool) && (bool)(pManual.GetValue(dc) ?? false);
+                var auto = pAuto?.PropertyType == typeof(bool) && (bool)(pAuto.GetValue(dc) ?? false);
+
+                if (manual)
+                {
+                    return await InvokeStopMethodAsync(dc, "StopManualTestAsync").ConfigureAwait(false);
+                }
+
+                if (auto)
+                {
+                    return await InvokeStopMethodAsync(dc, "StopAutoTestAsync").ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private async Task StopCurrentTestAndContinueAsync(Action onCompleted, Action onFailed)
+        {
+            if (_isStoppingCurrentTest)
+            {
+                onFailed?.Invoke();
+                return;
+            }
+
+            _isStoppingCurrentTest = true;
+            try
+            {
+                var stopped = await TryStopCurrentTestAsync().ConfigureAwait(false);
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    _isStoppingCurrentTest = false;
+
+                    if (stopped)
+                    {
+                        onCompleted?.Invoke();
+                        return;
+                    }
+
+                    onFailed?.Invoke();
+                });
+            }
+            catch
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    _isStoppingCurrentTest = false;
+                    onFailed?.Invoke();
+                });
+            }
+            finally
+            {
+                _isStoppingCurrentTest = false;
+            }
+        }
+
+        private static async Task<bool> InvokeStopMethodAsync(object target, string methodName)
+        {
+            if (target == null || string.IsNullOrWhiteSpace(methodName))
+            {
+                return false;
+            }
+
+            try
+            {
+                var method = target.GetType().GetMethod(methodName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                if (method == null)
+                {
+                    return false;
+                }
+
+                var result = method.Invoke(target, null);
+                if (result is System.Threading.Tasks.Task task)
+                {
+                    await task.ConfigureAwait(false);
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static bool TryGetViewFactory(string boardType, string testItemName, out Func<UserControl> viewFactory)
@@ -403,11 +731,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         private static string ResolveCriteriaText(string boardType, string testItemName)
         {
             if (string.IsNullOrWhiteSpace(boardType) || string.IsNullOrWhiteSpace(testItemName))
-            {
                 return string.Empty;
-            }
 
             if (CriteriaTextsByBoardType.TryGetValue(boardType, out var perBoard)
+                && perBoard != null
+                && perBoard.TryGetValue(testItemName, out var text))
+            {
+                return text ?? string.Empty;
+            }
+
+            return string.Empty;
+        }
+
+        private static string ResolveNotesText(string boardType, string testItemName)
+        {
+            if (string.IsNullOrWhiteSpace(boardType) || string.IsNullOrWhiteSpace(testItemName))
+                return string.Empty;
+
+            if (NotesByBoardType.TryGetValue(boardType, out var perBoard)
                 && perBoard != null
                 && perBoard.TryGetValue(testItemName, out var text))
             {
@@ -423,11 +764,44 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
             if (string.Equals(boardType, "空气单板", StringComparison.OrdinalIgnoreCase))
             {
-                TestSequenceItems.Add(new TestSequenceItem("电源对地阻抗检查"));
-                TestSequenceItems.Add(new TestSequenceItem("电源模块测试"));
-                TestSequenceItems.Add(new TestSequenceItem("A控制通道功率板供电测试"));
-                TestSequenceItems.Add(new TestSequenceItem("B控制通道功率板供电测试"));
-                TestSequenceItems.Add(new TestSequenceItem("PT500型温度传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.1电源对地阻抗检查"));
+                TestSequenceItems.Add(new TestSequenceItem("6.2.1A控制通道供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.1功率板电源对地阻抗测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.2.1A控制通道功率板供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.2.2B控制通道功率板供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.1.2 A控制通道功率板RATA直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.1.3 A控制通道功率板RATA直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.2.1 A控制通道功率板AVV直流电机驱动模块供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.2.2 A控制通道功率板AVV直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.3.1B控制通道功率板RAIA直流电机驱动模块供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.4.1B控制通道功率板CBV直流电机驱动模块供电电流测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.3.2 B控制通道PWM/FPGA速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.1.1A控制通道功率板TCV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.2.1A控制通道功率板驾驶舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.3.1A控制通道功率板前后客舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.4.1A控制通道功率板前货舱TAV步进电机驱动模块供电电流测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.5.1B控制通道功率板TCV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.6.1B控制通道功率板驾驶舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.7.1B控制通道功率板前后客舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.8.1B控制通道功率板前货舱TAV步进电机驱动模块供电电流测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.1.2 A控制通道功率板TCV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.2.2 A控制通道功率板驾驶舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.3.2 A控制通道功率板前后客舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.4.2 A控制通道功率板前货舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.5.2 B控制通道功率板TCV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.6.2 B控制通道功率板驾驶舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.7.2 B控制通道功率板前后客舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.8.2 B控制通道功率板前货舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.1.1 A控制通道功率板FAV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.2.1 A控制通道功率板PRSOV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.3.1 A控制通道功率板FCV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.4.1 A控制通道功率板WAIV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.5.1 B控制通道功率板FAV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.6.1 B控制通道功率板PRSOV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.7.1 B控制通道功率板FCV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.8.1 B控制通道功率板WAIV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.8.1控制通道PDTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.2控制通道MIXTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.3控制通道CAR_TS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.4控制通道CKPT_DTS传感器测试"));
@@ -436,18 +810,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.8.7控制通道BTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.8控制通道PTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.9控制通道CDTS传感器测试"));
-                TestSequenceItems.Add(new TestSequenceItem("5V传感器供电电压测试"));
-                TestSequenceItems.Add(new TestSequenceItem("控制通道光耦供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.3 5V传感器供电电压测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.4控制通道光耦供电测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.1.1控制通道ARINC429发送通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.1.2A控制通道ARINC429发送通道2/B控制通道ARINC429接收通道5测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.1A控制通道ARINC接收通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.2A控制通道ARINC接收通道2测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.3A控制通道ARINC接收通道3测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.4A控制通道ARINC接收通道4测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.5A控制通道ARINC接收通道5测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.6A控制通道ARINC接收通道6测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.9.1A控制通道CKPT_VENTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.9.2控制通道CAB_VENTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.1控制通道BMPS压力传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.2A控制通道BPS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.10.3控制通道WAIPSI1传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.10.4控制通道WAIPSI2传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.10.5控制通道PDPS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.10.6A控制通道PIFS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.13.1控制通道压力传感器采集测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.13.2 S安全通道压力传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.7控制通道RAIA_POS传感器测试"));
@@ -469,21 +849,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.18.4.1 A控制通道功率板VAV力矩电机驱动测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.2.1 A控制通道功率板AWV直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.2.2 A控制通道功率板AVV直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.1电源对地阻抗测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.1 S安全通道ARINC429发送通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.2 S安全通道ARINC429接收通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.3 S安全通道ARINC429接收通道2测试"));
-                TestSequenceItems.Add(new TestSequenceItem("控制通道GND/OC离散输入通道输入测试"));
-                TestSequenceItems.Add(new TestSequenceItem("GND/OC型100mA离散输出通道3输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("GND/OC型100mA离散输出通道2输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型100mA离散输出通道1输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型100mA离散输出通道2输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型400mA离散输出通道1输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型400mA离散输出通道2输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("A控制通道28V/OC型400mA离散输出通道3输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("ARINC429通讯测试"));
-                TestSequenceItems.Add(new TestSequenceItem("CAN发送测试"));
-                TestSequenceItems.Add(new TestSequenceItem("CAN接收测试"));
-                TestSequenceItems.Add(new TestSequenceItem("安全板CAN测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.10.1 S通道OFV/TRV直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.14.1控制通道GND/OC离散输入通道输入测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.1.1GND/OC型离散输出通道3输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.1.2GND/OC型100mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.6.1CAN发送测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.6.2CAN接收测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.5.1安全通道CAN发送测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.5.2安全通道CAN接收测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.6.1 S安全通道WAITS1传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.6.2 S安全通道WAITS2传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.7.1S安全通道FWD_AVENTS1传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.7.2S安全通道FWD_AVENTS2传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.7.3S安全通道AFT_AVENTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("RS422通信测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道422发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道422接收测试"));
@@ -540,6 +927,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
         private void OnCloseInRegion()
         {
+            if (IsCurrentTestRunning())
+            {
+                ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
             var result = ReMessageBox.Show("确定要关闭单板测试吗？", "确认", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
             if (result == System.Windows.MessageBoxResult.Yes)
             {

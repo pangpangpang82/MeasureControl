@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -10,19 +10,25 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using MeasureControl.Helpers;
+using MeasureControl.Services.HardwareApis;
 using MeasureControl.Simulations.A_C_6_5_1_1;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public sealed class A_C_6_5_1_1ViewModel : BindableBase, IDisposable
     {
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
+
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
 
-        private static readonly byte[] TestCommand8 = { 0x04, 0x01, 0x01, 0x02, 0xAA, 0xAA, 0xAA, 0xAA };
-        private static readonly byte[] TestData4 = { 0x7F, 0x00, 0xAA, 0x55 };
+        private static readonly byte[] AbA429Tx0TransmitCommand8 = { 0x04, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExpectedData4 = { 0x7F, 0x00, 0xAA, 0x55 };
+        private const byte Label50 = 0x50;
+        private const byte Label51 = 0x51;
 
         private readonly A_C_6_5_1_1Simulation _simulation = new A_C_6_5_1_1Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
@@ -42,7 +48,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _enterAtpRxDataText;
         private string _exitAtpRxDataText;
 
-        private string _rxConfirmText;
         private string _rxDataText;
         private string _lastTestTime;
         private string _lastTestResult;
@@ -59,15 +64,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public A_C_6_5_1_1ViewModel()
         {
-            _testTxChannel = "429_CH0";
-            _testRxChannel = "429_CH1";
+            _testTxChannel = FixedTxChannel;
+            _testRxChannel = FixedRxChannel;
 
             _enterAtpTxChannel = _testTxChannel;
             _enterAtpRxChannel = _testRxChannel;
             _exitAtpTxChannel = _testTxChannel;
             _exitAtpRxChannel = _testRxChannel;
 
-            RxConfirmText = "--";
             RxDataText = "--";
             EnterAtpRxDataText = "--";
             ExitAtpRxDataText = "--";
@@ -98,49 +102,37 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string TestTxChannel
         {
             get => _testTxChannel;
-            set => SetProperty(ref _testTxChannel, value);
         }
 
         public string TestRxChannel
         {
             get => _testRxChannel;
-            set => SetProperty(ref _testRxChannel, value);
         }
 
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
         }
 
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
         }
 
         public double ArincRate
         {
             get => _arincRate;
             set => SetProperty(ref _arincRate, value);
-        }
-
-        public string RxConfirmText
-        {
-            get => _rxConfirmText;
-            private set => SetProperty(ref _rxConfirmText, value);
         }
 
         public string RxDataText
@@ -381,6 +373,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(IComponentPowerStateApi)) as IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         private async Task StartManualTestAsync()
         {
             if (IsBusy)
@@ -396,7 +401,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 try
                 {
                     IsManualTestRunning = true;
-                    RxConfirmText = "--";
                     RxDataText = "--";
                     EnterAtpRxDataText = "--";
                     ExitAtpRxDataText = "--";
@@ -411,6 +415,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：开始打开设备");
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                    }
+                    catch { }
+
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试已启动：可发送测试指令");
                 }
@@ -454,6 +467,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsManualTestRunning = false;
                     IsBusy = false;
                     CurrentStepImage = CreateImageSource("/Resources/Logo/begin.png");
@@ -482,43 +496,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     var token = CancellationToken.None;
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送测试命令：{FormatBytes(TestCommand8)}");
-                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, TestCommand8, msg => AddLog(msg), token);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_A429TX0_TRANSMIT：{FormatBytes(AbA429Tx0TransmitCommand8)}");
+                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbA429Tx0TransmitCommand8, msg => AddLog(msg), token);
 
-                    var confirm = await _simulation.WaitBenchResponse8Async(
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待接收数据(LABEL0x{Label50:X2}/0x{Label51:X2})...");
+                    var data4 = await _simulation.WaitBenchData4Async(
                         TestRxChannel,
-                        b => b != null && b.SequenceEqual(TestCommand8),
-                        timeoutMs: 1000,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (confirm == null)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 未收到确认帧(8字节)");
-                        SetLastTestResult("FAIL");
-                        CurrentStepImage = CreateImageSource("/Resources/Logo/warning.png");
-                        return;
-                    }
-
-                    RxConfirmText = $"0x{FormatBytesHex(confirm)}";
-
-                    var data4 = await _simulation.WaitBenchResponse4Async(
-                        TestRxChannel,
-                        timeoutMs: 1000,
+                        Label50,
+                        Label51,
+                        timeoutMs: 1200,
                         log: msg => AddLog(msg),
                         token: token);
 
                     if (data4 == null)
                     {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 未收到数据帧(4字节)");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 接收数据超时");
                         SetLastTestResult("FAIL");
                         CurrentStepImage = CreateImageSource("/Resources/Logo/warning.png");
                         return;
                     }
 
-                    RxDataText = $"0x{FormatBytesHex(data4)}";
+                    RxDataText = $"{FormatBytesHex(data4)}";
 
-                    bool pass = data4.SequenceEqual(TestData4);
+                    bool pass = data4.SequenceEqual(ExpectedData4);
                     SetLastTestResult(pass ? "PASS" : "FAIL");
                     CurrentStepImage = CreateImageSource(pass ? "/Resources/Logo/over.png" : "/Resources/Logo/warning.png");
 
@@ -555,7 +555,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 try
                 {
                     IsAutoTestRunning = true;
-                    RxConfirmText = "--";
                     RxDataText = "--";
                     EnterAtpRxDataText = "--";
                     ExitAtpRxDataText = "--";
@@ -568,6 +567,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _autoTestCts = new CancellationTokenSource();
 
                     var token = _autoTestCts.Token;
+
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(token);
+                    }
+                    catch { }
 
                     _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
                     _simulation.ArincRate = ArincRate;
@@ -605,31 +612,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     await _simulation.ClearRxFifoAsync(TestRxChannel);
                     await Task.Delay(20, token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤2：发送测试命令");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤2：发送AB_A429TX0_TRANSMIT");
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
-                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, TestCommand8, msg => AddLog(msg), token);
+                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbA429Tx0TransmitCommand8, msg => AddLog(msg), token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：等待确认帧(8字节)");
-                    var confirm = await _simulation.WaitBenchResponse8Async(
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：等待接收数据(LABEL50/51)");
+                    var data4 = await _simulation.WaitBenchData4Async(
                         TestRxChannel,
-                        b => b != null && b.SequenceEqual(TestCommand8),
-                        timeoutMs: 1200,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (confirm == null)
-                    {
-                        SetLastTestResult("FAIL");
-                        CurrentStepImage = CreateImageSource("/Resources/Logo/warning.png");
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试失败：确认帧超时");
-                        return;
-                    }
-
-                    RxConfirmText = $"0x{FormatBytesHex(confirm)}";
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤4：等待数据帧(4字节)");
-                    var data4 = await _simulation.WaitBenchResponse4Async(
-                        TestRxChannel,
+                        Label50,
+                        Label51,
                         timeoutMs: 1200,
                         log: msg => AddLog(msg),
                         token: token);
@@ -638,20 +629,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     {
                         SetLastTestResult("FAIL");
                         CurrentStepImage = CreateImageSource("/Resources/Logo/warning.png");
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试失败：数据帧超时");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试失败：接收数据超时");
                         return;
                     }
 
-                    RxDataText = $"0x{FormatBytesHex(data4)}";
+                    RxDataText = $"{FormatBytesHex(data4)}";
 
-                    bool pass = data4.SequenceEqual(TestData4);
+                    bool pass = data4.SequenceEqual(ExpectedData4);
                     SetLastTestResult(pass ? "PASS" : "FAIL");
                     CurrentStepImage = CreateImageSource(pass ? "/Resources/Logo/over.png" : "/Resources/Logo/warning.png");
 
                     await _simulation.ClearRxFifoAsync(TestRxChannel);
                     await Task.Delay(20, token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤5：退出ATP");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤4：退出ATP");
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, ExitAtpCommand8, msg => AddLog(msg), token);
 
@@ -694,6 +685,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     catch
                     {
                     }
+
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
                     IsAutoTestRunning = false;
                     IsBusy = false;
