@@ -55,6 +55,7 @@ namespace MeasureControl.ViewModels.Common
         private readonly Prism.Services.Dialogs.IDialogService _dialogService;
         private readonly DeviceConfigurationService _deviceConfigurationService;
         private readonly SignalValueUpdateService _signalValueUpdateService;
+        private readonly IHydraulicPowerService _hydraulicPowerService;
 
         private bool _isProjectMenuOpen;
         private bool _isBottomBarVisible = true;
@@ -967,6 +968,7 @@ namespace MeasureControl.ViewModels.Common
         // 测试控制命令
         public ICommand StartPauseTestCommand { get; private set; }
         public ICommand StopTestCommand { get; private set; }
+        public ICommand ToggleHydraulicPowerCommand { get; private set; }
 
         public ICommand SelfInspectionCommand { get; private set; }
 
@@ -1036,6 +1038,11 @@ namespace MeasureControl.ViewModels.Common
         /// </summary>
         public bool IsTestStopped => !IsTestRunning;
 
+        /// <summary>
+        /// 液压控制器 28V 是否已上电
+        /// </summary>
+        public bool IsHydraulicPowered => _hydraulicPowerService?.IsHydraulicPowered ?? false;
+
         #endregion
 
         #region Constructor
@@ -1045,7 +1052,8 @@ namespace MeasureControl.ViewModels.Common
             IWindowManagerService windowManager, IProjectSaveStateService projectSaveStateService,
             IChassisConnectionService chassisConnectionService, IChannelBindingService channelBindingService,
             ProjectService projectService, INavigationStateService navigationState, INavigationService navigationService,
-            Prism.Services.Dialogs.IDialogService dialogService, SignalValueUpdateService signalValueUpdateService)
+            Prism.Services.Dialogs.IDialogService dialogService, SignalValueUpdateService signalValueUpdateService,
+            IHydraulicPowerService hydraulicPowerService)
         {
             // 依赖注入
             _projectService = projectService ?? throw new ArgumentNullException(nameof(projectService));
@@ -1062,6 +1070,8 @@ namespace MeasureControl.ViewModels.Common
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             _deviceConfigurationService = new DeviceConfigurationService();
             _signalValueUpdateService = signalValueUpdateService ?? throw new ArgumentNullException(nameof(signalValueUpdateService));
+            _hydraulicPowerService = hydraulicPowerService ?? throw new ArgumentNullException(nameof(hydraulicPowerService));
+            _hydraulicPowerService.IsHydraulicPoweredChanged += (s, e) => RaisePropertyChanged(nameof(IsHydraulicPowered));
 
             // 初始化集合
             InitializeCollections();
@@ -1165,6 +1175,7 @@ namespace MeasureControl.ViewModels.Common
             // 测试控制命令
             StartPauseTestCommand = new DelegateCommand(OnStartPauseTest);
             StopTestCommand = new DelegateCommand(OnStopTest);
+            ToggleHydraulicPowerCommand = new DelegateCommand(OnToggleHydraulicPower);
 
             SelfInspectionCommand = new DelegateCommand(OnSelfInspection);
 
@@ -1430,6 +1441,40 @@ namespace MeasureControl.ViewModels.Common
                 {
                     System.Diagnostics.Debug.WriteLine($"[MainWindowViewModel] 恢复硬件采集服务失败: {ex.Message}");
                 }
+            }
+        }
+
+        /// <summary>
+        /// 切换液压控制器 28V 上电/下电
+        /// </summary>
+        private async void OnToggleHydraulicPower()
+        {
+            try
+            {
+                if (!IsHydraulicPowered)
+                {
+                    var confirm = ReMessageBox.Show(
+                        "是否执行 28V 上电（192.168.1.15 CH1 输出 28V 1A）？",
+                        "28V 上电",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+                    if (confirm != MessageBoxResult.Yes) return;
+                    await _hydraulicPowerService.PowerOnAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    var confirm = ReMessageBox.Show(
+                        "是否停止 28V 上电（关闭 192.168.1.15 CH1 输出）？",
+                        "28V 下电",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+                    if (confirm != MessageBoxResult.Yes) return;
+                    await _hydraulicPowerService.PowerOffAsync().ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                ReMessageBox.Show($"操作程控电源失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -2374,6 +2419,11 @@ namespace MeasureControl.ViewModels.Common
                     }
 
                     await ShutdownAllHardwareAsync();
+
+                    if (_hydraulicPowerService != null && _hydraulicPowerService.IsHydraulicPowered)
+                    {
+                        try { await _hydraulicPowerService.PowerOffAsync().ConfigureAwait(false); } catch { }
+                    }
 
                     if (!CheckAllOpenPanelsCanClose())
                     {

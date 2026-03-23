@@ -56,6 +56,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
+        private readonly IHydraulicPowerService _hydraulicPowerService;
         private IJy7131Api _jy7131;
         private bool _isRelay485On;
 
@@ -87,10 +88,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _previousTestResult = "--";
         private string _currentTestResult = "--";
 
-        public HC_6_1ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
+        public HC_6_1ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IHydraulicPowerService hydraulicPowerService)
         {
             _pxiChassisService = pxiChassisService;
             _singleBoardTestContext = singleBoardTestContext;
+            _hydraulicPowerService = hydraulicPowerService;
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
             Measure14Command = new DelegateCommand(async () => await OnMeasure14Async(), () => CanMeasure14);
@@ -454,6 +456,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _autoCts?.Dispose();
             _autoCts = new CancellationTokenSource();
 
+            if (_hydraulicPowerService?.IsHydraulicPowered == true)
+            {
+                await _hydraulicPowerService.PowerOffAsync(_autoCts.Token).ConfigureAwait(false);
+            }
+
             Log("开始自动测试");
             Log("正在初始化设备...");         
 
@@ -648,6 +655,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _manualCts?.Cancel();
             _manualCts?.Dispose();
             _manualCts = new CancellationTokenSource();
+
+            if (_hydraulicPowerService?.IsHydraulicPowered == true)
+            {
+                await _hydraulicPowerService.PowerOffAsync(_manualCts.Token).ConfigureAwait(false);
+            }
 
             Log("开始手动测试");
 
