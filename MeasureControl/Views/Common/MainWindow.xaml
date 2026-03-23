@@ -699,13 +699,14 @@
                             </StackPanel>
                             <TextBlock
                                 Grid.Column="1"
+                                Margin="10,0,0,0"
                                 VerticalAlignment="Center"
-                                Foreground="White"
+                                FontSize="16"
                                 FontWeight="Bold">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Text" Value="组件已下电" />
-                                        <Setter Property="Foreground" Value="#888888" />
+                                        <Setter Property="Foreground" Value="Black" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsHydraulicPowered}" Value="True">
                                                 <Setter Property="Text" Value="组件已上电28V" />

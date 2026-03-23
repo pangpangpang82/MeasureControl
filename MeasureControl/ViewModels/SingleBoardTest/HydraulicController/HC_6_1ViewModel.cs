@@ -456,11 +456,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _autoCts?.Dispose();
             _autoCts = new CancellationTokenSource();
 
-            if (_hydraulicPowerService?.IsHydraulicPowered == true)
-            {
-                await _hydraulicPowerService.PowerOffAsync(_autoCts.Token).ConfigureAwait(false);
-            }
-
             Log("开始自动测试");
             Log("正在初始化设备...");         
 
@@ -508,6 +503,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
+                if (_hydraulicPowerService?.IsHydraulicPowered == true)
+                {
+                    await _hydraulicPowerService.PowerOffAsync(cancellationToken).ConfigureAwait(false);
+                }
+
                 await EnsureAuxPowerAsync(cancellationToken).ConfigureAwait(false);
 
                 await EnsureRelay485Async(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
