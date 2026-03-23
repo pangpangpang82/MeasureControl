@@ -412,6 +412,89 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             }
         }
 
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                await StopTestAsync().ConfigureAwait(false);
+                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _dmmWarmedUp = false;
+
+            ResetResults();
+            OverallResult = "--";
+            LastTestTime = "--";
+
+            IsAutoTestRunning = true;
+            IsManualTestRunning = false;
+
+            Log("开始自动测试（控制板电源阻抗）");
+
+            try
+            {
+                await EnsureComponentDownAsync(_cts.Token).ConfigureAwait(false);
+
+                await Ensure7131ReadyAsync(_cts.Token).ConfigureAwait(false);
+
+                await _dmm.ConnectAsync(DmmIpAddress, _cts.Token).ConfigureAwait(false);
+                Log($"万用表连接成功: {DmmIpAddress}");
+
+                await EnsureDmmResistanceModeAsync(_cts.Token).ConfigureAwait(false);
+
+                var matrix = MatrixControlService.Instance;
+                var okCommon = await matrix.ConnectNodesAsync("I4", "O2", MatrixSlotCommon, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                Log($"矩阵公共通路 I4-O2(slot{MatrixSlotCommon}) {(okCommon ? "OK" : "FAIL")}");
+                if (!okCommon)
+                {
+                    await StopTestAsync().ConfigureAwait(false);
+                    return "FAIL";
+                }
+
+                await WarmupDmmAsync(_cts.Token).ConfigureAwait(false);
+
+                await ActivateRelayWithTimeoutAsync(_cts.Token).ConfigureAwait(false);
+
+                foreach (var item in Items)
+                {
+                    _cts.Token.ThrowIfCancellationRequested();
+
+                    await MeasureAsync(item, _cts.Token).ConfigureAwait(false);
+                    await Task.Delay(100, _cts.Token).ConfigureAwait(false);
+                }
+
+                EvaluateOverall();
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                Log($"自动测试完成，总体结果: {OverallResult}");
+
+                var finalResult = OverallResult;
+                await StopTestAsync().ConfigureAwait(false);
+                return string.IsNullOrWhiteSpace(finalResult) || string.Equals(finalResult, "--", StringComparison.OrdinalIgnoreCase)
+                    ? "FAIL"
+                    : finalResult;
+            }
+            catch (OperationCanceledException)
+            {
+                await StopTestAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"自动测试失败: {ex.Message}");
+                await StopTestAsync().ConfigureAwait(false);
+                return "FAIL";
+            }
+            finally
+            {
+                IsAutoTestRunning = false;
+                _cts?.Dispose();
+                _cts = null;
+            }
+        }
+
         internal bool CanMeasureItem(ImpedanceItemViewModel item)
         {
             if (item == null) return false;
@@ -589,6 +672,34 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             OverallResult = Items.All(i => string.Equals(i.Result, "PASS", StringComparison.OrdinalIgnoreCase)) ? "PASS" : "FAIL";
         }
 
+        private async Task ResetAndClose7131Async(CancellationToken token)
+        {
+            var api = _jy7131Api;
+            if (api == null)
+                return;
+
+            try
+            {
+                if (api.IsConnected)
+                {
+                    if (api.IsRunning)
+                    {
+                        try { await api.StopAsync(token).ConfigureAwait(false); } catch { }
+                    }
+
+                    try { await api.DisconnectAsync(token).ConfigureAwait(false); } catch { }
+                }
+            }
+            finally
+            {
+                try { await api.DisposeAsync().ConfigureAwait(false); } catch { }
+                if (ReferenceEquals(_jy7131Api, api))
+                {
+                    _jy7131Api = null;
+                }
+            }
+        }
+
         private async Task StopTestAsync()
         {
             try { _cts?.Cancel(); } catch { }
@@ -608,12 +719,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             try
             {
-                if (_jy7131Api != null && _jy7131Api.IsConnected)
-                {
-                    if (_jy7131Api.IsRunning)
-                        await _jy7131Api.StopAsync(CancellationToken.None).ConfigureAwait(false);
-                    await _jy7131Api.DisconnectAsync(CancellationToken.None).ConfigureAwait(false);
-                }
+                await ResetAndClose7131Async(CancellationToken.None).ConfigureAwait(false);
             }
             catch
             {
@@ -665,60 +771,52 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task EnsureComponentDownAsync(CancellationToken token)
         {
-            try
+            bool componentDownOk = false;
+
+            if (_componentPowerStateApi != null)
             {
-                if (_componentPowerStateApi != null)
+                try
                 {
                     Log("正在设置组件供电状态: 下电...");
                     await _componentPowerStateApi.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
                     Log("组件供电状态已设置为下电");
-
-                    try
-                    {
-                        Log("正在确保继电器24V常供电...");
-                        await EnsureRelay24VPowerAsync(token).ConfigureAwait(false);
-                        Log("继电器24V供电已保持开启");
-                    }
-                    catch (Exception ex)
-                    {
-                        Log($"继电器24V供电保持异常: {ex.Message}");
-                    }
-
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        IsPowerOn = false;
-                        PowerStatus = "已下电";
-                    });
-                    return;
-                }
-
-                try
-                {
-                    Log("组件下电接口未注入，仍尝试开启继电器24V供电...");
-                    await EnsureRelay24VPowerAsync(token).ConfigureAwait(false);
-                    Log("继电器24V供电已保持开启");
+                    componentDownOk = true;
                 }
                 catch (Exception ex)
                 {
-                    Log($"继电器24V供电保持异常: {ex.Message}");
+                    Log($"组件下电状态设置异常: {ex.Message}");
                 }
+            }
 
-                Application.Current?.Dispatcher?.Invoke(() =>
-                {
-                    IsPowerOn = false;
-                    PowerStatus = "请确认已下电";
-                });
+            try
+            {
+                Log("正在确保继电器24V常供电...");
+                await EnsureRelay24VPowerAsync(token).ConfigureAwait(false);
+                Log("继电器24V供电已保持开启");
             }
             catch (Exception ex)
             {
-                Log($"组件下电状态设置异常: {ex.Message}");
+                Log($"继电器24V供电保持异常: {ex.Message}");
+            }
 
-                Application.Current?.Dispatcher?.Invoke(() =>
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                if (_componentPowerStateApi != null && componentDownOk)
+                {
+                    IsPowerOn = false;
+                    PowerStatus = "已下电";
+                }
+                else if (_componentPowerStateApi != null && !componentDownOk)
                 {
                     IsPowerOn = true;
                     PowerStatus = "下电失败";
-                });
-            }
+                }
+                else
+                {
+                    IsPowerOn = false;
+                    PowerStatus = "请确认已下电";
+                }
+            });
         }
 
         private async Task Ensure7131ReadyAsync(CancellationToken token)
@@ -745,13 +843,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             if (!_jy7131Api.IsConnected)
             {
                 await _jy7131Api.ConnectAsync(token).ConfigureAwait(false);
-                await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.PushPull, token).ConfigureAwait(false);
+                await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token).ConfigureAwait(false);
                 await _jy7131Api.StartAsync(token).ConfigureAwait(false);
                 Log("7131板卡已启动");
             }
             else if (!_jy7131Api.IsRunning)
             {
-                await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.PushPull, token).ConfigureAwait(false);
+                await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token).ConfigureAwait(false);
                 await _jy7131Api.StartAsync(token).ConfigureAwait(false);
                 Log("7131板卡已启动");
             }
@@ -776,7 +874,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             {
                 try
                 {
-                    //await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token).ConfigureAwait(false);
+                    await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token).ConfigureAwait(false);
                     IsRelayActivated = true;
                     RelayStatus = "已激活";
                     Log("继电器已激活");

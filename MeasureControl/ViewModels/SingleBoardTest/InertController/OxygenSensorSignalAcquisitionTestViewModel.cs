@@ -24,6 +24,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private const double PowerCh2VoltageV = 24.0;
         private const double PowerCurrentLimitA = 3.0;
 
+        public bool SkipMainPowerOff { get; set; }
+
         private static readonly string[] AllPowerSupplyIpAddresses =
         {
             "192.168.1.15",
@@ -705,6 +707,92 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             }
         }
 
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                return LastTestResult;
+            }
+
+            CancellationToken token;
+            await _opLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                _cts?.Cancel();
+                _cts?.Dispose();
+                _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                token = _cts.Token;
+
+                IsAutoTestRunning = true;
+                IsManualTestRunning = false;
+
+                PublishNavigationLock(isLocked: true, source: "OxygenSensor");
+                LastTestTime = "--";
+                LastTestResult = "--";
+
+                PostToUi(() =>
+                {
+                    foreach (var item in Items)
+                        item.Reset();
+                });
+
+                await EnsurePowerAsync(token).ConfigureAwait(false);
+
+                Log("开始自动测试：将依次执行10个电流点位的电压输出");
+                var ok532 = await EnsureMtx532ReadyAsync(token).ConfigureAwait(false);
+                var ok429 = await EnsureArincRxReadyAsync(token).ConfigureAwait(false);
+                ResetArincTelemetryCache();
+                StartArincRxLoopIfNeeded(token);
+                UpdateConnectionText();
+                if (!ok532 || !ok429)
+                {
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    LastTestResult = "FAIL";
+                    Log("板卡连接失败：自动测试终止");
+                    return "FAIL";
+                }
+            }
+            finally
+            {
+                _opLock.Release();
+            }
+
+            try
+            {
+                foreach (var item in Items)
+                {
+                    token.ThrowIfCancellationRequested();
+                    await item.MeasureAsync().ConfigureAwait(false);
+                    await Task.Delay(60).ConfigureAwait(false);
+                }
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = Items.All(x => string.Equals(x.Result, "PASS", StringComparison.OrdinalIgnoreCase)) ? "PASS" : "FAIL";
+                Log($"自动测试结束：汇总结果={LastTestResult}");
+
+                return LastTestResult;
+            }
+            catch (OperationCanceledException)
+            {
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = "FAIL";
+                Log("自动测试已取消");
+                return "FAIL";
+            }
+            catch (Exception ex)
+            {
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = "FAIL";
+                Log($"自动测试异常：{ex.Message}");
+                return "FAIL";
+            }
+            finally
+            {
+                try { await StopAsync().ConfigureAwait(false); } catch { }
+                IsAutoTestRunning = false;
+            }
+        }
+
         private async Task OnAutoTestAsync()
         {
             if (IsAutoTestRunning)
@@ -803,7 +891,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             {
                 try { _cts?.Cancel(); } catch { }
 
-                await DisableAllPowerSuppliesAsync(CancellationToken.None).ConfigureAwait(false);
+                if (!SkipMainPowerOff)
+                {
+                    await DisableAllPowerSuppliesAsync(CancellationToken.None).ConfigureAwait(false);
+                }
 
                 await DisablePowerAsync(CancellationToken.None).ConfigureAwait(false);
 
@@ -869,8 +960,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 PublishNavigationLock(isLocked: false, source: "OxygenSensor");
 
-                IsPowerOn = false;
-                PowerStatus = "未供电";
+                if (!SkipMainPowerOff)
+                {
+                    IsPowerOn = false;
+                    PowerStatus = "未供电";
+                }
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             }
             finally
@@ -1021,7 +1115,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 if (!_power.IsConnected)
                     await _power.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
 
-                await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, token).ConfigureAwait(false);
+                if (!SkipMainPowerOff)
+                {
+                    await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, token).ConfigureAwait(false);
+                }
                 await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, false, token).ConfigureAwait(false);
                 await Task.Delay(200, token).ConfigureAwait(false);
             }
@@ -1163,7 +1260,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 IMtx532Api api = null;
                 try
                 {
-                    api = new Mtx532Api(dev, options: new Mtx532Options { SampleRateHz = 1000.0 }, slotNumber: slot);
+                    api = new Mtx532Api(dev, options: new Mtx532Options { SampleRateHz = 1000.0, UseOneBasedAoChannelNumbering = true }, slotNumber: slot);
                     await api.ConnectAsync(token, enabledAoChannels: new[] { ConcentrationAoChannel, PressureAoChannel }).ConfigureAwait(false);
 
                     await api.SetDcAsync(ConcentrationAoChannel, 0.0, enable: true, cancellationToken: token).ConfigureAwait(false);

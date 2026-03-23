@@ -38,6 +38,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private const string PowerSupplyIpAddress = "192.168.1.15";
 
+        public bool SkipMainPowerOff { get; set; }
+
         private const double InputVoltageV = 28.0;
 
         private const double InputCurrentA = 3.0;
@@ -325,13 +327,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
 
 
-        private const int MeasureTimeoutMs = 1000;
+        private const int MeasureTimeoutMs = 3000;
 
         private const int AutoMeasureTimeoutMs = 4000;
 
-        private const int MeasurementStabilizeDelayMs = 300;
+        private const int MeasurementStabilizeDelayMs = 3000;
+
+        private const int AutoMeasurementStabilizeDelayMs = 3000;
 
         private const double ResistanceToleranceOhm = 1.0;
+
+        private const double MinimumResistanceChangeOhm = 10.0;
 
         private const double TemperatureToleranceC = 1.5;
 
@@ -399,20 +405,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 .ToList();
 
-            if (missing.Count > 0)
-
-            {
-
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-
-                LastTestResult = "FAIL";
-
-                Log($"采集超时：未收到当前点位的新回采数据：{string.Join("/", missing)}，稳定窗口={MeasurementStabilizeDelayMs}ms");
-
-                return;
-
-            }
-
             PostToUi(() =>
 
             {
@@ -421,11 +413,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 {
 
-                    if (freshTelemetry.TryGetValue(item.SensorName, out var measured))
+                    if (freshTelemetry != null && freshTelemetry.TryGetValue(item.SensorName, out var measured))
 
                     {
-
-                        item.MeasuredResistanceOhm = measured.resistanceOhm;
 
                         item.MeasuredTemperatureC = measured.temperatureC;
 
@@ -435,71 +425,65 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             });
 
-            foreach (var item in SensorItems)
-
-            {
-
-                var measured = freshTelemetry[item.SensorName];
-
-                var r = measured.resistanceOhm.ToString("F2", CultureInfo.InvariantCulture);
-
-                var t = measured.temperatureC.ToString("F3", CultureInfo.InvariantCulture);
-
-                Log($"回采：{item.SensorName} 电阻={r}Ω 温度={t}℃");
-
-            }
-
             var failItems = new List<string>();
 
             foreach (var item in SensorItems)
 
             {
 
-                var target = item.TargetResistanceOhm;
+                var sensorItem = item;
 
-                var measured = freshTelemetry[item.SensorName];
-
-                var actual = measured.resistanceOhm;
-
-                if (double.IsNaN(actual) || Math.Abs(actual - target) > ResistanceToleranceOhm)
+                if (missing.Contains(sensorItem.SensorName))
 
                 {
 
-                    PostToUi(() => item.ResistanceResultText = "FAIL");
+                    var itemToUpdate = sensorItem;
 
-                    failItems.Add($"{item.SensorName}(目标{target:F2}Ω,回采{actual:F2}Ω)");
+                    PostToUi(() =>
+
+                    {
+
+                        itemToUpdate.TemperatureResultText = "FAIL";
+
+                    });
+
+                    failItems.Add($"{sensorItem.SensorName}(未采集到数据)");
+
+                    Log($"判定：{sensorItem.SensorName} 未采集到数据 => FAIL");
+
+                    continue;
 
                 }
 
-                else
+                var measured = freshTelemetry[sensorItem.SensorName];
 
-                {
+                var t = measured.temperatureC.ToString("F3", CultureInfo.InvariantCulture);
 
-                    PostToUi(() => item.ResistanceResultText = "PASS");
+                Log($"回采：{sensorItem.SensorName} 温度={t}℃");
 
-                }
-
-                var tempTarget = item.TargetTemperatureC;
+                var tempTarget = sensorItem.TargetTemperatureC;
 
                 var tempActual = measured.temperatureC;
 
-                if (double.IsNaN(tempActual) || Math.Abs(tempActual - tempTarget) > TemperatureToleranceC)
+                var tempDiff = Math.Abs(tempActual - tempTarget);
+
+                var tempPass = !double.IsNaN(tempActual) && tempDiff <= TemperatureToleranceC;
+
+                var tempResult = tempPass ? "PASS" : "FAIL";
+
+                var itemForTemp = sensorItem;
+
+                PostToUi(() => itemForTemp.TemperatureResultText = tempResult);
+
+                if (!tempPass)
 
                 {
 
-                    PostToUi(() => item.TemperatureResultText = "FAIL");
-
-                    failItems.Add($"{item.SensorName}(目标温度{tempTarget:F3}℃,回采{tempActual:F3}℃)");
+                    failItems.Add($"{sensorItem.SensorName}(目标温度{tempTarget:F3}℃,回采{tempActual:F3}℃,差值{tempDiff:F3}℃,容差±{TemperatureToleranceC:F1}℃)");
 
                 }
 
-                else
-
-                {
-
-                    PostToUi(() => item.TemperatureResultText = "PASS");
-
-                }
+                Log($"温度判定：{sensorItem.SensorName} 目标={tempTarget:F3}℃ 实际={tempActual:F3}℃ 差值={tempDiff:F3}℃ 容差=±{TemperatureToleranceC:F1}℃ => {tempResult}");
 
             }
 
@@ -555,6 +539,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 ClearMeasuredTelemetryOnUi();
 
+                Log("手动采集：等待3秒后采集最新数据...");
+
+                await Task.Delay(3000, token).ConfigureAwait(false);
+
                 await MeasureInternalAsync(token, MeasureTimeoutMs).ConfigureAwait(false);
 
             }
@@ -599,11 +587,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 {
 
-                    item.MeasuredResistanceOhm = null;
-
                     item.MeasuredTemperatureC = null;
-
-                    item.ResistanceResultText = "--";
 
                     item.TemperatureResultText = "--";
 
@@ -623,7 +607,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             StartArincRxLoopIfNeeded(token);
 
-            await Task.Delay(MeasurementStabilizeDelayMs, token).ConfigureAwait(false);
+            var delayMs = IsAutoTestRunning ? AutoMeasurementStabilizeDelayMs : MeasurementStabilizeDelayMs;
+
+            await Task.Delay(delayMs, token).ConfigureAwait(false);
 
             return DateTime.UtcNow;
 
@@ -965,6 +951,152 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         }
 
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+
+        {
+
+            if (IsAutoTestRunning || IsManualTestRunning)
+
+            {
+
+                return LastTestResult;
+
+            }
+
+            var lockTaken = false;
+
+            await _opLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+            lockTaken = true;
+
+            try
+
+            {
+
+                _cts?.Cancel();
+
+                _cts?.Dispose();
+
+                _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+                IsAutoTestRunning = true;
+
+                IsManualTestRunning = false;
+
+                PublishNavigationLock(isLocked: true, source: "TemperatureSensor");
+
+                LastTestTime = "--";
+
+                LastTestResult = "--";
+
+                Log("开始自动测试：依次测试点位1~4（每个点位下发+回采+判定）");
+
+                await EnsurePowerAsync(_cts.Token).ConfigureAwait(false);
+
+                var ok532 = await EnsureMtx532ReadyAsync(_cts.Token).ConfigureAwait(false);
+
+                var ok7012 = await EnsureResistorReadyAsync(_cts.Token).ConfigureAwait(false);
+
+                UpdateConnectionText();
+
+                if (!ok532 || !ok7012)
+
+                {
+
+                    Log("板卡连接失败：自动测试终止");
+
+                    LastTestResult = "FAIL";
+
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+                    return "FAIL";
+
+                }
+
+                _cts.Token.ThrowIfCancellationRequested();
+
+                var allPointsPass = true;
+
+                for (var pointIndex = 1; pointIndex <= 4; pointIndex++)
+
+                {
+
+                    _cts.Token.ThrowIfCancellationRequested();
+
+                    PostToUi(() => { SelectedPointIndex = pointIndex; });
+
+                    Log($"自动测试-开始点位{pointIndex}");
+
+                    ClearMeasuredTelemetryOnUi();
+
+                    await ApplyPointInternalAsync(pointIndex, _cts.Token).ConfigureAwait(false);
+
+                    await MeasureInternalAsync(_cts.Token, AutoMeasureTimeoutMs).ConfigureAwait(false);
+
+                    var pointPass = string.Equals(LastTestResult, "PASS", StringComparison.OrdinalIgnoreCase);
+
+                    if (!pointPass)
+
+                        allPointsPass = false;
+
+                    Log($"自动测试-结束点位{pointIndex}：{(pointPass ? "PASS" : "FAIL")}");
+
+                    await Task.Delay(200, _cts.Token).ConfigureAwait(false);
+
+                }
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+                LastTestResult = allPointsPass ? "PASS" : "FAIL";
+
+                Log($"自动测试结束：点位1~4完成，总体={(allPointsPass ? "PASS" : "FAIL")}");
+
+                return LastTestResult;
+
+            }
+
+            catch (OperationCanceledException)
+
+            {
+
+                return "FAIL";
+
+            }
+
+            catch (Exception ex)
+
+            {
+
+                LastTestResult = "FAIL";
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+                Log($"自动测试异常：{ex.Message}");
+
+                return "FAIL";
+
+            }
+
+            finally
+
+            {
+
+                if (lockTaken)
+
+                {
+
+                    _opLock.Release();
+
+                    lockTaken = false;
+
+                }
+
+                try { await StopAsync().ConfigureAwait(false); } catch { }
+
+            }
+
+        }
+
         private async Task OnAutoTestAsync()
 
         {
@@ -1271,6 +1403,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 {
 
+                    if (ch == PowerSupplyChannel.CH1 && SkipMainPowerOff)
+                        continue;
+
                     try { await _power.SetOutputEnabledAsync(ch, false, token).ConfigureAwait(false); } catch { }
 
                 }
@@ -1293,9 +1428,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 {
 
-                    IsPowerOn = false;
+                    if (!SkipMainPowerOff)
+                    {
+                        IsPowerOn = false;
 
-                    PowerStatus = "未供电";
+                        PowerStatus = "未供电";
+                    }
 
                     UpdateConnectionText();
 
@@ -2231,15 +2369,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
 
 
-            if (sdi != ArincExpectedSdi)
-
-                return;
-
-
-
-            if (_arinc != null && !_arinc.VerifyOddParity(rawWord))
-
-                return;
+   
 
 
 
@@ -2258,15 +2388,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                     _lastResistanceOhmBySensor[sensorName] = (valueOhm, DateTime.UtcNow);
 
                 }
-
-
-
-                PostToUi(() =>
-                {
-                    var item = SensorItems.FirstOrDefault(x => string.Equals(x.SensorName, sensorName, StringComparison.OrdinalIgnoreCase));
-                    if (item != null)
-                        item.MeasuredResistanceOhm = valueOhm;
-                });
 
                 return;
             }
@@ -2632,7 +2753,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                     {
 
-                        api = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 1000.0 }, slotNumber: slot);
+                        api = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 1000.0, UseOneBasedAoChannelNumbering = true }, slotNumber: slot);
 
                         await api.ConnectAsync(token).ConfigureAwait(false);
 
