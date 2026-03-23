@@ -649,7 +649,7 @@
                         </Style.Triggers>
                     </Style>
                 </Grid.Style>
-                <Rectangle Fill="#99000000" />
+                <Rectangle Fill="#cccccc" />
                 <TextBlock
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
