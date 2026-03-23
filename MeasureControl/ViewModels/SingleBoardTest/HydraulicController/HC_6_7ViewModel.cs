@@ -1071,7 +1071,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                await StopAtpRequestAsync(true, CancellationToken.None).ConfigureAwait(false);
+                //await StopAtpRequestAsync(true, CancellationToken.None).ConfigureAwait(false);
             }
             catch { }
 

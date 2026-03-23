@@ -228,7 +228,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
                         {
+                            "电源阻抗测试",
+                            ""
+                        },
+                        {
+                            "二次电源测试",
+                            "控制器上电后20s内才能进入ATP，发送二次电源数据供试验台接收"
+                        },
+                        {
                             "温度采集测试",
+                            ""
+                        },
+                        {
+                            "压力传感器信号采集测试",
                             ""
                         },
                         {
@@ -236,7 +248,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                             ""
                         },
                         {
+                            "油量传感器信号采集测试",
+                            ""
+                        },
+                        {
                             "离散量采集测试",
+                            ""
+                        },
+                        {
+                            "离散量输出测试",
                             ""
                         },
 
