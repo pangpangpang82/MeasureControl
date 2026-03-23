@@ -79,7 +79,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
 
         private const string ThresholdComPort = "COM40"; // DAC DI阈值
 
-        private const string RelayComPort = "COM30"; // 485电源/继电器
+        private const string RelayComPort = "COM35"; // 485电源/继电器
         private const int RelayBaudRate = 9600;
         private const byte RelaySlaveAddress = 1;
         private const ushort RelayStartCoilAddress = 0;

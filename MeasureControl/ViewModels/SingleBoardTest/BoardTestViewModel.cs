@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Controls;
 using MeasureControl.Events;
+using MeasureControl.Services;
 using MeasureControl.Views.SingleBoardTest.AirController;
 using MeasureControl.Views.SingleBoardTest.HydraulicController;
 using MeasureControl.Views.SingleBoardTest.FuelController;
@@ -26,7 +27,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
     public class BoardTestViewModel : BindableBase, INavigationAware, IConfirmNavigationRequest, ICloseGuard
     {
         private readonly IEventAggregator _eventAggregator;
-        private readonly MeasureControl.Services.ISingleBoardTestContextService _singleBoardTestContext;
+        private readonly ISingleBoardTestContextService _singleBoardTestContext;
+        private readonly IHydraulicPowerService _hydraulicPowerService;
         private const string CommonBoardTypeKey = "Common";
         private bool _isStoppingCurrentTest;
 
@@ -287,10 +289,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
         public DelegateCommand CloseInRegionCommand { get; }
 
-        public BoardTestViewModel(IEventAggregator eventAggregator, MeasureControl.Services.ISingleBoardTestContextService singleBoardTestContext)
+        public bool IsBoardAccessible
+        {
+            get
+            {
+                var powered = _hydraulicPowerService?.PoweredBoardType;
+                if (powered == null) return true;
+                return string.Equals(powered, BoardType, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        private void OnPowerStateChanged(object sender, EventArgs e)
+        {
+            RaisePropertyChanged(nameof(IsBoardAccessible));
+        }
+
+        public BoardTestViewModel(IEventAggregator eventAggregator, ISingleBoardTestContextService singleBoardTestContext, IHydraulicPowerService hydraulicPowerService)
         {
             _eventAggregator = eventAggregator ?? throw new ArgumentNullException(nameof(eventAggregator));
             _singleBoardTestContext = singleBoardTestContext ?? throw new ArgumentNullException(nameof(singleBoardTestContext));
+            _hydraulicPowerService = hydraulicPowerService;
+            if (_hydraulicPowerService != null)
+                _hydraulicPowerService.IsHydraulicPoweredChanged += OnPowerStateChanged;
             CloseInRegionCommand = new DelegateCommand(OnCloseInRegion);
         }
 
@@ -401,6 +421,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             PageKey = string.IsNullOrWhiteSpace(instanceId) ? "BoardTest" : $"BoardTest_{instanceId}";
 
             LoadFixedTestItems(BoardType);
+            RaisePropertyChanged(nameof(IsBoardAccessible));
 
             // ── FIX：直接赋值触发 setter，setter 内部会同时更新判据与操作步骤 ──
             // 原代码末尾多余的 SelectedTestNotesText = ResolveNotesText(BoardType, value.Name)

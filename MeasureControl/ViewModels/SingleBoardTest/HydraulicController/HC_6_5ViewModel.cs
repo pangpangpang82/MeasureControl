@@ -38,7 +38,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const string PressureUnit = "Psid";
         private const int SamplesPerMeasure = 1;
         private const int SampleTimeoutMs = 3000;
-        private const int AoSettleMs = 500;
+        private const int AoSettleMs = 800;
         private const int Mtx532ReadyTimeoutMs = 6000;
         private const int Mtx532ReadyPollMs = 200;
         private const int PostSwitchRxFlushMs = 120;
@@ -730,6 +730,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     break;
             }
             CanMeasure = false;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
             var token = _manualCts?.Token ?? CancellationToken.None;
             var ok = false;
             switch (SelectedTabIndex)
@@ -785,6 +786,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             foreach (var ch in DptChannels) SetCustomCurrent(ch.SlotKey, "--");
             CanMeasure = false;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
             var token = _manualCts?.Token ?? CancellationToken.None;
             var ok = await MeasureGroupAsync($"自定义点({currentmA:0.0}mA)", currentmA, SetCustomCurrent, token).ConfigureAwait(false);
             CanMeasure = IsManualTestRunning;
