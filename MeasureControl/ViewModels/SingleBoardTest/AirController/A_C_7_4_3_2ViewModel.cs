@@ -37,8 +37,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const string DefaultScopeIpAddress = "192.168.1.18";
 
         // 临时复用 7.4.1.2 的 FPGA 指令（后续可再调整）
-        private static readonly byte[] DirHighCommand = { 0x0A, 0x55, 0x02, 0x07, 0x05 };
-        private static readonly byte[] DirLowCommand = { 0x0A, 0x55, 0x02, 0x07, 0x0D };
+        private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
+        private static readonly byte[] DirHighCommand = { 0xAA, 0x55, 0x06, 0x04, 0x60, 0xE8, 0x03, 0x00, 0x00 };
+        private static readonly byte[] DirLowCommand = { 0xAA, 0x55, 0x06, 0x04, 0x40, 0xE8, 0x03, 0x00, 0x00 };
 
         private const double ExpectedPhaseHighDeg = 90.0;
         private const double ExpectedPhaseLowDeg = 270.0;
@@ -342,7 +343,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog("========== 自动测试开始 ==========");
 
-                    var ok1 = await SendFpgaCommandAsync(DirHighCommand, "DIR高电平", token).ConfigureAwait(false);
+                    var ok1 = await SendDirHighCommandAsync(token).ConfigureAwait(false);
                     if (!ok1)
                     {
                         SetOverall("FAIL");
@@ -428,7 +429,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
                 try
                 {
-                    await SendFpgaCommandAsync(DirHighCommand, "DIR高电平", CancellationToken.None).ConfigureAwait(false);
+                    var ok = await SendDirHighCommandAsync(CancellationToken.None).ConfigureAwait(false);
+                    AddLog($"DIR高电平指令: {(ok ? "PASS" : "FAIL")}");
                 }
                 finally
                 {

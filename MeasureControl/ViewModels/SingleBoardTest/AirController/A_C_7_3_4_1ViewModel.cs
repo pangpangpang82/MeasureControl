@@ -47,7 +47,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const double Power3V3Voltage = 3.3;
         private const double Power3V3CurrentLimit = 1.0;
 
-        private static readonly byte[] TestCommandFrame = { 0x0A, 0x55, 0x02, 0x0B, 0x07 };
+        private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
+        private static readonly byte[] MotorControlCommandFrame = { 0xAA, 0x55, 0x06, 0x03, 0xC0, 0xE8, 0x03, 0x00, 0x00 };
 
         private const double Load50Ohm = 50.0;
         private const double Load12Ohm = 12.0;
@@ -416,7 +417,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     var ok1 = await ConnectLoadAsync(Load50Ohm, token).ConfigureAwait(false);
                     UpdateLoadStep(is50: true, ok1);
 
-                    var ok2 = await SendTestCommandAsync(token).ConfigureAwait(false);
+                    var ok2 = await SendTestCommandAsync(isStep2: true, token).ConfigureAwait(false);
                     UpdateSendStep(isFirst: true, ok2);
 
                     await Task.Delay(500, token).ConfigureAwait(false);
@@ -426,7 +427,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     var ok4 = await ConnectLoadAsync(Load12Ohm, token).ConfigureAwait(false);
                     UpdateLoadStep(is50: false, ok4);
 
-                    var ok5 = await SendTestCommandAsync(token).ConfigureAwait(false);
+                    var ok5 = await SendTestCommandAsync(isStep2: false, token).ConfigureAwait(false);
                     UpdateSendStep(isFirst: false, ok5);
 
                     await Task.Delay(500, token).ConfigureAwait(false);
@@ -552,7 +553,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
                 try
                 {
-                    var ok = await SendTestCommandAsync(CancellationToken.None).ConfigureAwait(false);
+                    var ok = await SendTestCommandAsync(isStep2, CancellationToken.None).ConfigureAwait(false);
                     UpdateSendStep(isFirst: isStep2, ok);
                 }
                 finally
@@ -751,13 +752,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return Task.CompletedTask;
         }
 
-        private async Task<bool> SendTestCommandAsync(CancellationToken token)
+        private async Task<bool> SendTestCommandAsync(bool isStep2, CancellationToken token)
         {
             try
             {
                 await EnsureFpgaConnectedAsync(token).ConfigureAwait(false);
-                AddLog($"FPGA发送指令: {FormatData(TestCommandFrame)}");
-                await _fpga.WriteAsync(TestCommandFrame, 0, TestCommandFrame.Length, token).ConfigureAwait(false);
+
+                if (isStep2)
+                {
+                    AddLog($"FPGA发送指令(设备初始化): {FormatData(DeviceInitCommandFrame)}");
+                    await _fpga.WriteAsync(DeviceInitCommandFrame, 0, DeviceInitCommandFrame.Length, token).ConfigureAwait(false);
+                }
+
+                AddLog($"FPGA发送指令(电机控制): {FormatData(MotorControlCommandFrame)}");
+                await _fpga.WriteAsync(MotorControlCommandFrame, 0, MotorControlCommandFrame.Length, token).ConfigureAwait(false);
                 return true;
             }
             catch (Exception ex)
