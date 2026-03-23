@@ -9,24 +9,12 @@
     d:DesignWidth="970"
     mc:Ignorable="d">
     <UserControl.Resources>
-        <x:Array x:Key="Arinc429Channels" Type="sys:String">
-            <sys:String>429_CH0</sys:String>
-            <sys:String>429_CH1</sys:String>
-            <sys:String>429_CH2</sys:String>
-            <sys:String>429_CH3</sys:String>
-            <sys:String>429_CH4</sys:String>
-            <sys:String>429_CH5</sys:String>
-            <sys:String>429_CH6</sys:String>
-            <sys:String>429_CH7</sys:String>
-            <sys:String>429_CH8</sys:String>
-            <sys:String>429_CH9</sys:String>
-            <sys:String>429_CH10</sys:String>
-            <sys:String>429_CH11</sys:String>
-            <sys:String>429_CH12</sys:String>
-            <sys:String>429_CH13</sys:String>
-            <sys:String>429_CH14</sys:String>
-            <sys:String>429_CH15</sys:String>
-        </x:Array>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Styles/ScrollBarStyles.xaml" />
+                <ResourceDictionary Source="/Styles/ComboBoxStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </UserControl.Resources>
 
     <Grid
@@ -253,13 +241,9 @@
                         FontWeight="Bold"
                         Text="测试步骤" />
 
-                    <Grid Grid.Row="1">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Margin="5" Orientation="Horizontal">
+                    <ScrollViewer Grid.Row="1" Grid.RowSpan="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="5">
+                            <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
                             <TextBlock
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
@@ -270,35 +254,36 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="TX" />
-                            <ComboBox
+                            <Border
                                 Width="100"
                                 Height="28"
                                 Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding EnterAtpTxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                                VerticalAlignment="Center"
+                                Background="AliceBlue"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock
+                                    Margin="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding EnterAtpTxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="220"
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="AliceBlue"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="AliceBlue"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
                                     Text="0x00 01 00 01 00 00 00 00" />
                             </Border>
@@ -343,53 +328,52 @@
                             </Button>
                         </StackPanel>
 
-                        <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
+                        <StackPanel
+                            Grid.Row="1"
+                            Margin="115,5,5,5"
+                            Orientation="Horizontal">
                             <TextBlock
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="RX" />
-                            <ComboBox
+                            <Border
                                 Width="100"
                                 Height="28"
                                 Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding EnterAtpRxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                                VerticalAlignment="Center"
+                                Background="AliceBlue"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock
+                                    Margin="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding EnterAtpRxChannel}" />
+                            </Border>
 
                             <Border
                                 Width="220"
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="AliceBlue"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="AliceBlue"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
-                                    VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
                                     FontSize="12"
                                     Text="{Binding EnterAtpRxDataText}" />
                             </Border>
-                        </StackPanel>
-                    </Grid>
+                            </StackPanel>
 
-                    <Grid Grid.Row="2">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Margin="5" Orientation="Horizontal">
+                            <!-- 发送测试指令 -->
+                            <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
                             <TextBlock
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
@@ -400,37 +384,82 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="TX" />
-                            <ComboBox
+                            <Border
                                 Width="100"
                                 Height="28"
                                 Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding TestTxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
-
-                            <Border
-                                Width="220"
-                                Height="28"
-                                Margin="10,0,0,0"
                                 VerticalAlignment="Center"
+                                Background="AliceBlue"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
-                                Background="AliceBlue"
                                 CornerRadius="3">
                                 <TextBlock
                                     Margin="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="{Binding TestTxChannel}" />
+                            </Border>
+
+                            <Border
+                                Width="320"
+                                Height="28"
+                                Margin="10,0,0,0"
+                                VerticalAlignment="Center"
+                                Background="AliceBlue"
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <StackPanel
+                                    Margin="4,0"
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
-                                    FontSize="12"
-                                    Text="0x23 01 01 XX 00 00 00 00" />
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Text="0x23 01 01 " />
+
+                                    <ComboBox
+                                        Width="58"
+                                        Height="22"
+                                        Margin="0,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                                        ItemsSource="{Binding HexNibbles}"
+                                        SelectedValuePath="."
+                                        SelectedValue="{Binding TestCommandXxHighNibble, Mode=TwoWay}">
+                                        <ComboBox.Style>
+                                            <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
+                                                <Setter Property="Opacity" Value="1" />
+                                            </Style>
+                                        </ComboBox.Style>
+                                    </ComboBox>
+
+                                    <ComboBox
+                                        Width="58"
+                                        Height="22"
+                                        Margin="0,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                                        ItemsSource="{Binding HexNibbles}"
+                                        SelectedValuePath="."
+                                        SelectedValue="{Binding TestCommandXxLowNibble, Mode=TwoWay}">
+                                        <ComboBox.Style>
+                                            <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
+                                                <Setter Property="Opacity" Value="1" />
+                                            </Style>
+                                        </ComboBox.Style>
+                                    </ComboBox>
+
+                                    <TextBlock
+                                        Margin="4,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Text=" 00 00 00 00" />
+                                </StackPanel>
                             </Border>
 
                             <Button
@@ -471,210 +500,411 @@
                                     </ControlTemplate>
                                 </Button.Template>
                             </Button>
-                        </StackPanel>
+                            </StackPanel>
 
-                    </Grid>
-
-                    <Grid Grid.Row="3">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Margin="5" Orientation="Horizontal">
-                            <TextBlock
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="万用表测量(J226)：" />
-
-                            <Button
-                                Width="80"
-                                Height="28"
-                                Margin="20,0,0,0"
-                                VerticalAlignment="Center"
-                                BorderThickness="0"
-                                Command="{Binding MeasureVoltageCommand}">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border
-                                            x:Name="border"
-                                            Background="#3b82f6"
-                                            CornerRadius="4">
-                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                <TextBlock
-                                                    x:Name="DeviceAction"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    FontSize="14"
-                                                    Foreground="White"
-                                                    Text="测量" />
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsEnabled" Value="False">
-                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                <Setter Property="Cursor" Value="Arrow" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-
-                            <Border
-                                Width="140"
-                                Height="28"
-                                Margin="12,0,0,0"
-                                VerticalAlignment="Center"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                Background="LightYellow"
-                                CornerRadius="3">
+                            <!-- 万用表测量 -->
+                            <StackPanel Margin="0,0,0,15">
                                 <TextBlock
-                                    Margin="1"
+                                    Margin="10,0,0,0"
                                     VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding J226VoltageText}" />
-                            </Border>
-                        </StackPanel>
-                    </Grid>
+                                    FontSize="16"
+                                    Text="万用表测量：" />
+                                
+                                <StackPanel Margin="10,5,0,10" Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="0,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="J226：" />
 
-                    <Grid Grid.Row="4">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Margin="5" Orientation="Horizontal">
-                            <TextBlock
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="退出ATP模式：" />
-                            <TextBlock
-                                Margin="0,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="TX" />
-                            <ComboBox
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding ExitAtpTxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
-
-                            <Border
-                                Width="220"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                Background="AliceBlue"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
+                                    <Border
+                                    Width="140"
+                                    Height="28"
+                                    Margin="20,0,0,0"
                                     VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"
-                                    FontSize="12"
-                                    Text="0x00 02 00 01 00 00 00 01" />
-                            </Border>
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    Background="LightYellow"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="1"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding J226VoltageText}" />
+                                </Border>
 
-                            <Button
-                                Width="50"
-                                Height="28"
-                                Margin="15,0,0,0"
-                                VerticalAlignment="Center"
-                                BorderThickness="0"
-                                Command="{Binding SendExitAtpCommand}">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border
-                                            x:Name="border"
-                                            Background="#3b82f6"
-                                            CornerRadius="4">
-                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                <TextBlock
-                                                    x:Name="DeviceAction"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    FontSize="14"
-                                                    Foreground="White"
-                                                    Text="发送" />
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsEnabled" Value="False">
-                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                <Setter Property="Cursor" Value="Arrow" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
-                            <TextBlock
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="RX" />
-                            <ComboBox
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                FontSize="12"
-                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                ItemsSource="{StaticResource Arinc429Channels}"
-                                SelectedItem="{Binding ExitAtpRxChannel, Mode=TwoWay}">
-                                <ComboBox.Style>
-                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                        <Setter Property="Opacity" Value="1" />
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
-
-                            <Border
-                                Width="220"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                Background="AliceBlue"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
+                                <Button
+                                    Width="80"
+                                    Height="28"
+                                    Margin="12,0,0,0"
                                     VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding ExitAtpRxDataText}" />
-                            </Border>
+                                    BorderThickness="0"
+                                    Command="{Binding MeasureVoltageCommand}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="4">
+                                                <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                    <TextBlock
+                                                        x:Name="DeviceAction"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="14"
+                                                        Foreground="White"
+                                                        Text="测量" />
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                </StackPanel>
+
+                                <!-- J227 -->
+                                <StackPanel Margin="10,0,0,10" Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="0,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="J227：" />
+
+                                    <Border
+                                    Width="140"
+                                    Height="28"
+                                    Margin="20,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    Background="LightYellow"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="1"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding J227VoltageText}" />
+                                </Border>
+
+                                <Button
+                                    Width="80"
+                                    Height="28"
+                                    Margin="12,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding MeasureJ227VoltageCommand}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="4">
+                                                <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                    <TextBlock
+                                                        x:Name="DeviceAction"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="14"
+                                                        Foreground="White"
+                                                        Text="测量" />
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                </StackPanel>
+
+                                <!-- J228 -->
+                                <StackPanel Margin="10,0,0,10" Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="0,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="J228：" />
+
+                                    <Border
+                                    Width="140"
+                                    Height="28"
+                                    Margin="20,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    Background="LightYellow"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="1"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding J228VoltageText}" />
+                                </Border>
+
+                                <Button
+                                    Width="80"
+                                    Height="28"
+                                    Margin="12,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding MeasureJ228VoltageCommand}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="4">
+                                                <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                    <TextBlock
+                                                        x:Name="DeviceAction"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="14"
+                                                        Foreground="White"
+                                                        Text="测量" />
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                </StackPanel>
+
+                                <!-- J165 -->
+                                <StackPanel Margin="10,0,0,0" Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="0,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="J165：" />
+
+                                    <Border
+                                    Width="140"
+                                    Height="28"
+                                    Margin="20,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    Background="LightYellow"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="1"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding J165VoltageText}" />
+                                </Border>
+
+                                <Button
+                                    Width="80"
+                                    Height="28"
+                                    Margin="12,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding MeasureJ165VoltageCommand}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="4">
+                                                <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                    <TextBlock
+                                                        x:Name="DeviceAction"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="14"
+                                                        Foreground="White"
+                                                        Text="测量" />
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- 退出ATP模式 -->
+                            <Grid Margin="0,0,0,15">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Margin="0,0,0,0" Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="退出ATP模式：" />
+                                    <TextBlock
+                                        Margin="0,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="TX" />
+                                    <Border
+                                        Width="100"
+                                        Height="28"
+                                        Margin="5,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding ExitAtpTxChannel}" />
+                                    </Border>
+
+                                    <Border
+                                        Width="220"
+                                        Height="28"
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        Background="AliceBlue"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            VerticalAlignment="Center"
+                                            HorizontalAlignment="Center"
+                                            FontSize="12"
+                                            Text="0x00 02 00 01 00 00 00 01" />
+                                    </Border>
+
+                                    <Button
+                                        Width="50"
+                                        Height="28"
+                                        Margin="15,0,0,0"
+                                        VerticalAlignment="Center"
+                                        BorderThickness="0"
+                                        Command="{Binding SendExitAtpCommand}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Background="#3b82f6"
+                                                    CornerRadius="4">
+                                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                        <TextBlock
+                                                            x:Name="DeviceAction"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            FontSize="14"
+                                                            Foreground="White"
+                                                            Text="发送" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                        <Setter Property="Cursor" Value="Arrow" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Text="RX" />
+                                    <Border
+                                        Width="100"
+                                        Height="28"
+                                        Margin="5,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Background="AliceBlue"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding ExitAtpRxChannel}" />
+                                    </Border>
+
+                                    <Border
+                                        Width="220"
+                                        Height="28"
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        Background="AliceBlue"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="1"
+                                            VerticalAlignment="Center"
+                                            HorizontalAlignment="Center"
+                                            FontSize="12"
+                                            Text="{Binding ExitAtpRxDataText}" />
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
                         </StackPanel>
-                    </Grid>
+                    </ScrollViewer>
 
                     <StackPanel
                         Grid.Row="0"
@@ -730,9 +960,9 @@
                         Grid.Row="1"
                         Grid.RowSpan="4"
                         Grid.Column="1"
-                        Margin="0,0,5,0"
                         Width="350"
                         Height="350"
+                        Margin="0,0,5,0"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         BorderBrush="#D9D9D9"

@@ -2,6 +2,7 @@
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Globalization;
 using MeasureControl.ViewModels.SingleBoardTest.HydraulicController;
 using Prism.Ioc;
 
@@ -12,6 +13,8 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
     /// </summary>
     public partial class HC_6_4 : UserControl
     {
+        private bool _isUpdatingCustomInput;
+
         public HC_6_4()
         {
             InitializeComponent();
@@ -67,6 +70,120 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
             }
 
             return false;
+        }
+
+        private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isUpdatingCustomInput || sender is not TextBox textBox)
+            {
+                return;
+            }
+
+            var sanitized = SanitizeVoltageText(textBox.Text);
+            if (!string.Equals(textBox.Text, sanitized, System.StringComparison.Ordinal))
+            {
+                try
+                {
+                    _isUpdatingCustomInput = true;
+                    var caretIndex = textBox.CaretIndex;
+                    textBox.Text = sanitized;
+                    textBox.CaretIndex = System.Math.Min(caretIndex, sanitized.Length);
+                }
+                finally
+                {
+                    _isUpdatingCustomInput = false;
+                }
+            }
+        }
+
+        private void TextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (_isUpdatingCustomInput || sender is not TextBox textBox)
+            {
+                return;
+            }
+
+            var formatted = FormatVoltageText(textBox.Text);
+            try
+            {
+                _isUpdatingCustomInput = true;
+                textBox.Text = formatted;
+                textBox.CaretIndex = formatted.Length;
+            }
+            finally
+            {
+                _isUpdatingCustomInput = false;
+            }
+
+            if (DataContext is HC_6_4ViewModel viewModel)
+            {
+                viewModel.CustomVoltageInput = formatted;
+            }
+        }
+
+        private static string SanitizeVoltageText(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return string.Empty;
+            }
+
+            var raw = text.Replace("V", string.Empty).Replace("v", string.Empty).Trim();
+            raw = raw.Replace(',', '.');
+
+            var chars = new System.Collections.Generic.List<char>(raw.Length);
+            var hasDot = false;
+            var decimalCount = 0;
+            foreach (var ch in raw)
+            {
+                if (char.IsDigit(ch))
+                {
+                    if (hasDot)
+                    {
+                        if (decimalCount >= 2)
+                        {
+                            continue;
+                        }
+
+                        decimalCount++;
+                    }
+
+                    chars.Add(ch);
+                    continue;
+                }
+
+                if (ch == '.' && !hasDot)
+                {
+                    hasDot = true;
+                    chars.Add(ch);
+                }
+            }
+
+            var sanitized = new string(chars.ToArray());
+            if (sanitized.EndsWith(".", System.StringComparison.Ordinal))
+            {
+                return sanitized;
+            }
+
+            return sanitized;
+        }
+
+        private static string FormatVoltageText(string text)
+        {
+            var sanitized = SanitizeVoltageText(text);
+            if (string.IsNullOrWhiteSpace(sanitized) || sanitized.EndsWith(".", System.StringComparison.Ordinal))
+            {
+                sanitized = sanitized.TrimEnd('.');
+            }
+
+            if (!double.TryParse(sanitized, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var value))
+            {
+                return sanitized;
+            }
+
+            value = System.Math.Max(0d, System.Math.Min(7.17d, value));
+            value = System.Math.Truncate(value * 100d) / 100d;
+            return value.ToString("0.##", CultureInfo.InvariantCulture);
         }
     }
 }

@@ -74,7 +74,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const int DefaultTimeoutMs = 3000;
 
         /// <summary>温度采集超时时间（毫秒）</summary>
-        private const int TemperatureReadTimeoutMs = 2000;
+        private const int TemperatureReadTimeoutMs = 5000;
 
         /// <summary>组件供电电源IP地址</summary>
         private const string PowerSupplyIpAddress = "192.168.1.15";
@@ -355,64 +355,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// <summary>
         /// 启动自动测试
         /// </summary>
-        private void StartAutoTest()
+        private async void StartAutoTest()
         {
             _opCts?.Cancel();
             _opCts = new CancellationTokenSource();
-            var token = _opCts.Token;
 
-            IsAutoTestRunning = true;
-            ClearResults();
-            AddLog("自动测试开始");
-
-            Task.Run(async () =>
+            try
             {
-                try
-                {
-                    // 步骤1: 初始化硬件
-                    AddLog("步骤1: 初始化硬件设备（28V供电）...");
-                    await InitializeHardwareWithTimeoutAsync(token);
-                    if (token.IsCancellationRequested) return;
-
-                    // 步骤2: 自动采集温度
-                    AddLog("步骤2: 采集温度...");
-                    await MeasureTemperatureAsync();
-                    if (token.IsCancellationRequested) return;
-
-                    // 步骤3: 复位硬件
-                    AddLog("步骤3: 复位硬件...");
-                    await ResetHardwareAsync(token);
-
-                    AddLog("自动测试完成");
-                }
-                catch (TimeoutException ex)
-                {
-                    AddLog($"超时: {ex.Message}");
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        ReMessageBox.Show(ex.Message, "超时提示",
-                            MessageBoxButton.OK, MessageBoxImage.Warning);
-                    });
-                }
-                catch (OperationCanceledException)
-                {
-                    AddLog("测试已取消");
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"错误: {ex.Message}");
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        ReMessageBox.Show($"测试出错: {ex.Message}", "错误",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
-                    });
-                }
-                finally
-                {
-                    try { await ResetHardwareAsync(CancellationToken.None); } catch { }
-                    Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
-                }
-            });
+                await ExecuteAutoTestAsync(_opCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // 已在 ExecuteAutoTestAsync 中处理
+            }
+            catch (Exception ex)
+            {
+                AddLog($"自动测试异常: {ex.Message}");
+            }
+            finally
+            {
+                _opCts?.Dispose();
+                _opCts = null;
+            }
         }
 
         /// <summary>
@@ -440,6 +404,71 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     });
                 }
             });
+        }
+
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                _opCts?.Cancel();
+                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            _opCts?.Cancel();
+            _opCts?.Dispose();
+            _opCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                return await ExecuteAutoTestAsync(_opCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
+
+        private async Task<string> ExecuteAutoTestAsync(CancellationToken token)
+        {
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsAutoTestRunning = true;
+                ClearResults();
+            });
+            AddLog("自动测试开始");
+
+            try
+            {
+                AddLog("步骤1: 初始化硬件设备（28V供电）...");
+                await InitializeHardwareWithTimeoutAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                AddLog("步骤2: 采集温度...");
+                await MeasureTemperatureAsync().ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                AddLog("步骤3: 复位硬件...");
+                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                AddLog($"自动测试完成，结果: {OverallResult}");
+
+                return OverallResult;
+            }
+            catch (OperationCanceledException)
+            {
+                AddLog("自动测试已取消");
+                try { await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                throw;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"自动测试异常: {ex.Message}");
+                try { await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                return "不合格";
+            }
         }
 
         #endregion
@@ -535,6 +564,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 await _fpga.ConnectAsync(token);
                 _fpgaConnected = true;
                 AddLog("FPGA TCP连接成功");
+
+                try
+                {
+                    AddLog("正在初始化HI8435...");
+                    await _fpga.InitHi8435AfterConnectAsync(token);
+                    AddLog("HI8435初始化完成");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"HI8435初始化失败: {ex.Message}");
+                }
+
+                // 启动异步接收功能
+                _fpga.StartAsyncReceive(AddLog);
             }
             catch (Exception ex)
             {
@@ -573,6 +616,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             // 断开FPGA
             if (_fpga != null)
             {
+                try { _fpga.StopAsyncReceive(); } catch { }
                 try { _fpga.Disconnect(); } catch { }
                 _fpga = null;
                 _fpgaConnected = false;
@@ -718,7 +762,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// <summary>
         /// 通过FPGA TCP接口（IP=192.168.1.10, Port=5001）读取DS18B20温度。
         /// 协议：发送命令0x07（无数据），FPGA返回1个单精度浮点数（小端，单位℃）。
-        /// 帧格式：帧头(AA 55) + 长度(01) + 命令(07) → 应答：帧头(AA 55) + 长度(05) + 命令(07) + float32
+        /// 帧格式：帧头(AA 55) + 长度(02) + 命令(07) + 数据(00) → 应答：帧头(AA 55) + 长度(05) + 命令(07) + float32
+        /// 
+        /// 使用异步接收模式：发送命令后等待2-3秒，从缓存中查找07命令的响应。
+        /// 这样可以避免06命令（状态消息）的干扰。
         /// </summary>
         private async Task<double> ReadDs18B20ViaMioAsync(CancellationToken token)
         {
@@ -727,9 +774,40 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 _fpga ??= new FpgaIoClient();
                 await _fpga.ConnectAsync(token);
                 _fpgaConnected = true;
+                _fpga.StartAsyncReceive(AddLog);
             }
 
-            float tempF = await _fpga.ReadDs18B20TemperatureAsync(token);
+            // 记录发送时间，用于筛选发送后收到的响应
+            var sendTime = DateTime.UtcNow;
+
+            // 发送温度采集命令: AA 55 02 07 00
+            AddLog("发送温度采集命令: AA 55 02 07 00");
+            await _fpga.SendTemperatureCommandAsync(token);
+
+            // 等待2-3秒，让异步接收任务收集响应
+            AddLog("等待FPGA响应（2.5秒）...");
+            await Task.Delay(2500, token);
+
+            // 从缓存中查找命令为07的响应（发送时间之后收到的）
+            var frames = _fpga.GetReceivedFramesByCommandAfter(0x07, sendTime);
+            if (frames == null || frames.Count == 0)
+            {
+                // 没有找到命令07的响应，弹窗报错
+                throw new InvalidOperationException("未收到FPGA温度采集响应（命令07），请检查FPGA连接状态");
+            }
+
+            // 取最新的一帧
+            var latestFrame = frames.Last();
+            AddLog($"收到温度响应: {latestFrame.RawHex}");
+
+            // 解析温度数据（单精度浮点数，小端模式）
+            if (latestFrame.Payload == null || latestFrame.Payload.Length < 4)
+            {
+                throw new InvalidOperationException($"温度数据长度不足: {latestFrame.Payload?.Length ?? 0} bytes，期望 4 bytes");
+            }
+
+            float tempF = BitConverter.ToSingle(latestFrame.Payload, 0);
+
             return (double)tempF;
         }
 
@@ -881,332 +959,5 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         }
 
         #endregion
-    }
-
-    /// <summary>
-    /// 加放油高速 IO 板卡（FPGA）TCP 通信客户端。
-    /// FPGA端TCP服务器，静态IP: 192.168.1.10，端口: 5001。
-    /// 帧格式： 帧头(0xAA,0x55) + 长度(1B) + 命令(1B) + 数据(长度-1 B)
-    /// </summary>
-    internal sealed class FpgaIoClient : IDisposable
-    {
-        public const string DefaultIpAddress = "192.168.1.10";
-        public const int DefaultPort = 5001;
-
-        private static readonly byte[] FrameHeader = { 0xAA, 0x55 };
-
-        private readonly string _ip;
-        private readonly int _port;
-        private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
-
-        private TcpClient _client;
-        private NetworkStream _stream;
-
-        public bool IsConnected => _client?.Connected == true && _stream != null;
-
-        public FpgaIoClient(string ip = DefaultIpAddress, int port = DefaultPort)
-        {
-            _ip = ip;
-            _port = port;
-        }
-
-        public async Task ConnectAsync(CancellationToken token = default)
-        {
-            if (IsConnected) return;
-
-            try { _client?.Dispose(); } catch { }
-            _client = null;
-            _stream = null;
-
-            var client = new TcpClient { NoDelay = true };
-            try
-            {
-                using var timeoutCts = new System.Threading.CancellationTokenSource(2000);
-                using var linkedCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
-
-                var connectTask = client.ConnectAsync(_ip, _port);
-                var cancelTask = Task.Delay(Timeout.Infinite, linkedCts.Token);
-
-                var completed = await Task.WhenAny(connectTask, cancelTask);
-                if (completed != connectTask)
-                {
-                    try { client.Close(); } catch { }
-                    token.ThrowIfCancellationRequested();
-                    throw new TimeoutException($"FPGA连接超时（2s），IP={_ip}:{_port}");
-                }
-
-                await connectTask;
-
-                _client = client;
-                _stream = _client.GetStream();
-            }
-            catch
-            {
-                try { client?.Close(); } catch { }
-                throw;
-            }
-        }
-
-        public void Disconnect()
-        {
-            try { _stream?.Close(); } catch { }
-            try { _client?.Close(); } catch { }
-            _stream = null;
-            _client = null;
-        }
-
-        private static byte[] BuildFrame(byte command, byte[] data = null)
-        {
-            int dataLen = data?.Length ?? 0;
-            byte lengthField = (byte)(1 + dataLen);
-            var frame = new byte[2 + 1 + 1 + dataLen];
-            frame[0] = FrameHeader[0];
-            frame[1] = FrameHeader[1];
-            frame[2] = lengthField;
-            frame[3] = command;
-            if (dataLen > 0)
-                Buffer.BlockCopy(data, 0, frame, 4, dataLen);
-            return frame;
-        }
-
-        private async Task<(byte cmd, byte[] payload)> ReadFrameAsync(CancellationToken token)
-        {
-            var header = await ReadExactAsync(2, token);
-            if (header[0] != 0xAA || header[1] != 0x55)
-                throw new InvalidOperationException($"FPGA帧头校验失败: 0x{header[0]:X2} 0x{header[1]:X2}");
-
-            var lenBuf = await ReadExactAsync(1, token);
-            int totalLen = lenBuf[0];
-
-            var body = await ReadExactAsync(totalLen, token);
-            byte cmd = body[0];
-            byte[] payload = new byte[totalLen - 1];
-            if (payload.Length > 0)
-                Buffer.BlockCopy(body, 1, payload, 0, payload.Length);
-
-            return (cmd, payload);
-        }
-
-        private async Task<byte[]> ReadExactAsync(int count, CancellationToken token)
-        {
-            var buf = new byte[count];
-            int received = 0;
-            while (received < count)
-            {
-                int n = await _stream.ReadAsync(buf, received, count - received, token);
-                if (n == 0) throw new InvalidOperationException("FPGA连接已断开（读取0字节）");
-                received += n;
-            }
-            return buf;
-        }
-
-        /// <summary>0x07 读取DS18B20温度，返回单精度浮点数（小端，单位℃）</summary>
-        public async Task<float> ReadDs18B20TemperatureAsync(CancellationToken token = default)
-        {
-            await _lock.WaitAsync(token);
-            try
-            {
-                await EnsureConnectedAsync(token);
-                var frame = BuildFrame(0x07);
-                await _stream.WriteAsync(frame, 0, frame.Length, token);
-                await _stream.FlushAsync(token);
-
-                var (cmd, payload) = await ReadFrameAsync(token);
-                if (cmd != 0x07)
-                    throw new InvalidOperationException($"DS18B20温度读取：应答命令错误 0x{cmd:X2}，期望 0x07");
-                if (payload.Length < 4)
-                    throw new InvalidOperationException($"DS18B20温度读取：应答数据长度不足 {payload.Length} bytes，期望 4");
-
-                return BitConverter.ToSingle(payload, 0);
-            }
-            finally
-            {
-                _lock.Release();
-            }
-        }
-
-        /// <summary>0x00 写GPIO输出 (IO11-32 对应 bit0-21，uint32小端)，并消费FPGA返回的0x00响应帧</summary>
-        public async Task WriteGpioAsync(uint ioMask, CancellationToken token = default)
-        {
-            await _lock.WaitAsync(token);
-            try
-            {
-                await EnsureConnectedAsync(token);
-                var frame = BuildFrame(0x00, BitConverter.GetBytes(ioMask));
-                await _stream.WriteAsync(frame, 0, frame.Length, token);
-                await _stream.FlushAsync(token);
-                // 协议：发送0x00后FPGA会返回一个0x00帧(GPIO输入读值)，必须消费否则后续帧错位
-                var (_, _) = await ReadFrameAsync(token);
-            }
-            finally
-            {
-                _lock.Release();
-            }
-        }
-
-        /// <summary>0x00 读GPIO输入 (IO43-64 对应 bit0-21，uint32小端)</summary>
-        public async Task<uint> ReadGpioAsync(CancellationToken token = default)
-        {
-            await _lock.WaitAsync(token);
-            try
-            {
-                await EnsureConnectedAsync(token);
-                var frame = BuildFrame(0x00, new byte[] { 0, 0, 0, 0 });
-                await _stream.WriteAsync(frame, 0, frame.Length, token);
-                await _stream.FlushAsync(token);
-
-                var (cmd, payload) = await ReadFrameAsync(token);
-                if (cmd != 0x00)
-                    throw new InvalidOperationException($"GPIO读取：应答命令错误 0x{cmd:X2}，期望 0x00");
-                if (payload.Length < 4)
-                    throw new InvalidOperationException($"GPIO读取：应答数据长度不足 {payload.Length} bytes");
-
-                return BitConverter.ToUInt32(payload, 0);
-            }
-            finally
-            {
-                _lock.Release();
-            }
-        }
-
-        /// <summary>0x04 初始化HI8435，等待FPGA应答帧</summary>
-        public async Task InitHi8435Async(CancellationToken token = default)
-        {
-            await _lock.WaitAsync(token);
-            try
-            {
-                await EnsureConnectedAsync(token);
-                var frame = BuildFrame(0x04);
-                await _stream.WriteAsync(frame, 0, frame.Length, token);
-                await _stream.FlushAsync(token);
-                // 消费FPGA应答帧（若有），防止后续帧错位
-                try
-                {
-                    using var ackCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                    ackCts.CancelAfter(500);
-                    var (_, _) = await ReadFrameAsync(ackCts.Token);
-                }
-                catch (OperationCanceledException) { }
-                catch { }
-            }
-            finally
-            {
-                _lock.Release();
-            }
-        }
-
-        /// <summary>0x06 读HI8435 BANK3-0状态，返回4字节 byte0-3对应bank3-0</summary>
-        public async Task<byte[]> ReadHi8435Async(CancellationToken token = default)
-        {
-            await _lock.WaitAsync(token);
-            try
-            {
-                await EnsureConnectedAsync(token);
-                var frame = BuildFrame(0x06);
-                await _stream.WriteAsync(frame, 0, frame.Length, token);
-                await _stream.FlushAsync(token);
-
-                var (cmd, payload) = await ReadFrameAsync(token);
-                if (cmd != 0x06)
-                    throw new InvalidOperationException($"HI8435读取：应答命令错误 0x{cmd:X2}，期望 0x06");
-                if (payload.Length < 4)
-                    throw new InvalidOperationException($"HI8435读取：应答数据长度不足 {payload.Length} bytes");
-
-                return payload;
-            }
-            finally
-            {
-                _lock.Release();
-            }
-        }
-
-        /// <summary>
-        /// 0x01/02/03 UART TX+RX 一体：发送数据后等待FPGA回传回环数据。
-        /// 用于自检（RS422内部回环）：TX发出后FPGA将收到的回环数据作为同命令帧返回。
-        /// uartIndex: 0=SCI1(UART0), 1=SCI2(UART1), 2=UART2
-        /// </summary>
-        public async Task<byte[]> UartTxRxAsync(int uartIndex, byte[] data, CancellationToken token = default)
-        {
-            if (uartIndex < 0 || uartIndex > 2) throw new ArgumentOutOfRangeException(nameof(uartIndex));
-            if (data == null || data.Length == 0 || data.Length > 201) throw new ArgumentException("数据长度需在1~201字节内");
-
-            await _lock.WaitAsync(token);
-            try
-            {
-                await EnsureConnectedAsync(token);
-                var frame = BuildFrame((byte)(0x01 + uartIndex), data);
-                await _stream.WriteAsync(frame, 0, frame.Length, token);
-                await _stream.FlushAsync(token);
-
-                byte expectedCmd = (byte)(0x01 + uartIndex);
-                var (cmd, payload) = await ReadFrameAsync(token);
-                if (cmd != expectedCmd)
-                    throw new InvalidOperationException($"UART{uartIndex} TX/RX：应答命令错误 0x{cmd:X2}，期望 0x{expectedCmd:X2}");
-                return payload;
-            }
-            finally
-            {
-                _lock.Release();
-            }
-        }
-
-        /// <summary>
-        /// 0x01/02/03 仅发送 UART TX（外部通信模式，不等待回环应答）。
-        /// 发送后FPGA不会立即返回帧，外部设备收到数据后可能发回数据由 UartRxWaitAsync 接收。
-        /// </summary>
-        public async Task UartTxOnlyAsync(int uartIndex, byte[] data, CancellationToken token = default)
-        {
-            if (uartIndex < 0 || uartIndex > 2) throw new ArgumentOutOfRangeException(nameof(uartIndex));
-            if (data == null || data.Length == 0 || data.Length > 201) throw new ArgumentException("数据长度需在1~201字节内");
-
-            await _lock.WaitAsync(token);
-            try
-            {
-                await EnsureConnectedAsync(token);
-                var frame = BuildFrame((byte)(0x01 + uartIndex), data);
-                await _stream.WriteAsync(frame, 0, frame.Length, token);
-                await _stream.FlushAsync(token);
-            }
-            finally
-            {
-                _lock.Release();
-            }
-        }
-
-        /// <summary>
-        /// 等待并接收 UART RX 帧（外部设备主动发回的数据）。
-        /// uartIndex: 0=SCI1, 1=SCI2, 2=UART2
-        /// </summary>
-        public async Task<byte[]> UartRxWaitAsync(int uartIndex, CancellationToken token = default)
-        {
-            if (uartIndex < 0 || uartIndex > 2) throw new ArgumentOutOfRangeException(nameof(uartIndex));
-
-            await _lock.WaitAsync(token);
-            try
-            {
-                await EnsureConnectedAsync(token);
-                byte expectedCmd = (byte)(0x01 + uartIndex);
-                var (cmd, payload) = await ReadFrameAsync(token);
-                if (cmd != expectedCmd)
-                    throw new InvalidOperationException($"UART{uartIndex} RX等待：应答命令错误 0x{cmd:X2}，期望 0x{expectedCmd:X2}");
-                return payload;
-            }
-            finally
-            {
-                _lock.Release();
-            }
-        }
-
-        private async Task EnsureConnectedAsync(CancellationToken token)
-        {
-            if (!IsConnected)
-                await ConnectAsync(token);
-        }
-
-        public void Dispose()
-        {
-            _lock?.Dispose();
-            Disconnect();
-        }
     }
 }

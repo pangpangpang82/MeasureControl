@@ -38,10 +38,11 @@ namespace MeasureControl.Services.HardwareApis
     /// </summary>
     public sealed class Mtx532Options
     {
-        public double SampleRateHz { get; set; } = 1000.0;
+        public double SampleRateHz { get; set; } = 20000.0;
         public bool SuppressNativeDialogs { get; set; } = true;
         public bool ResetToZeroOnStop { get; set; } = true;
         public int ResetDelayMs { get; set; } = 500;
+        public bool UseOneBasedAoChannelNumbering { get; set; }
     }
 
     /// <summary>
@@ -52,9 +53,9 @@ namespace MeasureControl.Services.HardwareApis
     {
         bool IsConnected { get; }      // 是否已连接到板卡
         bool IsOutputRunning { get; }  // 是否正在输出
+        bool IsOutputPrepared { get; } // 是否已完成输出前置配置，可尝试开始输出
 
-        Task ConnectAsync(CancellationToken cancellationToken = default);  // 连接到板卡
-        Task ConnectAsync(CancellationToken cancellationToken = default, IEnumerable<string> enabledAoChannels = null);
+        Task ConnectAsync(CancellationToken cancellationToken = default, IEnumerable<string> enabledAoChannels = null);  // 连接到板卡
         Task DisconnectAsync(CancellationToken cancellationToken = default);  // 断开板卡连接
 
         Task SetSampleRateAsync(double sampleRateHz, CancellationToken cancellationToken = default);
@@ -67,6 +68,7 @@ namespace MeasureControl.Services.HardwareApis
 
         Task StartOutputAsync(CancellationToken cancellationToken = default);  // 开始输出
         Task StopOutputAsync(CancellationToken cancellationToken = default);   // 停止输出
+        Task<bool> CanStartOutputAsync(CancellationToken cancellationToken = default);
 
         Task ResetAllToZeroAsync(bool disableAfterReset = false, CancellationToken cancellationToken = default);
 
@@ -75,7 +77,7 @@ namespace MeasureControl.Services.HardwareApis
 
     /// <summary>
     /// MTX532 模拟量输出板卡实现类
-    /// 通道命名：AO1-AO32（外部）对应 AO0-AO31（内部驱动）
+    /// 通道命名：AO0-AO31
     /// </summary>
     public sealed class Mtx532Api : IMtx532Api
     {
@@ -86,6 +88,7 @@ namespace MeasureControl.Services.HardwareApis
         private readonly SemaphoreSlim _lifecycleLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _ioLock = new SemaphoreSlim(1, 1);
         private bool _isOutputRunning;
+        private bool _isOutputPrepared;
         private bool _disposed;
         private double _sampleRateHz;
 
@@ -101,14 +104,11 @@ namespace MeasureControl.Services.HardwareApis
 
         public bool IsOutputRunning => _isOutputRunning;
 
+        public bool IsOutputPrepared => IsConnected && _isOutputPrepared;
+
         /// <summary>
         /// 连接到 MTX532 模拟量输出板卡
         /// </summary>
-        public Task ConnectAsync(CancellationToken cancellationToken = default)
-        {
-            return ConnectAsync(cancellationToken, enabledAoChannels: null);
-        }
-
         public async Task ConnectAsync(CancellationToken cancellationToken = default, IEnumerable<string> enabledAoChannels = null)
         {
             await _lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -118,7 +118,6 @@ namespace MeasureControl.Services.HardwareApis
                     return;
 
                 _driver = new MTX532Driver(_device, suppressNativeDialogs: _options.SuppressNativeDialogs, slotNumberOverride: _slotNumber);
-
                 if (enabledAoChannels != null)
                 {
                     var normalized = enabledAoChannels
@@ -128,12 +127,16 @@ namespace MeasureControl.Services.HardwareApis
                         .ToList();
                     _driver.SetEnabledChannels(normalized);
                 }
-
+                else
+                {
+                    _driver.SetEnabledChannels(null);
+                }
                 var ok = await _driver.ConnectAsync().ConfigureAwait(false);
                 if (!ok)
                     throw new InvalidOperationException("MTX532 connect returned false");
 
                 _isOutputRunning = false;
+                _isOutputPrepared = false;
 
                 if (_sampleRateHz > 0)
                 {
@@ -172,13 +175,19 @@ namespace MeasureControl.Services.HardwareApis
                     try { await StopOutputAsync(cancellationToken).ConfigureAwait(false); } catch { }
                 }
 
+                await _ioLock.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    await _driver.DisconnectAsync().ConfigureAwait(false);
+                    if (_driver != null)
+                    {
+                        await _driver.DisconnectAsync().ConfigureAwait(false);
+                    }
                 }
                 finally
                 {
+                    _ioLock.Release();
                     _isOutputRunning = false;
+                    _isOutputPrepared = false;
                     _driver = null;
                 }
             }
@@ -230,6 +239,8 @@ namespace MeasureControl.Services.HardwareApis
                 var ok = await _driver.ConfigureChannelAsync(ch, dict).ConfigureAwait(false);
                 if (!ok)
                     throw new InvalidOperationException($"Configure {ch} failed");
+
+                _isOutputPrepared = true;
             }
             finally
             {
@@ -263,6 +274,8 @@ namespace MeasureControl.Services.HardwareApis
                     if (!ok)
                         throw new InvalidOperationException($"Configure {ch} failed");
                 }
+
+                _isOutputPrepared = list.Any(cfg => cfg != null);
             }
             finally
             {
@@ -330,6 +343,8 @@ namespace MeasureControl.Services.HardwareApis
                 var ok = await _driver.WriteChannelsBatchAsync(dict).ConfigureAwait(false);
                 if (!ok)
                     throw new InvalidOperationException("MTX532 write once failed");
+
+                _isOutputPrepared = dict.Count > 0;
             }
             finally
             {
@@ -354,6 +369,31 @@ namespace MeasureControl.Services.HardwareApis
                     throw new InvalidOperationException("MTX532 start output failed");
 
                 _isOutputRunning = true;
+                _isOutputPrepared = true;
+            }
+            finally
+            {
+                _ioLock.Release();
+            }
+        }
+
+        public async Task<bool> CanStartOutputAsync(CancellationToken cancellationToken = default)
+        {
+            if (!IsConnected)
+                return false;
+
+            if (IsOutputRunning)
+                return true;
+
+            await _ioLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await ConfigureSampleRateInternalAsync(_sampleRateHz).ConfigureAwait(false);
+                return _isOutputPrepared;
+            }
+            catch
+            {
+                return false;
             }
             finally
             {
@@ -406,6 +446,7 @@ namespace MeasureControl.Services.HardwareApis
             {
                 await ConfigureSampleRateInternalAsync(_sampleRateHz).ConfigureAwait(false);
                 await ResetAllToZeroInternalAsync(disableAfterReset).ConfigureAwait(false);
+                _isOutputPrepared = true;
             }
             finally
             {
@@ -477,14 +518,17 @@ namespace MeasureControl.Services.HardwareApis
             if (sampleRateHz <= 0)
                 return;
 
+            var driver = _driver;
+            if (driver == null || !driver.IsConnected)
+                return;
             for (int i = 0; i < 32; i++)
             {
-                var ch = NormalizeAoChannel($"AO{i}");
+                var ch = GetDriverAoChannel(i);
                 var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["SampleRate"] = sampleRateHz
                 };
-                await _driver.ConfigureChannelAsync(ch, dict).ConfigureAwait(false);
+                await driver.ConfigureChannelAsync(ch, dict).ConfigureAwait(false);
             }
         }
 
@@ -493,9 +537,12 @@ namespace MeasureControl.Services.HardwareApis
         /// </summary>
         private async Task ResetAllToZeroInternalAsync(bool disableAfterReset)
         {
+            var driver = _driver;
+            if (driver == null || !driver.IsConnected)
+                return;
             for (int i = 0; i < 32; i++)
             {
-                var ch = NormalizeAoChannel($"AO{i}");
+                var ch = GetDriverAoChannel(i);
                 var cfg = new Mtx532ChannelConfig
                 {
                     Channel = ch,
@@ -507,17 +554,14 @@ namespace MeasureControl.Services.HardwareApis
                     DutyCyclePercent = 50.0
                 };
                 var dict = BuildConfigureDict(cfg);
-                await _driver.ConfigureChannelAsync(ch, dict).ConfigureAwait(false);
+                await driver.ConfigureChannelAsync(ch, dict).ConfigureAwait(false);
             }
         }
 
         /// <summary>
-        /// 将外部通道名转换为内部驱动通道名（AO0-AO31）
-        /// 兼容两种命名：
-        /// - AO0-AO31（推荐，和板卡测试界面/驱动一致）
-        /// - AO1-AO32（历史兼容）
+        /// 将通道名标准化为 AO0-AO31
         /// </summary>
-        private static string NormalizeAoChannel(string channel)
+        private string NormalizeAoChannel(string channel)
         {
             if (string.IsNullOrWhiteSpace(channel))
                 throw new ArgumentException("Channel is required", nameof(channel));
@@ -530,16 +574,29 @@ namespace MeasureControl.Services.HardwareApis
             if (!int.TryParse(num, NumberStyles.Integer, CultureInfo.InvariantCulture, out var idx))
                 throw new ArgumentException("Invalid AO channel index", nameof(channel));
 
-            // 约定：
-            // - 只有输入 AO0 时，才认为调用方显式使用内部编号。
-            // - AO1-AO32 统一按外部端子/文档编号处理，映射到内部 AO0-AO31。
-            // 这样可避免常见歧义：例如输入 "AO2"，更符合外部端子 2 的语义（内部应为 AO1）。
             if (idx == 0)
                 return "AO0";
-            if (idx >= 1 && idx <= 32)
-                return $"AO{idx - 1}";
 
-            throw new ArgumentOutOfRangeException(nameof(channel), "AO channel index must be 0 or 1..32");
+            if (_options.UseOneBasedAoChannelNumbering)
+            {
+                if (idx >= 1 && idx <= 32)
+                    return $"AO{idx - 1}";
+
+                throw new ArgumentOutOfRangeException(nameof(channel), "AO channel index must be 0 or 1..32");
+            }
+
+            if (idx < 0 || idx > 31)
+                throw new ArgumentOutOfRangeException(nameof(channel), "AO channel index must be 0..31");
+
+            return $"AO{idx}";
+        }
+
+        private static string GetDriverAoChannel(int index)
+        {
+            if (index < 0 || index > 31)
+                throw new ArgumentOutOfRangeException(nameof(index), "AO channel index must be 0..31");
+
+            return $"AO{index}";
         }
 
         public async ValueTask DisposeAsync()

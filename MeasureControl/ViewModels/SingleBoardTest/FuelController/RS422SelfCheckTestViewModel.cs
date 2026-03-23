@@ -48,6 +48,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isPowerOn;
         private string _powerStatus = "未上电";
 
+        private bool _rs422LoopModeEnabled;
+        private bool _rs422LoopModeInitialized;
+
         private string _stepAResult = "--";
         private string _stepBResult = "--";
 
@@ -89,7 +92,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
-            LoadPersistedState();
+            //LoadPersistedState();
             _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
         }
 
@@ -289,22 +292,88 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             if (IsAutoTestRunning)
             {
+                AddLog("正在停止自动测试...");
                 _opCts?.Cancel();
+                // 等待测试停止并重置状态
+                await Task.Delay(200);
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsAutoTestRunning = false;
+                    _hardwareInitialized = false;
+                    UpdateCommandStates();
+                });
+                AddLog("自动测试已停止");
                 return;
             }
 
-            IsAutoTestRunning = true;
             _opCts = new CancellationTokenSource();
+            try
+            {
+                await ExecuteAutoTestCoreAsync(_opCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // 已在 ExecuteAutoTestCoreAsync 中处理
+            }
+            catch (Exception ex)
+            {
+                AddLog($"自动测试异常: {ex.Message}");
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsAutoTestRunning = false;
+                    _hardwareInitialized = false;
+                    UpdateCommandStates();
+                });
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
+
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                _opCts?.Cancel();
+                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            _opCts?.Cancel();
+            _opCts?.Dispose();
+            _opCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
             try
             {
-                AddLog("========== 自动测试开始 ==========");
-                await InitializeHardwareAsync(_opCts.Token);
+                return await ExecuteAutoTestCoreAsync(_opCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
+                _hardwareInitialized = false;
+                UpdateCommandStates();
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
 
-                await RunStepAsync("a", token => RunStepAAsync(token));
-                await RunStepAsync("b", token => RunStepBAsync(token));
+        private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token)
+        {
+            Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = true);
+            AddLog("========== 自动测试开始 ==========");
 
-                await ResetHardwareAsync(_opCts.Token);
+            try
+            {
+                await InitializeHardwareAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                await RunStepAsync("a", t => RunStepAAsync(t)).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                await RunStepAsync("b", t => RunStepBAsync(t)).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
+                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
 
                 bool overallPass =
                     string.Equals(StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) &&
@@ -312,27 +381,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    OverallResult = overallPass ? "PASS" : "FAIL";
+                    OverallResult = overallPass ? "合格" : "不合格";
                     LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 });
 
-                AddLog($"========== 自动测试完成: {(overallPass ? "PASS" : "FAIL")} ==========");
+                AddLog($"========== 自动测试完成: {OverallResult} ==========");
+                return OverallResult;
             }
             catch (OperationCanceledException)
             {
                 AddLog("自动测试已取消");
-                await SafeResetHardwareAsync();
+                await SafeResetHardwareAsync().ConfigureAwait(false);
+                throw;
             }
             catch (Exception ex)
             {
                 AddLog($"自动测试异常: {ex.Message}");
-                await SafeResetHardwareAsync();
-            }
-            finally
-            {
-                IsAutoTestRunning = false;
-                _hardwareInitialized = false;
-                UpdateCommandStates();
+                await SafeResetHardwareAsync().ConfigureAwait(false);
+                return "不合格";
             }
         }
 
@@ -374,6 +440,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     _fpgaConnected = true;
                     AddLog("FPGA连接成功");
 
+                    try
+                    {
+                        AddLog("正在初始化HI8435...");
+                        await _fpga.InitHi8435AfterConnectAsync(token);
+                        AddLog("HI8435初始化完成");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"HI8435初始化失败: {ex.Message}");
+                    }
+
                     // 6.8 RS422自检测功能测试要求：
                     // 1. IO11=MUX1(bit0)=0, IO12=MUX2(bit1)=0 → RS422内部自检回环模式
                     // 2. CRM_PIN2和CRM_PIN12置为0（根据测试规范）
@@ -381,9 +458,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     // MUX1=0(bit0), MUX2=0(bit1) → 内部回环
                     // CRM_PIN2对应某个IO位，CRM_PIN12对应某个IO位（需要置0）
                     // 根据协议，发送0x00000000即可将所有输出置低
-                    await _fpga.WriteGpioAsync(0x00000000u, token);
+                    //关闭422回环模式
+                    await EnsureRs422LoopModeAsync(false, token);
                     AddLog("[FPGA] GPIO输出已置低（MUX1=0, MUX2=0, CRM_PIN2=0, CRM_PIN12=0）");
                     AddLog("[FPGA] RS422内部自检回环模式已启用");
+
+                    // 启动异步接收功能
+                    _fpga.StartAsyncReceive(AddLog);
                 }
                 catch (Exception ex)
                 {
@@ -406,9 +487,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 if (_fpga != null)
                 {
+                    try { _fpga.StopAsyncReceive(); } catch { }
+                    await Task.Delay(50, CancellationToken.None);
                     try { _fpga.Disconnect(); } catch { }
                     _fpga = null;
                     _fpgaConnected = false;
+                    _rs422LoopModeEnabled = false;
+                    _rs422LoopModeInitialized = false;
                 }
 
                 try { await _componentPowerStateApi.ApplyComponentDownStateAsync(token); } catch { }
@@ -447,7 +532,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
             Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
         }
+        private async Task EnsureRs422LoopModeAsync(bool enable, CancellationToken token)
+        {
+            if (!_fpgaConnected || _fpga == null)
+                return;
 
+            if (_rs422LoopModeInitialized && _rs422LoopModeEnabled == enable)
+                return;
+
+            await _fpga.WriteGpioOutputOnlyAsync(0x00000000u, token);
+            _rs422LoopModeEnabled = enable;
+            _rs422LoopModeInitialized = true;
+            AddLog(enable
+                ? "[FPGA] 已设置 IO11(MUX1)=1、IO12(MUX2)=1（开启RS422回环模式）"
+                : "[FPGA] 已设置 IO11(MUX1)=0、IO12(MUX2)=0（关闭RS422回环模式）");
+
+            await Task.Delay(50, token);
+        }
         private async Task RunStepAAsync(CancellationToken token)
         {
             // 6.8 RS422自检测功能测试 - 步骤a

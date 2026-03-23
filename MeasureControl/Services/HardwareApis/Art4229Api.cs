@@ -105,6 +105,18 @@ namespace MeasureControl.Services.HardwareApis
         /// <summary>发送 8 字节 payload（自动拆为 4 帧，SDI=0..3）</summary>
         Task SendPayload8Async(int txChannelIndex, byte label, byte[] payload8, Art4229Parity parity = Art4229Parity.Odd, CancellationToken cancellationToken = default);
 
+        /// <summary>周期发送原始 429 字（循环发送）</summary>
+        /// <param name="txChannelIndex">发送通道索引</param>
+        /// <param name="words">要发送的429字数组</param>
+        /// <param name="periodMs">发送周期（毫秒），每个字的发送间隔</param>
+        /// <param name="repeatCount">重复次数，0表示无限循环</param>
+        /// <param name="parity">校验模式</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        Task SendWordsPeriodAsync(int txChannelIndex, IReadOnlyList<uint> words, uint periodMs, uint repeatCount = 0, Art4229Parity parity = Art4229Parity.Odd, CancellationToken cancellationToken = default);
+
+        /// <summary>停止发送</summary>
+        Task StopTxAsync(int txChannelIndex, CancellationToken cancellationToken = default);
+
         /// <summary>读取接收缓冲区中的原始 429 字</summary>
         Task<IReadOnlyList<Art4229RxWord>> ReadRxWordsAsync(int rxChannelIndex, uint maxCount = 1024, bool enableTimeTag = false, bool enableRateAdaption = false, CancellationToken cancellationToken = default);
         /// <summary>等待并拼装 8 字节 payload（按 label+SDI 组帧）</summary>
@@ -415,6 +427,71 @@ namespace MeasureControl.Services.HardwareApis
             }
 
             await SendWordsSingleAsync(txChannelIndex, data429, parity, cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task SendWordsPeriodAsync(int txChannelIndex, IReadOnlyList<uint> words, uint periodMs, uint repeatCount = 0, Art4229Parity parity = Art4229Parity.Odd, CancellationToken cancellationToken = default)
+        {
+            EnsureConnected();
+            if (words == null)
+                throw new ArgumentNullException(nameof(words));
+
+            var data = words.ToArray();
+            if (data.Length == 0)
+                return;
+
+            // 构建周期发送参数数组
+            var parityArr = new uint[data.Length];
+            var periodArr = new uint[data.Length];
+            var countArr = new uint[data.Length];
+            var intervalArr = new uint[data.Length];
+            var normalizedRepeatCount = repeatCount == 0 ? uint.MaxValue : repeatCount;
+
+            for (int i = 0; i < data.Length; i++)
+            {
+                parityArr[i] = (uint)parity;
+                periodArr[i] = periodMs;           // 发送周期（毫秒）
+                countArr[i] = normalizedRepeatCount;
+                intervalArr[i] = 4;                // 字间隔（与界面默认值一致）
+            }
+
+            await _ioLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var openOk = await _driver.OpenTxChannelAsync(txChannelIndex).ConfigureAwait(false);
+                if (!openOk)
+                    throw new InvalidOperationException($"OpenTxChannelAsync failed (tx={txChannelIndex})");
+
+                var cfgOk = await _driver.ConfigureTxChannelAsync(
+                    txChannelIndex,
+                    rate: 100000,
+                    sendMode: (int)Art4229TxMode.Period,
+                    parity: (int)parity,
+                    wordFormat: (int)Art4229WordFormat.Standard429).ConfigureAwait(false);
+                if (!cfgOk)
+                    throw new InvalidOperationException($"ConfigureTxChannelAsync failed (tx={txChannelIndex})");
+
+                var ok = await _driver.SendDataPeriodAsync(txChannelIndex, data, periodArr, countArr, intervalArr, parityArr).ConfigureAwait(false);
+                if (!ok)
+                    throw new InvalidOperationException($"SendDataPeriodAsync failed (tx={txChannelIndex}, count={data.Length})");
+            }
+            finally
+            {
+                _ioLock.Release();
+            }
+        }
+
+        public async Task StopTxAsync(int txChannelIndex, CancellationToken cancellationToken = default)
+        {
+            EnsureConnected();
+            await _ioLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await _driver.StopSendAsync(txChannelIndex).ConfigureAwait(false);
+            }
+            finally
+            {
+                _ioLock.Release();
+            }
         }
 
         public async Task<IReadOnlyList<Art4229RxWord>> ReadRxWordsAsync(int rxChannelIndex, uint maxCount = 1024, bool enableTimeTag = false, bool enableRateAdaption = false, CancellationToken cancellationToken = default)

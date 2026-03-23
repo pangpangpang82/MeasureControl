@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 
 using Prism.Mvvm;
 
@@ -42,6 +42,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
     {
 
+        private const string FixedTxChannel = "429_CH0";
+
+        private const string FixedRxChannel = "429_CH2";
+
         private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
@@ -58,7 +62,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-        private const string AoChannel = "AO1";
+        private const string AoChannel = "AO2";
 
 
 
@@ -89,12 +93,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
         private string _controllerPressureTestTxChannel;
-
-        private string _controllerPressureTestRxChannel;
-
-        private string _controllerPressureTestRxDataText;
-
-
 
         private string _pressureTelemetryRxChannel;
 
@@ -188,31 +186,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         {
 
-            _testTxChannel = "CH0";
+            _testTxChannel = FixedTxChannel;
 
-            _testRxChannel = "CH1";
-
-
-
-            _controllerPressureTestTxChannel = null;
-
-            _controllerPressureTestRxChannel = null;
-
-            _controllerPressureTestRxDataText = "--";
+            _testRxChannel = FixedRxChannel;
 
 
 
-            _pressureTelemetryRxChannel = null;
+            _controllerPressureTestTxChannel = _testTxChannel;
+
+            _pressureTelemetryRxChannel = _testRxChannel;
 
 
 
-            _enterAtpTxChannel = null;
+            _enterAtpTxChannel = _testTxChannel;
 
-            _enterAtpRxChannel = null;
+            _enterAtpRxChannel = _testRxChannel;
 
-            _exitAtpTxChannel = null;
+            _exitAtpTxChannel = _testTxChannel;
 
-            _exitAtpRxChannel = null;
+            _exitAtpRxChannel = _testRxChannel;
 
 
 
@@ -345,39 +337,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
 
                 try
-
                 {
-
                     var token = CancellationToken.None;
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 设置档位{gearIndex}：AO1={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
-
-
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 设置档位{gearIndex}：AO2={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
 
                     var ok = await OutputVoltageAsync(voltageV, token);
-
                     if (!ok)
-
                     {
-
                         SetLastTestResult("FAIL");
-
                         AddLog($"[{DateTime.Now:HH:mm:ss}] 电压输出失败");
-
                         return;
-
                     }
-
                 }
-
                 finally
-
                 {
-
                     IsBusy = false;
-
                 }
-
             }
 
             catch (Exception ex)
@@ -385,9 +361,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 电压输出异常：{ex.Message}");
-
             }
-
         }
 
 
@@ -416,11 +390,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public DelegateCommand ClearLogCommand { get; }
 
-
-
         public DelegateCommand SendSetControllerVoltageCommand { get; }
-
-
 
         public DelegateCommand SendControllerPressureTestCommand { get; }
 
@@ -429,2233 +399,1091 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
         public bool Gear1Checked
-
         {
-
             get => _gear1Checked;
-
             set
-
             {
-
                 if (_suppressGearCheckChanged)
-
                 {
-
                     SetProperty(ref _gear1Checked, value);
-
                     return;
-
                 }
-
-
 
                 if (!SetProperty(ref _gear1Checked, value))
-
                     return;
 
-
-
                 if (value)
-
                 {
-
                     SelectGear(1);
-
                 }
-
                 else
-
                 {
-
                     EnsureOneGearSelected();
-
                 }
-
             }
-
         }
-
-
 
         public bool Gear2Checked
-
         {
-
             get => _gear2Checked;
-
             set
-
             {
-
                 if (_suppressGearCheckChanged)
-
                 {
-
                     SetProperty(ref _gear2Checked, value);
-
                     return;
-
                 }
-
-
 
                 if (!SetProperty(ref _gear2Checked, value))
-
                     return;
 
-
-
                 if (value)
-
                 {
-
                     SelectGear(2);
-
                 }
-
                 else
-
                 {
-
                     EnsureOneGearSelected();
-
                 }
-
             }
-
         }
-
-
 
         public bool Gear3Checked
-
         {
-
             get => _gear3Checked;
-
             set
-
             {
-
                 if (_suppressGearCheckChanged)
-
                 {
-
                     SetProperty(ref _gear3Checked, value);
-
                     return;
-
                 }
-
-
 
                 if (!SetProperty(ref _gear3Checked, value))
-
                     return;
-
-
 
                 if (value)
-
                 {
-
                     SelectGear(3);
-
                 }
-
                 else
-
                 {
-
                     EnsureOneGearSelected();
-
                 }
-
             }
-
         }
-
-
 
         public string TestTxChannel
-
         {
-
-            get => _testTxChannel;
-
-            set => SetProperty(ref _testTxChannel, value);
-
+            get => FixedTxChannel;
         }
-
-
 
         public string TestRxChannel
-
         {
-
-            get => _testRxChannel;
-
-            set => SetProperty(ref _testRxChannel, value);
-
+            get => FixedRxChannel;
         }
-
-
 
         public string ControllerPressureTestTxChannel
-
         {
-
-            get => _controllerPressureTestTxChannel;
-
-            set => SetProperty(ref _controllerPressureTestTxChannel, value);
-
+            get => FixedTxChannel;
         }
-
-
-
-        public string ControllerPressureTestRxChannel
-
-        {
-
-            get => _controllerPressureTestRxChannel;
-
-            set => SetProperty(ref _controllerPressureTestRxChannel, value);
-
-        }
-
-
-
-        public string ControllerPressureTestRxDataText
-
-        {
-
-            get => _controllerPressureTestRxDataText;
-
-            private set => SetProperty(ref _controllerPressureTestRxDataText, value);
-
-        }
-
-
 
         public string PressureTelemetryRxChannel
-
         {
-
-            get => _pressureTelemetryRxChannel;
-
-            set => SetProperty(ref _pressureTelemetryRxChannel, value);
-
+            get => FixedRxChannel;
         }
-
-
 
         public string EnterAtpTxChannel
-
         {
-
-            get => _enterAtpTxChannel;
-
-            set => SetProperty(ref _enterAtpTxChannel, value);
-
+            get => FixedTxChannel;
         }
-
-
 
         public string EnterAtpRxChannel
-
         {
-
-            get => _enterAtpRxChannel;
-
-            set => SetProperty(ref _enterAtpRxChannel, value);
-
+            get => FixedRxChannel;
         }
-
-
 
         public string ExitAtpTxChannel
-
         {
-
-            get => _exitAtpTxChannel;
-
-            set => SetProperty(ref _exitAtpTxChannel, value);
-
+            get => FixedTxChannel;
         }
-
-
 
         public string ExitAtpRxChannel
-
         {
-
-            get => _exitAtpRxChannel;
-
-            set => SetProperty(ref _exitAtpRxChannel, value);
-
+            get => FixedRxChannel;
         }
-
-
 
         public double ArincRate
-
         {
-
             get => _arincRate;
-
             set => SetProperty(ref _arincRate, value);
-
         }
-
-
 
         public string VoltageSetValueText
-
         {
-
             get => _voltageSetValueText;
-
-            private set
-
-            {
-
-                SetProperty(ref _voltageSetValueText, value);
-
-            }
-
+            private set => SetProperty(ref _voltageSetValueText, value);
         }
-
-
 
         public string PressureTelemetryValueText
-
         {
-
             get => _pressureTelemetryValueText;
-
-            private set
-
-            {
-
-                SetProperty(ref _pressureTelemetryValueText, value);
-
-            }
-
+            private set => SetProperty(ref _pressureTelemetryValueText, value);
         }
-
-
 
         public string PressureTelemetryRxDataText
-
         {
-
             get => _pressureTelemetryRxDataText;
-
-            private set
-
-            {
-
-                SetProperty(ref _pressureTelemetryRxDataText, value);
-
-            }
-
+            private set => SetProperty(ref _pressureTelemetryRxDataText, value);
         }
-
-
 
         public string EnterAtpRxDataText
-
         {
-
             get => _enterAtpRxDataText;
-
             private set => SetProperty(ref _enterAtpRxDataText, value);
-
         }
-
-
 
         public string ExitAtpRxDataText
-
         {
-
             get => _exitAtpRxDataText;
-
             private set => SetProperty(ref _exitAtpRxDataText, value);
-
         }
-
-
 
         public bool IsInAtp
-
         {
-
             get => _isInAtp;
-
             private set => SetProperty(ref _isInAtp, value);
-
         }
-
-
 
         public int CurrentGearIndex
-
         {
-
             get => _currentGearIndex;
-
             private set
-
             {
-
                 if (SetProperty(ref _currentGearIndex, value))
-
                 {
-
                     SyncVoltageGearToCurrentGear();
-
                 }
-
             }
-
         }
-
-
 
         public string VoltageGear
-
         {
-
             get => _voltageGear;
-
             set
-
             {
-
                 if (!SetProperty(ref _voltageGear, value))
-
                     return;
-
-
 
                 if (_suppressVoltageGearChanged)
-
                     return;
-
-
 
                 if (string.IsNullOrWhiteSpace(value))
-
                 {
-
                     CurrentGearIndex = 0;
-
                     return;
-
                 }
-
-
 
                 var gearIndex = value switch
-
                 {
-
                     "1挡" => 1,
-
                     "2挡" => 2,
-
                     "3挡" => 3,
-
                     _ => 1
-
                 };
-
-
 
                 SelectGear(gearIndex);
-
             }
-
         }
-
-
 
         public bool IsMtx532RealHardware
-
         {
-
             get => _isMtx532RealHardware;
-
             private set
-
             {
-
                 if (SetProperty(ref _isMtx532RealHardware, value))
-
                 {
-
                     Mtx532ModeText = value ? "MTX532：已连接" : "MTX532：未连接";
-
                 }
-
             }
-
         }
-
-
-
-        private void SelectGear(int gearIndex)
-
-        {
-
-            _suppressGearCheckChanged = true;
-
-            try
-
-            {
-
-                Gear1Checked = gearIndex == 1;
-
-                Gear2Checked = gearIndex == 2;
-
-                Gear3Checked = gearIndex == 3;
-
-            }
-
-            finally
-
-            {
-
-                _suppressGearCheckChanged = false;
-
-            }
-
-
-
-            CurrentGearIndex = gearIndex;
-
-        }
-
-
-
-        private void SyncVoltageGearToCurrentGear()
-
-        {
-
-            _suppressVoltageGearChanged = true;
-
-            try
-
-            {
-
-                VoltageGear = CurrentGearIndex switch
-
-                {
-
-                    <= 0 => null,
-
-                    1 => "1挡",
-
-                    2 => "2挡",
-
-                    3 => "3挡",
-
-                    _ => "1挡"
-
-                };
-
-            }
-
-            finally
-
-            {
-
-                _suppressVoltageGearChanged = false;
-
-            }
-
-        }
-
-
-
-        private async Task OnSendControllerPressureTestAsync()
-
-        {
-
-            if (!IsManualTestRunning || IsBusy)
-
-                return;
-
-
-
-            if (!IsInAtp)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 请先进入ATP模式");
-
-                return;
-
-            }
-
-
-
-            await _arincOpLock.WaitAsync();
-
-            try
-
-            {
-
-                IsBusy = true;
-
-                try
-
-                {
-
-                    ControllerPressureTestRxDataText = "--";
-
-
-
-                    var token = CancellationToken.None;
-
-                    await _simulation.ClearRxFifoAsync(ControllerPressureTestRxChannel);
-
-                    await Task.Delay(20, token);
-
-
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_BPS_PRESSURE：TX={ControllerPressureTestTxChannel}, RX={ControllerPressureTestRxChannel}, Data={FormatData(AbBpsPressure8)}");
-
-                    await _simulation.SendBenchCommandOnlyAsync(ControllerPressureTestTxChannel, AbBpsPressure8, msg => AddLog(msg), token);
-
-
-
-                    var confirm = await _simulation.WaitBenchResponse8Async(
-
-                        ControllerPressureTestRxChannel,
-
-                        b => b != null && b.SequenceEqual(AbBpsPressure8),
-
-                        timeoutMs: 1200,
-
-                        log: msg => AddLog(msg),
-
-                        token: token);
-
-
-
-                    if (confirm == null)
-
-                    {
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器压力测试确认帧超时");
-
-                        SetLastTestResult("FAIL");
-
-                        return;
-
-                    }
-
-
-
-                    ControllerPressureTestRxDataText = "0x" + FormatData(confirm);
-
-                }
-
-                finally
-
-                {
-
-                    IsBusy = false;
-
-                }
-
-            }
-
-            catch (Exception ex)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器压力测试异常：{ex.Message}");
-
-            }
-
-            finally
-
-            {
-
-                _arincOpLock.Release();
-
-            }
-
-        }
-
-
-
-        private async Task OnReadPressureTelemetryAsync()
-
-        {
-
-            if (!IsManualTestRunning || IsBusy)
-
-                return;
-
-
-
-            if (CurrentGearIndex is < 1 or > 3)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 请先选择接入电压挡位");
-
-                return;
-
-            }
-
-
-
-            if (!IsInAtp)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 请先进入ATP模式");
-
-                return;
-
-            }
-
-
-
-            await _arincOpLock.WaitAsync();
-
-            try
-
-            {
-
-                IsBusy = true;
-
-                try
-
-                {
-
-                    PressureTelemetryValueText = "--";
-
-                    PressureTelemetryRxDataText = "--";
-
-
-
-                    var token = CancellationToken.None;
-
-                    await _simulation.ClearRxFifoAsync(PressureTelemetryRxChannel);
-
-                    await Task.Delay(20, token);
-
-
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待压力遥测(07 03 02 02)：RX={PressureTelemetryRxChannel}");
-
-                    var tel = await _simulation.WaitPressureTelemetryAsync(PressureTelemetryRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: token);
-
-                    if (tel == null)
-
-                    {
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测超时");
-
-                        SetLastTestResult("FAIL");
-
-                        return;
-
-                    }
-
-
-
-                    PressureTelemetryRxDataText = "0x" + FormatData(tel);
-
-                    if (!TryParseTelemetryPressure(tel, out var pressureBar))
-
-                    {
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测解析失败");
-
-                        SetLastTestResult("FAIL");
-
-                        PressureTelemetryValueText = "--";
-
-                        return;
-
-                    }
-
-
-
-                    PressureTelemetryValueText = pressureBar.ToString("0.####", CultureInfo.InvariantCulture);
-
-                    SetLastTestResult(IsPressureQualified(CurrentGearIndex, pressureBar) ? "PASS" : "FAIL");
-
-                }
-
-                finally
-
-                {
-
-                    IsBusy = false;
-
-                }
-
-            }
-
-            catch (Exception ex)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 压力回采异常：{ex.Message}");
-
-            }
-
-            finally
-
-            {
-
-                _arincOpLock.Release();
-
-            }
-
-        }
-
-
-
-        private void EnsureOneGearSelected()
-
-        {
-
-            if (Gear1Checked || Gear2Checked || Gear3Checked)
-
-            {
-
-                if (Gear1Checked) CurrentGearIndex = 1;
-
-                else if (Gear2Checked) CurrentGearIndex = 2;
-
-                else if (Gear3Checked) CurrentGearIndex = 3;
-
-                return;
-
-            }
-
-
-
-            SelectGear(CurrentGearIndex <= 0 ? 1 : CurrentGearIndex);
-
-        }
-
-
-
-        private async Task OnSendExitAtpAsync()
-
-        {
-
-            if (!IsManualTestRunning || IsBusy)
-
-                return;
-
-
-
-            await _arincOpLock.WaitAsync();
-
-            try
-
-            {
-
-                IsBusy = true;
-
-                try
-
-                {
-
-                    await _simulation.ClearRxFifoAsync(ExitAtpRxChannel);
-
-                    await Task.Delay(20);
-
-
-
-                    var token = CancellationToken.None;
-
-
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送退出ATP：TX={ExitAtpTxChannel}, RX={ExitAtpRxChannel}, Data={FormatData(ExitAtpCommand8)}");
-
-                    await _simulation.SendBenchCommandOnlyAsync(ExitAtpTxChannel, ExitAtpCommand8, msg => AddLog(msg), token);
-
-
-
-                    var resp = await _simulation.WaitBenchResponse8Async(
-
-                        ExitAtpRxChannel,
-
-                        b => b != null && b.SequenceEqual(ExitAtpOk8),
-
-                        timeoutMs: 1200,
-
-                        log: msg => AddLog(msg),
-
-                        token: token);
-
-
-
-                    if (resp == null)
-
-                    {
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP超时");
-
-                        SetLastTestResult("FAIL");
-
-                        return;
-
-                    }
-
-
-
-                    ExitAtpRxDataText = "0x" + FormatData(resp);
-
-                    IsInAtp = false;
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP成功");
-
-                }
-
-                finally
-
-                {
-
-                    IsBusy = false;
-
-                }
-
-            }
-
-            catch (Exception ex)
-
-            {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP异常: {ex.Message}");
-
-            }
-
-            finally
-
-            {
-
-                _arincOpLock.Release();
-
-            }
-
-        }
-
-
 
         public string Mtx532ModeText
-
         {
-
             get => _mtx532ModeText;
-
             private set => SetProperty(ref _mtx532ModeText, value);
-
         }
-
-
 
         public string LastTestTime
-
         {
-
             get => _lastTestTime;
-
             private set => SetProperty(ref _lastTestTime, value);
-
         }
-
-
 
         public string LastTestResult
-
         {
-
             get => _lastTestResult;
-
             private set => SetProperty(ref _lastTestResult, value);
-
         }
-
-
 
         public string PreviousTestTime
-
         {
-
             get => _previousTestTime;
-
             private set => SetProperty(ref _previousTestTime, value);
-
         }
-
-
 
         public string PreviousTestResult
-
         {
-
             get => _previousTestResult;
-
             private set => SetProperty(ref _previousTestResult, value);
-
         }
-
-
 
         public bool IsManualTestRunning
-
         {
-
             get => _isManualTestRunning;
-
             private set
-
             {
-
                 if (SetProperty(ref _isManualTestRunning, value))
-
                 {
-
                     RaisePropertyChanged(nameof(CanEditStepControls));
-
                 }
-
             }
-
         }
-
-
 
         public bool IsAutoTestRunning
-
         {
-
             get => _isAutoTestRunning;
-
             private set
-
             {
-
                 if (SetProperty(ref _isAutoTestRunning, value))
-
                 {
-
                     RaisePropertyChanged(nameof(CanEditStepControls));
-
                 }
-
             }
-
         }
-
-
 
         public bool IsBusy
-
         {
-
             get => _isBusy;
-
             private set
-
             {
-
                 if (SetProperty(ref _isBusy, value))
-
                 {
-
                     RaisePropertyChanged(nameof(CanEditStepControls));
-
                 }
-
             }
-
         }
-
-
 
         public bool CanEditStepControls => !IsAutoTestRunning && !IsBusy;
 
 
 
         private static string FirstNonEmpty(params string[] values)
-
         {
-
             if (values == null)
-
                 return null;
-
             foreach (var v in values)
-
             {
-
                 if (!string.IsNullOrWhiteSpace(v))
-
                     return v;
-
             }
-
             return null;
-
         }
-
-
 
         private void EnsureManualArincChannels()
-
         {
-
-            var tx = FirstNonEmpty(EnterAtpTxChannel, ExitAtpTxChannel, ControllerPressureTestTxChannel, TestTxChannel);
-
-            var rx = FirstNonEmpty(EnterAtpRxChannel, ExitAtpRxChannel, ControllerPressureTestRxChannel, PressureTelemetryRxChannel, TestRxChannel);
-
-
-
-            tx ??= "CH0";
-
-            rx ??= "CH1";
-
-
-
-            TestTxChannel = tx;
-
-            TestRxChannel = rx;
-
-
-
-            EnterAtpTxChannel ??= tx;
-
-            EnterAtpRxChannel ??= rx;
-
-            ExitAtpTxChannel ??= tx;
-
-            ExitAtpRxChannel ??= rx;
-
-
-
-            ControllerPressureTestTxChannel ??= tx;
-
-            ControllerPressureTestRxChannel ??= rx;
-
-            PressureTelemetryRxChannel ??= rx;
-
         }
-
-
 
         private void AddLog(string message)
-
         {
-
             if (string.IsNullOrWhiteSpace(message))
-
                 return;
 
-
-
             try
-
             {
-
                 var dispatcher = Application.Current?.Dispatcher;
-
                 if (dispatcher != null && !dispatcher.CheckAccess())
-
                 {
-
                     dispatcher.BeginInvoke(new Action(() => AddLog(message)));
-
                     return;
-
                 }
-
             }
-
             catch
-
             {
-
             }
-
-
 
             try
-
             {
-
                 Logs.Add(message);
-
             }
-
             catch
-
             {
-
             }
-
-
 
             try
-
             {
-
                 Debug.WriteLine(message);
-
             }
-
             catch
-
             {
-
             }
-
         }
 
+        private void SelectGear(int gearIndex)
+        {
+            _suppressGearCheckChanged = true;
+            try
+            {
+                Gear1Checked = gearIndex == 1;
+                Gear2Checked = gearIndex == 2;
+                Gear3Checked = gearIndex == 3;
+            }
+            finally
+            {
+                _suppressGearCheckChanged = false;
+            }
 
+            CurrentGearIndex = gearIndex;
+        }
+
+        private void SyncVoltageGearToCurrentGear()
+        {
+            _suppressVoltageGearChanged = true;
+            try
+            {
+                VoltageGear = CurrentGearIndex switch
+                {
+                    <= 0 => null,
+                    1 => "1挡",
+                    2 => "2挡",
+                    3 => "3挡",
+                    _ => "1挡"
+                };
+            }
+            finally
+            {
+                _suppressVoltageGearChanged = false;
+            }
+        }
+
+        private void EnsureOneGearSelected()
+        {
+            if (Gear1Checked || Gear2Checked || Gear3Checked)
+            {
+                if (Gear1Checked) CurrentGearIndex = 1;
+                else if (Gear2Checked) CurrentGearIndex = 2;
+                else if (Gear3Checked) CurrentGearIndex = 3;
+                return;
+            }
+
+            SelectGear(CurrentGearIndex <= 0 ? 1 : CurrentGearIndex);
+        }
 
         private void OnManualTest()
-
         {
-
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 点击手动测试：IsManualTestRunning={IsManualTestRunning}, IsBusy={IsBusy}");
             if (IsManualTestRunning)
-
             {
-
                 _ = StopManualTestAsync();
-
                 return;
-
             }
-
-
 
             _ = StartManualTestAsync();
-
         }
-
-
 
         private void OnAutoTest()
-
         {
-
             if (IsAutoTestRunning)
-
             {
-
                 _ = StopAutoTestAsync();
-
                 return;
-
             }
-
-
 
             _ = RunAutoTestAsync();
-
         }
 
-
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
 
         private void OnToggleMtx532Hardware()
-
         {
-
             _ = ToggleMtx532HardwareAsync();
-
         }
-
-
 
         private async Task ToggleMtx532HardwareAsync()
-
         {
-
             await _mtxOpLock.WaitAsync();
-
             try
-
             {
-
                 if (IsBusy)
-
                     return;
 
-
-
                 IsBusy = true;
-
                 try
-
                 {
-
                     if (IsMtx532RealHardware)
-
                     {
-
                         await DisconnectMtx532Async();
-
                         IsMtx532RealHardware = false;
-
                         AddLog($"[{DateTime.Now:HH:mm:ss}] MTX532断开连接");
-
                         return;
-
                     }
-
-
 
                     var ok = await EnsureMtx532ConnectedAsync();
-
                     if (ok)
-
                     {
-
                         IsMtx532RealHardware = true;
-
                         AddLog($"[{DateTime.Now:HH:mm:ss}] MTX532连接成功");
-
                     }
-
                     else
-
                     {
-
                         AddLog($"[{DateTime.Now:HH:mm:ss}] MTX532连接失败：未找到或连接失败");
-
                     }
-
                 }
-
                 finally
-
                 {
-
                     IsBusy = false;
-
                 }
-
             }
-
             finally
-
             {
-
                 _mtxOpLock.Release();
-
             }
-
         }
 
-
-
         private async Task StartManualTestAsync()
-
         {
-
             if (IsBusy)
-
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动被阻止：当前IsBusy=True");
                 return;
-
-
+            }
 
             await _manualTestLock.WaitAsync();
-
             try
-
             {
-
                 if (IsBusy)
-
                     return;
 
-
-
                 IsBusy = true;
-
                 try
-
                 {
-
                     EnsureManualArincChannels();
 
-
-
                     IsManualTestRunning = true;
-
                     PressureTelemetryValueText = "--";
-
                     PressureTelemetryRxDataText = "--";
-
                     EnterAtpRxDataText = "--";
-
                     ExitAtpRxDataText = "--";
-
                     IsInAtp = false;
-
                     LastTestTime = "--";
-
                     LastTestResult = "--";
 
-
-
                     _simulation.IsRealProduct = false;
-
                     _simulation.ArincRate = ArincRate;
-
                     _simulation.SimProductArincRate = ArincRate;
-
                     _simulation.SimProductRxChannelIndex = 4;
-
                     _simulation.SimProductTxChannelIndex = 5;
-
-
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：打开ARINC429");
 
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                    }
+                    catch { }
+
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试已启动");
-
                 }
-
                 catch (Exception ex)
-
                 {
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动失败: {ex.Message}");
-
                     IsManualTestRunning = false;
-
                 }
-
                 finally
-
                 {
-
                     IsBusy = false;
-
                 }
-
             }
-
             finally
-
             {
-
                 _manualTestLock.Release();
-
             }
-
         }
-
-
 
         private async Task OnSendEnterAtpAsync()
-
         {
-
             if (!IsManualTestRunning || IsBusy)
-
                 return;
-
-
 
             await _arincOpLock.WaitAsync();
-
             try
-
             {
-
                 IsBusy = true;
-
                 try
-
                 {
-
                     await _simulation.ClearRxFifoAsync(EnterAtpRxChannel);
-
                     await Task.Delay(20);
 
-
-
                     var token = CancellationToken.None;
-
-
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送进入ATP：TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}");
-
                     await _simulation.SendBenchCommandOnlyAsync(EnterAtpTxChannel, EnterAtpCommand8, msg => AddLog(msg), token);
 
-
-
                     var resp = await _simulation.WaitBenchResponse8Async(
-
                         EnterAtpRxChannel,
-
                         b => b != null && b.SequenceEqual(EnterAtpOk8),
-
                         timeoutMs: 1200,
-
                         log: msg => AddLog(msg),
-
                         token: token);
 
-
-
                     if (resp == null)
-
                     {
-
                         AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP超时");
-
                         SetLastTestResult("FAIL");
-
                         IsInAtp = false;
-
                         return;
-
                     }
 
-
-
                     EnterAtpRxDataText = "0x" + FormatData(resp);
-
                     IsInAtp = true;
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP成功");
 
-
-
-                    // 启动持续压力遥测监听（AC_6_4风格）
-
                     StartPressureTelemetryListeningIfNeeded();
-
                 }
-
                 finally
-
                 {
-
                     IsBusy = false;
-
                 }
-
             }
-
             catch (Exception ex)
-
             {
-
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP异常: {ex.Message}");
-
             }
-
             finally
-
             {
-
                 _arincOpLock.Release();
-
             }
-
         }
 
-
-
         private async Task StopManualTestAsync()
-
         {
-
             if (IsBusy)
-
                 return;
-
-
-
-            // 先停止遥测监听
 
             await StopPressureTelemetryListeningAsync();
 
-
-
             await _manualTestLock.WaitAsync();
-
             try
-
             {
-
                 if (IsBusy)
-
                     return;
 
-
-
                 IsBusy = true;
-
                 try
-
                 {
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试停止：释放ARINC429资源");
-
                     await _simulation.StopAsync(msg => AddLog(msg));
-
                 }
-
                 catch (Exception ex)
-
                 {
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 停止失败: {ex.Message}");
-
                 }
-
                 finally
-
                 {
-
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsManualTestRunning = false;
-
                     IsBusy = false;
-
                 }
-
             }
-
             finally
-
             {
-
                 _manualTestLock.Release();
-
             }
-
         }
 
-
-
         private async Task RunAutoTestAsync()
-
         {
-
             if (IsBusy)
-
                 return;
 
-
-
             await _autoTestLock.WaitAsync();
-
             try
-
             {
-
                 if (IsBusy)
-
                     return;
 
-
-
                 IsBusy = true;
-
                 try
-
                 {
-
                     IsAutoTestRunning = true;
-
                     PressureTelemetryValueText = "--";
-
                     PressureTelemetryRxDataText = "--";
-
                     LastTestTime = "--";
-
                     LastTestResult = "--";
 
-
-
                     _autoTestCts?.Cancel();
-
                     _autoTestCts?.Dispose();
-
                     _autoTestCts = new CancellationTokenSource();
-
-
 
                     var token = _autoTestCts.Token;
 
-
+                    try
+                    {
+                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                        if (api != null)
+                            await api.ApplyComponent28VStateAsync(token);
+                    }
+                    catch { }
 
                     _simulation.IsRealProduct = false;
-
                     _simulation.ArincRate = ArincRate;
-
                     _simulation.SimProductArincRate = ArincRate;
-
                     _simulation.SimProductRxChannelIndex = 4;
-
                     _simulation.SimProductTxChannelIndex = 5;
 
-
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");
-
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
 
-
-
                     await _simulation.ClearRxFifoAsync(TestRxChannel);
-
                     await Task.Delay(20, token);
-
-
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤1：进入ATP");
-
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, EnterAtpCommand8, msg => AddLog(msg), token);
 
-
-
                     var enterOk = await _simulation.WaitBenchResponse8Async(
-
                         TestRxChannel,
-
                         b => b != null && b.SequenceEqual(EnterAtpOk8),
-
                         timeoutMs: 1200,
-
                         log: msg => AddLog(msg),
-
                         token: token);
 
-
-
                     if (enterOk == null)
-
                     {
-
                         SetLastTestResult("FAIL");
-
                         AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP超时");
-
                         return;
-
                     }
 
-
-
                     await _simulation.ClearRxFifoAsync(TestRxChannel);
-
                     await Task.Delay(20, token);
-
-
 
                     var failures = new System.Collections.Generic.List<string>();
 
-
-
                     await RunGearAutoAsync(1, 0.25, token, failures);
-
                     token.ThrowIfCancellationRequested();
-
                     await RunGearAutoAsync(2, 5.0, token, failures);
-
                     token.ThrowIfCancellationRequested();
-
                     await RunGearAutoAsync(3, 9.75, token, failures);
 
-
-
                     await _simulation.ClearRxFifoAsync(TestRxChannel);
-
                     await Task.Delay(20, token);
 
-
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤X：退出ATP");
-
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, ExitAtpCommand8, msg => AddLog(msg), token);
 
-
-
                     var exitOk = await _simulation.WaitBenchResponse8Async(
-
                         TestRxChannel,
-
                         b => b != null && b.SequenceEqual(ExitAtpOk8),
-
                         timeoutMs: 1200,
-
                         log: msg => AddLog(msg),
-
                         token: token);
 
-
-
                     if (exitOk == null)
-
                     {
-
                         failures.Add("退出ATP超时");
-
                     }
-
-
 
                     if (failures.Count == 0)
-
                     {
-
                         SetLastTestResult("PASS");
-
                         AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试结束：PASS");
-
                     }
-
                     else
-
                     {
-
                         SetLastTestResult("FAIL");
-
                         AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试结束：FAIL");
-
                         foreach (var f in failures)
-
                             AddLog($"[{DateTime.Now:HH:mm:ss}] FAIL原因：{f}");
-
                     }
-
                 }
-
                 catch (OperationCanceledException)
-
                 {
-
                     SetLastTestResult("FAIL");
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试已取消");
-
                 }
-
                 catch (Exception ex)
-
                 {
-
                     SetLastTestResult("FAIL");
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试异常：{ex.Message}");
-
                 }
-
                 finally
-
                 {
-
                     try
-
                     {
-
                         await _simulation.StopAsync(msg => AddLog(msg));
-
                     }
-
                     catch
-
                     {
-
                     }
 
-
+                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
                     IsAutoTestRunning = false;
-
                     IsBusy = false;
-
                 }
-
             }
-
             finally
-
             {
-
                 _autoTestLock.Release();
-
             }
-
         }
-
-
 
         private async Task StopAutoTestAsync()
-
         {
-
             await _autoTestLock.WaitAsync();
-
             try
-
             {
-
                 try
-
                 {
-
                     _autoTestCts?.Cancel();
-
                 }
-
                 catch
-
                 {
-
                 }
-
             }
-
             finally
-
             {
-
                 _autoTestLock.Release();
-
             }
-
         }
 
-
-
         private async Task RunGearAutoAsync(int gearIndex, double voltageV, CancellationToken token, System.Collections.Generic.List<string> failures)
-
         {
-
             CurrentGearIndex = gearIndex;
 
-
-
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：设置AO1={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：设置AO2={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
 
             var okVoltage = await OutputVoltageAsync(voltageV, token);
-
             if (!okVoltage)
-
             {
-
                 failures.Add($"档位{gearIndex}电压输出失败");
-
                 return;
-
             }
-
-
 
             await Task.Delay(50, token);
 
-
-
             await _simulation.ClearRxFifoAsync(TestRxChannel);
-
             await Task.Delay(20, token);
 
-
-
             AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：发送AB_BPS_PRESSURE");
-
             await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbBpsPressure8, msg => AddLog(msg), token);
 
-
-
-            var confirm = await _simulation.WaitBenchResponse8Async(
-
-                TestRxChannel,
-
-                b => b != null && b.SequenceEqual(AbBpsPressure8),
-
-                timeoutMs: 1200,
-
-                log: msg => AddLog(msg),
-
-                token: token);
-
-
-
-            if (confirm == null)
-
-            {
-
-                failures.Add($"档位{gearIndex}确认帧超时");
-
-                return;
-
-            }
-
-
-
             AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：等待压力遥测(07 03 02 02)");
-
             var tel = await _simulation.WaitPressureTelemetryAsync(TestRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: token);
-
             if (tel == null)
-
             {
-
                 failures.Add($"档位{gearIndex}压力遥测超时");
-
                 return;
-
             }
-
-
 
             PressureTelemetryRxDataText = "0x" + FormatData(tel);
-
             if (!TryParseTelemetryPressure(tel, out var pressureBar))
-
             {
-
                 failures.Add($"档位{gearIndex}压力遥测解析失败");
-
                 PressureTelemetryValueText = "--";
-
                 return;
-
             }
-
-
 
             PressureTelemetryValueText = pressureBar.ToString("0.####", CultureInfo.InvariantCulture);
 
-
-
             if (!IsPressureQualified(gearIndex, pressureBar))
-
             {
-
-                failures.Add($"档位{gearIndex}压力不通过：{pressureBar.ToString("0.####", CultureInfo.InvariantCulture)}bar");
-
+                failures.Add($"档位{gearIndex}压力不通过：{pressureBar.ToString("0.####", CultureInfo.InvariantCulture)}Bar");
             }
-
         }
 
-
-
         private async Task OnTestGearAsync(int gearIndex)
-
         {
-
             if (!IsManualTestRunning || IsBusy)
-
                 return;
-
-
 
             if (!IsInAtp)
-
             {
-
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 请先进入ATP模式");
-
                 return;
-
             }
 
-
-
             double voltageV = gearIndex switch
-
             {
-
                 1 => 0.25,
-
                 2 => 5.0,
-
                 3 => 9.75,
-
                 _ => 0.25
-
             };
 
-
-
             await _arincOpLock.WaitAsync();
-
             try
-
             {
-
                 IsBusy = true;
-
                 try
-
                 {
-
                     CurrentGearIndex = gearIndex;
 
-
-
                     PressureTelemetryValueText = "--";
-
                     PressureTelemetryRxDataText = "--";
-
-
 
                     var token = CancellationToken.None;
 
-
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动档位{gearIndex}：设置AO1={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
-
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动档位{gearIndex}：设置AO2={voltageV.ToString("0.###", CultureInfo.InvariantCulture)}V");
                     var okVoltage = await OutputVoltageAsync(voltageV, token);
-
                     if (!okVoltage)
-
                     {
-
                         SetLastTestResult("FAIL");
-
                         AddLog($"[{DateTime.Now:HH:mm:ss}] 电压输出失败");
-
                         return;
-
                     }
-
-
 
                     await Task.Delay(50);
 
-
-
-                    await _simulation.ClearRxFifoAsync(ControllerPressureTestRxChannel);
-
+                    await _simulation.ClearRxFifoAsync(PressureTelemetryRxChannel);
                     await Task.Delay(20);
 
-
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_BPS_PRESSURE：TX={ControllerPressureTestTxChannel}");
-
                     await _simulation.SendBenchCommandOnlyAsync(ControllerPressureTestTxChannel, AbBpsPressure8, msg => AddLog(msg), token);
 
-
-
-                    var confirm = await _simulation.WaitBenchResponse8Async(
-
-                        ControllerPressureTestRxChannel,
-
-                        b => b != null && b.SequenceEqual(AbBpsPressure8),
-
-                        timeoutMs: 1200,
-
-                        log: msg => AddLog(msg),
-
-                        token: token);
-
-
-
-                    if (confirm == null)
-
-                    {
-
-                        SetLastTestResult("FAIL");
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 确认帧超时");
-
-                        return;
-
-                    }
-
-
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 等待压力遥测：RX={PressureTelemetryRxChannel}");
-
                     var tel = await _simulation.WaitPressureTelemetryAsync(PressureTelemetryRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: token);
-
                     if (tel == null)
-
                     {
-
                         SetLastTestResult("FAIL");
-
                         AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测超时");
-
                         return;
-
                     }
-
-
 
                     PressureTelemetryRxDataText = "0x" + FormatData(tel);
-
                     if (!TryParseTelemetryPressure(tel, out var pressureBar))
-
                     {
-
                         SetLastTestResult("FAIL");
-
                         AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测解析失败");
-
                         PressureTelemetryValueText = "--";
-
                         return;
-
                     }
-
-
 
                     PressureTelemetryValueText = pressureBar.ToString("0.####", CultureInfo.InvariantCulture);
 
-
-
                     var pass = IsPressureQualified(gearIndex, pressureBar);
-
                     SetLastTestResult(pass ? "PASS" : "FAIL");
-
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动档位{gearIndex}测试结束：{LastTestResult}");
-
                 }
-
                 finally
-
                 {
-
                     IsBusy = false;
-
                 }
-
             }
-
             catch (Exception ex)
-
             {
-
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试异常：{ex.Message}");
-
             }
-
             finally
-
             {
-
                 _arincOpLock.Release();
+            }
+        }
 
+        private async Task OnSendControllerPressureTestAsync()
+        {
+            if (!IsManualTestRunning || IsBusy)
+                return;
+
+            if (!IsInAtp)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 请先进入ATP模式");
+                return;
             }
 
+            await _arincOpLock.WaitAsync();
+            try
+            {
+                IsBusy = true;
+                try
+                {
+                    var token = CancellationToken.None;
+
+                    PressureTelemetryValueText = "--";
+                    PressureTelemetryRxDataText = "--";
+
+                    await _simulation.ClearRxFifoAsync(PressureTelemetryRxChannel);
+                    await Task.Delay(20, token);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_BPS_PRESSURE：TX={ControllerPressureTestTxChannel}, Data={FormatData(AbBpsPressure8)}");
+                    await _simulation.SendBenchCommandOnlyAsync(ControllerPressureTestTxChannel, AbBpsPressure8, msg => AddLog(msg), token);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待压力遥测(07 03 02 02)：RX={PressureTelemetryRxChannel}");
+                    var tel = await _simulation.WaitPressureTelemetryAsync(PressureTelemetryRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: token);
+                    if (tel == null)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测超时");
+                        SetLastTestResult("FAIL");
+                        return;
+                    }
+
+                    PressureTelemetryRxDataText = "0x" + FormatData(tel);
+                    if (!TryParseTelemetryPressure(tel, out var pressureBar))
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测解析失败");
+                        SetLastTestResult("FAIL");
+                        PressureTelemetryValueText = "--";
+                        return;
+                    }
+
+                    PressureTelemetryValueText = pressureBar.ToString("0.####", CultureInfo.InvariantCulture);
+                    var gearIndex = CurrentGearIndex <= 0 ? 1 : CurrentGearIndex;
+                    SetLastTestResult(IsPressureQualified(gearIndex, pressureBar) ? "PASS" : "FAIL");
+                }
+                finally
+                {
+                    IsBusy = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器压力测试异常：{ex.Message}");
+            }
+            finally
+            {
+                _arincOpLock.Release();
+            }
+        }
+
+        private async Task OnReadPressureTelemetryAsync()
+        {
+            if (!IsManualTestRunning || IsBusy)
+                return;
+
+            if (CurrentGearIndex is < 1 or > 3)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 请先选择接入电压挡位");
+                return;
+            }
+
+            if (!IsInAtp)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 请先进入ATP模式");
+                return;
+            }
+
+            await _arincOpLock.WaitAsync();
+            try
+            {
+                IsBusy = true;
+                try
+                {
+                    PressureTelemetryValueText = "--";
+                    PressureTelemetryRxDataText = "--";
+
+                    var token = CancellationToken.None;
+                    await _simulation.ClearRxFifoAsync(PressureTelemetryRxChannel);
+                    await Task.Delay(20, token);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待压力遥测(07 03 02 02)：RX={PressureTelemetryRxChannel}");
+                    var tel = await _simulation.WaitPressureTelemetryAsync(PressureTelemetryRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: token);
+                    if (tel == null)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测超时");
+                        SetLastTestResult("FAIL");
+                        return;
+                    }
+
+                    PressureTelemetryRxDataText = "0x" + FormatData(tel);
+                    if (!TryParseTelemetryPressure(tel, out var pressureBar))
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测解析失败");
+                        SetLastTestResult("FAIL");
+                        PressureTelemetryValueText = "--";
+                        return;
+                    }
+
+                    PressureTelemetryValueText = pressureBar.ToString("0.####", CultureInfo.InvariantCulture);
+                    SetLastTestResult(IsPressureQualified(CurrentGearIndex, pressureBar) ? "PASS" : "FAIL");
+                }
+                finally
+                {
+                    IsBusy = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 压力回采异常：{ex.Message}");
+            }
+            finally
+            {
+                _arincOpLock.Release();
+            }
+        }
+
+        private async Task OnSendExitAtpAsync()
+        {
+            if (!IsManualTestRunning || IsBusy)
+                return;
+
+            await _arincOpLock.WaitAsync();
+            try
+            {
+                IsBusy = true;
+                try
+                {
+                    await _simulation.ClearRxFifoAsync(ExitAtpRxChannel);
+                    await Task.Delay(20);
+
+                    var token = CancellationToken.None;
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送退出ATP：TX={ExitAtpTxChannel}, RX={ExitAtpRxChannel}, Data={FormatData(ExitAtpCommand8)}");
+                    await _simulation.SendBenchCommandOnlyAsync(ExitAtpTxChannel, ExitAtpCommand8, msg => AddLog(msg), token);
+
+                    var resp = await _simulation.WaitBenchResponse8Async(
+                        ExitAtpRxChannel,
+                        b => b != null && b.SequenceEqual(ExitAtpOk8),
+                        timeoutMs: 1200,
+                        log: msg => AddLog(msg),
+                        token: token);
+
+                    if (resp == null)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP超时");
+                        SetLastTestResult("FAIL");
+                        return;
+                    }
+
+                    ExitAtpRxDataText = "0x" + FormatData(resp);
+                    IsInAtp = false;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP成功");
+                }
+                finally
+                {
+                    IsBusy = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP异常: {ex.Message}");
+            }
+            finally
+            {
+                _arincOpLock.Release();
+            }
         }
 
 

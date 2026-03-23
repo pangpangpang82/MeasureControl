@@ -24,8 +24,41 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const double ImpedanceOpenLowerLimitOhm = 100000.0;
         private const double J14VoltageLowerLimitV = 16.0;
 
-        private const string RelayControlChannel = "DO15";
+        // 物理DO15映射到API的DO14
+        private const string RelayControlChannel = "DO14";
         private const int RelayTimeoutMs = 3000;
+
+        private const string MatrixIpAddress = "192.168.1.3";
+        private const int MatrixSlotDo = 6;
+        private const int MatrixSlotDmmDo = 4;
+        private const int MatrixSwitchSettleDelayMs = 1000;
+
+        private static readonly (string In, string Out)[] MatrixDoImpedancePoints = new[]
+        {
+            ("I1", "O12"),
+            ("I1", "O13"),
+            ("I1", "O14"),
+            ("I1", "O15"),
+            ("I1", "O16"),
+            ("I1", "O17"),
+            ("I1", "O18"),
+            ("I1", "O19"),
+        };
+
+        private static readonly (string In, string Out) MatrixDmmImpedance = ("I4", "O2");
+
+        // DO0-DO13通道名称（物理DO1-DO14映射到API的DO0-DO13）
+        private static readonly string[] DoChannels = new[]
+        {
+            "DO0", "DO1", "DO2", "DO3", "DO4", "DO5", "DO6",
+            "DO7", "DO8", "DO9", "DO10", "DO11", "DO12", "DO13"
+        };
+
+        // J6-J13测量点名称
+        private static readonly string[] J6ToJ13Points = new[]
+        {
+            "J6", "J7", "J8", "J9", "J10", "J11", "J12", "J13"
+        };
 
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
         private readonly ProjectService _projectService;
@@ -37,6 +70,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private IJy7131Api _jy7131Api;
         private bool _isRelayActivated;
+        private bool _relaySupplyOn;
+
+        private readonly SemaphoreSlim _matrixLock = new SemaphoreSlim(1, 1);
 
         private CancellationTokenSource _opCts;
         private SubscriptionToken _projectSavingToken;
@@ -53,12 +89,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private double? _impedanceOpen;
         private double? _j14Voltage;
 
+        // J6-J13各点阻抗测量结果（接地测试）
+        private double? _impedanceJ6, _impedanceJ7, _impedanceJ8, _impedanceJ9;
+        private double? _impedanceJ10, _impedanceJ11, _impedanceJ12, _impedanceJ13;
+        // J6-J13各点阻抗测量结果（开路测试）
+        private double? _impedanceOpenJ6, _impedanceOpenJ7, _impedanceOpenJ8, _impedanceOpenJ9;
+        private double? _impedanceOpenJ10, _impedanceOpenJ11, _impedanceOpenJ12, _impedanceOpenJ13;
+
+        // J6-J13各点阻抗测量结果
+        private readonly double?[] _j6ToJ13Impedances = new double?[8];
+
         private string _stepAResult = "--";
         private string _stepBResult = "--";
         private string _stepCResult = "--";
 
         private string _overallResult = "--";
         private string _lastTestTime = "--";
+
+        private bool testReset = true;
 
         public DiscreteOutputTestViewModel(
             ISingleBoardTestContextService singleBoardTestContext,
@@ -81,9 +129,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             StepACommand = new DelegateCommand(async () => await RunStepAAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
             StepBCommand = new DelegateCommand(async () => await RunStepBAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
             StepCCommand = new DelegateCommand(async () => await RunStepCAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            PowerOnCommand = new DelegateCommand(async () => await PowerOnForStepCAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized && !IsPowerOn);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
+            //ToggleRelayCommand = new DelegateCommand(async () => await ToggleRelayAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            ToggleRelayCommand = new DelegateCommand(async () => await ToggleRelayAsync(), () => testReset == true);
+            SetGroundedSignalCommand = new DelegateCommand(async () => await SetGroundedSignalAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            SetOpenSignalCommand = new DelegateCommand(async () => await SetOpenSignalAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            // J6-J13接地测试单点测量命令
+            MeasureJ6Command = new DelegateCommand(async () => await MeasureSinglePointAsync(0, true), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            MeasureJ7Command = new DelegateCommand(async () => await MeasureSinglePointAsync(1, true), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            MeasureJ8Command = new DelegateCommand(async () => await MeasureSinglePointAsync(2, true), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            MeasureJ9Command = new DelegateCommand(async () => await MeasureSinglePointAsync(3, true), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            MeasureJ10Command = new DelegateCommand(async () => await MeasureSinglePointAsync(4, true), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            MeasureJ11Command = new DelegateCommand(async () => await MeasureSinglePointAsync(5, true), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            MeasureJ12Command = new DelegateCommand(async () => await MeasureSinglePointAsync(6, true), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            MeasureJ13Command = new DelegateCommand(async () => await MeasureSinglePointAsync(7, true), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            // J6-J13开路测试单点测量命令
+            MeasureOpenJ6Command = new DelegateCommand(async () => await MeasureSinglePointAsync(0, false), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            MeasureOpenJ7Command = new DelegateCommand(async () => await MeasureSinglePointAsync(1, false), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            MeasureOpenJ8Command = new DelegateCommand(async () => await MeasureSinglePointAsync(2, false), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            MeasureOpenJ9Command = new DelegateCommand(async () => await MeasureSinglePointAsync(3, false), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            MeasureOpenJ10Command = new DelegateCommand(async () => await MeasureSinglePointAsync(4, false), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            MeasureOpenJ11Command = new DelegateCommand(async () => await MeasureSinglePointAsync(5, false), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            MeasureOpenJ12Command = new DelegateCommand(async () => await MeasureSinglePointAsync(6, false), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            MeasureOpenJ13Command = new DelegateCommand(async () => await MeasureSinglePointAsync(7, false), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
 
-            LoadPersistedState();
+            //LoadPersistedState();
             _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
         }
 
@@ -106,7 +177,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         public DelegateCommand StepACommand { get; }
         public DelegateCommand StepBCommand { get; }
         public DelegateCommand StepCCommand { get; }
+        public DelegateCommand PowerOnCommand { get; }
         public DelegateCommand ClearLogCommand { get; }
+        public DelegateCommand ToggleRelayCommand { get; }
+        public DelegateCommand SetGroundedSignalCommand { get; }
+        public DelegateCommand SetOpenSignalCommand { get; }
+        // J6-J13接地测试单点测量命令
+        public DelegateCommand MeasureJ6Command { get; }
+        public DelegateCommand MeasureJ7Command { get; }
+        public DelegateCommand MeasureJ8Command { get; }
+        public DelegateCommand MeasureJ9Command { get; }
+        public DelegateCommand MeasureJ10Command { get; }
+        public DelegateCommand MeasureJ11Command { get; }
+        public DelegateCommand MeasureJ12Command { get; }
+        public DelegateCommand MeasureJ13Command { get; }
+        // J6-J13开路测试单点测量命令
+        public DelegateCommand MeasureOpenJ6Command { get; }
+        public DelegateCommand MeasureOpenJ7Command { get; }
+        public DelegateCommand MeasureOpenJ8Command { get; }
+        public DelegateCommand MeasureOpenJ9Command { get; }
+        public DelegateCommand MeasureOpenJ10Command { get; }
+        public DelegateCommand MeasureOpenJ11Command { get; }
+        public DelegateCommand MeasureOpenJ12Command { get; }
+        public DelegateCommand MeasureOpenJ13Command { get; }
 
         public bool IsManualTestRunning
         {
@@ -156,6 +249,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             set => SetProperty(ref _j14Voltage, value);
         }
 
+        // J6-J13接地测试阻抗属性
+        public double? ImpedanceJ6 { get => _impedanceJ6; set => SetProperty(ref _impedanceJ6, value); }
+        public double? ImpedanceJ7 { get => _impedanceJ7; set => SetProperty(ref _impedanceJ7, value); }
+        public double? ImpedanceJ8 { get => _impedanceJ8; set => SetProperty(ref _impedanceJ8, value); }
+        public double? ImpedanceJ9 { get => _impedanceJ9; set => SetProperty(ref _impedanceJ9, value); }
+        public double? ImpedanceJ10 { get => _impedanceJ10; set => SetProperty(ref _impedanceJ10, value); }
+        public double? ImpedanceJ11 { get => _impedanceJ11; set => SetProperty(ref _impedanceJ11, value); }
+        public double? ImpedanceJ12 { get => _impedanceJ12; set => SetProperty(ref _impedanceJ12, value); }
+        public double? ImpedanceJ13 { get => _impedanceJ13; set => SetProperty(ref _impedanceJ13, value); }
+        // J6-J13开路测试阻抗属性
+        public double? ImpedanceOpenJ6 { get => _impedanceOpenJ6; set => SetProperty(ref _impedanceOpenJ6, value); }
+        public double? ImpedanceOpenJ7 { get => _impedanceOpenJ7; set => SetProperty(ref _impedanceOpenJ7, value); }
+        public double? ImpedanceOpenJ8 { get => _impedanceOpenJ8; set => SetProperty(ref _impedanceOpenJ8, value); }
+        public double? ImpedanceOpenJ9 { get => _impedanceOpenJ9; set => SetProperty(ref _impedanceOpenJ9, value); }
+        public double? ImpedanceOpenJ10 { get => _impedanceOpenJ10; set => SetProperty(ref _impedanceOpenJ10, value); }
+        public double? ImpedanceOpenJ11 { get => _impedanceOpenJ11; set => SetProperty(ref _impedanceOpenJ11, value); }
+        public double? ImpedanceOpenJ12 { get => _impedanceOpenJ12; set => SetProperty(ref _impedanceOpenJ12, value); }
+        public double? ImpedanceOpenJ13 { get => _impedanceOpenJ13; set => SetProperty(ref _impedanceOpenJ13, value); }
+
+        public bool IsRelayActivated
+        {
+            get => _isRelayActivated;
+            set => SetProperty(ref _isRelayActivated, value);
+        }
+
         public string StepAResult
         {
             get => _stepAResult;
@@ -199,6 +317,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 (StepACommand as DelegateCommand)?.RaiseCanExecuteChanged();
                 (StepBCommand as DelegateCommand)?.RaiseCanExecuteChanged();
                 (StepCCommand as DelegateCommand)?.RaiseCanExecuteChanged();
+                (PowerOnCommand as DelegateCommand)?.RaiseCanExecuteChanged();
+                (ToggleRelayCommand as DelegateCommand)?.RaiseCanExecuteChanged();
+                (SetGroundedSignalCommand as DelegateCommand)?.RaiseCanExecuteChanged();
+                (SetOpenSignalCommand as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureJ6Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureJ7Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureJ8Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureJ9Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureJ10Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureJ11Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureJ12Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureJ13Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureOpenJ6Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureOpenJ7Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureOpenJ8Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureOpenJ9Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureOpenJ10Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureOpenJ11Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureOpenJ12Command as DelegateCommand)?.RaiseCanExecuteChanged();
+                (MeasureOpenJ13Command as DelegateCommand)?.RaiseCanExecuteChanged();
             });
         }
 
@@ -340,28 +478,95 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             if (IsAutoTestRunning)
             {
+                AddLog("正在停止自动测试...");
                 _opCts?.Cancel();
+                // 等待测试停止并重置状态
+                await Task.Delay(200);
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsAutoTestRunning = false;
+                    _hardwareInitialized = false;
+                    UpdateCommandStates();
+                });
+                AddLog("自动测试已停止");
                 return;
             }
 
-            IsAutoTestRunning = true;
             _opCts = new CancellationTokenSource();
+            try
+            {
+                await ExecuteAutoTestCoreAsync(_opCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // 已在 ExecuteAutoTestCoreAsync 中处理
+            }
+            catch (Exception ex)
+            {
+                AddLog($"自动测试异常: {ex.Message}");
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsAutoTestRunning = false;
+                    _hardwareInitialized = false;
+                    UpdateCommandStates();
+                });
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
+
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                _opCts?.Cancel();
+                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            _opCts?.Cancel();
+            _opCts?.Dispose();
+            _opCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
             try
             {
-                AddLog("========== 自动测试开始 ==========");
-                await InitializeHardwareAsync(_opCts.Token);
+                return await ExecuteAutoTestCoreAsync(_opCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
+                _hardwareInitialized = false;
+                UpdateCommandStates();
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
+
+        private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token)
+        {
+            Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = true);
+            AddLog("========== 自动测试开始 ==========");
+
+            try
+            {
+                await InitializeHardwareAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
 
                 AddLog("--- 步骤a: 下电 + DO接地 + 测阻抗 ---");
-                await RunStepAAsync();
+                await RunStepAAsync().ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
 
                 AddLog("--- 步骤b: 下电 + DO开路 + 测阻抗 ---");
-                await RunStepBAsync();
+                await RunStepBAsync().ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
 
                 AddLog("--- 步骤c: 28V上电 + 测J14电压 ---");
-                await RunStepCAsync();
+                await RunStepCAsync().ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
 
-                await ResetHardwareAsync(_opCts.Token);
+                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
 
                 bool overallPass =
                     string.Equals(StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) &&
@@ -370,27 +575,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    OverallResult = overallPass ? "PASS" : "FAIL";
+                    OverallResult = overallPass ? "合格" : "不合格";
                     LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 });
 
-                AddLog($"========== 自动测试完成: {(overallPass ? "PASS" : "FAIL")} ==========");
+                AddLog($"========== 自动测试完成: {OverallResult} ==========");
+                return OverallResult;
             }
             catch (OperationCanceledException)
             {
                 AddLog("自动测试已取消");
-                await SafeResetHardwareAsync();
+                await SafeResetHardwareAsync().ConfigureAwait(false);
+                throw;
             }
             catch (Exception ex)
             {
                 AddLog($"自动测试异常: {ex.Message}");
-                await SafeResetHardwareAsync();
-            }
-            finally
-            {
-                IsAutoTestRunning = false;
-                _hardwareInitialized = false;
-                UpdateCommandStates();
+                await SafeResetHardwareAsync().ConfigureAwait(false);
+                return "不合格";
             }
         }
 
@@ -402,11 +604,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
-                // 步骤1：初始化7131板卡（用于DO15控制继电器）
+                // 步骤1：初始化7131板卡（用于DO15控制继电器和DO1-DO14输出）
                 if (_jy7131Api == null)
                 {
-                    var chassisName = _singleBoardTestContext?.ChassisName;
-                    var device7131 = Find7131DeviceInChassis(chassisName);
+                    var device7131 = FindFirstJy7131Device();
                     if (device7131 != null)
                     {
                         string devSlot = Infer7131SlotNumber(device7131);
@@ -431,7 +632,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         {
                             await _jy7131Api.ConnectAsync(token);
                             AddLog("7131板卡连接成功");
-                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.PushPull, token);
+                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
                             await _jy7131Api.StartAsync(token);
                             AddLog("7131板卡已启动");
                         }
@@ -443,14 +644,93 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     }
                 }
 
-                // 步骤2：配置矩阵开关
-                bool ok = await _simulation.ConnectMatrixAsync(AddLog, token);
-                if (!ok)
+                // 步骤2：设置组件供电状态（下电）- CH1不供电
+                AddLog("正在设置组件供电状态: 下电（CH1不供电）...");
+                try
                 {
-                    AddLog("矩阵开关配置失败，将继续使用仿真结果");
+                    if (_componentPowerStateApi != null)
+                    {
+                        await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
+                        AddLog("组件供电状态已设置为下电");
+                    }
+                    else
+                    {
+                        await _simulation.ApplyComponentDownStateAsync(AddLog, token);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"组件下电状态设置异常: {ex.Message}");
+                    await _simulation.ApplyComponentDownStateAsync(AddLog, token);
                 }
 
+                // 步骤3：继电器供电上电（CH2 24V）
+                AddLog("正在开启继电器供电（CH2 24V）...");
+                try
+                {
+                    if (_componentPowerStateApi != null)
+                    {
+                        await _componentPowerStateApi.ApplyRelayPowerAsync(token);
+                        _relaySupplyOn = true;
+                        AddLog("继电器供电已上电: CH2 24V");
+                    }
+                    else
+                    {
+                        AddLog("继电器供电API不可用，使用仿真模式");
+                        _relaySupplyOn = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"继电器供电上电异常: {ex.Message}");
+                }
+
+                //// 步骤4：激活继电器（DO15高电平 + 485继电器第4路），隔离产品与试验台
+                //AddLog("正在激活继电器（DO15高电平），隔离产品...");
+                //try
+                //{
+                //    if (_jy7131Api != null && _jy7131Api.IsConnected)
+                //    {
+                //        await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token);
+                //        IsRelayActivated = true;
+                //        await Task.Delay(500, token);
+                //        AddLog("DO15输出完成，继电器线圈得电");
+
+                //        // 打开485继电器第4路（index=3，从0开始计数），配合DO15完成产品隔离
+                //        AddLog("正在打开485继电器第4路...");
+                //        try
+                //        {
+                //            await _jy7131Api.SetRelayAsync(3, true, token);
+                //            AddLog("485继电器第4路已打开");
+                //        }
+                //        catch (Exception ex)
+                //        {
+                //            AddLog($"485继电器操作失败: {ex.Message}");
+                //        }
+
+                //        AddLog("继电器已激活，产品已隔离（下电状态）");
+                //    }
+                //    else
+                //    {
+                //        await _simulation.ApplyComponentDownStateAsync(AddLog, token);
+                //        IsRelayActivated = true;
+                //    }
+                //}
+                //catch (Exception ex)
+                //{
+                //    AddLog($"继电器激活异常: {ex.Message}");
+                //}
+
+                // 步骤5：配置矩阵开关
+                try
+                {
+                    await _simulation.DisconnectMatrixAsync(AddLog, token);
+                    await _simulation.DisconnectMatrixJ14Async(AddLog, token);
+                }
+                catch { }
+
                 _hardwareInitialized = true;
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "已下电"; });
             }
             finally
             {
@@ -463,19 +743,66 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
-                // 步骤1：复位继电器（DO15低电平），恢复产品连接
-                if (_isRelayActivated && _jy7131Api != null && _jy7131Api.IsConnected)
+                // 步骤1：复位继电器（DO15低电平 + 485继电器第4路关闭），恢复产品连接
+                if (IsRelayActivated && _jy7131Api != null && _jy7131Api.IsConnected)
                 {
                     try
                     {
+                        if (!_jy7131Api.IsRunning)
+                        {
+                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
+                            await _jy7131Api.StartAsync(token);
+                            AddLog("7131板卡已启动");
+                        }
+
                         AddLog("正在复位继电器（DO15低电平）...");
                         await _jy7131Api.WriteDoAsync(RelayControlChannel, false, token);
-                        _isRelayActivated = false;
+                        await Task.Delay(500);
+                        AddLog("DO15输出完成，继电器线圈失电");
+
+                        // 关闭485继电器第4路（index=3，从0开始计数），配合DO15恢复产品连接
+                        AddLog("正在关闭485继电器前4路...");
+                        try
+                        {
+                            await _jy7131Api.SetRelayAsync(0, false, token);
+                            await _jy7131Api.SetRelayAsync(1, false, token);
+                            await _jy7131Api.SetRelayAsync(2, false, token);
+                            await _jy7131Api.SetRelayAsync(3, false, token);
+                            await Task.Delay(500);
+                            AddLog("485继电器前4路已关闭");
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"485继电器操作失败: {ex.Message}");
+                        }
+
+                        IsRelayActivated = false;
                         AddLog("继电器已复位");
                     }
                     catch (Exception ex)
                     {
                         AddLog($"继电器复位异常: {ex.Message}");
+                    }
+                }
+
+                // 步骤1.5：关闭继电器供电（CH2 24V）
+                if (_relaySupplyOn)
+                {
+                    try
+                    {
+                        if (_componentPowerStateApi != null)
+                        {
+                            await _componentPowerStateApi.DisableRelayPowerAsync(token);
+                            AddLog("继电器供电已关闭");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"继电器供电关闭异常: {ex.Message}");
+                    }
+                    finally
+                    {
+                        _relaySupplyOn = false;
                     }
                 }
 
@@ -498,6 +825,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         AddLog($"7131板卡断开异常: {ex.Message}");
                     }
                 }
+
+                //下电
+                await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
+                AddLog($"组件下电");
 
                 _hardwareInitialized = false;
             }
@@ -528,15 +859,42 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
+                // 步骤a：下电状态 + DO1-DO14输出接地信号 + 测量J6-J13阻抗
+                AddLog("步骤a: 设置下电状态...");
                 await ApplyPowerDownAsync(token);
-                await _simulation.SetDoGroundedAsync(AddLog, token);
 
-                double ohm = await ReadImpedanceAsync(token);
-                Application.Current?.Dispatcher?.Invoke(() => ImpedanceGrounded = ohm);
+                // 使用7131板卡输出DO1-DO14接地信号（高电平=接地）
+                // SetDoOutputAsync内部会自动设置sinking模式并启动板卡
+                AddLog("步骤a: 设置DO1-DO14输出接地信号...");
+                await SetDoOutputAsync(true, token); // true = 接地
 
-                bool pass = ohm < ImpedanceGroundedUpperLimitOhm;
-                Application.Current?.Dispatcher?.Invoke(() => StepAResult = pass ? "PASS" : "FAIL");
-                AddLog($"a) 对地阻抗={ohm}Ω，判据: <{ImpedanceGroundedUpperLimitOhm}Ω，结果={(pass ? "PASS" : "FAIL")}");
+                // 等待信号稳定
+                await Task.Delay(500, token);
+
+                // 测量J6-J13各点阻抗
+                AddLog("步骤a: 测量J6-J13对地阻抗...");
+                double totalOhm = 0;
+                int validCount = 0;
+                bool allPass = true;
+
+                for (int i = 0; i < J6ToJ13Points.Length; i++)
+                {
+                    double ohm = await ReadImpedanceForPointAsync(i, token);
+                    _j6ToJ13Impedances[i] = ohm;
+                    Application.Current?.Dispatcher?.Invoke(() => SetImpedanceValue(i, true, ohm));
+                    totalOhm += ohm;
+                    validCount++;
+
+                    bool pointPass = ohm < ImpedanceGroundedUpperLimitOhm;
+                    allPass &= pointPass;
+                    AddLog($"  {J6ToJ13Points[i]}: {ohm:F1}Ω {(pointPass ? "✓" : "✗")}");
+                }
+
+                double avgOhm = validCount > 0 ? totalOhm / validCount : 0;
+                Application.Current?.Dispatcher?.Invoke(() => ImpedanceGrounded = avgOhm);
+
+                Application.Current?.Dispatcher?.Invoke(() => StepAResult = allPass ? "PASS" : "FAIL");
+                AddLog($"a) 平均对地阻抗={avgOhm:F1}Ω，判据: <{ImpedanceGroundedUpperLimitOhm}Ω，结果={(allPass ? "PASS" : "FAIL")}");
 
                 UpdateOverallIfReady();
             }
@@ -555,17 +913,78 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
+                // 步骤b：下电状态 + DO1-DO14输出开路信号 + 测量J6-J13阻抗
+                AddLog("步骤b: 设置下电状态...");
                 await ApplyPowerDownAsync(token);
-                await _simulation.SetDoOpenAsync(AddLog, token);
 
-                double ohm = await ReadImpedanceAsync(token);
-                Application.Current?.Dispatcher?.Invoke(() => ImpedanceOpen = ohm);
+                // 使用7131板卡输出DO1-DO14开路信号（低电平=开路）
+                AddLog("步骤b: 设置DO1-DO14输出开路信号...");
+                await SetDoOutputAsync(false, token); // false = 开路
 
-                bool pass = ohm > ImpedanceOpenLowerLimitOhm;
-                Application.Current?.Dispatcher?.Invoke(() => StepBResult = pass ? "PASS" : "FAIL");
-                AddLog($"b) 对地阻抗={ohm}Ω，判据: >{ImpedanceOpenLowerLimitOhm}Ω，结果={(pass ? "PASS" : "FAIL")}");
+                // 等待信号稳定
+                await Task.Delay(500, token);
+
+                // 测量J6-J13各点阻抗
+                AddLog("步骤b: 测量J6-J13开路阻抗...");
+                double totalOhm = 0;
+                int validCount = 0;
+                bool allPass = true;
+
+                for (int i = 0; i < J6ToJ13Points.Length; i++)
+                {
+                    double ohm = await ReadImpedanceForPointAsync(i, token);
+                    _j6ToJ13Impedances[i] = ohm;
+                    Application.Current?.Dispatcher?.Invoke(() => SetImpedanceValue(i, false, ohm));
+                    totalOhm += ohm;
+                    validCount++;
+
+                    bool pointPass = ohm > ImpedanceOpenLowerLimitOhm;
+                    allPass &= pointPass;
+                    AddLog($"  {J6ToJ13Points[i]}: {ohm:F0}Ω {(pointPass ? "✓" : "✗")}");
+                }
+
+                double avgOhm = validCount > 0 ? totalOhm / validCount : 0;
+                Application.Current?.Dispatcher?.Invoke(() => ImpedanceOpen = avgOhm);
+
+                Application.Current?.Dispatcher?.Invoke(() => StepBResult = allPass ? "PASS" : "FAIL");
+                AddLog($"b) 平均开路阻抗={avgOhm:F0}Ω，判据: >{ImpedanceOpenLowerLimitOhm}Ω，结果={(allPass ? "PASS" : "FAIL")}");
 
                 UpdateOverallIfReady();
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        /// <summary>
+        /// c步骤上电操作（独立按钮）
+        /// </summary>
+        private async Task PowerOnForStepCAsync()
+        {
+            if (_opCts == null)
+                return;
+
+            var token = _opCts.Token;
+            IsBusy = true;
+            try
+            {
+                AddLog("步骤c: 正在上电（28V供电）...");
+
+                // 切换矩阵通路：先断开a/b的阻抗通路，再接通J14电压测量通路
+                await _simulation.DisconnectMatrixAsync(AddLog, token);
+                await _simulation.ConnectMatrixJ14Async(AddLog, token);
+                await Task.Delay(500, token);
+
+                // 上电
+                await ApplyPower28VAsync(token);
+
+                AddLog("步骤c: 上电完成，可以点击'电压测试'测量J14电压");
+                UpdateCommandStates();
+            }
+            catch (Exception ex)
+            {
+                AddLog($"上电异常: {ex.Message}");
             }
             finally
             {
@@ -582,18 +1001,68 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
-                // 步骤c需要切换矩阵通路：先断开a/b的阻抗通路，再接通J14电压测量通路
+                // 切换矩阵通路：先断开a/b的阻抗通路，再接通J14电压测量通路
                 await _simulation.DisconnectMatrixAsync(AddLog, token);
                 await _simulation.ConnectMatrixJ14Async(AddLog, token);
+                await Task.Delay(500, token);
 
+                //如果继电器已激活则需复位 --> 然后再上电测电压
+                if (IsRelayActivated)
+                {
+                    if (_jy7131Api?.IsConnected == true)
+                    {
+                        if (!_jy7131Api.IsRunning)
+                        {
+                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, _opCts.Token);
+                            await _jy7131Api.StartAsync(_opCts.Token);
+                        }
+
+                        // 1. 先复位 DO15
+                        AddLog("正在复位 DO15 隔离继电器...");
+                        await _jy7131Api.WriteDoAsync(RelayControlChannel, false, _opCts.Token);
+                        await Task.Delay(200);
+
+                        // 2. 再关闭 485 继电器第4路
+                        try
+                        {
+                            await _jy7131Api.SetRelayAsync(3, false, _opCts.Token);
+                            await Task.Delay(200);
+                            AddLog("485 继电器第 4 路已关闭");
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"485继电器操作失败: {ex.Message}");
+                        }
+
+                        await _jy7131Api.WriteDoAsync(RelayControlChannel, false, _opCts.Token);
+                        try
+                        {
+                            var mask = await _jy7131Api.ReadDoBitmaskAsync(_opCts.Token);
+                            var ok = int.TryParse(RelayControlChannel.Substring(2), out var doIdx);
+                            var bit = ok ? doIdx : 14;
+                            AddLog($"DO写回读取: mask=0x{mask:X8}，{RelayControlChannel}={(mask & (1u << bit)) != 0}");
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"DO写回读取失败: {ex.Message}");
+                        }
+                    }
+                    IsRelayActivated = false;
+                    await Task.Delay(100);
+                    AddLog("继电器已复位");
+                }
+
+                // 上电
                 await ApplyPower28VAsync(token);
 
+                // 测量J14电压
+                AddLog("步骤c: 正在测量J14电压...");
                 double v = await ReadJ14VoltageAsync(token);
                 Application.Current?.Dispatcher?.Invoke(() => J14Voltage = v);
 
                 bool pass = v >= J14VoltageLowerLimitV;
                 Application.Current?.Dispatcher?.Invoke(() => StepCResult = pass ? "PASS" : "FAIL");
-                AddLog($"c) J14电压={v}V，判据: ≥{J14VoltageLowerLimitV}V，结果={(pass ? "PASS" : "FAIL")}");
+                AddLog($"c) J14电压={v:F2}V，判据: ≥{J14VoltageLowerLimitV}V，结果={(pass ? "PASS" : "FAIL")}");
 
                 UpdateOverallIfReady();
             }
@@ -605,16 +1074,58 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task ApplyPowerDownAsync(CancellationToken token)
         {
+            if (!IsPowerOn && IsRelayActivated)
+            {
+                if (_componentPowerStateApi != null && !_relaySupplyOn)
+                {
+                    try
+                    {
+                        await _componentPowerStateApi.ApplyRelayPowerAsync(token);
+                        _relaySupplyOn = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"继电器供电开启异常: {ex.Message}");
+                    }
+                }
+
+                AddLog("已处于下电且继电器已激活，跳过重复下电/继电器动作");
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
+                return;
+            }
+
             // 使用DO15控制继电器，将产品与试验台隔离（下电）
             // DO15高电平 → 继电器得电 → NC跳NO → 产品隔离
+            if (_componentPowerStateApi != null)
+            {
+                try
+                {
+                    await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
+                    await _componentPowerStateApi.ApplyRelayPowerAsync(token);
+                    _relaySupplyOn = true;
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"组件下电/继电器供电控制异常: {ex.Message}，使用仿真下电");
+                    await _simulation.ApplyComponentDownStateAsync(AddLog, token);
+                }
+            }
+
             if (_jy7131Api != null && _jy7131Api.IsConnected)
             {
                 try
                 {
+                    if (!_jy7131Api.IsRunning)
+                    {
+                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
+                        await _jy7131Api.StartAsync(token);
+                        AddLog("7131板卡已启动");
+                    }
+
                     AddLog("正在激活继电器（DO15高电平），隔离产品...");
-                    await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token);
-                    _isRelayActivated = true;
-                    await Task.Delay(200, token);
+                    await _jy7131Api.WriteDoAsync(RelayControlChannel, false, token);
+                    IsRelayActivated = true;
+                    await Task.Delay(500, token);
                     AddLog("继电器已激活，产品已隔离（下电）");
                 }
                 catch (Exception ex)
@@ -635,14 +1146,39 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             // 使用DO15控制继电器，恢复产品与试验台连接（上电）
             // DO15低电平 → 继电器失电 → 触点恢复NC → 产品连接
+            if (_componentPowerStateApi != null)
+            {
+                try
+                {
+                    if (!_relaySupplyOn)
+                    {
+                        await _componentPowerStateApi.ApplyRelayPowerAsync(token);
+                        _relaySupplyOn = true;
+                    }
+                    await _componentPowerStateApi.ApplyComponent28VStateAsync(token);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"组件上电控制异常: {ex.Message}，使用仿真上电");
+                    await _simulation.ApplyComponent28VStateAsync(AddLog, token);
+                }
+            }
+
             if (_jy7131Api != null && _jy7131Api.IsConnected)
             {
                 try
                 {
+                    if (!_jy7131Api.IsRunning)
+                    {
+                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
+                        await _jy7131Api.StartAsync(token);
+                        AddLog("7131板卡已启动");
+                    }
+
                     AddLog("正在复位继电器（DO15低电平），恢复产品连接...");
                     await _jy7131Api.WriteDoAsync(RelayControlChannel, false, token);
-                    _isRelayActivated = false;
-                    await Task.Delay(200, token);
+                    IsRelayActivated = false;
+                    await Task.Delay(500, token);
                     AddLog("继电器已复位，产品已连接");
                 }
                 catch (Exception ex)
@@ -659,8 +1195,149 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
         }
 
+        /// <summary>
+        /// 设置DO1-DO14输出状态
+        /// </summary>
+        /// <param name="grounded">true=接地（高电平），false=开路（低电平）</param>
+        private async Task SetDoOutputAsync(bool grounded, CancellationToken token)
+        {
+            if (_jy7131Api != null && _jy7131Api.IsConnected)
+            {
+                try
+                {
+                    // 确保7131板卡已连接并启动
+                    //await _jy7131Api.EnsureConnectedAndRunningAsync(token);
+                    if (!_jy7131Api.IsRunning)
+                    {
+                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
+                        await _jy7131Api.StartAsync(token);
+                        AddLog("7131板卡已启动");
+                    }
+
+                    // 1. 先操作 485 继电器第 4 路
+                    AddLog($"正在{(grounded ? "打开" : "关闭")} 485 继电器前 4 路...");
+                    try
+                    {
+                        await _jy7131Api.SetRelayAsync(0, grounded, token);
+                        await _jy7131Api.SetRelayAsync(1, grounded, token);
+                        await _jy7131Api.SetRelayAsync(2, grounded, token);
+                        await _jy7131Api.SetRelayAsync(3, grounded, token);
+                        await Task.Delay(500);
+                        AddLog($"485 继电器前 4 路已{(grounded ? "打开" : "关闭")}");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"485 继电器操作失败: {ex.Message}");
+                    }
+
+                    // 2. 再设置 DO1-DO14 输出
+                    AddLog($"正在写DO1-DO14（{(grounded ? "高电平" : "低电平")}）...");
+                    foreach (var channel in DoChannels)
+                    {
+                        await _jy7131Api.WriteDoAsync(channel, grounded, token);
+                    }
+                    AddLog($"DO1-DO14已设置为{(grounded ? "接地（高电平）" : "开路（低电平）")}");
+
+                    // 回读验证DO输出状态
+                    try
+                    {
+                        var mask = await _jy7131Api.ReadDoBitmaskAsync(token);
+                        uint expectedMask = grounded ? 0x3FFFu : 0x0000u; // bit0-bit13全高或全低
+                        uint actualDo0To13 = mask & 0x3FFFu;
+                        bool verified = (grounded && actualDo0To13 == expectedMask) || (!grounded && actualDo0To13 == 0);
+                        AddLog($"DO回读验证: mask=0x{mask:X8}, DO0-13=0x{actualDo0To13:X4}, 期望=0x{expectedMask:X4}, {(verified ? "✓" : "✗")}");
+                        
+                        if (!verified)
+                        {
+                            AddLog($"警告: DO输出状态与期望不符，请检查7131板卡连接");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"DO回读验证失败: {ex.Message}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"DO1-DO14输出异常: {ex.Message}，使用仿真");
+                    if (grounded)
+                        await _simulation.SetDoGroundedAsync(AddLog, token);
+                    else
+                        await _simulation.SetDoOpenAsync(AddLog, token);
+                }
+            }
+            else
+            {
+                // 7131板卡不可用，使用仿真
+                AddLog("7131板卡不可用，使用仿真模式");
+                if (grounded)
+                    await _simulation.SetDoGroundedAsync(AddLog, token);
+                else
+                    await _simulation.SetDoOpenAsync(AddLog, token);
+            }
+        }
+
+        /// <summary>
+        /// 读取指定测量点的阻抗（J6-J13）
+        /// 需要先配置对应的矩阵开关通路
+        /// </summary>
+        /// <param name="pointIndex">测量点索引（0=J6, 1=J7, ..., 7=J13）</param>
+        private async Task<double> ReadImpedanceForPointAsync(int pointIndex, CancellationToken token)
+        {
+            if (pointIndex < 0 || pointIndex >= MatrixDoImpedancePoints.Length)
+                throw new ArgumentOutOfRangeException(nameof(pointIndex));
+
+            if (_dmmApi == null || _useSimulatedDmm)
+                return await ReadImpedanceAsync(token);
+
+            try { await _simulation.DisconnectMatrixJ14Async(AddLog, token); } catch { }
+
+            await _matrixLock.WaitAsync(token);
+            try
+            {
+                var matrix = MatrixControlService.Instance;
+
+                try { await matrix.DisconnectNodesAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress); } catch { }
+                foreach (var ch in MatrixDoImpedancePoints)
+                {
+                    try { await matrix.DisconnectNodesAsync(ch.In, ch.Out, MatrixSlotDo, MatrixIpAddress); } catch { }
+                }
+
+                var okDmm = await matrix.ConnectNodesAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress);
+                var p = MatrixDoImpedancePoints[pointIndex];
+                await Task.Delay(1000);
+                var okP = await matrix.ConnectNodesAsync(p.In, p.Out, MatrixSlotDo, MatrixIpAddress);
+                await Task.Delay(MatrixSwitchSettleDelayMs, token);
+
+                if (!okDmm || !okP)
+                {
+                    AddLog("矩阵通路连接失败，使用仿真测量");
+                    _useSimulatedDmm = true;
+                    return await _simulation.MeasureImpedanceToGroundAsync(AddLog, token);
+                }
+
+                return await ReadImpedanceAsync(token);
+            }
+            finally
+            {
+                try
+                {
+                    var matrix = MatrixControlService.Instance;
+                    var p = MatrixDoImpedancePoints[pointIndex];
+                    await Task.Delay(500);
+                    try { await matrix.DisconnectNodesAsync(p.In, p.Out, MatrixSlotDo, MatrixIpAddress); } catch { }
+                    try { await matrix.DisconnectNodesAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress); } catch { }
+                }
+                catch { }
+                _matrixLock.Release();
+            }
+        }
+
         private async Task<double> ReadImpedanceAsync(CancellationToken token)
         {
+            if (_useSimulatedDmm)
+                return await _simulation.MeasureImpedanceToGroundAsync(AddLog, token);
+
             if (_dmmApi == null)
             {
                 _useSimulatedDmm = true;
@@ -672,23 +1349,57 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 await EnsureDmmConnectedAsync(token);
                 var reading = await _dmmApi.ReadOnceAsync(DmmMeasureMode.RES, new DmmReadOptions { TimeoutMilliseconds = 8000 }, token);
+                
+                // 检查超量程情况（开路时阻抗无穷大）
+                if (reading?.IsOverrange == true)
+                {
+                    AddLog("阻抗测量: 超量程（开路）");
+                    return double.MaxValue; // 返回最大值表示开路
+                }
+                
                 if (reading?.Value == null)
-                    throw new InvalidOperationException("DMM未返回阻抗值");
+                {
+                    // DMM返回空值，可能是通信问题，尝试重新连接
+                    AddLog($"DMM未返回阻抗值（Raw: {reading?.Raw ?? "null"}），尝试重新连接...");
+                    try
+                    {
+                        await _dmmApi.DisconnectAsync(token);
+                        await Task.Delay(500, token);
+                        await _dmmApi.ConnectAsync(GetDmmIpAddress(), token);
+                        AddLog("DMM重新连接成功");
+                        
+                        // 重试一次测量
+                        reading = await _dmmApi.ReadOnceAsync(DmmMeasureMode.RES, new DmmReadOptions { TimeoutMilliseconds = 8000 }, token);
+                        if (reading?.IsOverrange == true)
+                            return double.MaxValue;
+                        if (reading?.Value != null)
+                            return reading.Value.Value;
+                    }
+                    catch (Exception retryEx)
+                    {
+                        AddLog($"DMM重连失败: {retryEx.Message}");
+                    }
+                    
+                    throw new InvalidOperationException($"DMM未返回阻抗值（Raw: {reading?.Raw ?? "null"}）");
+                }
 
-                _useSimulatedDmm = false;
-                AddLog("阻抗来源: 万用表");
                 return reading.Value.Value;
             }
             catch (Exception ex)
             {
+                // 只在连续多次失败时才切换到仿真模式
+                AddLog($"万用表阻抗测量异常: {ex.Message}");
                 _useSimulatedDmm = true;
-                AddLog($"万用表阻抗测量异常: {ex.Message}，切换到仿真");
+                AddLog("切换到仿真模式");
                 return await _simulation.MeasureImpedanceToGroundAsync(AddLog, token);
             }
         }
 
         private async Task<double> ReadJ14VoltageAsync(CancellationToken token)
         {
+            if (_useSimulatedDmm)
+                return await _simulation.MeasureJ14VoltageAsync(AddLog, token);
+
             if (_dmmApi == null)
             {
                 _useSimulatedDmm = true;
@@ -731,7 +1442,157 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private string GetDmmIpAddress()
         {
-            return "192.168.1.100";
+            return "192.168.1.13";
+        }
+
+        private async Task ToggleRelayAsync()
+        {
+            if (_opCts == null) return;
+            IsBusy = true;
+            try
+            {
+                if (IsRelayActivated)
+                {
+                    if (_jy7131Api?.IsConnected == true)
+                    {
+                        if (!_jy7131Api.IsRunning)
+                        {
+                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, _opCts.Token);
+                            await _jy7131Api.StartAsync(_opCts.Token);
+                        }
+
+                        // 1. 先复位 DO15
+                        AddLog("正在复位 DO15 隔离继电器...");
+                        await _jy7131Api.WriteDoAsync(RelayControlChannel, false, _opCts.Token);
+                        await Task.Delay(200);
+
+                        // 2. 再关闭 485 继电器第4路
+                        try
+                        {
+                            await _jy7131Api.SetRelayAsync(3, false, _opCts.Token);
+                            await Task.Delay(200);
+                            AddLog("485 继电器第 4 路已关闭");
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"485继电器操作失败: {ex.Message}");
+                        }
+
+                        await _jy7131Api.WriteDoAsync(RelayControlChannel, false, _opCts.Token);
+                        try
+                        {
+                            var mask = await _jy7131Api.ReadDoBitmaskAsync(_opCts.Token);
+                            var ok = int.TryParse(RelayControlChannel.Substring(2), out var doIdx);
+                            var bit = ok ? doIdx : 14;
+                            AddLog($"DO写回读取: mask=0x{mask:X8}，{RelayControlChannel}={(mask & (1u << bit)) != 0}");
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"DO写回读取失败: {ex.Message}");
+                        }
+                    }
+                    IsRelayActivated = false;
+                    await Task.Delay(100);
+                    AddLog("继电器已复位");
+                }
+                else
+                {
+                    if (_jy7131Api?.IsConnected == true)
+                    {
+                        if (!_jy7131Api.IsRunning)
+                        {
+                            await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, _opCts.Token);
+                            await _jy7131Api.StartAsync(_opCts.Token);
+                        }
+
+                        // 1. 先打开 485 继电器第4路
+                        try
+                        {
+                            await _jy7131Api.SetRelayAsync(3, true, _opCts.Token);
+                            await Task.Delay(200);
+                            AddLog("485 继电器第 4 路已打开");
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"485 继电器操作失败: {ex.Message}");
+                        }
+
+                        // 2. 再输出 DO15 激活隔离继电器
+                        AddLog("正在输出 DO15 激活隔离继电器...");
+                        await _jy7131Api.WriteDoAsync(RelayControlChannel, true, _opCts.Token);
+                        await Task.Delay(500);
+                        try
+                        {
+                            var mask = await _jy7131Api.ReadDoBitmaskAsync(_opCts.Token);
+                            var ok = int.TryParse(RelayControlChannel.Substring(2), out var doIdx);
+                            var bit = ok ? doIdx : 14;
+                            AddLog($"DO写回读取: mask=0x{mask:X8}，{RelayControlChannel}={(mask & (1u << bit)) != 0}");
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"DO写回读取失败: {ex.Message}");
+                        }
+                    }
+                    IsRelayActivated = true;
+                    await Task.Delay(100);
+                    AddLog("继电器已激活");
+                }
+            }
+            catch (Exception ex) { AddLog($"继电器异常: {ex.Message}"); }
+            finally { IsBusy = false; }
+
+            return;
+        }
+
+        private async Task SetGroundedSignalAsync()
+        {
+            if (_opCts == null) return;
+            IsBusy = true;
+            try { await SetDoOutputAsync(true, _opCts.Token); }
+            catch (Exception ex) { AddLog($"接地信号异常: {ex.Message}"); }
+            finally { IsBusy = false; }
+        }
+
+        private async Task SetOpenSignalAsync()
+        {
+            if (_opCts == null) return;
+            IsBusy = true;
+            try { await SetDoOutputAsync(false, _opCts.Token); }
+            catch (Exception ex) { AddLog($"开路信号异常: {ex.Message}"); }
+            finally { IsBusy = false; }
+        }
+
+        private async Task MeasureSinglePointAsync(int idx, bool grounded)
+        {
+            if (_opCts == null) return;
+            IsBusy = true;
+            try
+            {
+                double v = await ReadImpedanceForPointAsync(idx, _opCts.Token);
+                Application.Current?.Dispatcher?.Invoke(() => SetImpedanceValue(idx, grounded, v));
+                AddLog($"{J6ToJ13Points[idx]}阻抗={v:F1}Ω");
+            }
+            catch (Exception ex) { AddLog($"测量异常: {ex.Message}"); }
+            finally { IsBusy = false; }
+        }
+
+        private void SetImpedanceValue(int idx, bool grounded, double v)
+        {
+            if (grounded)
+            {
+                 //减去回路阻抗
+                if (idx == 0) ImpedanceJ6 = v - 6.702; else if (idx == 1) ImpedanceJ7 = v - 6.706;
+                else if (idx == 2) ImpedanceJ8 = v - 6.781; else if (idx == 3) ImpedanceJ9 = v - 6.829;
+                else if (idx == 4) ImpedanceJ10 = v - 6.418; else if (idx == 5) ImpedanceJ11 = v - 6.611;
+                else if (idx == 6) ImpedanceJ12 = v - 6.659; else if (idx == 7) ImpedanceJ13 = v - 6.708;
+            }
+            else
+            {
+                if (idx == 0) ImpedanceOpenJ6 = v; else if (idx == 1) ImpedanceOpenJ7 = v;
+                else if (idx == 2) ImpedanceOpenJ8 = v; else if (idx == 3) ImpedanceOpenJ9 = v;
+                else if (idx == 4) ImpedanceOpenJ10 = v; else if (idx == 5) ImpedanceOpenJ11 = v;
+                else if (idx == 6) ImpedanceOpenJ12 = v; else if (idx == 7) ImpedanceOpenJ13 = v;
+            }
         }
 
         private void UpdateOverallIfReady()
@@ -790,36 +1651,58 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         #region 7131板卡查找辅助方法
 
-        private MeasureControl.Models.Devices.DeviceBase Find7131DeviceInChassis(string chassisName)
+        /// <summary>
+        /// 从 PXI 机箱中查找第一个 PXIe-7131 板卡
+        /// 使用 GetAllChassis 方法遍历所有机箱
+        /// </summary>
+        private MeasureControl.Models.Devices.DeviceBase FindFirstJy7131Device()
         {
-            if (string.IsNullOrWhiteSpace(chassisName))
-                return null;
-
-            var devices = _pxiChassisService?.GetChassisDevices(chassisName);
-            if (devices == null || devices.Count == 0)
-                return null;
-
-            MeasureControl.Models.Devices.DeviceBase Walk(MeasureControl.Models.Devices.DeviceBase d)
+            var chassisList = _pxiChassisService?.GetAllChassis();
+            if (chassisList == null)
             {
-                if (d == null) return null;
-                var model = (d.Model ?? string.Empty).ToUpperInvariant();
-                var name  = (d.Name  ?? string.Empty).ToUpperInvariant();
-                if (model.Contains("7131") || name.Contains("7131"))
-                    return d;
-                if (d.Children == null) return null;
-                foreach (var c in d.Children)
+                AddLog("[7131查找] 机箱列表为null");
+                return null;
+            }
+
+            foreach (var chassis in chassisList)
+            {
+                if (chassis?.Devices == null)
+                    continue;
+
+                // 直接在机箱设备列表中查找
+                var device = chassis.Devices.FirstOrDefault(d =>
+                    d is MeasureControl.Models.Devices.DigitalIODevice ||
+                    (d?.Model?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("离散量", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("数字量", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                if (device != null)
                 {
-                    var found = Walk(c);
-                    if (found != null) return found;
+                    AddLog($"[7131查找] 找到板卡: Name={device.Name}, Model={device.Model}");
+                    return device;
                 }
-                return null;
+
+                // 遍历子设备
+                foreach (var d in chassis.Devices)
+                {
+                    if (d?.Children == null)
+                        continue;
+
+                    var childDevice = d.Children.FirstOrDefault(c =>
+                        c is MeasureControl.Models.Devices.DigitalIODevice ||
+                        (c?.Model?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        (c?.DeviceTypeName?.IndexOf("离散量", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        (c?.DeviceTypeName?.IndexOf("数字量", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                    if (childDevice != null)
+                    {
+                        AddLog($"[7131查找] 找到板卡: Name={childDevice.Name}, Model={childDevice.Model}");
+                        return childDevice;
+                    }
+                }
             }
 
-            foreach (var d in devices)
-            {
-                var found = Walk(d);
-                if (found != null) return found;
-            }
+            AddLog("[7131查找] 未找到7131板卡");
             return null;
         }
 

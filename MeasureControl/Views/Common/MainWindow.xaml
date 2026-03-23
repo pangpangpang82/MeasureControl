@@ -396,14 +396,14 @@
                                 Grid.Column="1"
                                 VerticalAlignment="Center"
                                 Foreground="White"
-                                Text="四川汉宇航空科技" />
+                                Text="四川汉宇航空科技有限公司" />
                             <TextBlock
                                 x:Name="filepath"
                                 Grid.Column="2"
                                 Margin="90,0,0,0"
                                 VerticalAlignment="Center"
                                 Foreground="White"
-                                Text="{Binding CurrentProjectFilePath}" />
+                                Text="" />
                             <StackPanel Grid.Column="3" Orientation="Horizontal">
                                 <Button
                                     x:Name="min"
@@ -464,7 +464,6 @@
                                     Width="35"
                                     Height="25"
                                     Margin="0,0,10,0"
-                                    
                                     Content="项目"
                                     FontSize="14"
                                     Style="{StaticResource DefaultButtonStyle}">
@@ -606,7 +605,6 @@
                                     Width="30"
                                     Height="25"
                                     Margin="10,0,10,0"
-                                   
                                     Style="{StaticResource ToolButtonStyle}"
                                     ToolTip="打开项目">
                                     <Image
@@ -666,7 +664,6 @@
                                     Width="30"
                                     Height="25"
                                     Margin="10,0,0,0"
-                                    Command="{Binding StartPauseTestCommand}"
                                     Style="{StaticResource ToolButtonStyle}"
                                     ToolTip="{Binding ToolTipContent}">
                                     <Image

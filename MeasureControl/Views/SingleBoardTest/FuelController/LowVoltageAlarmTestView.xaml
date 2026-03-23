@@ -212,12 +212,18 @@
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                    <TextBlock VerticalAlignment="Center" FontSize="14" Text="电平状态: "/>
-                                    <Border Width="60" Height="24" CornerRadius="4" Margin="5,0,20,0">
+                                    <TextBlock VerticalAlignment="Center" FontSize="14" Text="PIN3电压: "/>
+                                    <TextBlock VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="#0369a1" Margin="0,0,15,0"
+                                               Text="{Binding CurrentPin3Voltage, StringFormat={}{0:F3}V}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <TextBlock VerticalAlignment="Center" FontSize="14" Text="电平: "/>
+                                    <Border Width="60" Height="24" CornerRadius="4" Margin="5,0,15,0">
                                         <Border.Style>
                                             <Style TargetType="Border">
                                                 <Setter Property="Background" Value="#ef4444"/>
@@ -242,8 +248,8 @@
                                         </TextBlock>
                                     </Border>
                                 </StackPanel>
-                                <ProgressBar Grid.Column="1" Height="20" Margin="10,0" Value="{Binding TestProgress}" Maximum="100"/>
-                                <Button Grid.Column="2" Width="80" Height="28" Content="降压 -0.2V" Command="{Binding StepDownCommand}">
+                                <ProgressBar Grid.Column="2" Height="20" Margin="10,0" Value="{Binding TestProgress}" Maximum="100"/>
+                                <Button Grid.Column="3" Width="80" Height="28" Content="降压 -0.2V" Command="{Binding StepDownCommand}">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Background" Value="#3b82f6"/>
@@ -285,9 +291,10 @@
                                 GridLinesVisibility="Horizontal"
                                 BorderThickness="0">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="电压(V)" Binding="{Binding Voltage, StringFormat={}{0:F1}}" Width="80"/>
-                                    <DataGridTextColumn Header="电平" Binding="{Binding LevelText}" Width="60"/>
-                                    <DataGridTextColumn Header="时间" Binding="{Binding Timestamp, StringFormat={}{0:HH:mm:ss}}" Width="80"/>
+                                    <DataGridTextColumn Header="供电(V)" Binding="{Binding Voltage, StringFormat={}{0:F1}}" Width="70"/>
+                                    <DataGridTextColumn Header="PIN3(V)" Binding="{Binding Pin3Voltage, StringFormat={}{0:F3}}" Width="80"/>
+                                    <DataGridTextColumn Header="电平" Binding="{Binding LevelText}" Width="50"/>
+                                    <DataGridTextColumn Header="时间" Binding="{Binding Timestamp, StringFormat={}{0:HH:mm:ss}}" Width="70"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Border>

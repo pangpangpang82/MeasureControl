@@ -17,6 +17,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
     public class GndOcDiscreteInputTestViewModel : BindableBase
     {
         private const byte DefaultLabel = 0x6A;
+        private const string FixedTxChannel = "429_CH0";
+        private const string FixedRxChannel = "429_CH2";
 
         private static readonly byte[] EnterAtpCommand = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
@@ -36,19 +38,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private CancellationTokenSource _cts;
         private readonly AC_6_4Simulation _simulation = new AC_6_4Simulation();
 
-        private string _title = "控制通道GND/OC离散输入通道输入测试";
+        private string _title = "6.14.1控制通道GND/OC离散输入通道输入测试";
         private bool _isManualTestRunning;
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
 
-        private string _enterAtpTxChannel = "429_CH0";
-        private string _enterAtpRxChannel = "429_CH1";
+        private string _enterAtpTxChannel = FixedTxChannel;
+        private string _enterAtpRxChannel = FixedRxChannel;
 
-        private string _testTxChannel = "429_CH2";
-        private string _testRxChannel = "429_CH3";
+        private string _testTxChannel = FixedTxChannel;
+        private string _testRxChannel = FixedRxChannel;
 
-        private string _exitAtpTxChannel = "429_CH8";
-        private string _exitAtpRxChannel = "429_CH9";
+        private string _exitAtpTxChannel = FixedTxChannel;
+        private string _exitAtpRxChannel = FixedRxChannel;
 
         private string _enterAtpRxDataText = "--";
         private string _testRxDataText = "--";
@@ -125,37 +127,37 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string EnterAtpTxChannel
         {
             get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, value);
+            set => SetProperty(ref _enterAtpTxChannel, FixedTxChannel);
         }
 
         public string EnterAtpRxChannel
         {
             get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, value);
+            set => SetProperty(ref _enterAtpRxChannel, FixedRxChannel);
         }
 
         public string TestTxChannel
         {
             get => _testTxChannel;
-            set => SetProperty(ref _testTxChannel, value);
+            set => SetProperty(ref _testTxChannel, FixedTxChannel);
         }
 
         public string TestRxChannel
         {
             get => _testRxChannel;
-            set => SetProperty(ref _testRxChannel, value);
+            set => SetProperty(ref _testRxChannel, FixedRxChannel);
         }
 
         public string ExitAtpTxChannel
         {
             get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, value);
+            set => SetProperty(ref _exitAtpTxChannel, FixedTxChannel);
         }
 
         public string ExitAtpRxChannel
         {
             get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, value);
+            set => SetProperty(ref _exitAtpRxChannel, FixedRxChannel);
         }
 
         public string EnterAtpRxDataText
@@ -187,6 +189,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = StartAsync();
         }
 
+        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
+        {
+            try
+            {
+                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                if (api != null)
+                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         private async Task StartAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -207,6 +222,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _cts = new CancellationTokenSource();
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动(仿真模式)：开始打开设备");
+
+                try
+                {
+                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
+                    if (api != null)
+                        await api.ApplyComponent28VStateAsync(CancellationToken.None);
+                }
+                catch { }
 
                 _simulation.SimProductRxChannelIndex = 4;
                 _simulation.SimProductTxChannelIndex = 5;
@@ -244,6 +267,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             finally
             {
+                try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 _manualTestLock.Release();
             }
         }
