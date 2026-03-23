@@ -56,6 +56,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
+        private readonly IHydraulicPowerService _hydraulicPowerService;
         private IJy7131Api _jy7131;
         private bool _isRelay485On;
 
@@ -87,10 +88,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _previousTestResult = "--";
         private string _currentTestResult = "--";
 
-        public HC_6_1ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
+        public HC_6_1ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IHydraulicPowerService hydraulicPowerService)
         {
             _pxiChassisService = pxiChassisService;
             _singleBoardTestContext = singleBoardTestContext;
+            _hydraulicPowerService = hydraulicPowerService;
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
             Measure14Command = new DelegateCommand(async () => await OnMeasure14Async(), () => CanMeasure14);
@@ -247,26 +249,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
                     }
 
-                    //await _jy7131.SetRelayAsync(6, true, cancellationToken).ConfigureAwait(false);
-                    //Log($"485继电器板 第7路已开启");
-
                     await _jy7131.SetRelayAsync(7, true, cancellationToken).ConfigureAwait(false);
-                    Log($"485继电器板 第8路已开启");
-
-                    //await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", true, cancellationToken).ConfigureAwait(false);
-                    //Log($"7131 DO{RelayGroundDoIndex} 已置位");
 
                     await _jy7131.WriteDoAsync($"DO{Relay485DoIndex}", true, cancellationToken).ConfigureAwait(false);
-                    Log($"7131 DO{Relay485DoIndex} 已置位");
 
                     await _jy7131.WriteDoAsync($"DO{29}", true, cancellationToken).ConfigureAwait(false);
-                    Log($"7131 DO{29} 已置位");
 
                     // 等待继电器吸合稳定
                     await Task.Delay(100, cancellationToken).ConfigureAwait(false);
 
                     _isRelay485On = true;
-                    //Log($"485初始化完成: 第7路=ON, 第8路=ON, DO{RelayGroundDoIndex}=1, DO{Relay485DoIndex}=1");
                 }
                 else
                 {
@@ -280,24 +272,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         try
                         {
                             await _jy7131.WriteDoAsync($"DO{Relay485DoIndex}", false, cancellationToken).ConfigureAwait(false);
-                            Log($"7131 DO{Relay485DoIndex} 已复位");
                             await _jy7131.WriteDoAsync($"DO{29}", false, cancellationToken).ConfigureAwait(false);
-                            Log($"7131 DO{29} 已复位");
                         }
                         catch (Exception ex)
                         {
                             Log($"复位7131 DO{Relay485DoIndex}失败: {ex.Message}");
                         }
-
-                        //try
-                        //{
-                        //    await _jy7131.WriteDoAsync($"DO{RelayGroundDoIndex}", false, cancellationToken).ConfigureAwait(false);
-                        //    Log($"7131 DO{RelayGroundDoIndex} 已复位");
-                        //}
-                        //catch (Exception ex)
-                        //{
-                        //    Log($"复位7131 DO{RelayGroundDoIndex}失败: {ex.Message}");
-                        //}
 
                         try
                         {
@@ -308,20 +288,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         {
                             Log($"关闭继电器板 第8路失败: {ex.Message}");
                         }
-
-                        //try
-                        //{
-                        //    await _jy7131.SetRelayAsync(6, false, cancellationToken).ConfigureAwait(false);
-                        //    Log($"485继电器板 第7路已关闭");
-                        //}
-                        //catch (Exception ex)
-                        //{
-                        //    Log($"关闭继电器板 第7路失败: {ex.Message}");
-                        //}
                     }
 
                     _isRelay485On = false;
-                    //Log($"485关闭完成: DO{RelayGroundDoIndex}=0, DO{Relay485DoIndex}=0, 第7路=OFF, 第8路=OFF");
                 }
             }
             finally
@@ -487,10 +456,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _autoCts?.Dispose();
             _autoCts = new CancellationTokenSource();
 
+            if (_hydraulicPowerService?.IsHydraulicPowered == true)
+            {
+                await _hydraulicPowerService.PowerOffAsync(_autoCts.Token).ConfigureAwait(false);
+            }
+
             Log("开始自动测试");
-            Log($"判据: R14>{PassThresholdOhm:0}Ω && R182>{PassThresholdOhm:0}Ω");
-            Log($"连接万用表 {DmmIpAddress} ...");
-            Log($"连接程控电源 {AuxPowerSupplyIpAddress} 并输出 CH1 {AuxPowerVoltageV:0.###}V {AuxPowerCurrentA:0.###}A ...");
+            Log("正在初始化设备...");         
 
             try
             {
@@ -531,8 +503,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Resistance182Text = "--";
 
             Log("开始自动测试");
+            Log("正在初始化设备...");
             Log($"判据: R14>{PassThresholdOhm:0}Ω && R182>{PassThresholdOhm:0}Ω");
-            Log($"连接万用表 {DmmIpAddress} ...");
 
             try
             {
@@ -543,12 +515,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 _dmm ??= new DmmSocketApi();
                 await _dmm.ConnectAsync(DmmIpAddress, cancellationToken).ConfigureAwait(false);
                 await ConfigureDmmAsync(cancellationToken).ConfigureAwait(false);
-                Log("万用表连接成功");
 
                 IsAutoTestInitializing = false;
 
                 var ok14 = await MeasureResistanceAsync(
-                        name: "通道1(1-4)",
+                        name: "针脚1-4",
                         connect1: ("I1", "O8", MatrixSlotResistanceCh1),
                         connect2: ("I4", "O2", MatrixSlotCommon),
                         afterSetText: (v, text) => { _resistance14 = v; Resistance14Text = text; },
@@ -565,7 +536,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await Task.Delay(120, cancellationToken).ConfigureAwait(false);
 
                 var ok182 = await MeasureResistanceAsync(
-                        name: "通道2(1-82)",
+                        name: "针脚1-82",
                         connect1: ("I1", "O9", MatrixSlotResistanceCh2),
                         connect2: ("I4", "O2", MatrixSlotCommon),
                         afterSetText: (v, text) => { _resistance182 = v; Resistance182Text = text; },
@@ -685,9 +656,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _manualCts?.Dispose();
             _manualCts = new CancellationTokenSource();
 
+            if (_hydraulicPowerService?.IsHydraulicPowered == true)
+            {
+                await _hydraulicPowerService.PowerOffAsync(_manualCts.Token).ConfigureAwait(false);
+            }
+
             Log("开始手动测试");
-            Log($"连接万用表 {DmmIpAddress} ...");
-            Log($"连接程控电源 {AuxPowerSupplyIpAddress} 并输出 CH1 {AuxPowerVoltageV:0.###}V {AuxPowerCurrentA:0.###}A ...");
 
             try
             {
@@ -698,7 +672,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 _dmm ??= new DmmSocketApi();
                 await _dmm.ConnectAsync(DmmIpAddress, _manualCts.Token).ConfigureAwait(false);
                 await ConfigureDmmAsync(_manualCts.Token).ConfigureAwait(false);
-                Log("万用表连接成功");
 
                 IsManualTestInitializing = false;
                 CanMeasure = true;
@@ -748,7 +721,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log("手动测试停止/结束，正在断开矩阵与万用表...");
+            Log("手动测试停止/结束，正在断开设备...");
 
             try
             {
@@ -816,7 +789,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log("自动测试停止/结束，正在断开矩阵与万用表...");
+            Log("自动测试停止/结束，正在设备...");
 
             try
             {
@@ -918,7 +891,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task OnMeasure14Async()
         {
             var ok = await MeasureResistanceAsync(
-                name: "通道1(1-4)",
+                name: "针脚1-4",
                 connect1: ("I1", "O8", MatrixSlotResistanceCh1),
                 connect2: ("I4", "O2", MatrixSlotCommon),
                 afterSetText: (v, text) => { _resistance14 = v; Resistance14Text = text; },
@@ -942,7 +915,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task OnMeasure182Async()
         {
             var ok = await MeasureResistanceAsync(
-                name: "通道2(1-82)",
+                name: "针脚1-82",
                 connect1: ("I1", "O9", MatrixSlotResistanceCh2),
                 connect2: ("I4", "O2", MatrixSlotCommon),
                 afterSetText: (v, text) => { _resistance182 = v; Resistance182Text = text; },
@@ -985,14 +958,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                Log($"{name}: 开始测量");
+                Log($"{name}: 开始测量阻抗");
 
                 // 配置矩阵开关，连接测量信号路径
                 var matrix = MatrixControlService.Instance;
 
                 var ok1 = await matrix.ConnectNodesAsync(connect1.In, connect1.Out, connect1.Slot, MatrixIpAddress).ConfigureAwait(false);
                 var ok2 = await matrix.ConnectNodesAsync(connect2.In, connect2.Out, connect2.Slot, MatrixIpAddress).ConfigureAwait(false);
-                Log($"{name}: 矩阵连接 {(ok1 && ok2 ? "成功" : "失败")} - {connect1.In}-{connect1.Out}(slot{connect1.Slot}), {connect2.In}-{connect2.Out}(slot{connect2.Slot})");
                 if (!ok1 || !ok2)
                 {
                     afterSetText(null, "--");
@@ -1075,7 +1047,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 var text = FormatOhmText(reading);
                 afterSetText(value, text);
 
-                Log($"{name}: 读数 Raw={reading?.Raw ?? ""} Value={(value?.ToString("0.###", CultureInfo.InvariantCulture) ?? "--")} Unit={reading?.Unit ?? ""}");
                 Log($"{name}: 阻抗={text}");
 
                 return true;
@@ -1155,15 +1126,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var pass = pass14 && pass182;
 
             Log($"判据: R14>{PassThresholdOhm:0}Ω && R182>{PassThresholdOhm:0}Ω");
-            Log($"R14={Resistance14Text} => {(pass14 ? "合格" : "不合格")}");
-            Log($"R182={Resistance182Text} => {(pass182 ? "合格" : "不合格")}");
+            Log($"针脚1-4={Resistance14Text} => {(pass14 ? "合格" : "不合格")}");
+            Log($"针脚1-82={Resistance182Text} => {(pass182 ? "合格" : "不合格")}");
 
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             var resultText = pass ? "合格" : "不合格";
             CurrentTestResult = resultText;
             PreviousTestTime = now;
             PreviousTestResult = resultText;
-            Log($"最终结果: {resultText}");
+            Log($"测试结果: {resultText}");
 
             SaveTestResultToProject();
 

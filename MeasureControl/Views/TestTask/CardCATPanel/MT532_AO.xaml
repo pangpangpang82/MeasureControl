@@ -384,7 +384,7 @@
                                                         HorizontalAlignment="Center"
                                                         VerticalAlignment="Center"
                                                         FontSize="15"
-                                                        Text="{Binding ChannelName}" />
+                                                        Text="{Binding DisplayChannelName}" />
 
                                                     <!--  使能CheckBox  -->
                                                     <CheckBox
@@ -1065,7 +1065,7 @@
                                                         HorizontalAlignment="Center"
                                                         VerticalAlignment="Center"
                                                         FontSize="14"
-                                                        Text="{Binding ChannelName}" />
+                                                        Text="{Binding DisplayChannelName}" />
 
                                                     <!--  幅值（V）  -->
 

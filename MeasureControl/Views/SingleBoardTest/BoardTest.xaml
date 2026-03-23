@@ -288,6 +288,7 @@
                                                 SelectedItem="{Binding SelectedTestItem, Mode=TwoWay}">
                                                 <ListBox.ItemContainerStyle>
                                                     <Style TargetType="ListBoxItem">
+                                                        <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TestSequenceItem_PreviewMouseLeftButtonDown" />
                                                         <Setter Property="Padding" Value="0" />
                                                         <Setter Property="Margin" Value="0" />
                                                         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -356,7 +357,7 @@
                                                 <Style.Triggers>
                                                     <!--  RightPanelContent 为空时隐藏  -->
                                                     <DataTrigger Binding="{Binding RightPanelContent}" Value="{x:Null}">
-                                                        <Setter Property="Visibility" Value="Visible" />
+                                                        <Setter Property="Visibility" Value="Collapsed" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>

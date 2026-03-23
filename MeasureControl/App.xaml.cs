@@ -90,6 +90,7 @@ namespace MeasureControl
             containerRegistry.RegisterSingleton<IDocumentManagerService, DocumentManagerService>();
             containerRegistry.RegisterSingleton<SignalValueUpdateService>();
             containerRegistry.RegisterSingleton<ISingleBoardTestContextService, SingleBoardTestContextService>();
+            containerRegistry.RegisterSingleton<IHydraulicPowerService, HydraulicPowerService>();
             // 注册硬件API（可选，用于单板测试）
             containerRegistry.Register<IDmmApi, DmmSocketApi>();
             containerRegistry.RegisterSingleton<IComponentPowerStateApi, ComponentPowerStateApi>();
@@ -111,14 +112,14 @@ namespace MeasureControl
             containerRegistry.Register<DatabaseConfigViewModel>();
             containerRegistry.Register<FloatingWindowViewModel>();
             containerRegistry.Register<DataCalibrationViewModel>();
-            containerRegistry.Register<HC_6_1ViewModel>();
-            containerRegistry.Register<HC_6_2ViewModel>();
-            containerRegistry.Register<HC_6_3ViewModel>();
-            containerRegistry.Register<HC_6_4ViewModel>();
-            containerRegistry.Register<HC_6_5ViewModel>();
-            containerRegistry.Register<HC_6_6ViewModel>();
-            containerRegistry.Register<HC_6_7ViewModel>();
-            containerRegistry.Register<HC_6_8ViewModel>();
+            containerRegistry.RegisterSingleton<HC_6_1ViewModel>();
+            containerRegistry.RegisterSingleton<HC_6_2ViewModel>();
+            containerRegistry.RegisterSingleton<HC_6_3ViewModel>();
+            containerRegistry.RegisterSingleton<HC_6_4ViewModel>();
+            containerRegistry.RegisterSingleton<HC_6_5ViewModel>();
+            containerRegistry.RegisterSingleton<HC_6_6ViewModel>();
+            containerRegistry.RegisterSingleton<HC_6_7ViewModel>();
+            containerRegistry.RegisterSingleton<HC_6_8ViewModel>();
             containerRegistry.Register<PowerImpedanceTestViewModel>();
             containerRegistry.Register<SecondaryPowerTestViewModel>();
             containerRegistry.Register<LowVoltageAlarmTestViewModel>();
