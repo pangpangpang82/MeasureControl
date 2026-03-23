@@ -590,8 +590,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _autoCts?.Dispose();
             _autoCts = new CancellationTokenSource();
 
-            Log("开始自动测试");
-
             try
             {
                 _ = await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
