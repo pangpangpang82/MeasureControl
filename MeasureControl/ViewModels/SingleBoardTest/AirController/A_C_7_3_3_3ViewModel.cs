@@ -41,8 +41,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const double Power3V3Voltage = 3.3;
         private const double Power3V3CurrentLimit = 1.0;
 
-        private static readonly byte[] TestCommandFrame1 = { 0x0A, 0x55, 0x02, 0x0B, 0x07 };
-        private static readonly byte[] TestCommandFrame2 = { 0x0A, 0x55, 0x02, 0x0B, 0x08 };
+        private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
+        private static readonly byte[] PhHighCommandFrame = { 0xAA, 0x55, 0x06, 0x03,0xC0, 0xE8, 0x03, 0x00, 0x00 };
+        private static readonly byte[] PhLowCommandFrame = { 0xAA, 0x55, 0x06, 0x03, 0x80, 0xE8, 0x03, 0x00, 0x00 };
 
         private const double VoltageMin = 17.0;
         private const double VoltageMax = 32.0;
@@ -444,14 +445,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog("========== 自动测试开始 ==========");
 
-                    var ok1 = await SendTestCommandAsync(TestCommandFrame1, token).ConfigureAwait(false);
+                    var ok1 = await SendTestCommandAsync(isPhHigh: true, token).ConfigureAwait(false);
                     Step1Result = ok1 ? "PASS" : "FAIL";
 
                     await Task.Delay(500, token).ConfigureAwait(false);
                     var (ok2, v1) = await MeasureVoltageAsync(keepRouted: true, token).ConfigureAwait(false);
                     UpdateVoltageStep(isFirst: true, ok2, v1);
 
-                    var ok3 = await SendTestCommandAsync(TestCommandFrame2, token).ConfigureAwait(false);
+                    var ok3 = await SendTestCommandAsync(isPhHigh: false, token).ConfigureAwait(false);
                     Step3Result = ok3 ? "PASS" : "FAIL";
 
                     await Task.Delay(500, token).ConfigureAwait(false);
@@ -502,7 +503,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
                 try
                 {
-                    var ok = await SendTestCommandAsync(isFrame1 ? TestCommandFrame1 : TestCommandFrame2, CancellationToken.None).ConfigureAwait(false);
+                    var ok = await SendTestCommandAsync(isPhHigh: isFrame1, CancellationToken.None).ConfigureAwait(false);
                     Application.Current?.Dispatcher?.Invoke(() =>
                     {
                         if (isFrame1)
@@ -704,13 +705,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return Task.CompletedTask;
         }
 
-        private async Task<bool> SendTestCommandAsync(byte[] frame, CancellationToken token)
+        private async Task<bool> SendTestCommandAsync(bool isPhHigh, CancellationToken token)
         {
             try
             {
                 await EnsureFpgaConnectedAsync(token).ConfigureAwait(false);
-                AddLog($"FPGA发送指令: {FormatData(frame)}");
-                await _fpga.WriteAsync(frame, 0, frame.Length, token).ConfigureAwait(false);
+
+                if (isPhHigh)
+                {
+                    AddLog($"FPGA发送指令(设备初始化): {FormatData(DeviceInitCommandFrame)}");
+                    await _fpga.WriteAsync(DeviceInitCommandFrame, 0, DeviceInitCommandFrame.Length, token).ConfigureAwait(false);
+
+                    AddLog($"FPGA发送指令(PH高电平): {FormatData(PhHighCommandFrame)}");
+                    await _fpga.WriteAsync(PhHighCommandFrame, 0, PhHighCommandFrame.Length, token).ConfigureAwait(false);
+                }
+                else
+                {
+                    AddLog($"FPGA发送指令(PH低电平): {FormatData(PhLowCommandFrame)}");
+                    await _fpga.WriteAsync(PhLowCommandFrame, 0, PhLowCommandFrame.Length, token).ConfigureAwait(false);
+                }
+
                 return true;
             }
             catch (Exception ex)

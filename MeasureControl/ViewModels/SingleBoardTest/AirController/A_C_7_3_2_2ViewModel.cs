@@ -47,7 +47,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const double Power3V3Voltage = 3.3;
         private const double Power3V3CurrentLimit = 1.0;
 
-        private static readonly byte[] PwmExtraFrame5 = { 0x0A, 0x55, 0x02, 0x0B, 0x05 };
+        private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
 
         private const int FixedGearFrequencyHz = 20;
 
@@ -656,7 +656,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             IsBusy = true;
             try
             {
-                await SendPwmFrameAsync(PwmDutyPct, PwmFrequencyHz, CancellationToken.None).ConfigureAwait(false);
+                await SendPwmFrameAsync(PwmDutyPct, PwmFrequencyHz, sendInit: true, CancellationToken.None).ConfigureAwait(false);
                 AddLog($"PWM={PwmDutyPct}%：已发送到 FPGA，请点击“测量”查看波形");
             }
             finally
@@ -696,7 +696,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             IsBusy = true;
             try
             {
-                await SendPwmFrameAsync(dutyPct, FixedGearFrequencyHz, CancellationToken.None).ConfigureAwait(false);
+                await SendPwmFrameAsync(dutyPct, FixedGearFrequencyHz, sendInit: dutyPct == 100, CancellationToken.None).ConfigureAwait(false);
                 AddLog($"PWM={dutyPct}%：已发送到 FPGA，请点击“测量”查看波形");
             }
             finally
@@ -790,7 +790,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 await SetMeasuringAsync(dutyPct, true);
                 try
                 {
-                    await SendPwmFrameAsync(dutyPct, FixedGearFrequencyHz, token).ConfigureAwait(false);
+                    await SendPwmFrameAsync(dutyPct, FixedGearFrequencyHz, sendInit: dutyPct == 100, token).ConfigureAwait(false);
                     if (delayBeforeMeasureMs > 0)
                         await Task.Delay(delayBeforeMeasureMs, token).ConfigureAwait(false);
 
@@ -915,7 +915,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return true;
         }
 
-        private async Task SendPwmFrameAsync(int dutyPct, int freqHz, CancellationToken token)
+        private async Task SendPwmFrameAsync(int dutyPct, int freqHz, bool sendInit, CancellationToken token)
         {
             dutyPct = ClampDuty(dutyPct);
             freqHz = ClampFreq(freqHz);
@@ -923,12 +923,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             AddLog($"PWM={dutyPct}%：发送到FPGA... (Freq={freqHz}Hz)");
             await EnsureFpgaConnectedAsync(token).ConfigureAwait(false);
 
-            var cmd8 = BuildPwmCommand(dutyPct, freqHz);
-            await _fpga.WriteAsync(cmd8, 0, cmd8.Length, token).ConfigureAwait(false);
+            if (sendInit)
+            {
+                await _fpga.WriteAsync(DeviceInitCommandFrame, 0, DeviceInitCommandFrame.Length, token).ConfigureAwait(false);
+                AddLog($"PWM={dutyPct}%：已发送设备初始化 {FormatData(DeviceInitCommandFrame)}");
+            }
 
-            await _fpga.WriteAsync(PwmExtraFrame5, 0, PwmExtraFrame5.Length, token).ConfigureAwait(false);
-
-            AddLog($"PWM={dutyPct}%：已发送 {FormatData(cmd8)} + {FormatData(PwmExtraFrame5)}");
+            var cmd = BuildPwmCommand(dutyPct, freqHz);
+            await _fpga.WriteAsync(cmd, 0, cmd.Length, token).ConfigureAwait(false);
+            AddLog($"PWM={dutyPct}%：已发送 {FormatData(cmd)}");
         }
 
         private async Task EnsureFpgaConnectedAsync(CancellationToken token)
@@ -1102,15 +1105,35 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             dutyPct = ClampDuty(dutyPct);
             freqHz = ClampFreq(freqHz);
 
-            ushort f = (ushort)freqHz;
+            var periodUs = (int)Math.Round(1_000_000.0 / freqHz);
+            if (periodUs < 1)
+                periodUs = 1;
+            if (periodUs > ushort.MaxValue)
+                periodUs = ushort.MaxValue;
+
+            int lowUs;
+            if (dutyPct >= 100)
+                lowUs = 0;
+            else if (dutyPct <= 0)
+                lowUs = periodUs;
+            else
+                lowUs = (int)Math.Round(periodUs * (100.0 - dutyPct) / 100.0);
+
+            if (lowUs < 0)
+                lowUs = 0;
+            if (lowUs > ushort.MaxValue)
+                lowUs = ushort.MaxValue;
+
+            ushort p = (ushort)periodUs;
+            ushort low = (ushort)lowUs;
 
             return new byte[]
             {
-                0x0A, 0x55,
-                0x04,
-                0x01,
-                (byte)dutyPct,
-                (byte)(f >> 8), (byte)(f & 0xFF)
+                0xAA, 0x55,
+                0x06,0x03,
+                0xC0,
+                (byte)(p & 0xFF), (byte)(p >> 8),
+                (byte)(low & 0xFF), (byte)(low >> 8)
             };
         }
 
