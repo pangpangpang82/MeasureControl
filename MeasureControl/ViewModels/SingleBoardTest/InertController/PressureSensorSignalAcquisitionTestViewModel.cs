@@ -21,6 +21,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 3.0;
 
+        public bool SkipMainPowerOff { get; set; }
+
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
         private readonly SynchronizationContext _uiContext;
         private readonly Prism.Events.IEventAggregator _eventAggregator;
@@ -293,6 +295,90 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             return null;
         }
 
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                return LastTestResult;
+            }
+
+            var lockTaken = false;
+            await _opLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            lockTaken = true;
+            try
+            {
+                _cts?.Cancel();
+                _cts?.Dispose();
+                _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+                IsAutoTestRunning = true;
+                IsManualTestRunning = false;
+
+                PublishNavigationLock(isLocked: true, source: "PressureSensor");
+                LastTestTime = "--";
+                LastTestResult = "--";
+
+                PostToUi(() =>
+                {
+                    foreach (var item in Items)
+                        item.Reset();
+                });
+
+                Log("开始自动测试：将依次执行三档电压输出与压力采集判定");
+
+                await EnsurePowerAsync(_cts.Token).ConfigureAwait(false);
+                var ok532 = await EnsureMtx532ReadyAsync(_cts.Token).ConfigureAwait(false);
+                var ok429 = await EnsureArincRxReadyAsync(_cts.Token).ConfigureAwait(false);
+                UpdateConnectionText();
+                if (!ok532 || !ok429)
+                {
+                    LastTestResult = "FAIL";
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    Log("板卡连接失败：自动测试终止");
+                    return "FAIL";
+                }
+
+                StartArincRxLoopIfNeeded(_cts.Token);
+
+                _opLock.Release();
+                lockTaken = false;
+
+                foreach (var item in Items)
+                {
+                    _cts.Token.ThrowIfCancellationRequested();
+                    await item.MeasureAsync().ConfigureAwait(false);
+                    await Task.Delay(80, _cts.Token).ConfigureAwait(false);
+                }
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = Items.All(x => string.Equals(x.Result, "PASS", StringComparison.OrdinalIgnoreCase)) ? "PASS" : "FAIL";
+                Log($"自动测试结束：汇总结果={LastTestResult}");
+                return LastTestResult;
+            }
+            catch (OperationCanceledException)
+            {
+                Log("自动测试已取消");
+                return "FAIL";
+            }
+            catch (Exception ex)
+            {
+                LastTestResult = "FAIL";
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                Log($"自动测试异常：{ex.Message}");
+                return "FAIL";
+            }
+            finally
+            {
+                if (lockTaken)
+                {
+                    _opLock.Release();
+                    lockTaken = false;
+                }
+
+                try { await StopAsync().ConfigureAwait(false); } catch { }
+            }
+        }
+
         private async Task OnAutoTestAsync()
         {
             if (IsAutoTestRunning)
@@ -521,6 +607,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 foreach (var ch in Enum.GetValues(typeof(PowerSupplyChannel)).Cast<PowerSupplyChannel>())
                 {
+                    if (ch == PowerSupplyChannel.CH1 && SkipMainPowerOff)
+                        continue;
                     try { await _power.SetOutputEnabledAsync(ch, false, token).ConfigureAwait(false); } catch { }
                 }
                 await Task.Delay(200, token).ConfigureAwait(false);
@@ -532,8 +620,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             {
                 PostToUi(() =>
                 {
-                    IsPowerOn = false;
-                    PowerStatus = "未供电";
+                    if (!SkipMainPowerOff)
+                    {
+                        IsPowerOn = false;
+                        PowerStatus = "未供电";
+                    }
                 });
             }
         }
@@ -909,7 +1000,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 IMtx532Api api = null;
                 try
                 {
-                    api = new Mtx532Api(dev, options: new Mtx532Options { SampleRateHz = 1000.0 }, slotNumber: slot);
+                    api = new Mtx532Api(dev, options: new Mtx532Options { SampleRateHz = 1000.0, UseOneBasedAoChannelNumbering = true }, slotNumber: slot);
                     await api.ConnectAsync(token, enabledAoChannels: new[] { "AO2" }).ConfigureAwait(false);
                     await api.SetDcAsync("AO2", 0.0, enable: true, cancellationToken: token).ConfigureAwait(false);
 

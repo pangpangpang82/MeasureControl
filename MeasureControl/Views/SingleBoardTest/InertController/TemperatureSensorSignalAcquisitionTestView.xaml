@@ -503,10 +503,6 @@
 
                                                     <ColumnDefinition Width="95" />
 
-                                                    <ColumnDefinition Width="95" />
-
-                                                    <ColumnDefinition Width="80" />
-
                                                     <ColumnDefinition Width="80" />
 
                                                 </Grid.ColumnDefinitions>
@@ -523,19 +519,15 @@
 
                                                 <TextBlock Grid.Row="0" Grid.Column="4" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="目标电阻(Ω)" Margin="2" />
 
-                                                <TextBlock Grid.Row="0" Grid.Column="5" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="回采电阻(Ω)" Margin="2" />
+                                                <TextBlock Grid.Row="0" Grid.Column="5" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="目标温度(℃)" Margin="2" />
 
-                                                <TextBlock Grid.Row="0" Grid.Column="6" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="目标温度(℃)" Margin="2" />
+                                                <TextBlock Grid.Row="0" Grid.Column="6" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="回采温度(℃)" Margin="2" />
 
-                                                <TextBlock Grid.Row="0" Grid.Column="7" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="回采温度(℃)" Margin="2" />
-
-                                                <TextBlock Grid.Row="0" Grid.Column="8" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="电阻判定" Margin="2" />
-
-                                                <TextBlock Grid.Row="0" Grid.Column="9" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="温度判定" Margin="2" />
+                                                <TextBlock Grid.Row="0" Grid.Column="7" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Text="温度判定" Margin="2" />
 
 
 
-                                                <ItemsControl Grid.Row="1" Grid.ColumnSpan="10" ItemsSource="{Binding SensorItems}">
+                                                <ItemsControl Grid.Row="1" Grid.ColumnSpan="8" ItemsSource="{Binding SensorItems}">
 
                                                     <ItemsControl.ItemTemplate>
 
@@ -559,10 +551,6 @@
 
                                                                     <ColumnDefinition Width="95" />
 
-                                                                    <ColumnDefinition Width="95" />
-
-                                                                    <ColumnDefinition Width="80" />
-
                                                                     <ColumnDefinition Width="80" />
 
                                                                 </Grid.ColumnDefinitions>
@@ -579,15 +567,11 @@
 
                                                                 <TextBlock Grid.Column="4" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding TargetResistanceOhm, StringFormat={}{0:F2}}" />
 
-                                                                <TextBlock Grid.Column="5" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding MeasuredResistanceText}" />
+                                                                <TextBlock Grid.Column="5" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding TargetTemperatureText}" />
 
-                                                                <TextBlock Grid.Column="6" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding TargetTemperatureText}" />
+                                                                <TextBlock Grid.Column="6" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding MeasuredTemperatureText}" />
 
-                                                                <TextBlock Grid.Column="7" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding MeasuredTemperatureText}" />
-
-                                                                <TextBlock Grid.Column="8" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding ResistanceResultText}" />
-
-                                                                <TextBlock Grid.Column="9" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding TemperatureResultText}" />
+                                                                <TextBlock Grid.Column="7" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding TemperatureResultText}" />
 
                                                             </Grid>
 

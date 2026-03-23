@@ -831,11 +831,44 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Compile Include="Views\SingleBoardTest\InertController\ControlBoardDiscreteInputModuleTestView.xaml.cs">
+      <DependentUpon>ControlBoardDiscreteInputModuleTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\InertController\ControlBoardPowerImpedanceTestView.xaml.cs">
+      <DependentUpon>ControlBoardPowerImpedanceTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\InertController\ControlBoardSecondaryTertiaryPowerTestView.xaml.cs">
+      <DependentUpon>ControlBoardSecondaryTertiaryPowerTestView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SingleBoardTest\InertController\DiscreteOutputModuleTestView.xaml.cs">
       <DependentUpon>DiscreteOutputModuleTestView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\InertController\LatchModuleCircuitTestView.xaml.cs">
+      <DependentUpon>LatchModuleCircuitTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\InertController\OverTemperatureCutoffTestView.xaml.cs">
+      <DependentUpon>OverTemperatureCutoffTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\InertController\OxygenSensorSignalAcquisitionTestView.xaml.cs">
+      <DependentUpon>OxygenSensorSignalAcquisitionTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\InertController\PowerImpedanceTestView.xaml.cs">
+      <DependentUpon>PowerImpedanceTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\InertController\PowerMonitorTestView.xaml.cs">
+      <DependentUpon>PowerMonitorTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\InertController\PressureSensorSignalAcquisitionTestView.xaml.cs">
+      <DependentUpon>PressureSensorSignalAcquisitionTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\InertController\SecondaryTertiaryPowerTestView.xaml.cs">
+      <DependentUpon>SecondaryTertiaryPowerTestView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SingleBoardTest\InertController\TcvMotorDriveTestView.xaml.cs">
       <DependentUpon>TcvMotorDriveTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\InertController\TemperatureSensorSignalAcquisitionTestView.xaml.cs">
+      <DependentUpon>TemperatureSensorSignalAcquisitionTestView.xaml</DependentUpon>
     </Compile>
     <Compile Include="ViewModels\SingleBoardTest\InertController\SecondaryTertiaryPowerTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\InertController\PowerMonitorTestViewModel.cs" />

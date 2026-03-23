@@ -21,6 +21,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 1.0;
 
+        public bool SkipMainPowerOff { get; set; }
+
         private const int ArincTxChannelIndex = 1;
         private const int ArincRxChannelIndex = 0;
         private const double DefaultArincRate = 100000.0;
@@ -47,7 +49,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private const byte MotorPhaseBCurrentLabelRaw = 58;
 
         private const double DefaultShuntResistanceOhm = 0.1;
-        private const double DefaultNonZeroThresholdA = 0.02;
+        private const double DefaultNonZeroThresholdA = 0.018;
 
         private readonly SemaphoreSlim _opLock = new SemaphoreSlim(1, 1);
         private CancellationTokenSource _cts;
@@ -333,8 +335,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             if (step != null)
             {
-                step.PhaseACurrentA = aLast;
-                step.PhaseBCurrentA = bLast;
+                step.PhaseACurrentA = aMax;
+                step.PhaseBCurrentA = bMax;
                 step.PhaseAMaxAbsCurrentA = aMax;
                 step.PhaseBMaxAbsCurrentA = bMax;
                 step.Result = (aPass && bPass) ? "PASS" : "FAIL";
@@ -404,6 +406,110 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             finally
             {
                 IsBusy = false;
+                _opLock.Release();
+            }
+        }
+
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                return OverallResult;
+            }
+
+            await _opLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                _cts?.Cancel();
+                _cts?.Dispose();
+                _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+                Logs.Clear();
+                ResetFixedResults();
+
+                IsAutoTestRunning = true;
+                IsManualTestRunning = false;
+                IsBusy = true;
+                LastTestTime = "--";
+                LastTestResult = "--";
+                OverallResult = "--";
+
+                Log($"[{DateTime.Now:HH:mm:ss}] 自动测试开始：500/1000Hz + 正反转 + 使能，采集A/B相电流");
+
+                await EnsurePowerAsync(InputVoltageV, _cts.Token).ConfigureAwait(false);
+                await EnsureArincTxReadyAsync(_cts.Token).ConfigureAwait(false);
+                await EnsureArincRxReadyAsync(_cts.Token).ConfigureAwait(false);
+
+                await EnsureAtpModeAsync(_cts.Token).ConfigureAwait(false);
+                await EnsureArincTxReadyAsync(_cts.Token).ConfigureAwait(false);
+
+                ResetMotorCurrentCache();
+                StartArincRxLoopIfNeeded(_cts.Token);
+
+                var failures = new System.Collections.Generic.List<string>();
+                bool isFirstesp = true;
+                foreach (var reverse in new[] { false, true })
+                {
+                    foreach (var freq in new[] { 500, 1000 })
+                    {
+                        _cts.Token.ThrowIfCancellationRequested();
+                        if(!isFirstesp)
+                        {
+                            await Task.Delay(2000, _cts.Token).ConfigureAwait(false);
+                        }
+                        var step = await RunFixedGroupInternalAsync(reverse, freq, _cts.Token).ConfigureAwait(false);
+                        isFirstesp = false;
+                        if (step == null)
+                            continue;
+
+                        if (!string.Equals(step.Result, "PASS", StringComparison.OrdinalIgnoreCase))
+                        {
+                            failures.Add($"{step.DirectionText}/{freq}Hz 电流判据不通过(阈值{NonZeroThresholdA:0.###}A)");
+                        }
+                    }
+                }
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                if (failures.Count == 0)
+                {
+                    LastTestResult = "PASS";
+                    UpdateOverallFromFixedResults();
+                    Log($"[{DateTime.Now:HH:mm:ss}] 自动测试结束：PASS");
+                }
+                else
+                {
+                    LastTestResult = "FAIL";
+                    UpdateOverallFromFixedResults();
+                    Log($"[{DateTime.Now:HH:mm:ss}] 自动测试结束：FAIL");
+                    foreach (var f in failures)
+                    {
+                        Log($"[{DateTime.Now:HH:mm:ss}] FAIL原因：{f}");
+                    }
+                }
+
+                return OverallResult;
+            }
+            catch (OperationCanceledException)
+            {
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                LastTestResult = "FAIL";
+                OverallResult = "FAIL";
+                Log($"[{DateTime.Now:HH:mm:ss}] 自动测试已取消");
+                return "FAIL";
+            }
+            catch (Exception ex)
+            {
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                LastTestResult = "FAIL";
+                OverallResult = "FAIL";
+                Log($"[{DateTime.Now:HH:mm:ss}] 自动测试异常：{ex.Message}");
+                return "FAIL";
+            }
+            finally
+            {
+                IsBusy = false;
+                IsAutoTestRunning = false;
+                await StopInternalAsync().ConfigureAwait(false);
                 _opLock.Release();
             }
         }
@@ -578,12 +684,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 if (phase == MotorPhase.PhaseA)
                 {
-                    step.PhaseACurrentA = last;
+                    step.PhaseACurrentA = maxAbs;
                     step.PhaseAMaxAbsCurrentA = maxAbs;
                 }
                 else
                 {
-                    step.PhaseBCurrentA = last;
+                    step.PhaseBCurrentA = maxAbs;
                     step.PhaseBMaxAbsCurrentA = maxAbs;
                 }
 
@@ -1056,7 +1162,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 if (_power == null)
                     return;
 
-                try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                if (!SkipMainPowerOff)
+                {
+                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                }
                 try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
             }

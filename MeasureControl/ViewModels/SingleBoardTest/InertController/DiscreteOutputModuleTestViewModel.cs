@@ -25,6 +25,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private const string PowerSupply2IpAddress = "192.168.1.16";
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 1.0;
+
+        public bool SkipMainPowerOff { get; set; }
         private const double InputVoltageCh2V = 24.0;
         private const double InputCurrentCh2A = 1.0;
 
@@ -204,12 +206,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             try
             {
                 await EnsurePowerAsync(InputVoltageV, _opCts.Token).ConfigureAwait(false);
+                await EnsureJy7131ReadyAsync(_opCts.Token).ConfigureAwait(false);
                 await EnsureArincTxReadyAsync(_opCts.Token).ConfigureAwait(false);
 
                 await EnsureAtpModeAsync(_opCts.Token).ConfigureAwait(false);
                 await EnsureArincTxReadyAsync(_opCts.Token).ConfigureAwait(false);
-
-                await EnsureJy7131ReadyAsync(_opCts.Token).ConfigureAwait(false);
                 await EnsureDmmReadyAsync(_opCts.Token).ConfigureAwait(false);
                 await EnsureMatrixCommonReadyAsync(_opCts.Token).ConfigureAwait(false);
 
@@ -223,6 +224,69 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             finally
             {
                 IsBusy = false;
+            }
+        }
+
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                return OverallResult;
+            }
+
+            _opCts?.Cancel();
+            _opCts?.Dispose();
+            _opCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            ResetResults();
+
+            IsAutoTestRunning = true;
+            IsBusy = true;
+
+            try
+            {
+                await EnsurePowerAsync(InputVoltageV, _opCts.Token).ConfigureAwait(false);
+                await EnsureJy7131ReadyAsync(_opCts.Token).ConfigureAwait(false);
+                await EnsureArincTxReadyAsync(_opCts.Token).ConfigureAwait(false);
+
+                await EnsureAtpModeAsync(_opCts.Token).ConfigureAwait(false);
+                await EnsureArincTxReadyAsync(_opCts.Token).ConfigureAwait(false);
+                await EnsureDmmReadyAsync(_opCts.Token).ConfigureAwait(false);
+                await EnsureMatrixCommonReadyAsync(_opCts.Token).ConfigureAwait(false);
+
+                foreach (var item in Items)
+                {
+                    await MeasureItemAsync(item, _opCts.Token).ConfigureAwait(false);
+                }
+
+                var pass = Items.All(x => string.Equals(x.HighResult, "PASS", StringComparison.OrdinalIgnoreCase) &&
+                                          string.Equals(x.LowResult, "PASS", StringComparison.OrdinalIgnoreCase));
+
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    OverallResult = pass ? "PASS" : "FAIL";
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                });
+
+                Log($"[{DateTime.Now:HH:mm:ss}] 自动测试完成: {(pass ? "PASS" : "FAIL")}");
+                return OverallResult;
+            }
+            catch (OperationCanceledException)
+            {
+                Log($"[{DateTime.Now:HH:mm:ss}] 自动测试已取消");
+                return "FAIL";
+            }
+            catch (Exception ex)
+            {
+                Log($"[{DateTime.Now:HH:mm:ss}] 自动测试异常: {ex.Message}");
+                return "FAIL";
+            }
+            finally
+            {
+                IsBusy = false;
+                IsAutoTestRunning = false;
+                await SafeCleanupHardwareAsync().ConfigureAwait(false);
+                SavePersistedState();
             }
         }
 
@@ -249,12 +313,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             try
             {
                 await EnsurePowerAsync(InputVoltageV, _opCts.Token).ConfigureAwait(false);
+                await EnsureJy7131ReadyAsync(_opCts.Token).ConfigureAwait(false);
                 await EnsureArincTxReadyAsync(_opCts.Token).ConfigureAwait(false);
 
                 await EnsureAtpModeAsync(_opCts.Token).ConfigureAwait(false);
                 await EnsureArincTxReadyAsync(_opCts.Token).ConfigureAwait(false);
-
-                await EnsureJy7131ReadyAsync(_opCts.Token).ConfigureAwait(false);
                 await EnsureDmmReadyAsync(_opCts.Token).ConfigureAwait(false);
                 await EnsureMatrixCommonReadyAsync(_opCts.Token).ConfigureAwait(false);
 
@@ -508,7 +571,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                     if (!_power.IsConnected)
                         await _power.ConnectAsync(PowerSupplyIpAddress, cts.Token).ConfigureAwait(false);
 
-                    await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, cts.Token).ConfigureAwait(false);
+                    if (!SkipMainPowerOff)
+                    {
+                        await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, cts.Token).ConfigureAwait(false);
+                    }
                     await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, false, cts.Token).ConfigureAwait(false);
                     await Task.Delay(100, cts.Token).ConfigureAwait(false);
                     await _power.DisconnectAsync(cts.Token).ConfigureAwait(false);
@@ -708,6 +774,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task EnsureJy7131ReadyAsync(CancellationToken token)
         {
+            if (_jy7131 != null && _jy7131.IsConnected && _jy7131.IsRunning && _jy7131DiThresholdApplied)
+                return;
+
             if (_jy7131 == null)
             {
                 var device = FindFirstJy7131Device();
@@ -725,12 +794,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 throw new InvalidOperationException("未找到7131板卡");
 
             if (!_jy7131.IsConnected)
-            {
                 await _jy7131.ConnectAsync(token).ConfigureAwait(false);
-                await _jy7131.SetOutputModeAsync(Jy7131OutputMode.Sinking, token).ConfigureAwait(false);
-                await _jy7131.StartAsync(token).ConfigureAwait(false);
-            }
-            else if (!_jy7131.IsRunning)
+            if (!_jy7131.IsRunning)
             {
                 await _jy7131.SetOutputModeAsync(Jy7131OutputMode.Sinking, token).ConfigureAwait(false);
                 await _jy7131.StartAsync(token).ConfigureAwait(false);

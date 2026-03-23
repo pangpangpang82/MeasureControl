@@ -33,6 +33,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private const string PowerSupplyIpAddress = "192.168.1.15";
         private const double InputCurrentA = 1.0;
 
+        public bool SkipMainPowerOff { get; set; }
+
         private const int MatrixSlotSequence = 6;
         private const int MatrixSlotCommon = 4;
 
@@ -64,6 +66,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private readonly SemaphoreSlim _diLock = new SemaphoreSlim(1, 1);
 
         private CancellationTokenSource _cts;
+        private DateTime _lastAutoTestEndTime = DateTime.MinValue;
 
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
@@ -371,6 +374,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 return;
             }
 
+            var elapsed = (DateTime.Now - _lastAutoTestEndTime).TotalMilliseconds;
+            if (elapsed < 1000)
+            {
+                Log($"自动测试冷却中，请等待{(int)(1000 - elapsed)}ms后再试");
+                return;
+            }
+
             if (IsManualTestRunning)
             {
                 await StopTestAsync().ConfigureAwait(false);
@@ -407,7 +417,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                         return;
 
                     await ApplyResistanceAsync(item, _cts.Token).ConfigureAwait(false);
-                    await Task.Delay(100, _cts.Token).ConfigureAwait(false);
+                    await Task.Delay(800, _cts.Token).ConfigureAwait(false);
 
                     foreach (var check in item.Checks)
                     {
@@ -433,6 +443,88 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             {
                 Log($"自动测试失败: {ex.Message}");
                 await StopTestAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                _lastAutoTestEndTime = DateTime.Now;
+            }
+        }
+
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                await StopTestAsync().ConfigureAwait(false);
+                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            ResetResults();
+            OverallResult = "--";
+            LastTestTime = "--";
+            _isFpgaCaptureEnabled = false;
+            LastFpgaGpioInput = null;
+            _lastFpgaGpioInputTime = null;
+
+            IsAutoTestRunning = true;
+            IsManualTestRunning = false;
+
+            Log("开始自动测试");
+
+            try
+            {
+                await EnsureFpgaTcpConnectedAsync(_cts.Token).ConfigureAwait(false);
+
+                Log($"电源: CH1 28V 1A, IP={PowerSupplyIpAddress}");
+                await EnsurePowerAsync(28.0, _cts.Token).ConfigureAwait(false);
+                IsPowerOn = true;
+                PowerStatus = "已供电";
+
+                foreach (var item in Items)
+                {
+                    _cts.Token.ThrowIfCancellationRequested();
+
+                    await ApplyResistanceAsync(item, _cts.Token).ConfigureAwait(false);
+                    await Task.Delay(800, _cts.Token).ConfigureAwait(false);
+
+                    foreach (var check in item.Checks)
+                    {
+                        _cts.Token.ThrowIfCancellationRequested();
+
+                        await MeasureAsync(check, _cts.Token).ConfigureAwait(false);
+                        await Task.Delay(100, _cts.Token).ConfigureAwait(false);
+                    }
+                }
+
+                EvaluateOverall();
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                Log($"自动测试完成，总体结果: {OverallResult}");
+
+                var finalResult = OverallResult;
+                await StopTestAsync().ConfigureAwait(false);
+                return string.IsNullOrWhiteSpace(finalResult) || string.Equals(finalResult, "--", StringComparison.OrdinalIgnoreCase)
+                    ? "FAIL"
+                    : finalResult;
+            }
+            catch (OperationCanceledException)
+            {
+                await StopTestAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"自动测试失败: {ex.Message}");
+                await StopTestAsync().ConfigureAwait(false);
+                return "FAIL";
+            }
+            finally
+            {
+                IsAutoTestRunning = false;
+                _cts?.Dispose();
+                _cts = null;
             }
         }
 
@@ -773,8 +865,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             try { await CleanupPowerAsync().ConfigureAwait(false); } catch { }
             try { await CleanupResistorAsync().ConfigureAwait(false); } catch { }
 
-            IsPowerOn = false;
-            PowerStatus = "未供电";
+            if (!SkipMainPowerOff)
+            {
+                IsPowerOn = false;
+                PowerStatus = "未供电";
+            }
 
             RaiseCanExecuteChangedForItems();
         }
@@ -838,18 +933,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task CleanupPowerAsync()
         {
-            try
+            var power = _power;
+            _power = null;
+
+            if (power != null)
             {
-                if (_power != null)
+                if (!SkipMainPowerOff)
                 {
-                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
+                    try { await power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
                 }
-            }
-            finally
-            {
-                _power = null;
+                try { await power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                try { await power.DisposeAsync().ConfigureAwait(false); } catch { }
             }
         }
 

@@ -84,12 +84,10 @@ namespace MeasureControl.Services.HardwareApis
     /// </summary>
     public sealed class Jy7131Api : IJy7131Api
     {
-        private const string LocalThresholdComPort = "COM12";
+        private const string ThresholdComPort = "COM40";  // DI 阈值设置串口
         private const int ThresholdBaudRate = 115200;
 
-        private const string UpstreamThresholdComPort = "COM17";
-        private const string LocalRelayComPort = "COM27";
-        private const string UpstreamRelayComPort = "COM21";
+        private const string RelayComPort = "COM35";      // 外部 485 继电器控制串口
         private const int RelayBaudRate = 9600;
         private const byte RelaySlaveAddress = 1;
         private const ushort RelayStartCoilAddress = 0;
@@ -379,8 +377,10 @@ namespace MeasureControl.Services.HardwareApis
             if (groups.Length != 8)
                 throw new ArgumentException("Threshold groups must be length 8", nameof(thresholds));
 
-            await ExecuteWithThresholdClientAsync(cli =>
+            using (await SerialPortMutex.AcquireAsync(ThresholdComPort).ConfigureAwait(false))
             {
+                cancellationToken.ThrowIfCancellationRequested();
+                using var cli = new DacGroupsSerialClient(ThresholdComPort, ThresholdBaudRate, dtrEnable: false, rtsEnable: false);
                 cli.Send8Groups(
                     ClampThreshold(groups[0]),
                     ClampThreshold(groups[1]),
@@ -390,7 +390,7 @@ namespace MeasureControl.Services.HardwareApis
                     ClampThreshold(groups[5]),
                     ClampThreshold(groups[6]),
                     ClampThreshold(groups[7]));
-            }, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -399,9 +399,15 @@ namespace MeasureControl.Services.HardwareApis
         /// <returns>长度为 16 的布尔数组，index 0-15 对应继电器 1-16</returns>
         public async Task<bool[]> ReadRelayStatesAsync(CancellationToken cancellationToken = default)
         {
-            return await ExecuteWithRelayClientAsync(
-                cli => cli.ReadCoils(RelayStartCoilAddress, (ushort)RelayChannelCount),
-                cancellationToken).ConfigureAwait(false);
+            using (await SerialPortMutex.AcquireAsync(RelayComPort).ConfigureAwait(false))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return await Task.Run(() =>
+                {
+                    using var cli = new RelayModbusClient(RelayComPort, RelaySlaveAddress, RelayBaudRate);
+                    return cli.ReadCoils(RelayStartCoilAddress, (ushort)RelayChannelCount);
+                }, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -414,11 +420,15 @@ namespace MeasureControl.Services.HardwareApis
             if (index < 0 || index >= RelayChannelCount)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
-            await ExecuteWithRelayClientAsync<object>(cli =>
+            using (await SerialPortMutex.AcquireAsync(RelayComPort).ConfigureAwait(false))
             {
-                cli.WriteSingleCoil((ushort)index, on);
-                return null;
-            }, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Run(() =>
+                {
+                    using var cli = new RelayModbusClient(RelayComPort, RelaySlaveAddress, RelayBaudRate);
+                    cli.WriteSingleCoil((ushort)index, on);
+                }, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -427,11 +437,15 @@ namespace MeasureControl.Services.HardwareApis
         /// <param name="on">true=全部吸合，false=全部断开</param>
         public async Task SetAllRelaysAsync(bool on, CancellationToken cancellationToken = default)
         {
-            await ExecuteWithRelayClientAsync<object>(cli =>
+            using (await SerialPortMutex.AcquireAsync(RelayComPort).ConfigureAwait(false))
             {
-                cli.SetAll(RelayStartCoilAddress, RelayChannelCount, on);
-                return null;
-            }, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Run(() =>
+                {
+                    using var cli = new RelayModbusClient(RelayComPort, RelaySlaveAddress, RelayBaudRate);
+                    cli.SetAll(RelayStartCoilAddress, RelayChannelCount, on);
+                }, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         public async Task SetPowerVoltagesAsync(double group1Voltage, double group2Voltage, double group3Voltage, double group4Voltage, CancellationToken cancellationToken = default)
@@ -499,8 +513,8 @@ namespace MeasureControl.Services.HardwareApis
             // Hardware uses 0-based (DI0..DI31 / DO0..DO31).
             if (idx >= 0 && idx <= 31)
                 return idx;
-            //if (idx >= 1 && idx <= 32)
-            //    return idx - 1;
+            if (idx >= 1 && idx <= 32)
+                return idx - 1;
 
             throw new ArgumentOutOfRangeException(nameof(channel), "Channel index must be 0..31 or 1..32");
         }
@@ -514,102 +528,6 @@ namespace MeasureControl.Services.HardwareApis
             if (value > 10.0)
                 return 10.0;
             return value;
-        }
-
-        private async Task ExecuteWithThresholdClientAsync(Action<DacGroupsSerialClient> action, CancellationToken cancellationToken)
-        {
-            Exception lastError = null;
-            foreach (var port in GetThresholdComPorts())
-            {
-                try
-                {
-                    using (await SerialPortMutex.AcquireAsync(port).ConfigureAwait(false))
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        using var cli = new DacGroupsSerialClient(port, ThresholdBaudRate, dtrEnable: false, rtsEnable: false);
-                        action(cli);
-                    }
-
-                    return;
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    lastError = ex;
-                }
-            }
-
-            throw new InvalidOperationException("JY7131 threshold serial operation failed", lastError);
-        }
-
-        private async Task<T> ExecuteWithRelayClientAsync<T>(Func<RelayModbusClient, T> action, CancellationToken cancellationToken)
-        {
-            Exception lastError = null;
-            foreach (var port in GetRelayComPorts())
-            {
-                try
-                {
-                    using (await SerialPortMutex.AcquireAsync(port).ConfigureAwait(false))
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        return await Task.Run(() =>
-                        {
-                            using var cli = new RelayModbusClient(port, RelaySlaveAddress, RelayBaudRate);
-                            return action(cli);
-                        }, cancellationToken).ConfigureAwait(false);
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    lastError = ex;
-                }
-            }
-
-            throw new InvalidOperationException("JY7131 relay serial operation failed", lastError);
-        }
-
-        private IEnumerable<string> GetThresholdComPorts()
-        {
-            return IsInertRelatedContext()
-                ? DistinctPorts(LocalThresholdComPort, UpstreamThresholdComPort)
-                : DistinctPorts(UpstreamThresholdComPort, LocalThresholdComPort);
-        }
-
-        private IEnumerable<string> GetRelayComPorts()
-        {
-            return IsInertRelatedContext()
-                ? DistinctPorts(LocalRelayComPort, UpstreamRelayComPort)
-                : DistinctPorts(UpstreamRelayComPort, LocalRelayComPort);
-        }
-
-        private bool IsInertRelatedContext()
-        {
-            return ContainsInertKeyword(_device?.Name)
-                || ContainsInertKeyword(_device?.DisplayName)
-                || ContainsInertKeyword(_device?.ParentNode)
-                || ContainsInertKeyword(_device?.Description)
-                || ContainsInertKeyword(_device?.Model)
-                || ContainsInertKeyword(_device?.Details)
-                || ContainsInertKeyword(_device?.DeviceTypeName);
-        }
-
-        private static IEnumerable<string> DistinctPorts(params string[] ports)
-        {
-            return ports.Where(port => !string.IsNullOrWhiteSpace(port)).Distinct(StringComparer.OrdinalIgnoreCase);
-        }
-
-        private static bool ContainsInertKeyword(string value)
-        {
-            return !string.IsNullOrWhiteSpace(value)
-                && (value.IndexOf("惰化", StringComparison.OrdinalIgnoreCase) >= 0
-                    || value.IndexOf("Inert", StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         public async ValueTask DisposeAsync()

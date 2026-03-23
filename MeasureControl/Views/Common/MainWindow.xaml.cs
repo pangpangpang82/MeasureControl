@@ -48,6 +48,71 @@ namespace MeasureControl.Views.Common
         private string _singleBoardAutoTestExcelReportPath;
         private HashSet<string> _selectedSingleBoardAutoTestItems;
         private Dictionary<string, string> _singleBoardAutoStepResults;
+        private string[] _inertControlPowerImpedanceValues;
+        private string[] _inertControlPowerImpedanceResults;
+        private string _inertControlPowerImpedanceOverallResult;
+        private bool _inertControlPowerImpedanceSelected;
+        private bool _inertControlPowerImpedanceExecuted;
+        private string[] _inertControlSecondaryTertiaryValues;
+        private string[] _inertControlSecondaryTertiaryResults;
+        private string _inertControlSecondaryTertiaryOverallResult;
+        private bool _inertControlSecondaryTertiarySelected;
+        private bool _inertControlSecondaryTertiaryExecuted;
+        private string[] _inertControlDiscreteInputPrimaryValues;
+        private string[] _inertControlDiscreteInputPrimaryResults;
+        private string[] _inertControlDiscreteInputSecondaryValues;
+        private string[] _inertControlDiscreteInputSecondaryResults;
+        private string _inertControlDiscreteInputOverallResult;
+        private bool _inertControlDiscreteInputSelected;
+        private bool _inertControlDiscreteInputExecuted;
+        private string[] _inertControlDiscreteOutputHighValues;
+        private string[] _inertControlDiscreteOutputHighResults;
+        private string[] _inertControlDiscreteOutputLowValues;
+        private string[] _inertControlDiscreteOutputLowResults;
+        private string _inertControlDiscreteOutputOverallResult;
+        private bool _inertControlDiscreteOutputSelected;
+        private bool _inertControlDiscreteOutputExecuted;
+        private string[] _inertControlTempSensorValues;
+        private string[] _inertControlTempSensorResults;
+        private string _inertControlTempSensorOverallResult;
+        private bool _inertControlTempSensorSelected;
+        private bool _inertControlTempSensorExecuted;
+        private string[] _inertControlPressureSensorValues;
+        private string[] _inertControlPressureSensorResults;
+        private string _inertControlPressureSensorOverallResult;
+        private bool _inertControlPressureSensorSelected;
+        private bool _inertControlPressureSensorExecuted;
+        private string[] _inertControlOxygenConcentrationValues;
+        private string[] _inertControlOxygenConcentrationResults;
+        private string[] _inertControlOxygenPressureValues;
+        private string[] _inertControlOxygenPressureResults;
+        private string _inertControlOxygenSensorOverallResult;
+        private bool _inertControlOxygenSensorSelected;
+        private bool _inertControlOxygenSensorExecuted;
+        private string[] _inertControlTcvMotorResults;
+        private string _inertControlTcvMotorOverallResult;
+        private bool _inertControlTcvMotorSelected;
+        private bool _inertControlTcvMotorExecuted;
+        private string[] _inertSimPowerImpedanceValues;
+        private string[] _inertSimPowerImpedanceResults;
+        private string _inertSimPowerImpedanceOverallResult;
+        private bool _inertSimPowerImpedanceSelected;
+        private bool _inertSimPowerImpedanceExecuted;
+        private string[] _inertSimSecondaryTertiaryValues;
+        private string[] _inertSimSecondaryTertiaryResults;
+        private string _inertSimSecondaryTertiaryOverallResult;
+        private bool _inertSimSecondaryTertiarySelected;
+        private bool _inertSimSecondaryTertiaryExecuted;
+        private string[] _inertSimOverTempValues;
+        private string[] _inertSimOverTempResults;
+        private string _inertSimOverTempOverallResult;
+        private bool _inertSimOverTempSelected;
+        private bool _inertSimOverTempExecuted;
+        private string[] _inertSimLatchValues;
+        private string[] _inertSimLatchResults;
+        private string _inertSimLatchOverallResult;
+        private bool _inertSimLatchSelected;
+        private bool _inertSimLatchExecuted;
         private HC_6_1ViewModel _hydraulicAutoTestVm61;
         private HC_6_2ViewModel _hydraulicAutoTestVm62;
         private HC_6_3ViewModel _hydraulicAutoTestVm63;
@@ -65,6 +130,18 @@ namespace MeasureControl.Views.Common
         private DiscreteOutputTestViewModel _fuelAutoTestVm6;
         private RS422CommunicationFunctionTestViewModel _fuelAutoTestVm7;
         private RS422SelfCheckTestViewModel _fuelAutoTestVm8;
+        private MeasureControl.ViewModels.SingleBoardTest.InertController.PowerImpedanceTestViewModel _inertSimulationAutoTestVm1;
+        private MeasureControl.ViewModels.SingleBoardTest.InertController.SecondaryTertiaryPowerTestViewModel _inertSimulationAutoTestVm2;
+        private MeasureControl.ViewModels.SingleBoardTest.InertController.OverTemperatureCutoffTestViewModel _inertSimulationAutoTestVm3;
+        private MeasureControl.ViewModels.SingleBoardTest.InertController.LatchModuleCircuitTestViewModel _inertSimulationAutoTestVm4;
+        private MeasureControl.ViewModels.SingleBoardTest.InertController.ControlBoardPowerImpedanceTestViewModel _inertControlAutoTestVm1;
+        private MeasureControl.ViewModels.SingleBoardTest.InertController.ControlBoardSecondaryTertiaryPowerTestViewModel _inertControlAutoTestVm2;
+        private MeasureControl.ViewModels.SingleBoardTest.InertController.ControlBoardDiscreteInputModuleTestViewModel _inertControlAutoTestVm3;
+        private MeasureControl.ViewModels.SingleBoardTest.InertController.DiscreteOutputModuleTestViewModel _inertControlAutoTestVm4;
+        private MeasureControl.ViewModels.SingleBoardTest.InertController.TemperatureSensorSignalAcquisitionTestViewModel _inertControlAutoTestVm5;
+        private MeasureControl.ViewModels.SingleBoardTest.InertController.PressureSensorSignalAcquisitionTestViewModel _inertControlAutoTestVm6;
+        private MeasureControl.ViewModels.SingleBoardTest.InertController.OxygenSensorSignalAcquisitionTestViewModel _inertControlAutoTestVm7;
+        private MeasureControl.ViewModels.SingleBoardTest.InertController.TcvMotorDriveTestViewModel _inertControlAutoTestVm8;
 
         #endregion
 
@@ -79,6 +156,8 @@ namespace MeasureControl.Views.Common
             return string.Equals(v, "空气单板", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(v, "液压单板", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(v, "惰化单板", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(v, "惰化模拟板", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(v, "惰化控制板", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(v, "加放油单板", StringComparison.OrdinalIgnoreCase);
         }
 
@@ -634,6 +713,8 @@ namespace MeasureControl.Views.Common
                     if (string.Equals(boardType, "空气单板", StringComparison.OrdinalIgnoreCase)
                         || string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase)
                         || string.Equals(boardType, "惰化单板", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(boardType, "惰化模拟板", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(boardType, "惰化控制板", StringComparison.OrdinalIgnoreCase)
                         || string.Equals(boardType, "加放油单板", StringComparison.OrdinalIgnoreCase))
                     {
                         var startTestMenuItem = new MenuItem { Header = "启动测试" };
@@ -947,6 +1028,56 @@ namespace MeasureControl.Views.Common
                 _selectedSingleBoardAutoTestItems = new HashSet<string>(selectedItems, StringComparer.OrdinalIgnoreCase);
                 steps = allFuelSteps.Where(x => _selectedSingleBoardAutoTestItems.Contains(x.Name)).ToArray();
             }
+            else if (string.Equals(boardType, "惰化模拟板", StringComparison.OrdinalIgnoreCase))
+            {
+                var allInertSimulationSteps = BuildInertSimulationSteps();
+                var dialog = new FuelAutoTestSelectionDialog
+                {
+                    Owner = this,
+                    Title = "选择惰化模拟板测试项"
+                };
+                dialog.Initialize(allInertSimulationSteps.Select(x => x.Name).ToArray());
+                var dialogResult = dialog.ShowDialog();
+                if (dialogResult != true)
+                {
+                    return;
+                }
+
+                var selectedItems = dialog.SelectedItems ?? Array.Empty<string>();
+                if (selectedItems.Length == 0)
+                {
+                    ReMessageBox.Show("请至少勾选一个测试项", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                _selectedSingleBoardAutoTestItems = new HashSet<string>(selectedItems, StringComparer.OrdinalIgnoreCase);
+                steps = allInertSimulationSteps.Where(x => _selectedSingleBoardAutoTestItems.Contains(x.Name)).ToArray();
+            }
+            else if (string.Equals(boardType, "惰化控制板", StringComparison.OrdinalIgnoreCase))
+            {
+                var allInertControlSteps = BuildInertControlSteps();
+                var dialog = new FuelAutoTestSelectionDialog
+                {
+                    Owner = this,
+                    Title = "选择惰化控制板测试项"
+                };
+                dialog.Initialize(allInertControlSteps.Select(x => x.Name).ToArray());
+                var dialogResult = dialog.ShowDialog();
+                if (dialogResult != true)
+                {
+                    return;
+                }
+
+                var selectedItems = dialog.SelectedItems ?? Array.Empty<string>();
+                if (selectedItems.Length == 0)
+                {
+                    ReMessageBox.Show("请至少勾选一个测试项", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                _selectedSingleBoardAutoTestItems = new HashSet<string>(selectedItems, StringComparer.OrdinalIgnoreCase);
+                steps = allInertControlSteps.Where(x => _selectedSingleBoardAutoTestItems.Contains(x.Name)).ToArray();
+            }
             else
             {
                 steps = boardType switch
@@ -1124,35 +1255,65 @@ namespace MeasureControl.Views.Common
                 }
 
                 AppendSingleBoardReportLine(anyFailed ? "END | FAIL" : "END | PASS");
+
+                // 所有测试项完成后立即关闭28V电源，不等报表写入
+                if (string.Equals(boardType, "惰化模拟板", StringComparison.OrdinalIgnoreCase))
+                {
+                    try { await CleanupInert28VPowerAsync("192.168.1.15", "192.168.1.16").ConfigureAwait(true); } catch { }
+                }
+                else if (string.Equals(boardType, "惰化控制板", StringComparison.OrdinalIgnoreCase))
+                {
+                    try { await CleanupInert28VPowerAsync("192.168.1.15").ConfigureAwait(true); } catch { }
+                }
+
                 vm.StatusText = "写入报表...";
                 vm.Progress = steps.Length;
-                TryGenerateSingleBoardExcelReport(boardName, boardType);
+                
+                try
+                {
+                    await Task.Run(() => TryGenerateSingleBoardExcelReport(boardName, boardType)).ConfigureAwait(true);
+                }
+                catch (Exception reportEx)
+                {
+                    AppendSingleBoardReportLine($"REPORT | GENERATION_EXCEPTION | {reportEx.GetType().Name} | {reportEx.Message}");
+                }
+                
                 vm.IsCompleted = !anyFailed;
                 vm.IsFailed = anyFailed;
                 vm.ConfirmStopOnClose = false;
                 vm.Progress = steps.Length;
-                vm.StatusText = anyFailed ? "完成（存在不合格/异常项）" : "完成";
+                vm.StatusText = anyFailed ? "完成" : "完成";
 
-                if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
+                // 所有单板测试完成后都弹出提示
+                try
                 {
-                    try
-                    {
-                        dialog?.Close();
-                        dialog = null;
-                    }
-                    catch
-                    {
-                    }
-
-                    shouldNotifyCompletion = true;
-                    completionMessage = "液压单板测试完毕";
+                    dialog?.Close();
+                    dialog = null;
                 }
+                catch
+                {
+                }
+
+                shouldNotifyCompletion = true;
+                completionMessage = anyFailed 
+                    ? $"{boardName}测试完成" 
+                    : $"{boardName}测试完成";
             }
             catch (OperationCanceledException)
             {
                 if (string.IsNullOrWhiteSpace(abortExceptionMessage))
                 {
                     AppendSingleBoardReportLine("END | CANCELED");
+                }
+
+                // 取消时也要关闭28V电源
+                if (string.Equals(boardType, "惰化模拟板", StringComparison.OrdinalIgnoreCase))
+                {
+                    try { await CleanupInert28VPowerAsync("192.168.1.15", "192.168.1.16").ConfigureAwait(true); } catch { }
+                }
+                else if (string.Equals(boardType, "惰化控制板", StringComparison.OrdinalIgnoreCase))
+                {
+                    try { await CleanupInert28VPowerAsync("192.168.1.15").ConfigureAwait(true); } catch { }
                 }
 
                 if (vm != null)
@@ -1246,6 +1407,43 @@ namespace MeasureControl.Views.Common
                 _fuelAutoTestVm6 = null;
                 _fuelAutoTestVm7 = null;
                 _fuelAutoTestVm8 = null;
+                _inertSimulationAutoTestVm1 = null;
+                _inertSimulationAutoTestVm2 = null;
+                _inertSimulationAutoTestVm3 = null;
+                _inertSimulationAutoTestVm4 = null;
+                _inertControlAutoTestVm1 = null;
+                _inertControlAutoTestVm2 = null;
+                _inertControlAutoTestVm3 = null;
+                _inertControlAutoTestVm4 = null;
+                _inertControlAutoTestVm5 = null;
+                _inertControlAutoTestVm6 = null;
+                _inertControlAutoTestVm7 = null;
+                _inertControlAutoTestVm8 = null;
+            }
+        }
+
+        private static async Task CleanupInert28VPowerAsync(params string[] ipAddresses)
+        {
+            foreach (var ip in ipAddresses)
+            {
+                MeasureControl.Services.HardwareApis.IPowerSupplyApi ps = null;
+                try
+                {
+                    ps = new MeasureControl.Services.HardwareApis.PowerSupplySocketApi();
+                    await ps.ConnectAsync(ip, CancellationToken.None).ConfigureAwait(false);
+                    await ps.SetOutputEnabledAsync(MeasureControl.Services.HardwareApis.PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
+                finally
+                {
+                    if (ps != null)
+                    {
+                        try { await ps.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                        try { await ps.DisposeAsync().ConfigureAwait(false); } catch { }
+                    }
+                }
             }
         }
 
@@ -1287,9 +1485,76 @@ namespace MeasureControl.Views.Common
             return Array.Empty<(string Name, Func<CancellationToken, Task<string>> Run)>();
         }
 
+        private (string Name, Func<CancellationToken, Task<string>> Run)[] BuildInertSimulationSteps()
+        {
+            _inertSimulationAutoTestVm1 = ContainerLocator.Container.Resolve<MeasureControl.ViewModels.SingleBoardTest.InertController.PowerImpedanceTestViewModel>();
+            _inertSimulationAutoTestVm2 = ContainerLocator.Container.Resolve<MeasureControl.ViewModels.SingleBoardTest.InertController.SecondaryTertiaryPowerTestViewModel>();
+            _inertSimulationAutoTestVm3 = ContainerLocator.Container.Resolve<MeasureControl.ViewModels.SingleBoardTest.InertController.OverTemperatureCutoffTestViewModel>();
+            _inertSimulationAutoTestVm4 = ContainerLocator.Container.Resolve<MeasureControl.ViewModels.SingleBoardTest.InertController.LatchModuleCircuitTestViewModel>();
+
+            var vm1 = _inertSimulationAutoTestVm1;
+            var vm2 = _inertSimulationAutoTestVm2;
+            var vm3 = _inertSimulationAutoTestVm3;
+            var vm4 = _inertSimulationAutoTestVm4;
+
+            vm1.SkipMainPowerOff = true;
+            vm2.SkipMainPowerOff = true;
+            vm3.SkipMainPowerOff = true;
+            vm4.SkipMainPowerOff = true;
+
+            return new (string Name, Func<CancellationToken, Task<string>> Run)[]
+            {
+                ("电源阻抗测试", ct => vm1.RunOnceAsync(ct)),
+                ("二次、三次电源测试", ct => vm2.RunOnceAsync(ct)),
+                ("超温切断模块电路测试", ct => vm3.RunOnceAsync(ct)),
+                ("锁存模块电路测试", ct => vm4.RunOnceAsync(ct))
+            };
+        }
+
         private static (string Name, Func<CancellationToken, Task<string>> Run)[] BuildInertingSteps()
         {
             return Array.Empty<(string Name, Func<CancellationToken, Task<string>> Run)>();
+        }
+
+        private (string Name, Func<CancellationToken, Task<string>> Run)[] BuildInertControlSteps()
+        {
+            _inertControlAutoTestVm1 = ContainerLocator.Container.Resolve<MeasureControl.ViewModels.SingleBoardTest.InertController.ControlBoardPowerImpedanceTestViewModel>();
+            _inertControlAutoTestVm2 = ContainerLocator.Container.Resolve<MeasureControl.ViewModels.SingleBoardTest.InertController.ControlBoardSecondaryTertiaryPowerTestViewModel>();
+            _inertControlAutoTestVm3 = ContainerLocator.Container.Resolve<MeasureControl.ViewModels.SingleBoardTest.InertController.ControlBoardDiscreteInputModuleTestViewModel>();
+            _inertControlAutoTestVm4 = ContainerLocator.Container.Resolve<MeasureControl.ViewModels.SingleBoardTest.InertController.DiscreteOutputModuleTestViewModel>();
+            _inertControlAutoTestVm5 = ContainerLocator.Container.Resolve<MeasureControl.ViewModels.SingleBoardTest.InertController.TemperatureSensorSignalAcquisitionTestViewModel>();
+            _inertControlAutoTestVm6 = ContainerLocator.Container.Resolve<MeasureControl.ViewModels.SingleBoardTest.InertController.PressureSensorSignalAcquisitionTestViewModel>();
+            _inertControlAutoTestVm7 = ContainerLocator.Container.Resolve<MeasureControl.ViewModels.SingleBoardTest.InertController.OxygenSensorSignalAcquisitionTestViewModel>();
+            _inertControlAutoTestVm8 = ContainerLocator.Container.Resolve<MeasureControl.ViewModels.SingleBoardTest.InertController.TcvMotorDriveTestViewModel>();
+
+            var vm1 = _inertControlAutoTestVm1;
+            var vm2 = _inertControlAutoTestVm2;
+            var vm3 = _inertControlAutoTestVm3;
+            var vm4 = _inertControlAutoTestVm4;
+            var vm5 = _inertControlAutoTestVm5;
+            var vm6 = _inertControlAutoTestVm6;
+            var vm7 = _inertControlAutoTestVm7;
+            var vm8 = _inertControlAutoTestVm8;
+
+            vm2.SkipMainPowerOff = true;
+            vm3.SkipMainPowerOff = true;
+            vm4.SkipMainPowerOff = true;
+            vm5.SkipMainPowerOff = true;
+            vm6.SkipMainPowerOff = true;
+            vm7.SkipMainPowerOff = true;
+            vm8.SkipMainPowerOff = true;
+
+            return new (string Name, Func<CancellationToken, Task<string>> Run)[]
+            {
+                ("控制板电源阻抗测试", ct => vm1.RunOnceAsync(ct)),
+                ("控制板二次、三次电源测试", ct => vm2.RunOnceAsync(ct)),
+                ("控制板离散输入模块测试", ct => vm3.RunOnceAsync(ct)),
+                ("控制板离散输出模块测试", ct => vm4.RunOnceAsync(ct)),
+                ("温度传感器信号采集测试", ct => vm5.RunOnceAsync(ct)),
+                ("压力传感器信号采集测试", ct => vm6.RunOnceAsync(ct)),
+                ("氧气传感器信号采集测试", ct => vm7.RunOnceAsync(ct)),
+                ("TCV电机驱动测试", ct => vm8.RunOnceAsync(ct))
+            };
         }
 
         private (string Name, Func<CancellationToken, Task<string>> Run)[] BuildFuelSteps()
@@ -1330,6 +1595,315 @@ namespace MeasureControl.Views.Common
             _singleBoardAutoTestExcelReportPath = null;
             _singleBoardAutoTestReportPath = null;
             _singleBoardAutoStepResults = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _inertControlPowerImpedanceValues = null;
+            _inertControlPowerImpedanceResults = null;
+            _inertControlPowerImpedanceOverallResult = null;
+            _inertControlPowerImpedanceSelected = false;
+            _inertControlPowerImpedanceExecuted = false;
+            _inertControlSecondaryTertiaryValues = null;
+            _inertControlSecondaryTertiaryResults = null;
+            _inertControlSecondaryTertiaryOverallResult = null;
+            _inertControlSecondaryTertiarySelected = false;
+            _inertControlSecondaryTertiaryExecuted = false;
+            _inertControlDiscreteInputPrimaryValues = null;
+            _inertControlDiscreteInputPrimaryResults = null;
+            _inertControlDiscreteInputSecondaryValues = null;
+            _inertControlDiscreteInputSecondaryResults = null;
+            _inertControlDiscreteInputOverallResult = null;
+            _inertControlDiscreteInputSelected = false;
+            _inertControlDiscreteInputExecuted = false;
+            _inertControlDiscreteOutputHighValues = null;
+            _inertControlDiscreteOutputHighResults = null;
+            _inertControlDiscreteOutputLowValues = null;
+            _inertControlDiscreteOutputLowResults = null;
+            _inertControlDiscreteOutputOverallResult = null;
+            _inertControlDiscreteOutputSelected = false;
+            _inertControlDiscreteOutputExecuted = false;
+            _inertControlTempSensorValues = null;
+            _inertControlTempSensorResults = null;
+            _inertControlTempSensorOverallResult = null;
+            _inertControlTempSensorSelected = false;
+            _inertControlTempSensorExecuted = false;
+            _inertControlPressureSensorValues = null;
+            _inertControlPressureSensorResults = null;
+            _inertControlPressureSensorOverallResult = null;
+            _inertControlPressureSensorSelected = false;
+            _inertControlPressureSensorExecuted = false;
+            _inertControlOxygenConcentrationValues = null;
+            _inertControlOxygenConcentrationResults = null;
+            _inertControlOxygenPressureValues = null;
+            _inertControlOxygenPressureResults = null;
+            _inertControlOxygenSensorOverallResult = null;
+            _inertControlOxygenSensorSelected = false;
+            _inertControlOxygenSensorExecuted = false;
+            _inertControlTcvMotorResults = null;
+            _inertControlTcvMotorOverallResult = null;
+            _inertControlTcvMotorSelected = false;
+            _inertControlTcvMotorExecuted = false;
+            _inertSimPowerImpedanceValues = null;
+            _inertSimPowerImpedanceResults = null;
+            _inertSimPowerImpedanceOverallResult = null;
+            _inertSimPowerImpedanceSelected = false;
+            _inertSimPowerImpedanceExecuted = false;
+            _inertSimSecondaryTertiaryValues = null;
+            _inertSimSecondaryTertiaryResults = null;
+            _inertSimSecondaryTertiaryOverallResult = null;
+            _inertSimSecondaryTertiarySelected = false;
+            _inertSimSecondaryTertiaryExecuted = false;
+            _inertSimOverTempValues = null;
+            _inertSimOverTempResults = null;
+            _inertSimOverTempOverallResult = null;
+            _inertSimOverTempSelected = false;
+            _inertSimOverTempExecuted = false;
+            _inertSimLatchValues = null;
+            _inertSimLatchResults = null;
+            _inertSimLatchOverallResult = null;
+            _inertSimLatchSelected = false;
+            _inertSimLatchExecuted = false;
+        }
+
+        private void CaptureSingleBoardExcelReportSnapshot(string boardType)
+        {
+            if (string.Equals(boardType, "惰化控制板", StringComparison.OrdinalIgnoreCase))
+            {
+                _inertControlPowerImpedanceSelected = IsSingleBoardStepSelected("控制板电源阻抗测试");
+                _inertControlPowerImpedanceExecuted = DidSingleBoardStepExecute("控制板电源阻抗测试");
+                _inertControlSecondaryTertiarySelected = IsSingleBoardStepSelected("控制板二次、三次电源测试");
+                _inertControlSecondaryTertiaryExecuted = DidSingleBoardStepExecute("控制板二次、三次电源测试");
+
+                var vm1 = _inertControlAutoTestVm1;
+                if (vm1 != null)
+                {
+                    _inertControlPowerImpedanceValues = Enumerable.Range(0, 6)
+                        .Select(i => vm1.Items.Count > i && vm1.Items[i] != null ? vm1.Items[i].ImpedanceText : "--")
+                        .ToArray();
+                    _inertControlPowerImpedanceResults = Enumerable.Range(0, 6)
+                        .Select(i => vm1.Items.Count > i && vm1.Items[i] != null ? vm1.Items[i].Result : "--")
+                        .ToArray();
+                    _inertControlPowerImpedanceOverallResult = vm1.OverallResult;
+                }
+
+                var vm2 = _inertControlAutoTestVm2;
+                if (vm2 != null)
+                {
+                    _inertControlSecondaryTertiaryValues = Enumerable.Range(0, 5)
+                        .Select(i => vm2.Items.Count > i && vm2.Items[i] != null ? vm2.Items[i].ValueText : "--")
+                        .ToArray();
+                    _inertControlSecondaryTertiaryResults = Enumerable.Range(0, 5)
+                        .Select(i => vm2.Items.Count > i && vm2.Items[i] != null ? vm2.Items[i].Result : "--")
+                        .ToArray();
+                    _inertControlSecondaryTertiaryOverallResult = vm2.OverallResult;
+                }
+
+                _inertControlDiscreteInputSelected = IsSingleBoardStepSelected("控制板离散输入模块测试");
+                _inertControlDiscreteInputExecuted = DidSingleBoardStepExecute("控制板离散输入模块测试");
+
+                var vm3 = _inertControlAutoTestVm3;
+                if (vm3 != null)
+                {
+                    _inertControlDiscreteInputPrimaryValues = Enumerable.Range(0, 17)
+                        .Select(i => vm3.Items.Count > i && vm3.Items[i] != null ? vm3.Items[i].PrimaryActualResult : "--")
+                        .ToArray();
+                    _inertControlDiscreteInputPrimaryResults = Enumerable.Range(0, 17)
+                        .Select(i => vm3.Items.Count > i && vm3.Items[i] != null ? vm3.Items[i].PrimaryResult : "--")
+                        .ToArray();
+                    _inertControlDiscreteInputSecondaryValues = Enumerable.Range(0, 17)
+                        .Select(i => vm3.Items.Count > i && vm3.Items[i] != null ? vm3.Items[i].SecondaryActualResult : "--")
+                        .ToArray();
+                    _inertControlDiscreteInputSecondaryResults = Enumerable.Range(0, 17)
+                        .Select(i => vm3.Items.Count > i && vm3.Items[i] != null ? vm3.Items[i].SecondaryResult : "--")
+                        .ToArray();
+                    _inertControlDiscreteInputOverallResult = vm3.OverallResult;
+                }
+
+                _inertControlDiscreteOutputSelected = IsSingleBoardStepSelected("控制板离散输出模块测试");
+                _inertControlDiscreteOutputExecuted = DidSingleBoardStepExecute("控制板离散输出模块测试");
+
+                var vm4 = _inertControlAutoTestVm4;
+                if (vm4 != null)
+                {
+                    _inertControlDiscreteOutputHighValues = Enumerable.Range(0, 7)
+                        .Select(i => vm4.Items.Count > i && vm4.Items[i] != null ? vm4.Items[i].HighMeasuredText : "--")
+                        .ToArray();
+                    _inertControlDiscreteOutputHighResults = Enumerable.Range(0, 7)
+                        .Select(i => vm4.Items.Count > i && vm4.Items[i] != null ? vm4.Items[i].HighResult : "--")
+                        .ToArray();
+                    _inertControlDiscreteOutputLowValues = Enumerable.Range(0, 7)
+                        .Select(i => vm4.Items.Count > i && vm4.Items[i] != null ? vm4.Items[i].LowMeasuredText : "--")
+                        .ToArray();
+                    _inertControlDiscreteOutputLowResults = Enumerable.Range(0, 7)
+                        .Select(i => vm4.Items.Count > i && vm4.Items[i] != null ? vm4.Items[i].LowResult : "--")
+                        .ToArray();
+                    _inertControlDiscreteOutputOverallResult = vm4.OverallResult;
+                }
+
+                _inertControlTempSensorSelected = IsSingleBoardStepSelected("温度传感器信号采集测试");
+                _inertControlTempSensorExecuted = DidSingleBoardStepExecute("温度传感器信号采集测试");
+
+                var vm5 = _inertControlAutoTestVm5;
+                if (vm5 != null)
+                {
+                    // 温度传感器测试：4个传感器（PT500A, PT500B, PT1000A, PT1000B），每个测试4个点位
+                    // 由于ViewModel只保存最后一次测量值，我们将4个传感器的值重复4次填入16行
+                    // 报表格式：点位1的4个传感器 + 点位2的4个传感器 + 点位3的4个传感器 + 点位4的4个传感器
+                    var tempValues = new List<string>();
+                    var tempResults = new List<string>();
+                    
+                    // 重复4次（对应4个点位）
+                    for (int point = 0; point < 4; point++)
+                    {
+                        // 每个点位添加4个传感器的数据
+                        foreach (var sensor in vm5.SensorItems)
+                        {
+                            tempValues.Add(sensor.MeasuredTemperatureText ?? "--");
+                            tempResults.Add(sensor.TemperatureResultText ?? "--");
+                        }
+                    }
+                    
+                    _inertControlTempSensorValues = tempValues.ToArray();
+                    _inertControlTempSensorResults = tempResults.ToArray();
+                    _inertControlTempSensorOverallResult = vm5.LastTestResult;
+                }
+
+                _inertControlPressureSensorSelected = IsSingleBoardStepSelected("压力传感器信号采集测试");
+                _inertControlPressureSensorExecuted = DidSingleBoardStepExecute("压力传感器信号采集测试");
+
+                var vm6 = _inertControlAutoTestVm6;
+                if (vm6 != null)
+                {
+                    // 3个压力点：只填写压力值，不填电压
+                    _inertControlPressureSensorValues = vm6.Items
+                        .Select(item => item.MeasuredPressureText ?? "--")
+                        .ToArray();
+                    _inertControlPressureSensorResults = vm6.Items
+                        .Select(item => item.Result ?? "--")
+                        .ToArray();
+                    _inertControlPressureSensorOverallResult = vm6.LastTestResult;
+                }
+
+                _inertControlOxygenSensorSelected = IsSingleBoardStepSelected("氧气传感器信号采集测试");
+                _inertControlOxygenSensorExecuted = DidSingleBoardStepExecute("氧气传感器信号采集测试");
+
+                var vm7 = _inertControlAutoTestVm7;
+                if (vm7 != null)
+                {
+                    // 氧气传感器测试：10个测试项（5个浓度 + 5个压力）
+                    // 跳过第一个项（expectedValueText 是 "--"），取第2、3、4个项（索引1、2、3）
+                    var concentrationItems = vm7.Items.Where(item => item.SensorName == "氧气浓度").Skip(1).Take(3).ToList();
+                    var pressureItems = vm7.Items.Where(item => item.SensorName == "氧气压力").Skip(1).Take(3).ToList();
+
+                    _inertControlOxygenConcentrationValues = concentrationItems
+                        .Select(item => item.MeasuredValueText ?? "--")
+                        .ToArray();
+                    _inertControlOxygenConcentrationResults = concentrationItems
+                        .Select(item => item.Result ?? "--")
+                        .ToArray();
+
+                    _inertControlOxygenPressureValues = pressureItems
+                        .Select(item => item.MeasuredValueText ?? "--")
+                        .ToArray();
+                    _inertControlOxygenPressureResults = pressureItems
+                        .Select(item => item.Result ?? "--")
+                        .ToArray();
+
+                    _inertControlOxygenSensorOverallResult = vm7.LastTestResult;
+                }
+
+                _inertControlTcvMotorSelected = IsSingleBoardStepSelected("TCV电机驱动测试");
+                _inertControlTcvMotorExecuted = DidSingleBoardStepExecute("TCV电机驱动测试");
+
+                var vm8 = _inertControlAutoTestVm8;
+                if (vm8 != null)
+                {
+                    // TCV电机测试：4个测试项（正转500Hz、正转1000Hz、反转500Hz、反转1000Hz）
+                    // 测试值和测试结果都填写 PASS/FAIL
+                    _inertControlTcvMotorResults = vm8.Results
+                        .Select(item => item.Result ?? "--")
+                        .ToArray();
+                    _inertControlTcvMotorOverallResult = vm8.OverallResult;
+                }
+            }
+            else if (string.Equals(boardType, "惰化模拟板", StringComparison.OrdinalIgnoreCase))
+            {
+                _inertSimPowerImpedanceSelected = IsSingleBoardStepSelected("电源阻抗测试");
+                _inertSimPowerImpedanceExecuted = DidSingleBoardStepExecute("电源阻抗测试");
+                _inertSimSecondaryTertiarySelected = IsSingleBoardStepSelected("二次、三次电源测试");
+                _inertSimSecondaryTertiaryExecuted = DidSingleBoardStepExecute("二次、三次电源测试");
+                _inertSimOverTempSelected = IsSingleBoardStepSelected("超温切断模块电路测试");
+                _inertSimOverTempExecuted = DidSingleBoardStepExecute("超温切断模块电路测试");
+                _inertSimLatchSelected = IsSingleBoardStepSelected("锁存模块电路测试");
+                _inertSimLatchExecuted = DidSingleBoardStepExecute("锁存模块电路测试");
+
+                var vm1 = _inertSimulationAutoTestVm1;
+                if (vm1 != null)
+                {
+                    _inertSimPowerImpedanceValues = Enumerable.Range(0, 7)
+                        .Select(i => vm1.Items.Count > i && vm1.Items[i] != null ? vm1.Items[i].ImpedanceText : "--")
+                        .ToArray();
+                    _inertSimPowerImpedanceResults = Enumerable.Range(0, 7)
+                        .Select(i => vm1.Items.Count > i && vm1.Items[i] != null ? vm1.Items[i].Result : "--")
+                        .ToArray();
+                    _inertSimPowerImpedanceOverallResult = vm1.OverallResult;
+                }
+
+                var vm2 = _inertSimulationAutoTestVm2;
+                if (vm2 != null)
+                {
+                    _inertSimSecondaryTertiaryValues = Enumerable.Range(0, 4)
+                        .Select(i => vm2.Items.Count > i && vm2.Items[i] != null ? vm2.Items[i].VoltageText : "--")
+                        .ToArray();
+                    _inertSimSecondaryTertiaryResults = Enumerable.Range(0, 4)
+                        .Select(i => vm2.Items.Count > i && vm2.Items[i] != null ? vm2.Items[i].Result : "--")
+                        .ToArray();
+                    _inertSimSecondaryTertiaryOverallResult = vm2.OverallResult;
+                }
+
+                var vm3 = _inertSimulationAutoTestVm3;
+                if (vm3 != null)
+                {
+                    var checks = new List<MeasureControl.ViewModels.SingleBoardTest.InertController.OverTemperatureCutoffTestViewModel.OverTempCheckViewModel>();
+                    foreach (var item in vm3.Items)
+                    {
+                        if (item?.Checks != null)
+                        {
+                            foreach (var check in item.Checks)
+                            {
+                                checks.Add(check);
+                            }
+                        }
+                    }
+                    _inertSimOverTempValues = Enumerable.Range(0, 6)
+                        .Select(i => checks.Count > i && checks[i] != null ? checks[i].VoltageText : "--")
+                        .ToArray();
+                    _inertSimOverTempResults = Enumerable.Range(0, 6)
+                        .Select(i => checks.Count > i && checks[i] != null ? checks[i].Result : "--")
+                        .ToArray();
+                    _inertSimOverTempOverallResult = vm3.OverallResult;
+                }
+
+                var vm4 = _inertSimulationAutoTestVm4;
+                if (vm4 != null)
+                {
+                    var steps = new List<MeasureControl.ViewModels.SingleBoardTest.InertController.LatchModuleCircuitTestViewModel.LatchStepViewModel>();
+                    foreach (var item in vm4.Items)
+                    {
+                        if (item?.Steps != null)
+                        {
+                            foreach (var step in item.Steps)
+                            {
+                                steps.Add(step);
+                            }
+                        }
+                    }
+                    _inertSimLatchValues = Enumerable.Range(0, 6)
+                        .Select(i => steps.Count > i && steps[i] != null ? steps[i].VoltageText : "--")
+                        .ToArray();
+                    _inertSimLatchResults = Enumerable.Range(0, 6)
+                        .Select(i => steps.Count > i && steps[i] != null ? steps[i].Result : "--")
+                        .ToArray();
+                    _inertSimLatchOverallResult = vm4.OverallResult;
+                }
+            }
         }
 
         private sealed class SingleBoardExcelReportConfig
@@ -1359,6 +1933,22 @@ namespace MeasureControl.Views.Common
                         OutputFolderName = "TestResults",
                         FileNamePrefix = "加放油测试",
                         FillAction = FillFuelBoardExcelReport
+                    };
+                case "惰化模拟板":
+                    return new SingleBoardExcelReportConfig
+                    {
+                        TemplateFileName = "惰化模拟板测试报表.xlsx",
+                        OutputFolderName = "TestResults",
+                        FileNamePrefix = "惰化模拟板测试",
+                        FillAction = FillInertSimulationBoardExcelReport
+                    };
+                case "惰化控制板":
+                    return new SingleBoardExcelReportConfig
+                    {
+                        TemplateFileName = "惰化控制板测试报表.xlsx",
+                        OutputFolderName = "TestResults",
+                        FileNamePrefix = "惰化控制板测试",
+                        FillAction = FillInertControlBoardExcelReport
                     };
                 case "空气单板":
                 case "惰化单板":
@@ -1419,14 +2009,16 @@ namespace MeasureControl.Views.Common
 
                 try
                 {
-                    if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
+                    try
                     {
-                        reportConfig.FillAction?.Invoke(reportPath);
+                        CaptureSingleBoardExcelReportSnapshot(boardType);
                     }
-                    else
+                    catch (Exception captureEx)
                     {
-                        RunInSta(() => reportConfig.FillAction?.Invoke(reportPath));
+                        AppendSingleBoardReportLine($"REPORT | CAPTURE_EXCEPTION | {captureEx.GetType().Name} | {captureEx.Message}");
                     }
+
+                    RunInSta(() => reportConfig.FillAction?.Invoke(reportPath));
                 }
                 catch
                 {
@@ -1496,14 +2088,10 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 3, 6, hc61Executed ? (vm61.IsResistance14Pass ? "合格" : "不合格") : "--");
                         SetExcelCellValue(cells, 4, 6, hc61Executed ? (vm61.IsResistance182Pass ? "合格" : "不合格") : "--");
 
-                        SetExcelCellFontColor(cells, 3, 6, hc61Executed && !vm61.IsResistance14Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 4, 6, hc61Executed && !vm61.IsResistance182Pass ? 255 : (int?)null);
-
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G3:G4" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
                         var hc61Result = GetSingleBoardStepResult("电源阻抗测试", vm61.CurrentTestResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc61Result });
-                        SetRangeFontColor(range, string.Equals(hc61Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
@@ -1532,14 +2120,9 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 6, 6, hc62Executed ? (vm62.IsVoltage15VPass ? "合格" : "不合格") : "--");
                         SetExcelCellValue(cells, 7, 6, hc62Executed ? (vm62.IsVoltageM15VPass ? "合格" : "不合格") : "--");
 
-                        SetExcelCellFontColor(cells, 5, 6, hc62Executed && !vm62.IsVoltage5VPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 6, 6, hc62Executed && !vm62.IsVoltage15VPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 7, 6, hc62Executed && !vm62.IsVoltageM15VPass ? 255 : (int?)null);
-
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G5:G7" });
                         var hc62Result = GetSingleBoardStepResult("二次电源测试", vm62.CurrentTestResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc62Result });
-                        SetRangeFontColor(range, string.Equals(hc62Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
@@ -1573,17 +2156,9 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 12, 6, hc63Executed ? (vm63.IsTemp3Pass ? "合格" : "不合格") : "--");
                         SetExcelCellValue(cells, 13, 6, hc63Executed ? (vm63.IsTemp3BPass ? "合格" : "不合格") : "--");
 
-                        SetExcelCellFontColor(cells, 8, 6, hc63Executed && !vm63.IsTemp1Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 9, 6, hc63Executed && !vm63.IsTemp1BPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 10, 6, hc63Executed && !vm63.IsTemp2Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 11, 6, hc63Executed && !vm63.IsTemp2BPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 12, 6, hc63Executed && !vm63.IsTemp3Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 13, 6, hc63Executed && !vm63.IsTemp3BPass ? 255 : (int?)null);
-
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G8:G13" });
                         var hc63Result = GetSingleBoardStepResult("温度采集测试", vm63.CurrentTestResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc63Result });
-                        SetRangeFontColor(range, string.Equals(hc63Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
@@ -1623,20 +2198,9 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 21, 6, hc64Executed ? (vm64.IsPressurePoint3Sys2Pass ? "合格" : "不合格") : "--");
                         SetExcelCellValue(cells, 22, 6, hc64Executed ? (vm64.IsPressurePoint3Sys3Pass ? "合格" : "不合格") : "--");
 
-                        SetExcelCellFontColor(cells, 14, 6, hc64Executed && !vm64.IsPressurePoint1Sys1Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 15, 6, hc64Executed && !vm64.IsPressurePoint1Sys2Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 16, 6, hc64Executed && !vm64.IsPressurePoint1Sys3Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 17, 6, hc64Executed && !vm64.IsPressurePoint2Sys1Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 18, 6, hc64Executed && !vm64.IsPressurePoint2Sys2Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 19, 6, hc64Executed && !vm64.IsPressurePoint2Sys3Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 20, 6, hc64Executed && !vm64.IsPressurePoint3Sys1Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 21, 6, hc64Executed && !vm64.IsPressurePoint3Sys2Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 22, 6, hc64Executed && !vm64.IsPressurePoint3Sys3Pass ? 255 : (int?)null);
-
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G14:G22" });
                         var hc64Result = GetSingleBoardStepResult("压力传感器信号采集测试", vm64.CurrentTestResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc64Result });
-                        SetRangeFontColor(range, string.Equals(hc64Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
@@ -1698,31 +2262,9 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 39, 6, hc65Executed ? (vm65.IsDptSys210mAPass ? "合格" : "不合格") : "--");
                         SetExcelCellValue(cells, 40, 6, hc65Executed ? (vm65.IsDptSys310mAPass ? "合格" : "不合格") : "--");
 
-                        SetExcelCellFontColor(cells, 23, 6, hc65Executed && !vm65.IsDptEdp24mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 24, 6, hc65Executed && !vm65.IsDptEmp2B4mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 25, 6, hc65Executed && !vm65.IsDptEmp3B4mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 26, 6, hc65Executed && !vm65.IsDptSys14mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 27, 6, hc65Executed && !vm65.IsDptSys24mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 28, 6, hc65Executed && !vm65.IsDptSys34mAPass ? 255 : (int?)null);
-
-                        SetExcelCellFontColor(cells, 29, 6, hc65Executed && !vm65.IsDptEdp2A20mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 30, 6, hc65Executed && !vm65.IsDptEmp2B20mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 31, 6, hc65Executed && !vm65.IsDptEmp3B20mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 32, 6, hc65Executed && !vm65.IsDptSys120mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 33, 6, hc65Executed && !vm65.IsDptSys220mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 34, 6, hc65Executed && !vm65.IsDptSys320mAPass ? 255 : (int?)null);
-
-                        SetExcelCellFontColor(cells, 35, 6, hc65Executed && !vm65.IsDptEdp2A10mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 36, 6, hc65Executed && !vm65.IsDptEmp2B10mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 37, 6, hc65Executed && !vm65.IsDptEmp3B10mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 38, 6, hc65Executed && !vm65.IsDptSys110mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 39, 6, hc65Executed && !vm65.IsDptSys210mAPass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 40, 6, hc65Executed && !vm65.IsDptSys310mAPass ? 255 : (int?)null);
-
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G23:G40" });
                         var hc65Result = GetSingleBoardStepResult("压差传感器信号采集测试", vm65.CurrentTestResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc65Result });
-                        SetRangeFontColor(range, string.Equals(hc65Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
@@ -1764,22 +2306,10 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 49, 6, hc66Executed ? (vm66.IsPointHighSys1Pass ? "合格" : "不合格") : "--");
                         SetExcelCellValue(cells, 50, 6, hc66Executed ? (vm66.IsPointHighSys2Pass ? "合格" : "不合格") : "--");
 
-                        SetExcelCellFontColor(cells, 41, 6, hc66Executed && !vm66.IsPin3031Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 42, 6, hc66Executed && !vm66.IsPin3334Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 43, 6, hc66Executed && !vm66.IsPin3031Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 44, 6, hc66Executed && !vm66.IsPin3334Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 45, 6, hc66Executed && !vm66.IsPointLowSys1Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 46, 6, hc66Executed && !vm66.IsPointLowSys2Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 47, 6, hc66Executed && !vm66.IsPointMidSys1Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 48, 6, hc66Executed && !vm66.IsPointMidSys2Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 49, 6, hc66Executed && !vm66.IsPointHighSys1Pass ? 255 : (int?)null);
-                        SetExcelCellFontColor(cells, 50, 6, hc66Executed && !vm66.IsPointHighSys2Pass ? 255 : (int?)null);
-
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G41:G50" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
                         var hc66Result = GetSingleBoardStepResult("油量传感器信号采集测试", vm66.CurrentTestResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc66Result });
-                        SetRangeFontColor(range, string.Equals(hc66Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
@@ -1821,14 +2351,12 @@ namespace MeasureControl.Views.Common
                             var row = 51 + i;
                             SetExcelCellValue(cells, row, 5, hc67Executed ? hc67Values[i] : "--");
                             SetExcelCellValue(cells, row, 6, hc67Executed ? (hc67Passes[i] ? "合格" : "不合格") : "--");
-                            SetExcelCellFontColor(cells, row, 6, hc67Executed && !hc67Passes[i] ? 255 : (int?)null);
                         }
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G51:G77" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
                         var hc67Result = GetSingleBoardStepResult("离散量采集测试", vm67.CurrentTestResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc67Result });
-                        SetRangeFontColor(range, string.Equals(hc67Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
@@ -1878,7 +2406,6 @@ namespace MeasureControl.Views.Common
                             var row = 78 + i;
                             SetExcelCellValue(cells, row, 5, hc68Executed ? hc68OpenValues[i] : "--");
                             SetExcelCellValue(cells, row, 6, hc68Executed ? (hc68OpenPasses[i] ? "合格" : "不合格") : "--");
-                            SetExcelCellFontColor(cells, row, 6, hc68Executed && !hc68OpenPasses[i] ? 255 : (int?)null);
                         }
 
                         for (var i = 0; i < hc68CloseValues.Length; i++)
@@ -1886,14 +2413,12 @@ namespace MeasureControl.Views.Common
                             var row = 85 + i;
                             SetExcelCellValue(cells, row, 5, hc68Executed ? hc68CloseValues[i] : "--");
                             SetExcelCellValue(cells, row, 6, hc68Executed ? (hc68ClosePasses[i] ? "合格" : "不合格") : "--");
-                            SetExcelCellFontColor(cells, row, 6, hc68Executed && !hc68ClosePasses[i] ? 255 : (int?)null);
                         }
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G78:G91" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
                         var hc68Result = GetSingleBoardStepResult("离散量输出测试", vm68.CurrentTestResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { hc68Result });
-                        SetRangeFontColor(range, string.Equals(hc68Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                     }
@@ -1913,6 +2438,597 @@ namespace MeasureControl.Views.Common
             }
             finally
             {
+                TryInvoke(workbook, "Close", false);
+                TryInvoke(excelApp, "Quit");
+                ReleaseComObject(range);
+                ReleaseComObject(cells);
+                ReleaseComObject(sheet);
+                ReleaseComObject(workbook);
+                ReleaseComObject(workbooks);
+                ReleaseComObject(excelApp);
+                OleMessageFilter.Revoke();
+            }
+        }
+
+        private void FillInertSimulationBoardExcelReport(string reportPath)
+        {
+            Type excelType = null;
+            object excelApp = null;
+            object workbooks = null;
+            object workbook = null;
+            object sheet = null;
+            object cells = null;
+            object range = null;
+
+            try
+            {
+                OleMessageFilter.Register();
+
+                excelType = Type.GetTypeFromProgID("Excel.Application");
+                if (excelType == null)
+                {
+                    throw new InvalidOperationException("未检测到 Excel COM 组件，无法写入报表模板。");
+                }
+
+                excelApp = Activator.CreateInstance(excelType);
+                excelType.InvokeMember("Visible", BindingFlags.SetProperty, null, excelApp, new object[] { false });
+                excelType.InvokeMember("DisplayAlerts", BindingFlags.SetProperty, null, excelApp, new object[] { false });
+
+                workbooks = excelType.InvokeMember("Workbooks", BindingFlags.GetProperty, null, excelApp, null);
+                workbook = workbooks.GetType().InvokeMember("Open", BindingFlags.InvokeMethod, null, workbooks, new object[] { reportPath });
+                sheet = workbook.GetType().InvokeMember("Worksheets", BindingFlags.GetProperty, null, workbook, null);
+                sheet = sheet.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, sheet, new object[] { 1 });
+                cells = sheet.GetType().InvokeMember("Cells", BindingFlags.GetProperty, null, sheet, null);
+
+                if (_inertSimPowerImpedanceSelected)
+                {
+                    for (var i = 0; i < 7; i++)
+                    {
+                        var row = 3 + i;
+                        var value = _inertSimPowerImpedanceExecuted && _inertSimPowerImpedanceValues != null && _inertSimPowerImpedanceValues.Length > i
+                            ? _inertSimPowerImpedanceValues[i]
+                            : "--";
+                        var result = _inertSimPowerImpedanceExecuted && _inertSimPowerImpedanceResults != null && _inertSimPowerImpedanceResults.Length > i
+                            ? _inertSimPowerImpedanceResults[i]
+                            : "--";
+
+                        SetExcelCellValue(cells, row, 5, value);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G3:G9" });
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    var overall = _inertSimPowerImpedanceExecuted
+                        ? GetSingleBoardStepResult("电源阻抗测试", _inertSimPowerImpedanceOverallResult)
+                        : "--";
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overall });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+                else
+                {
+                    FillUntestedCells(cells, 3, 5, 9);
+                    FillUntestedCells(cells, 3, 6, 9);
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G3:G9" });
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (_inertSimSecondaryTertiarySelected)
+                {
+                    for (var i = 0; i < 4; i++)
+                    {
+                        var row = 10 + i;
+                        var value = _inertSimSecondaryTertiaryExecuted && _inertSimSecondaryTertiaryValues != null && _inertSimSecondaryTertiaryValues.Length > i
+                            ? _inertSimSecondaryTertiaryValues[i]
+                            : "--";
+                        var result = _inertSimSecondaryTertiaryExecuted && _inertSimSecondaryTertiaryResults != null && _inertSimSecondaryTertiaryResults.Length > i
+                            ? _inertSimSecondaryTertiaryResults[i]
+                            : "--";
+
+                        SetExcelCellValue(cells, row, 5, value);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G10:G13" });
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    var overall = _inertSimSecondaryTertiaryExecuted
+                        ? GetSingleBoardStepResult("二次、三次电源测试", _inertSimSecondaryTertiaryOverallResult)
+                        : "--";
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overall });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+                else
+                {
+                    FillUntestedCells(cells, 10, 5, 13);
+                    FillUntestedCells(cells, 10, 6, 13);
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G10:G13" });
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (_inertSimOverTempSelected)
+                {
+                    for (var i = 0; i < 6; i++)
+                    {
+                        var row = 14 + i;
+                        var value = _inertSimOverTempExecuted && _inertSimOverTempValues != null && _inertSimOverTempValues.Length > i
+                            ? _inertSimOverTempValues[i]
+                            : "--";
+                        var result = _inertSimOverTempExecuted && _inertSimOverTempResults != null && _inertSimOverTempResults.Length > i
+                            ? _inertSimOverTempResults[i]
+                            : "--";
+
+                        SetExcelCellValue(cells, row, 5, value);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G14:G19" });
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    var overall = _inertSimOverTempExecuted
+                        ? GetSingleBoardStepResult("超温切断模块电路测试", _inertSimOverTempOverallResult)
+                        : "--";
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overall });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+                else
+                {
+                    FillUntestedCells(cells, 14, 5, 19);
+                    FillUntestedCells(cells, 14, 6, 19);
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G14:G19" });
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (_inertSimLatchSelected)
+                {
+                    for (var i = 0; i < 6; i++)
+                    {
+                        var row = 20 + i;
+                        var value = _inertSimLatchExecuted && _inertSimLatchValues != null && _inertSimLatchValues.Length > i
+                            ? _inertSimLatchValues[i]
+                            : "--";
+                        var result = _inertSimLatchExecuted && _inertSimLatchResults != null && _inertSimLatchResults.Length > i
+                            ? _inertSimLatchResults[i]
+                            : "--";
+
+                        SetExcelCellValue(cells, row, 5, value);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G20:G25" });
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    var overall = _inertSimLatchExecuted
+                        ? GetSingleBoardStepResult("锁存模块电路测试", _inertSimLatchOverallResult)
+                        : "--";
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overall });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+                else
+                {
+                    FillUntestedCells(cells, 20, 5, 25);
+                    FillUntestedCells(cells, 20, 6, 25);
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G20:G25" });
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                workbook.GetType().InvokeMember("Save", BindingFlags.InvokeMethod, null, workbook, null);
+            }
+            finally
+            {
+                TryInvoke(workbook, "Close", false);
+                TryInvoke(excelApp, "Quit");
+                ReleaseComObject(range);
+                ReleaseComObject(cells);
+                ReleaseComObject(sheet);
+                ReleaseComObject(workbook);
+                ReleaseComObject(workbooks);
+                ReleaseComObject(excelApp);
+                OleMessageFilter.Revoke();
+            }
+        }
+
+        private void FillInertControlBoardExcelReport(string reportPath)
+        {
+            Type excelType = null;
+            object excelApp = null;
+            object workbooks = null;
+            object workbook = null;
+            object sheet = null;
+            object cells = null;
+            object range = null;
+
+            try
+            {
+                OleMessageFilter.Register();
+
+                excelType = Type.GetTypeFromProgID("Excel.Application");
+                if (excelType == null)
+                {
+                    throw new InvalidOperationException("未检测到 Excel COM 组件，无法写入报表模板。");
+                }
+
+                excelApp = Activator.CreateInstance(excelType);
+                excelType.InvokeMember("Visible", BindingFlags.SetProperty, null, excelApp, new object[] { false });
+                excelType.InvokeMember("DisplayAlerts", BindingFlags.SetProperty, null, excelApp, new object[] { false });
+
+                workbooks = excelType.InvokeMember("Workbooks", BindingFlags.GetProperty, null, excelApp, null);
+                workbook = workbooks.GetType().InvokeMember("Open", BindingFlags.InvokeMethod, null, workbooks, new object[] { reportPath });
+                sheet = workbook.GetType().InvokeMember("Worksheets", BindingFlags.GetProperty, null, workbook, null);
+                sheet = sheet.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, sheet, new object[] { 1 });
+                cells = sheet.GetType().InvokeMember("Cells", BindingFlags.GetProperty, null, sheet, null);
+
+                if (_inertControlPowerImpedanceSelected)
+                {
+                    for (var i = 0; i < 6; i++)
+                    {
+                        var row = 3 + i;
+                        var value = _inertControlPowerImpedanceExecuted && _inertControlPowerImpedanceValues != null && _inertControlPowerImpedanceValues.Length > i
+                            ? _inertControlPowerImpedanceValues[i]
+                            : "--";
+                        var result = _inertControlPowerImpedanceExecuted && _inertControlPowerImpedanceResults != null && _inertControlPowerImpedanceResults.Length > i
+                            ? _inertControlPowerImpedanceResults[i]
+                            : "--";
+
+                        SetExcelCellValue(cells, row, 5, value);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G3:G8" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    var overall = _inertControlPowerImpedanceExecuted
+                        ? GetSingleBoardStepResult("控制板电源阻抗测试", _inertControlPowerImpedanceOverallResult)
+                        : "--";
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overall });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+                else
+                {
+                    FillUntestedCells(cells, 3, 5, 8);
+                    FillUntestedCells(cells, 3, 6, 8);
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G3:G8" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (_inertControlSecondaryTertiarySelected)
+                {
+                    for (var i = 0; i < 5; i++)
+                    {
+                        var row = 9 + i;
+                        var value = _inertControlSecondaryTertiaryExecuted && _inertControlSecondaryTertiaryValues != null && _inertControlSecondaryTertiaryValues.Length > i
+                            ? _inertControlSecondaryTertiaryValues[i]
+                            : "--";
+                        var result = _inertControlSecondaryTertiaryExecuted && _inertControlSecondaryTertiaryResults != null && _inertControlSecondaryTertiaryResults.Length > i
+                            ? _inertControlSecondaryTertiaryResults[i]
+                            : "--";
+
+                        SetExcelCellValue(cells, row, 5, value);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G9:G13" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    var overall = _inertControlSecondaryTertiaryExecuted
+                        ? GetSingleBoardStepResult("控制板二次、三次电源测试", _inertControlSecondaryTertiaryOverallResult)
+                        : "--";
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overall });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+                else
+                {
+                    FillUntestedCells(cells, 9, 5, 13);
+                    FillUntestedCells(cells, 9, 6, 13);
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G9:G13" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (_inertControlDiscreteInputSelected)
+                {
+                    // 第一次测试（GND 和 28V）：14-30 行
+                    for (var i = 0; i < 17; i++)
+                    {
+                        var row = 14 + i;
+                        var value = _inertControlDiscreteInputExecuted && _inertControlDiscreteInputPrimaryValues != null && _inertControlDiscreteInputPrimaryValues.Length > i
+                            ? _inertControlDiscreteInputPrimaryValues[i]
+                            : "--";
+                        var result = _inertControlDiscreteInputExecuted && _inertControlDiscreteInputPrimaryResults != null && _inertControlDiscreteInputPrimaryResults.Length > i
+                            ? _inertControlDiscreteInputPrimaryResults[i]
+                            : "--";
+
+                        SetExcelCellValue(cells, row, 5, value);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    // 第二次测试（开路）：31-47 行
+                    for (var i = 0; i < 17; i++)
+                    {
+                        var row = 31 + i;
+                        var value = _inertControlDiscreteInputExecuted && _inertControlDiscreteInputSecondaryValues != null && _inertControlDiscreteInputSecondaryValues.Length > i
+                            ? _inertControlDiscreteInputSecondaryValues[i]
+                            : "--";
+                        var result = _inertControlDiscreteInputExecuted && _inertControlDiscreteInputSecondaryResults != null && _inertControlDiscreteInputSecondaryResults.Length > i
+                            ? _inertControlDiscreteInputSecondaryResults[i]
+                            : "--";
+
+                        SetExcelCellValue(cells, row, 5, value);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G14:G47" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    var overall = _inertControlDiscreteInputExecuted
+                        ? GetSingleBoardStepResult("控制板离散输入模块测试", _inertControlDiscreteInputOverallResult)
+                        : "--";
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overall });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+                else
+                {
+                    FillUntestedCells(cells, 14, 5, 47);
+                    FillUntestedCells(cells, 14, 6, 47);
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G14:G47" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (_inertControlDiscreteOutputSelected)
+                {
+                    // High 测试：48-54 行
+                    for (var i = 0; i < 7; i++)
+                    {
+                        var row = 48 + i;
+                        var value = _inertControlDiscreteOutputExecuted && _inertControlDiscreteOutputHighValues != null && _inertControlDiscreteOutputHighValues.Length > i
+                            ? _inertControlDiscreteOutputHighValues[i]
+                            : "--";
+                        var result = _inertControlDiscreteOutputExecuted && _inertControlDiscreteOutputHighResults != null && _inertControlDiscreteOutputHighResults.Length > i
+                            ? _inertControlDiscreteOutputHighResults[i]
+                            : "--";
+
+                        SetExcelCellValue(cells, row, 5, value);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    // Low 测试：55-61 行
+                    for (var i = 0; i < 7; i++)
+                    {
+                        var row = 55 + i;
+                        var value = _inertControlDiscreteOutputExecuted && _inertControlDiscreteOutputLowValues != null && _inertControlDiscreteOutputLowValues.Length > i
+                            ? _inertControlDiscreteOutputLowValues[i]
+                            : "--";
+                        var result = _inertControlDiscreteOutputExecuted && _inertControlDiscreteOutputLowResults != null && _inertControlDiscreteOutputLowResults.Length > i
+                            ? _inertControlDiscreteOutputLowResults[i]
+                            : "--";
+
+                        SetExcelCellValue(cells, row, 5, value);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G48:G61" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    var overall = _inertControlDiscreteOutputExecuted
+                        ? GetSingleBoardStepResult("控制板离散输出模块测试", _inertControlDiscreteOutputOverallResult)
+                        : "--";
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overall });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+                else
+                {
+                    FillUntestedCells(cells, 48, 5, 61);
+                    FillUntestedCells(cells, 48, 6, 61);
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G48:G61" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (_inertControlTempSensorSelected)
+                {
+                    // 温度传感器测试：62-77 行（4个点位 x 4个传感器 = 16行）
+                    for (var i = 0; i < 16; i++)
+                    {
+                        var row = 62 + i;
+                        var value = _inertControlTempSensorExecuted && _inertControlTempSensorValues != null && _inertControlTempSensorValues.Length > i
+                            ? _inertControlTempSensorValues[i]
+                            : "--";
+                        var result = _inertControlTempSensorExecuted && _inertControlTempSensorResults != null && _inertControlTempSensorResults.Length > i
+                            ? _inertControlTempSensorResults[i]
+                            : "--";
+
+                        SetExcelCellValue(cells, row, 5, value);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G62:G77" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    var overall = _inertControlTempSensorExecuted
+                        ? GetSingleBoardStepResult("温度传感器信号采集测试", _inertControlTempSensorOverallResult)
+                        : "--";
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overall });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+                else
+                {
+                    FillUntestedCells(cells, 62, 5, 77);
+                    FillUntestedCells(cells, 62, 6, 77);
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G62:G77" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (_inertControlPressureSensorSelected)
+                {
+                    // 压力传感器测试：78-80 行（3个压力点）
+                    for (var i = 0; i < 3; i++)
+                    {
+                        var row = 78 + i;
+                        var value = _inertControlPressureSensorExecuted && _inertControlPressureSensorValues != null && _inertControlPressureSensorValues.Length > i
+                            ? _inertControlPressureSensorValues[i]
+                            : "--";
+                        var result = _inertControlPressureSensorExecuted && _inertControlPressureSensorResults != null && _inertControlPressureSensorResults.Length > i
+                            ? _inertControlPressureSensorResults[i]
+                            : "--";
+
+                        SetExcelCellValue(cells, row, 5, value);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G78:G80" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    var overall = _inertControlPressureSensorExecuted
+                        ? GetSingleBoardStepResult("压力传感器信号采集测试", _inertControlPressureSensorOverallResult)
+                        : "--";
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overall });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+                else
+                {
+                    FillUntestedCells(cells, 78, 5, 80);
+                    FillUntestedCells(cells, 78, 6, 80);
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G78:G80" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (_inertControlOxygenSensorSelected)
+                {
+                    // 氧气传感器测试：81-86 行（3个浓度 + 3个压力 = 6行）
+                    // 氧气浓度：81-83 行
+                    for (var i = 0; i < 3; i++)
+                    {
+                        var row = 81 + i;
+                        var value = _inertControlOxygenSensorExecuted && _inertControlOxygenConcentrationValues != null && _inertControlOxygenConcentrationValues.Length > i
+                            ? _inertControlOxygenConcentrationValues[i]
+                            : "--";
+                        var result = _inertControlOxygenSensorExecuted && _inertControlOxygenConcentrationResults != null && _inertControlOxygenConcentrationResults.Length > i
+                            ? _inertControlOxygenConcentrationResults[i]
+                            : "--";
+
+                        SetExcelCellValue(cells, row, 5, value);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    // 氧气压力：84-86 行
+                    for (var i = 0; i < 3; i++)
+                    {
+                        var row = 84 + i;
+                        var value = _inertControlOxygenSensorExecuted && _inertControlOxygenPressureValues != null && _inertControlOxygenPressureValues.Length > i
+                            ? _inertControlOxygenPressureValues[i]
+                            : "--";
+                        var result = _inertControlOxygenSensorExecuted && _inertControlOxygenPressureResults != null && _inertControlOxygenPressureResults.Length > i
+                            ? _inertControlOxygenPressureResults[i]
+                            : "--";
+
+                        SetExcelCellValue(cells, row, 5, value);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G81:G86" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    var overall = _inertControlOxygenSensorExecuted
+                        ? GetSingleBoardStepResult("氧气传感器信号采集测试", _inertControlOxygenSensorOverallResult)
+                        : "--";
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overall });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+                else
+                {
+                    FillUntestedCells(cells, 81, 5, 86);
+                    FillUntestedCells(cells, 81, 6, 86);
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G81:G86" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+                if (_inertControlTcvMotorSelected)
+                {
+                    // TCV电机测试：87-90 行（4个测试项）
+                    // 测试值和测试结果都填写 PASS/FAIL
+                    for (var i = 0; i < 4; i++)
+                    {
+                        var row = 87 + i;
+                        var result = _inertControlTcvMotorExecuted && _inertControlTcvMotorResults != null && _inertControlTcvMotorResults.Length > i
+                            ? _inertControlTcvMotorResults[i]
+                            : "--";
+
+                        // E列和F列都填写测试结果（PASS/FAIL）
+                        SetExcelCellValue(cells, row, 5, result);
+                        SetExcelCellValue(cells, row, 6, result);
+                    }
+
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G87:G90" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    var overall = _inertControlTcvMotorExecuted
+                        ? GetSingleBoardStepResult("TCV电机驱动测试", _inertControlTcvMotorOverallResult)
+                        : "--";
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overall });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+                else
+                {
+                    FillUntestedCells(cells, 87, 5, 90);
+                    FillUntestedCells(cells, 87, 6, 90);
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G87:G90" });
+                    range.GetType().InvokeMember("UnMerge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
+                    range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
+                    ReleaseComObject(range);
+                    range = null;
+                }
+
+            }
+            finally
+            {
+                TryInvoke(workbook, "Save");
                 TryInvoke(workbook, "Close", false);
                 TryInvoke(excelApp, "Quit");
                 ReleaseComObject(range);
@@ -1992,7 +3108,6 @@ namespace MeasureControl.Views.Common
             for (var row = startRow; row <= endRow; row++)
             {
                 SetExcelCellValue(cells, row, column, "--");
-                SetExcelCellFontColor(cells, row, column, null);
             }
         }
 
@@ -2141,9 +3256,11 @@ namespace MeasureControl.Views.Common
             try
             {
                 target.GetType().InvokeMember(methodName, BindingFlags.InvokeMethod, null, target, args);
+                Console.WriteLine(methodName+"正常！！" );
             }
             catch
             {
+                Console.WriteLine(methodName+"异常！！");
             }
         }
 
@@ -2246,24 +3363,19 @@ namespace MeasureControl.Views.Common
                         // J3-J4阻抗 (行3)
                         SetExcelCellValue(cells, 3, valueCol, FormatNullableNumber(vm1.ImpedanceA));
                         SetExcelCellValue(cells, 3, singleResultCol, NormalizeFuelResult(vm1.ResultA));
-                        SetExcelCellFontColor(cells, 3, singleResultCol, !string.Equals(vm1.ResultA, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm1.ResultA, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm1.ResultA) && vm1.ResultA != "--" ? 255 : (int?)null);
                         // J14-J24阻抗 (行4)
                         SetExcelCellValue(cells, 4, valueCol, FormatNullableNumber(vm1.ImpedanceB));
                         SetExcelCellValue(cells, 4, singleResultCol, NormalizeFuelResult(vm1.ResultB));
-                        SetExcelCellFontColor(cells, 4, singleResultCol, !string.Equals(vm1.ResultB, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm1.ResultB, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm1.ResultB) && vm1.ResultB != "--" ? 255 : (int?)null);
                         // J3-J5阻抗 (行5)
                         SetExcelCellValue(cells, 5, valueCol, FormatNullableNumber(vm1.ImpedanceC));
                         SetExcelCellValue(cells, 5, singleResultCol, NormalizeFuelResult(vm1.ResultC));
-                        SetExcelCellFontColor(cells, 5, singleResultCol, !string.Equals(vm1.ResultC, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm1.ResultC, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm1.ResultC) && vm1.ResultC != "--" ? 255 : (int?)null);
                         // J14-J5阻抗 (行6)
                         SetExcelCellValue(cells, 6, valueCol, FormatNullableNumber(vm1.ImpedanceD));
                         SetExcelCellValue(cells, 6, singleResultCol, NormalizeFuelResult(vm1.ResultD));
-                        SetExcelCellFontColor(cells, 6, singleResultCol, !string.Equals(vm1.ResultD, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm1.ResultD, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm1.ResultD) && vm1.ResultD != "--" ? 255 : (int?)null);
                         // 综合结果 (行3, F列合并单元格)
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 3, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("电源阻抗测试", vm1.OverallResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overallResult });
-                        SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                         // 测试时间 (行3, G列合并单元格)
@@ -2287,11 +3399,9 @@ namespace MeasureControl.Views.Common
                     {
                         SetExcelCellValue(cells, 7, valueCol, FormatNullableNumber(vm2.VoltageValue));
                         SetExcelCellValue(cells, 7, singleResultCol, NormalizeFuelResult(vm2.TestResult));
-                        SetExcelCellFontColor(cells, 7, singleResultCol, !string.Equals(vm2.TestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm2.TestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm2.TestResult) && vm2.TestResult != "--" ? 255 : (int?)null);
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 7, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("二次电源测试", vm2.OverallResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overallResult });
-                        SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                         SetExcelCellValue(cells, 7, timeCol, testTime);
@@ -2311,11 +3421,9 @@ namespace MeasureControl.Views.Common
                     {
                         SetExcelCellValue(cells, 8, valueCol, FormatNullableNumber(vm3.FlipVoltage));
                         SetExcelCellValue(cells, 8, singleResultCol, NormalizeFuelResult(vm3.TestResult));
-                        SetExcelCellFontColor(cells, 8, singleResultCol, !string.Equals(vm3.TestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm3.TestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm3.TestResult) && vm3.TestResult != "--" ? 255 : (int?)null);
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 8, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("低电压告警功能测试", vm3.OverallResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overallResult });
-                        SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                         SetExcelCellValue(cells, 8, timeCol, testTime);
@@ -2335,11 +3443,9 @@ namespace MeasureControl.Views.Common
                     {
                         SetExcelCellValue(cells, 9, valueCol, FormatNullableNumber(vm4.TemperatureValue));
                         SetExcelCellValue(cells, 9, singleResultCol, NormalizeFuelResult(vm4.TestResult));
-                        SetExcelCellFontColor(cells, 9, singleResultCol, !string.Equals(vm4.TestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm4.TestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm4.TestResult) && vm4.TestResult != "--" ? 255 : (int?)null);
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 9, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("温度采集功能", vm4.OverallResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overallResult });
-                        SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                         SetExcelCellValue(cells, 9, timeCol, testTime);
@@ -2360,24 +3466,19 @@ namespace MeasureControl.Views.Common
                         // 接地测试 Bank0[0:6] (行10)
                         SetExcelCellValue(cells, 10, valueCol, vm5.Bank0GroundedResults);
                         SetExcelCellValue(cells, 10, singleResultCol, NormalizeFuelResult(vm5.GroundedTestResult));
-                        SetExcelCellFontColor(cells, 10, singleResultCol, !string.Equals(vm5.GroundedTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.GroundedTestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm5.GroundedTestResult) && vm5.GroundedTestResult != "--" ? 255 : (int?)null);
                         // 接地测试 Bank1[0:6] (行11)
                         SetExcelCellValue(cells, 11, valueCol, vm5.Bank1GroundedResults);
                         SetExcelCellValue(cells, 11, singleResultCol, NormalizeFuelResult(vm5.GroundedTestResult));
-                        SetExcelCellFontColor(cells, 11, singleResultCol, !string.Equals(vm5.GroundedTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.GroundedTestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm5.GroundedTestResult) && vm5.GroundedTestResult != "--" ? 255 : (int?)null);
                         // 开路测试 Bank0[0:6] (行12)
                         SetExcelCellValue(cells, 12, valueCol, vm5.Bank0OpenResults);
                         SetExcelCellValue(cells, 12, singleResultCol, NormalizeFuelResult(vm5.OpenTestResult));
-                        SetExcelCellFontColor(cells, 12, singleResultCol, !string.Equals(vm5.OpenTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.OpenTestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm5.OpenTestResult) && vm5.OpenTestResult != "--" ? 255 : (int?)null);
                         // 开路测试 Bank1[0:6] (行13)
                         SetExcelCellValue(cells, 13, valueCol, vm5.Bank1OpenResults);
                         SetExcelCellValue(cells, 13, singleResultCol, NormalizeFuelResult(vm5.OpenTestResult));
-                        SetExcelCellFontColor(cells, 13, singleResultCol, !string.Equals(vm5.OpenTestResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm5.OpenTestResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm5.OpenTestResult) && vm5.OpenTestResult != "--" ? 255 : (int?)null);
                         // 综合结果 (行10, F列合并单元格)
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 10, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("离散量采集功能测试", vm5.OverallResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overallResult });
-                        SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                         SetExcelCellValue(cells, 10, timeCol, testTime);
@@ -2408,7 +3509,6 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 21, valueCol, FormatNullableNumber(vm6.ImpedanceJ13));
                         // 接地测试单项结果 (行14)
                         SetExcelCellValue(cells, 14, singleResultCol, NormalizeFuelResult(vm6.StepAResult));
-                        SetExcelCellFontColor(cells, 14, singleResultCol, !string.Equals(vm6.StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm6.StepAResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm6.StepAResult) && vm6.StepAResult != "--" ? 255 : (int?)null);
                         // 开路测试 J6-J13 (行22-29)
                         SetExcelCellValue(cells, 22, valueCol, FormatNullableNumber(vm6.ImpedanceOpenJ6));
                         SetExcelCellValue(cells, 23, valueCol, FormatNullableNumber(vm6.ImpedanceOpenJ7));
@@ -2420,16 +3520,13 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 29, valueCol, FormatNullableNumber(vm6.ImpedanceOpenJ13));
                         // 开路测试单项结果 (行22)
                         SetExcelCellValue(cells, 22, singleResultCol, NormalizeFuelResult(vm6.StepBResult));
-                        SetExcelCellFontColor(cells, 22, singleResultCol, !string.Equals(vm6.StepBResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm6.StepBResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm6.StepBResult) && vm6.StepBResult != "--" ? 255 : (int?)null);
                         // 电压测试 J4 (行30)
                         SetExcelCellValue(cells, 30, valueCol, FormatNullableNumber(vm6.J14Voltage));
                         SetExcelCellValue(cells, 30, singleResultCol, NormalizeFuelResult(vm6.StepCResult));
-                        SetExcelCellFontColor(cells, 30, singleResultCol, !string.Equals(vm6.StepCResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm6.StepCResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm6.StepCResult) && vm6.StepCResult != "--" ? 255 : (int?)null);
                         // 综合结果 (行14, F列合并单元格)
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 14, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("离散量输出功能测试", vm6.OverallResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overallResult });
-                        SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                         SetExcelCellValue(cells, 14, timeCol, testTime);
@@ -2456,24 +3553,19 @@ namespace MeasureControl.Views.Common
                         // 通道1收发测试 (行31)
                         SetExcelCellValue(cells, 31, valueCol, vm7.StepARxData);
                         SetExcelCellValue(cells, 31, singleResultCol, NormalizeFuelResult(vm7.StepAResult));
-                        SetExcelCellFontColor(cells, 31, singleResultCol, !string.Equals(vm7.StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepAResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm7.StepAResult) && vm7.StepAResult != "--" ? 255 : (int?)null);
                         // 通道2收发测试 (行32)
                         SetExcelCellValue(cells, 32, valueCol, vm7.StepBRxData);
                         SetExcelCellValue(cells, 32, singleResultCol, NormalizeFuelResult(vm7.StepBResult));
-                        SetExcelCellFontColor(cells, 32, singleResultCol, !string.Equals(vm7.StepBResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepBResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm7.StepBResult) && vm7.StepBResult != "--" ? 255 : (int?)null);
                         // 通道1回环测试 (行33)
                         SetExcelCellValue(cells, 33, valueCol, vm7.StepCRxData);
                         SetExcelCellValue(cells, 33, singleResultCol, NormalizeFuelResult(vm7.StepCResult));
-                        SetExcelCellFontColor(cells, 33, singleResultCol, !string.Equals(vm7.StepCResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepCResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm7.StepCResult) && vm7.StepCResult != "--" ? 255 : (int?)null);
                         // 通道2回环测试 (行34)
                         SetExcelCellValue(cells, 34, valueCol, vm7.StepDRxData);
                         SetExcelCellValue(cells, 34, singleResultCol, NormalizeFuelResult(vm7.StepDResult));
-                        SetExcelCellFontColor(cells, 34, singleResultCol, !string.Equals(vm7.StepDResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm7.StepDResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm7.StepDResult) && vm7.StepDResult != "--" ? 255 : (int?)null);
                         // 综合结果 (行31, F列合并单元格)
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 31, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("RS422通信功能测试", vm7.OverallResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overallResult });
-                        SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                         SetExcelCellValue(cells, 31, timeCol, testTime);
@@ -2496,16 +3588,13 @@ namespace MeasureControl.Views.Common
                         // 通道1自检测试 (行35)
                         SetExcelCellValue(cells, 35, valueCol, vm8.StepARxData);
                         SetExcelCellValue(cells, 35, singleResultCol, NormalizeFuelResult(vm8.StepAResult));
-                        SetExcelCellFontColor(cells, 35, singleResultCol, !string.Equals(vm8.StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm8.StepAResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm8.StepAResult) && vm8.StepAResult != "--" ? 255 : (int?)null);
                         // 通道2自检测试 (行36)
                         SetExcelCellValue(cells, 36, valueCol, vm8.StepARxData);
                         SetExcelCellValue(cells, 36, singleResultCol, NormalizeFuelResult(vm8.StepBResult));
-                        SetExcelCellFontColor(cells, 36, singleResultCol, !string.Equals(vm8.StepBResult, "PASS", StringComparison.OrdinalIgnoreCase) && !string.Equals(vm8.StepBResult, "合格", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(vm8.StepBResult) && vm8.StepBResult != "--" ? 255 : (int?)null);
                         // 综合结果 (行35, F列合并单元格)
                         range = cells.GetType().InvokeMember("Item", BindingFlags.GetProperty, null, cells, new object[] { 35, overallResultCol });
                         var overallResult = GetSingleBoardStepResult("RS422通信自检测功能测试", vm8.OverallResult);
                         range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { overallResult });
-                        SetRangeFontColor(range, string.Equals(overallResult, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null);
                         ReleaseComObject(range);
                         range = null;
                         SetExcelCellValue(cells, 35, timeCol, testTime);

@@ -27,25 +27,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 3.0;
 
+        public bool SkipMainPowerOff { get; set; }
+
         // 继电器动作稳定延时
         private const int RelaySettleDelayMs = 120;
 
         // DO输出驱动继电器：项目中已有用法（如 PowerImpedanceTestViewModel）为 active-low
         // 即：false=吸合/有效，true=断开/无效
         private const bool ActiveLowRelay = true;
+        private const bool SinkingOutputMode = true;
 
         private const int ArincRxChannelIndex = 0;
         private const int ArincTxChannelIndex = 1;
         private const uint AtpSsmDataSdi = 0xC10001u;
         private const byte AtpLabelOctal174Dec = 124;
         private const byte DiscreteStatusLabelOctal151Dec = 105;
+        private const byte PowerInputLabelOctal152Dec = 106;
         private const byte ProgEnableLabelOctal153Dec = 107;
         private const double ArincRate = 100000.0;
         private const int ArincAfterRxStartSettleDelayMs = 1000;
         private const int ArincPollIntervalMs = 10;
-        private const int ArincReadTimeoutMs = 4200;
-        private const int ItemMeasureSettleDelayMs = 400;
-        private const int FirstItemExtraMeasureSettleDelayMs = 700;
+        private const int ArincReadTimeoutMs = 700;
 
         private const byte ArincExpectedSdi = 1;
         private byte _arincExpectedLabelRaw;
@@ -97,8 +99,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 new DiscreteInputItemViewModel("n)", "J82", doChannel: "DO13", labelOctalDec: DiscreteStatusLabelOctal151Dec, bitIndex: 25, primary: DiscreteInputState.Gnd, secondary: DiscreteInputState.Open, this),
                 new DiscreteInputItemViewModel("o)", "J83", doChannel: "DO14", labelOctalDec: DiscreteStatusLabelOctal151Dec, bitIndex: 26, primary: DiscreteInputState.Gnd, secondary: DiscreteInputState.Open, this),
 
-                new DiscreteInputItemViewModel("p)", "J84", doChannel: "DO16", labelOctalDec: DiscreteStatusLabelOctal151Dec, bitIndex: 27, primary: DiscreteInputState.V28, secondary: DiscreteInputState.Open, this),
-                new DiscreteInputItemViewModel("q)", "J85", doChannel: "DO17", labelOctalDec: DiscreteStatusLabelOctal151Dec, bitIndex: 28, primary: DiscreteInputState.V28, secondary: DiscreteInputState.Open, this),
+                new DiscreteInputItemViewModel("p)", "J84", doChannel: "DO16", labelOctalDec: PowerInputLabelOctal152Dec, bitIndex: 26, primary: DiscreteInputState.V28, secondary: DiscreteInputState.Open, this),
+                new DiscreteInputItemViewModel("q)", "J85", doChannel: "DO17", labelOctalDec: PowerInputLabelOctal152Dec, bitIndex: 27, primary: DiscreteInputState.V28, secondary: DiscreteInputState.Open, this),
             };
         }
 
@@ -189,8 +191,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：离散输入模块测试");
 
                 await EnsurePowerAsync(_cts.Token).ConfigureAwait(false);
-                await Ensure7131ReadyAsync(_cts.Token).ConfigureAwait(false);
+                var ok7131 = await Ensure7131ReadyAsync(_cts.Token).ConfigureAwait(false);
                 await EnsureArincRxReadyAsync(_cts.Token).ConfigureAwait(false);
+
+                if (!ok7131)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡初始化失败，手动测试终止");
+                    await StopAsync().ConfigureAwait(false);
+                    return;
+                }
 
                 foreach (var item in Items)
                 {
@@ -225,6 +234,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 await Disable485AndExternalPowerAsync(CancellationToken.None).ConfigureAwait(false);
 
+                try { await ResetAndClose7131Async(CancellationToken.None).ConfigureAwait(false); } catch { }
+
                 await DisablePowerAsync(CancellationToken.None).ConfigureAwait(false);
 
                 IsManualTestRunning = false;
@@ -234,6 +245,90 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             }
             finally
             {
+                _opLock.Release();
+            }
+        }
+
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            await _opLock.WaitAsync(cancellationToken);
+            try
+            {
+                if (IsAutoTestRunning)
+                    return OverallResult;
+
+                IsAutoTestRunning = true;
+
+                PublishNavigationLock(isLocked: true, source: "ControlBoardDiscreteInput");
+
+                LastTestTime = "--";
+                LastTestResult = "--";
+                OverallResult = "--";
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试开始：将依次执行表 7-1 的配置与采集检查");
+
+                _cts?.Cancel();
+                _cts?.Dispose();
+                _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+                _atpTxOpened = false;
+                _atpModeEntered = false;
+
+                await EnsurePowerAsync(_cts.Token).ConfigureAwait(false);
+
+                await Ensure7131ReadyAsync(_cts.Token).ConfigureAwait(false);
+                await EnsureArincRxReadyAsync(_cts.Token).ConfigureAwait(false);
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试初始化完成：已下发ATP进入指令，等待模式稳定...");
+                await Task.Delay(100, _cts.Token).ConfigureAwait(false);
+
+                bool allPass = true;
+                foreach (var item in Items)
+                    await item.SetStateAsync(item.PrimaryState, _cts.Token).ConfigureAwait(false);
+
+                foreach (var item in Items)
+                    allPass &= await item.MeasureAsync(stateTag: "第一轮", token: _cts.Token).ConfigureAwait(false);
+
+                foreach (var item in Items)
+                    await item.SetStateAsync(item.SecondaryState, _cts.Token).ConfigureAwait(false);
+
+                foreach (var item in Items)
+                    allPass &= await item.MeasureAsync(stateTag: "第二轮", token: _cts.Token).ConfigureAwait(false);
+
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = allPass ? "PASS" : "FAIL";
+                OverallResult = LastTestResult;
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试结束：汇总结果={LastTestResult}");
+                if (allPass)
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 项目测试通过");
+
+                return OverallResult;
+            }
+            catch (OperationCanceledException)
+            {
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = "FAIL";
+                OverallResult = "FAIL";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试已取消");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = "FAIL";
+                OverallResult = "FAIL";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试异常：{ex.Message}");
+                return "FAIL";
+            }
+            finally
+            {
+                await Disable485AndExternalPowerAsync(CancellationToken.None).ConfigureAwait(false);
+                try { await ResetAndClose7131Async(CancellationToken.None).ConfigureAwait(false); } catch { }
+                await DisablePowerAsync(CancellationToken.None).ConfigureAwait(false);
+                try { await CloseArincAsync().ConfigureAwait(false); } catch { }
+                IsAutoTestRunning = false;
+                PublishNavigationLock(isLocked: false, source: "ControlBoardDiscreteInput");
                 _opLock.Release();
             }
         }
@@ -265,8 +360,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 await EnsurePowerAsync(_cts.Token).ConfigureAwait(false);
 
-                await Ensure7131ReadyAsync(_cts.Token).ConfigureAwait(false);
+                var ok7131 = await Ensure7131ReadyAsync(_cts.Token).ConfigureAwait(false);
                 await EnsureArincRxReadyAsync(_cts.Token).ConfigureAwait(false);
+
+                if (!ok7131)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡初始化失败，自动测试终止");
+                    OverallResult = "FAIL";
+                    LastTestResult = "FAIL";
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    return;
+                }
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试初始化完成：已下发ATP进入指令，等待模式稳定...");
                 await Task.Delay(100, _cts.Token).ConfigureAwait(false);
@@ -302,6 +406,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             finally
             {
                 await Disable485AndExternalPowerAsync(CancellationToken.None).ConfigureAwait(false);
+                try { await ResetAndClose7131Async(CancellationToken.None).ConfigureAwait(false); } catch { }
                 await DisablePowerAsync(CancellationToken.None).ConfigureAwait(false);
                 try { await CloseArincAsync().ConfigureAwait(false); } catch { }
                 IsAutoTestRunning = false;
@@ -310,28 +415,36 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             }
         }
 
-        private void PublishNavigationLock(bool isLocked, string source)
+        private async Task ResetAndClose7131Async(CancellationToken token)
         {
+            var api = _jy7131;
+            if (api == null)
+                return;
+
             try
             {
-                _eventAggregator?.GetEvent<MeasureControl.Events.NavigationLockChangedEvent>()
-                    ?.Publish(new MeasureControl.Events.NavigationLockChangedEventArgs { IsLocked = isLocked, Source = source });
+                if (api.IsConnected)
+                {
+                    try { await api.ResetAllDoAsync(token).ConfigureAwait(false); } catch { }
+                    try { await api.SetAllRelaysAsync(false, token).ConfigureAwait(false); } catch { }
+                    try { await api.DisablePowerOutputsAsync(token).ConfigureAwait(false); } catch { }
+
+                    if (api.IsRunning)
+                    {
+                        try { await api.StopAsync(token).ConfigureAwait(false); } catch { }
+                    }
+
+                    try { await api.DisconnectAsync(token).ConfigureAwait(false); } catch { }
+                }
             }
-            catch
+            finally
             {
+                try { await api.DisposeAsync().ConfigureAwait(false); } catch { }
+                if (ReferenceEquals(_jy7131, api))
+                {
+                    _jy7131 = null;
+                }
             }
-        }
-
-        private int GetItemMeasureSettleDelayMs(DiscreteInputItemViewModel item)
-        {
-            if (item == null)
-                return ItemMeasureSettleDelayMs;
-
-            var delayMs = ItemMeasureSettleDelayMs;
-            if (string.Equals(item.Pins, "J40", StringComparison.OrdinalIgnoreCase))
-                delayMs += FirstItemExtraMeasureSettleDelayMs;
-
-            return delayMs;
         }
 
         private async Task CloseArincAsync()
@@ -382,7 +495,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 if (!_power.IsConnected)
                     await _power.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
 
-                await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, token).ConfigureAwait(false);
+                if (!SkipMainPowerOff)
+                {
+                    await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, token).ConfigureAwait(false);
+                }
                 await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, false, token).ConfigureAwait(false);
                 await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH3, false, token).ConfigureAwait(false);
                 await Task.Delay(200, token).ConfigureAwait(false);
@@ -394,16 +510,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             {
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    IsPowerOn = false;
-                    PowerStatus = "未供电";
+                    if (!SkipMainPowerOff)
+                    {
+                        IsPowerOn = false;
+                        PowerStatus = "未供电";
+                    }
                 });
             }
         }
 
-        private async Task Ensure7131ReadyAsync(CancellationToken token)
+        private async Task<bool> Ensure7131ReadyAsync(CancellationToken token)
         {
             if (_jy7131 != null && _jy7131.IsConnected && _jy7131.IsRunning)
-                return;
+                return true;
 
             if (_jy7131 == null)
             {
@@ -438,16 +557,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             if (_jy7131 == null)
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 未找到7131板卡，继电器固定输出无法下发");
-                return;
+                return false;
             }
 
             if (!_jy7131.IsConnected)
                 await _jy7131.ConnectAsync(token).ConfigureAwait(false);
             if (!_jy7131.IsRunning)
             {
-                await _jy7131.SetOutputModeAsync(Jy7131OutputMode.PushPull, token).ConfigureAwait(false);
+                await _jy7131.SetOutputModeAsync(Jy7131OutputMode.Sinking, token).ConfigureAwait(false);
                 await _jy7131.StartAsync(token).ConfigureAwait(false);
             }
+            
+            return _jy7131.IsConnected && _jy7131.IsRunning;
         }
 
         internal async Task ApplyItemStateAsync(string doChannel, DiscreteInputState state, CancellationToken token, bool log = true)
@@ -498,6 +619,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             bool Level(bool relayClosed)
             {
                 // relayClosed: true=继电器吸合(输出有效)，false=继电器断开(开路)
+                if (SinkingOutputMode)
+                    return relayClosed;
                 if (!ActiveLowRelay)
                     return relayClosed;
                 return !relayClosed;
@@ -863,16 +986,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             dispatcher.BeginInvoke(new Action(() => Logs.Add(msg)));
         }
 
+        private void PublishNavigationLock(bool isLocked, string source)
+        {
+            try
+            {
+                _eventAggregator?.GetEvent<MeasureControl.Events.NavigationLockChangedEvent>()
+                    ?.Publish(new MeasureControl.Events.NavigationLockChangedEventArgs { IsLocked = isLocked, Source = source });
+            }
+            catch
+            {
+            }
+        }
+
         public void Dispose()
         {
             try { _cts?.Cancel(); } catch { }
             try { _cts?.Dispose(); } catch { }
             _opLock?.Dispose();
 
+            try { ResetAndClose7131Async(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
             try { CloseArincAsync().GetAwaiter().GetResult(); } catch { }
 
             try { _power?.DisposeAsync().AsTask().GetAwaiter().GetResult(); } catch { }
-            try { _jy7131?.DisposeAsync().AsTask().GetAwaiter().GetResult(); } catch { }
         }
 
         public class DiscreteInputItemViewModel : BindableBase
@@ -881,6 +1016,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             private string _actualResult = "--";
             private string _result = "--";
+            private string _primaryActualResult = "--";
+            private string _primaryResult = "--";
+            private string _secondaryActualResult = "--";
+            private string _secondaryResult = "--";
 
             public DiscreteInputItemViewModel(
                 string indexText,
@@ -890,7 +1029,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 int bitIndex,
                 DiscreteInputState primary,
                 DiscreteInputState secondary,
-                ControlBoardDiscreteInputModuleTestViewModel owner)
+                ControlBoardDiscreteInputModuleTestViewModel owner,
+                int openStateBitValue = 0)
             {
                 Pins = pins;
                 IndexText = indexText;
@@ -898,6 +1038,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 DoChannel = doChannel;
                 LabelOctalDec = labelOctalDec;
                 BitIndex = bitIndex;
+                OpenStateBitValue = openStateBitValue;
 
                 PrimaryState = primary;
                 SecondaryState = secondary;
@@ -919,6 +1060,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             public byte LabelOctalDec { get; }
 
             public int BitIndex { get; }
+
+            public int OpenStateBitValue { get; }
 
             public DiscreteInputState PrimaryState { get; }
 
@@ -952,6 +1095,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             {
                 get => _result;
                 set => SetProperty(ref _result, value);
+            }
+
+            public string PrimaryActualResult
+            {
+                get => _primaryActualResult;
+                private set => SetProperty(ref _primaryActualResult, value);
+            }
+
+            public string PrimaryResult
+            {
+                get => _primaryResult;
+                private set => SetProperty(ref _primaryResult, value);
+            }
+
+            public string SecondaryActualResult
+            {
+                get => _secondaryActualResult;
+                private set => SetProperty(ref _secondaryActualResult, value);
+            }
+
+            public string SecondaryResult
+            {
+                get => _secondaryResult;
+                private set => SetProperty(ref _secondaryResult, value);
             }
 
             public DelegateCommand MeasureCommand { get; }
@@ -1009,19 +1176,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                     if (token == default)
                         token = _owner._cts?.Token ?? CancellationToken.None;
 
-                    var settleDelayMs = _owner.GetItemMeasureSettleDelayMs(this);
-                    if (settleDelayMs > 0)
-                    {
-                        _owner.AddLog($"[{DateTime.Now:HH:mm:ss}] 采集等待：{Pins} {(stateTag ?? string.Empty)} 延时{settleDelayMs}ms后开始读取429");
-                        await Task.Delay(settleDelayMs, token).ConfigureAwait(false);
-                    }
-
                     var bit = await _owner.ReadArincBitAsync(BitIndex, LabelOctalDec, token).ConfigureAwait(false);
                     int expectedBit;
                     if (string.Equals(ExpectedResult, "开路", StringComparison.OrdinalIgnoreCase))
-                        expectedBit = 0;
+                        expectedBit = OpenStateBitValue;
                     else
-                        expectedBit = 1;
+                        expectedBit = OpenStateBitValue == 0 ? 1 : 0;
                     string resultText;
                     if (!bit.HasValue)
                         resultText = "FAIL";
@@ -1032,6 +1192,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                     {
                         ActualResult = bit.HasValue ? bit.Value.ToString() : "--";
                         Result = resultText;
+                        
+                        // Save to primary or secondary based on current state
+                        if (CurrentState == PrimaryState)
+                        {
+                            PrimaryActualResult = bit.HasValue ? bit.Value.ToString() : "--";
+                            PrimaryResult = resultText;
+                        }
+                        else if (CurrentState == SecondaryState)
+                        {
+                            SecondaryActualResult = bit.HasValue ? bit.Value.ToString() : "--";
+                            SecondaryResult = resultText;
+                        }
                     });
 
                     _owner.AddLog($"[{DateTime.Now:HH:mm:ss}] 通讯采集：{Pins}({DoChannel}) {(stateTag ?? "")} 配置={ExpectedResult} bit{BitIndex}={(bit.HasValue ? bit.Value.ToString() : "--")} 期望={expectedBit} 结果={resultText}");

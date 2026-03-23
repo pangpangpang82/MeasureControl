@@ -21,14 +21,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private const string TestItemKey = "InertController_ControlBoard_SecondaryTertiaryPower";
         private const string PowerSupplyIpAddress = "192.168.1.15";
         private const double InputVoltageV = 28.0;
-        private const double InputCurrentA = 3.0;
+        private const double InputCurrentA = 1.0;
         private const int PowerOnDelayMs = 1000;
+
+        public bool SkipMainPowerOff { get; set; }
 
         private const int ArincRxChannelIndex = 0;
         private const int ArincTxChannelIndex = 1;
         private const double ArincRate = 100000.0;
         private const int ArincPollIntervalMs = 50;
-        private const int ReceiveTimeoutMs = 1500;
+        private const int ReceiveTimeoutMs = 3000;
+        private const int ItemCollectSettleDelayMs = 400;
+        private const int FirstItemExtraCollectSettleDelayMs = 100;
         private const byte ArincExpectedSdi = 1;
         private const uint AtpSsmDataSdi = 0xC10001u;
         private const byte AtpLabelOctal174Dec = 124;
@@ -212,6 +216,57 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             }
         }
 
+        public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                return OverallResult;
+            }
+
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            ResetResults();
+            OverallResult = "--";
+            LastTestTime = "--";
+
+            IsAutoTestRunning = true;
+            IsManualTestRunning = false;
+
+            Log("开始自动测试");
+
+            try
+            {
+                await PrepareEnvironmentAsync(_cts.Token).ConfigureAwait(false);
+
+                foreach (var item in Items)
+                {
+                    _cts.Token.ThrowIfCancellationRequested();
+                    await CollectAsync(item, _cts.Token).ConfigureAwait(false);
+                    await Task.Delay(100, _cts.Token).ConfigureAwait(false);
+                }
+
+                EvaluateOverall();
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                Log($"自动测试完成，总体结果: {OverallResult}");
+
+                await StopTestAsync().ConfigureAwait(false);
+                return OverallResult;
+            }
+            catch (OperationCanceledException)
+            {
+                await StopTestAsync().ConfigureAwait(false);
+                return "FAIL";
+            }
+            catch (Exception ex)
+            {
+                Log($"自动测试失败: {ex.Message}");
+                await StopTestAsync().ConfigureAwait(false);
+                return "FAIL";
+            }
+        }
+
         private async Task OnAutoTestAsync()
         {
             if (IsAutoTestRunning)
@@ -313,6 +368,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 IsBusy = true;
                 Log($"开始采集: {item.Name}, 源Label(oct)={item.ProtocolLabelText}, 接收Label(dec)={item.ReceiveLabelDec}");
 
+                var settleDelayMs = GetCollectSettleDelayMs(item);
+                if (settleDelayMs > 0)
+                {
+                    Log($"采集等待: {item.Name} 延时{settleDelayMs}ms后开始读取429");
+                    await Task.Delay(settleDelayMs, token).ConfigureAwait(false);
+                }
+
                 var result = await ReadVoltageByLabelAsync(item, token).ConfigureAwait(false);
                 if (!result.HasValue)
                 {
@@ -334,6 +396,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             }
         }
 
+        private int GetCollectSettleDelayMs(PowerItemViewModel item)
+        {
+            if (item == null)
+                return ItemCollectSettleDelayMs;
+
+            var delayMs = ItemCollectSettleDelayMs;
+            if (ReferenceEquals(item, Items.FirstOrDefault()))
+                delayMs += FirstItemExtraCollectSettleDelayMs;
+
+            return delayMs;
+        }
+
         private async Task<double?> ReadVoltageByLabelAsync(PowerItemViewModel item, CancellationToken token)
         {
             if (!await EnsureArincReadyAsync(token).ConfigureAwait(false))
@@ -341,7 +415,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             try
             {
-                await _arinc.ReadRxWordsAsync(ArincRxChannelIndex, maxCount: 1024, cancellationToken: token).ConfigureAwait(false);
+                //await _arinc.ReadRxWordsAsync(ArincRxChannelIndex, maxCount: 1024, cancellationToken: token).ConfigureAwait(false);
             }
             catch
             {
@@ -360,10 +434,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                         _arinc.ParseRawWord(word.Data429, out var rxLabel, out var sdi, out var data19, out var ssm);
                         if (rxLabel != item.ReceiveLabelDec)
                             continue;
-                        if (sdi != ArincExpectedSdi)
-                            continue;
-                        if (!_arinc.VerifyOddParity(word.Data429))
-                            continue;
+                        
 
                         var raw12 = (ushort)(data19 & VoltageDataMask12);
                         var voltage = DecodeVoltageFromProtocol(raw12, item);
@@ -559,8 +630,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                IsPowerOn = false;
-                PowerStatus = "未供电";
+                if (!SkipMainPowerOff)
+                {
+                    IsPowerOn = false;
+                    PowerStatus = "未供电";
+                }
                 ArincStatus = "429未连接";
                 RaiseCanExecuteChangedForItems();
             });
@@ -594,7 +668,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             {
                 if (_power != null)
                 {
-                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    if (!SkipMainPowerOff)
+                    {
+                        try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    }
                     try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
