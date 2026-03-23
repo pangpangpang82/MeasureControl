@@ -64,6 +64,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private readonly SemaphoreSlim _relayLock = new SemaphoreSlim(1, 1);
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
+        private readonly IHydraulicPowerService _hydraulicPowerService;
 
         private CancellationTokenSource _manualCts;
         private CancellationTokenSource _autoCts;
@@ -139,10 +140,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private static readonly QuantityPoint MidPoint = new QuantityPoint("(28,32)%", 30.0, 28.0, 32.0);
         private static readonly QuantityPoint HighPoint = new QuantityPoint("(98,100)%", 99.0, 98.0, 100.0);
 
-        public HC_6_6ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext)
+        public HC_6_6ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IHydraulicPowerService hydraulicPowerService)
         {
             _pxiChassisService = pxiChassisService;
             _singleBoardTestContext = singleBoardTestContext;
+            _hydraulicPowerService = hydraulicPowerService;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
@@ -1324,11 +1326,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
         {
-            _power ??= new PowerSupplySocketApi();
-            if (!_power.IsConnected)
-                await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
-            await _power.ApplyAsync(PowerSupplyChannel.CH1, InputVoltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
+            if (_hydraulicPowerService.IsHydraulicPowered) return;
+            await _hydraulicPowerService.PowerOnAsync(cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 
@@ -1668,7 +1667,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (_power == null)
                 return;
 
-            try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
             try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
             _power = null;
         }
