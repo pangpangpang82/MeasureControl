@@ -87,7 +87,7 @@ namespace MeasureControl.Services.HardwareApis
         private const string ThresholdComPort = "COM40";  // DI 阈值设置串口 加放油
         private const int ThresholdBaudRate = 115200;
 
-        private const string RelayComPort = "COM30";      // 外部485继电器/电源控制串口
+        private const string RelayComPort = "COM35";      // 外部485继电器/电源控制串口
         private const int RelayBaudRate = 9600;
         private const byte RelaySlaveAddress = 1;
         private const ushort RelayStartCoilAddress = 0;

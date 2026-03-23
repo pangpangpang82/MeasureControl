@@ -51,7 +51,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         // 采样参数
         private const int SamplesPerMeasure = 1;      // 每路采集 3 帧取平均
         private const int SampleTimeoutMs = 3000;     // 采样超时 5 秒
-        private const int AoSettleMs = 500;            // 模拟量输出稳定等待时间
+        private const int AoSettleMs = 800;            // 模拟量输出稳定等待时间
         private const int Mtx532ReadyTimeoutMs = 6000;
         private const int Mtx532ReadyPollMs = 200;
         private const int PostSwitchRxFlushMs = 120;
@@ -706,6 +706,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _p1Sys2 = null;
             _p1Sys3 = null;
             CanMeasure = false;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
             var ok = await MeasurePointAllSystemsAsync("0.5V", Point1VoltageV,
                 setSys1: t => PressurePoint1Sys1Text = t,
                 setSys2: t => PressurePoint1Sys2Text = t,
@@ -730,6 +731,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _p2Sys2 = null;
             _p2Sys3 = null;
             CanMeasure = false;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
             var ok = await MeasurePointAllSystemsAsync("7.17V", Point2VoltageV,
                 setSys1: t => PressurePoint2Sys1Text = t,
                 setSys2: t => PressurePoint2Sys2Text = t,
@@ -754,6 +756,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _p3Sys2 = null;
             _p3Sys3 = null;
             CanMeasure = false;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
             var ok = await MeasurePointAllSystemsAsync("3.0V", Point3VoltageV,
                 setSys1: t => PressurePoint3Sys1Text = t,
                 setSys2: t => PressurePoint3Sys2Text = t,
@@ -782,6 +785,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             CustomPressureSys2Text = "--";
             CustomPressureSys3Text = "--";
             CanMeasure = false;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
             var ok = await MeasurePointAllSystemsAsync($"自定义点({voltage:0.##}V)", voltage,
                 setSys1: t => CustomPressureSys1Text = t,
                 setSys2: t => CustomPressureSys2Text = t,
@@ -1266,8 +1270,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
         {
-            if (_hydraulicPowerService.IsHydraulicPowered) return;
-            await _hydraulicPowerService.PowerOnAsync(cancellationToken).ConfigureAwait(false);
+            if (!_hydraulicPowerService.IsHydraulicPowered)
+            {
+                await _hydraulicPowerService.PowerOnAsync(cancellationToken).ConfigureAwait(false);
+            }
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 

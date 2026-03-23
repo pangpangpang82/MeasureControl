@@ -681,8 +681,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _measuredExc2 = true;
 
             // 激励测量完成后启动 LVDT，供油量档位测量使用
-            await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);            
-            await ApplyQuantityOutputsAsync(0.0, cancellationToken).ConfigureAwait(false);            
+            await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
 
             _passedLow = await MeasureQuantityPointAsync(LowPoint, (sdi, text) =>
             {
@@ -1326,8 +1325,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
         {
-            if (_hydraulicPowerService.IsHydraulicPowered) return;
-            await _hydraulicPowerService.PowerOnAsync(cancellationToken).ConfigureAwait(false);
+            if (!_hydraulicPowerService.IsHydraulicPowered)
+            {
+                await _hydraulicPowerService.PowerOnAsync(cancellationToken).ConfigureAwait(false);
+            }
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 

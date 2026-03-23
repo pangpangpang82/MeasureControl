@@ -838,12 +838,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
         {
-            if (_hydraulicPowerService.IsHydraulicPowered)
+            if (!_hydraulicPowerService.IsHydraulicPowered)
             {
-                await _hydraulicPowerService.PowerOffAsync(cancellationToken).ConfigureAwait(false);
-                await Task.Delay(PowerSettleDelayMs, cancellationToken).ConfigureAwait(false);
+                await _hydraulicPowerService.PowerOnAsync(cancellationToken).ConfigureAwait(false);
             }
-            await _hydraulicPowerService.PowerOnAsync(cancellationToken).ConfigureAwait(false);
             await Task.Delay(PowerSettleDelayMs, cancellationToken).ConfigureAwait(false);
         }
 
