@@ -683,19 +683,6 @@
                                         </Image.Style>
                                     </Image>
                                 </Button>
-                                <Button
-                                    Width="30"
-                                    Height="25"
-                                    Margin="10,0,0,0"
-                                    Command="{Binding SelfInspectionCommand}"
-                                    Style="{StaticResource ToolButtonStyle}"
-                                    ToolTip="自检">
-                                    <Image
-                                        Width="20"
-                                        Height="20"
-                                        Source="/Resources/Logo/si.png"
-                                        Stretch="Uniform" />
-                                </Button>
                             </StackPanel>
                             <TextBlock
                                 Grid.Column="1"
@@ -710,7 +697,7 @@
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsHydraulicPowered}" Value="True">
                                                 <Setter Property="Text" Value="组件已上电28V" />
-                                                <Setter Property="Foreground" Value="#00cc66" />
+                                                <Setter Property="Foreground" Value="#FF0AA242" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>

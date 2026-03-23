@@ -51,7 +51,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         // 采样参数
         private const int SamplesPerMeasure = 1;      // 每路采集 3 帧取平均
         private const int SampleTimeoutMs = 3000;     // 采样超时 5 秒
-        private const int AoSettleMs = 500;            // 模拟量输出稳定等待时间
+        private const int AoSettleMs = 800;            // 模拟量输出稳定等待时间
         private const int Mtx532ReadyTimeoutMs = 6000;
         private const int Mtx532ReadyPollMs = 200;
         private const int PostSwitchRxFlushMs = 120;
@@ -1266,8 +1266,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
         {
-            if (_hydraulicPowerService.IsHydraulicPowered) return;
-            await _hydraulicPowerService.PowerOnAsync(cancellationToken).ConfigureAwait(false);
+            if (!_hydraulicPowerService.IsHydraulicPowered)
+            {
+                await _hydraulicPowerService.PowerOnAsync(cancellationToken).ConfigureAwait(false);
+            }
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 
