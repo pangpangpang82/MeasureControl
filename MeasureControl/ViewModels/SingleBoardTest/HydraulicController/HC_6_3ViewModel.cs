@@ -42,9 +42,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         // 温度数据定义与采样参数
         private const byte TempLabelDec = 125; // 175(oct)
-        private const int SamplesPerMeasure = 1;
+        private const int SamplesPerMeasure = 3;
         private const int SampleTimeoutMs = 3000;
         private const int ResistanceSettleMs = 400;
+        private const int TemperatureSettleMs = 1000;
 
         // 三个测试点对应的“模拟电阻值”（由程控电阻箱输出到 PT500 模拟通道）
         private const double R1_Ohm = 763.3;
@@ -931,7 +932,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 Log($"{title}: 设置程控电阻 RO0/RO1={resistanceOhm:0.###}Ω");
                 await SetResistanceAsync(resistanceOhm, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(ResistanceSettleMs, cancellationToken).ConfigureAwait(false);
-                _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await DrainArincBufferAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TemperatureSettleMs, cancellationToken).ConfigureAwait(false);
 
                 var samplesA = new List<double>(SamplesPerMeasure);
                 var samplesB = new List<double>(SamplesPerMeasure);
@@ -1043,6 +1045,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// <summary>
         /// 判断当前 ARINC429 Label 是否为温度 Label（兼容字节序反转）
         /// </summary>
+        private async Task DrainArincBufferAsync(CancellationToken cancellationToken)
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                var batch = await _arinc.ReadRxWordsAsync(
+                    RxChannelIndex, maxCount: 4096,
+                    enableTimeTag: false, enableRateAdaption: false,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (batch.Count == 0)
+                    break;
+            }
+        }
+
         private bool IsExpectedLabel(byte label)
         {
             return _arinc.ReverseLabel(label) == TempLabelDec;
