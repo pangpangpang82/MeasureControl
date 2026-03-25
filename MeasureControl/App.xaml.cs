@@ -147,28 +147,93 @@ namespace MeasureControl
                     cps,
                     pxi);
             });
-            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.ControlBoardDiscreteInputModuleTestViewModel>();
-            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.DiscreteOutputModuleTestViewModel>();
-            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.TemperatureSensorSignalAcquisitionTestViewModel>();
-            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.PressureSensorSignalAcquisitionTestViewModel>();
-            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.OxygenSensorSignalAcquisitionTestViewModel>();
-            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.SecondaryTertiaryPowerTestViewModel>();
-            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.PowerMonitorTestViewModel>();
-            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.TcvMotorDriveTestViewModel>(provider =>
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.ControlBoardDiscreteInputModuleTestViewModel>(provider =>
+            {
+                var ea = provider.Resolve<Prism.Events.IEventAggregator>();
+                var cps = provider.Resolve<IComponentPowerStateApi>();
+                return new MeasureControl.ViewModels.SingleBoardTest.InertController.ControlBoardDiscreteInputModuleTestViewModel(ea, cps);
+            });
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.DiscreteOutputModuleTestViewModel>(provider =>
             {
                 var ctx = provider.Resolve<ISingleBoardTestContextService>();
                 var proj = provider.Resolve<ProjectService>();
                 var ea = provider.Resolve<Prism.Events.IEventAggregator>();
                 var dmm = provider.Resolve<IDmmApi>();
-
-                return new MeasureControl.ViewModels.SingleBoardTest.InertController.TcvMotorDriveTestViewModel(
-                    ctx,
-                    proj,
-                    ea
-                   );
+                var cps = provider.Resolve<IComponentPowerStateApi>();
+                return new MeasureControl.ViewModels.SingleBoardTest.InertController.DiscreteOutputModuleTestViewModel(ctx, proj, ea, dmm, cps);
             });
-            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.OverTemperatureCutoffTestViewModel>();
-            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.LatchModuleCircuitTestViewModel>();
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.TemperatureSensorSignalAcquisitionTestViewModel>(provider =>
+            {
+                var ctx = provider.Resolve<ISingleBoardTestContextService>();
+                var ea = provider.Resolve<Prism.Events.IEventAggregator>();
+                var cps = provider.Resolve<IComponentPowerStateApi>();
+                return new MeasureControl.ViewModels.SingleBoardTest.InertController.TemperatureSensorSignalAcquisitionTestViewModel(ctx, ea, cps);
+            });
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.PressureSensorSignalAcquisitionTestViewModel>(provider =>
+            {
+                var ctx = provider.Resolve<ISingleBoardTestContextService>();
+                var ea = provider.Resolve<Prism.Events.IEventAggregator>();
+                var cps = provider.Resolve<IComponentPowerStateApi>();
+                return new MeasureControl.ViewModels.SingleBoardTest.InertController.PressureSensorSignalAcquisitionTestViewModel(ctx, ea, cps);
+            });
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.OxygenSensorSignalAcquisitionTestViewModel>(provider =>
+            {
+                var ctx = provider.Resolve<ISingleBoardTestContextService>();
+                var ea = provider.Resolve<Prism.Events.IEventAggregator>();
+                var cps = provider.Resolve<IComponentPowerStateApi>();
+                return new MeasureControl.ViewModels.SingleBoardTest.InertController.OxygenSensorSignalAcquisitionTestViewModel(ctx, ea, cps);
+            });
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.SecondaryTertiaryPowerTestViewModel>(provider =>
+            {
+                var ctx = provider.Resolve<ISingleBoardTestContextService>();
+                var proj = provider.Resolve<ProjectService>();
+                var ea = provider.Resolve<Prism.Events.IEventAggregator>();
+                var dmm = provider.Resolve<IDmmApi>();
+                var cps = provider.Resolve<IComponentPowerStateApi>();
+                return new MeasureControl.ViewModels.SingleBoardTest.InertController.SecondaryTertiaryPowerTestViewModel(ctx, proj, ea, dmm, cps);
+            });
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.PowerMonitorTestViewModel>(provider =>
+            {
+                var ctx = provider.Resolve<ISingleBoardTestContextService>();
+                var proj = provider.Resolve<ProjectService>();
+                var ea = provider.Resolve<Prism.Events.IEventAggregator>();
+                var dmm = provider.Resolve<IDmmApi>();
+                var cps = provider.Resolve<IComponentPowerStateApi>();
+                return new MeasureControl.ViewModels.SingleBoardTest.InertController.PowerMonitorTestViewModel(ctx, proj, ea, dmm, cps);
+            });
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.TcvMotorDriveTestViewModel>(provider =>
+            {
+                var ctx = provider.Resolve<ISingleBoardTestContextService>();
+                var proj = provider.Resolve<ProjectService>();
+                var ea = provider.Resolve<Prism.Events.IEventAggregator>();
+                var cps = provider.Resolve<IComponentPowerStateApi>();
+                return new MeasureControl.ViewModels.SingleBoardTest.InertController.TcvMotorDriveTestViewModel(ctx, proj, ea, cps);
+            });
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.OverTemperatureCutoffTestViewModel>(provider =>
+            {
+                var ctx = provider.Resolve<ISingleBoardTestContextService>();
+                var proj = provider.Resolve<ProjectService>();
+                var ea = provider.Resolve<Prism.Events.IEventAggregator>();
+                var dmm = provider.Resolve<IDmmApi>();
+                var pxi = provider.Resolve<IPxiChassisService>();
+                var cps = provider.Resolve<IComponentPowerStateApi>();
+                return new MeasureControl.ViewModels.SingleBoardTest.InertController.OverTemperatureCutoffTestViewModel(ctx, proj, ea, dmm, pxi, cps);
+            });
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.LatchModuleCircuitTestViewModel>(provider =>
+            {
+                var pxi = provider.Resolve<IPxiChassisService>();
+                var cps = provider.Resolve<IComponentPowerStateApi>();
+                return new MeasureControl.ViewModels.SingleBoardTest.InertController.LatchModuleCircuitTestViewModel(pxi, cps);
+            });
+            containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.ControlBoardSecondaryTertiaryPowerTestViewModel>(provider =>
+            {
+                var ctx = provider.Resolve<ISingleBoardTestContextService>();
+                var proj = provider.Resolve<ProjectService>();
+                var ea = provider.Resolve<Prism.Events.IEventAggregator>();
+                var pxi = provider.Resolve<IPxiChassisService>();
+                var cps = provider.Resolve<IComponentPowerStateApi>();
+                return new MeasureControl.ViewModels.SingleBoardTest.InertController.ControlBoardSecondaryTertiaryPowerTestViewModel(ctx, proj, ea, pxi, cps);
+            });
             containerRegistry.Register<A_C_8_1ViewModel>();
             containerRegistry.Register<A_C_7_1ViewModel>();
             // 注册导航页面

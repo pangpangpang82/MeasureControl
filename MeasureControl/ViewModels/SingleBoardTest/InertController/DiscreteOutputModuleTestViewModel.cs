@@ -67,6 +67,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private readonly ProjectService _projectService;
         private readonly IEventAggregator _eventAggregator;
         private readonly IDmmApi _dmm;
+        private readonly IComponentPowerStateApi _componentPowerStateApi;
 
         private readonly SemaphoreSlim _opLock = new SemaphoreSlim(1, 1);
         private CancellationTokenSource _opCts;
@@ -94,12 +95,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             ISingleBoardTestContextService singleBoardTestContext,
             ProjectService projectService,
             IEventAggregator eventAggregator,
-            IDmmApi dmm)
+            IDmmApi dmm,
+            IComponentPowerStateApi componentPowerStateApi = null)
         {
             _singleBoardTestContext = singleBoardTestContext;
             _projectService = projectService;
             _eventAggregator = eventAggregator;
             _dmm = dmm;
+            _componentPowerStateApi = componentPowerStateApi;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
@@ -189,6 +192,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             if (IsManualTestRunning)
             {
                 await StopTestAsync().ConfigureAwait(false);
+                return;
+            }
+
+            // 检查是否已总上电
+            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (_hps == null || !_hps.IsHydraulicPowered)
+            {
+                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -295,6 +306,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             if (IsAutoTestRunning)
             {
                 await StopTestAsync().ConfigureAwait(false);
+                return;
+            }
+
+            // 检查是否已总上电
+            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (_hps == null || !_hps.IsHydraulicPowered)
+            {
+                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -542,12 +561,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task EnsurePowerAsync(double voltageV, CancellationToken token)
         {
+            // 192.168.1.15 CH1 不再由本测试控制上电，由总上电统一管理
+            // 仍需连接电源以便控制CH2
             _power ??= new PowerSupplySocketApi();
             if (!_power.IsConnected)
                 await _power.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
 
-            await _power.ApplyAsync(PowerSupplyChannel.CH1, voltageV, InputCurrentA, token).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token).ConfigureAwait(false);
             await _power.ApplyAsync(PowerSupplyChannel.CH2, InputVoltageCh2V, InputCurrentCh2A, token).ConfigureAwait(false);
             await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, true, token).ConfigureAwait(false);
 
@@ -571,10 +590,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                     if (!_power.IsConnected)
                         await _power.ConnectAsync(PowerSupplyIpAddress, cts.Token).ConfigureAwait(false);
 
-                    if (!SkipMainPowerOff)
-                    {
-                        await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, cts.Token).ConfigureAwait(false);
-                    }
+                    // 192.168.1.15 CH1 不再由本测试控制下电
                     await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, false, cts.Token).ConfigureAwait(false);
                     await Task.Delay(100, cts.Token).ConfigureAwait(false);
                     await _power.DisconnectAsync(cts.Token).ConfigureAwait(false);

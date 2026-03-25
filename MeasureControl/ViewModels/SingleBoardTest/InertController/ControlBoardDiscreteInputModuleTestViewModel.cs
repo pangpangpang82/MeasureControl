@@ -56,6 +56,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private CancellationTokenSource _cts;
 
         private readonly IEventAggregator _eventAggregator;
+        private readonly IComponentPowerStateApi _componentPowerStateApi;
 
         private IPowerSupplyApi _power;
         private IJy7131Api _jy7131;
@@ -72,9 +73,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private string _lastTestResult = "--";
         private string _overallResult = "--";
 
-        public ControlBoardDiscreteInputModuleTestViewModel(IEventAggregator eventAggregator)
+        public ControlBoardDiscreteInputModuleTestViewModel(IEventAggregator eventAggregator, IComponentPowerStateApi componentPowerStateApi = null)
         {
             _eventAggregator = eventAggregator;
+            _componentPowerStateApi = componentPowerStateApi;
 
             ManualTestCommand = new DelegateCommand(OnManualTest);
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
@@ -159,6 +161,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             if (IsManualTestRunning)
             {
                 _ = StopAsync();
+                return;
+            }
+
+            // 检查是否已总上电
+            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (_hps == null || !_hps.IsHydraulicPowered)
+            {
+                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -335,6 +345,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task OnAutoTestAsync()
         {
+            // 检查是否已总上电
+            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (_hps == null || !_hps.IsHydraulicPowered)
+            {
+                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             await _opLock.WaitAsync();
             try
             {
@@ -470,13 +488,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task EnsurePowerAsync(CancellationToken token)
         {
-            _power ??= new PowerSupplySocketApi();
-            if (!_power.IsConnected)
-                await _power.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
-
-            await _power.ApplyAsync(PowerSupplyChannel.CH1, InputVoltageV, InputCurrentA, token).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token).ConfigureAwait(false);
-            await Task.Delay(200, token).ConfigureAwait(false);
+            // 192.168.1.15 CH1 不再由本测试控制上电，由总上电统一管理
+            await Task.Delay(100, token).ConfigureAwait(false);
 
             Application.Current?.Dispatcher?.Invoke(() =>
             {
@@ -487,6 +500,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task DisablePowerAsync(CancellationToken token)
         {
+            // 192.168.1.15 CH1 不再由本测试控制下电
             try
             {
                 if (_power == null)
@@ -495,10 +509,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 if (!_power.IsConnected)
                     await _power.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
 
-                if (!SkipMainPowerOff)
-                {
-                    await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, token).ConfigureAwait(false);
-                }
                 await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, false, token).ConfigureAwait(false);
                 await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH3, false, token).ConfigureAwait(false);
                 await Task.Delay(200, token).ConfigureAwait(false);
@@ -510,11 +520,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             {
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    if (!SkipMainPowerOff)
-                    {
-                        IsPowerOn = false;
-                        PowerStatus = "未供电";
-                    }
+                    IsPowerOn = false;
+                    PowerStatus = "未就绪";
                 });
             }
         }

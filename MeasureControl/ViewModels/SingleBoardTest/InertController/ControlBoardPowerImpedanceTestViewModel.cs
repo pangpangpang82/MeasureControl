@@ -15,6 +15,7 @@ using MeasureControl.Models;
 using MeasureControl.Models.Devices;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
+using Prism.Ioc;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 {
@@ -767,11 +768,42 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             {
                 Log($"继电器24V下电异常: {ex.Message}");
             }
+            finally
+            {
+                // 断开并释放连接，确保下次测试能建立新连接
+                try
+                {
+                    if (_relayPowerSupply != null)
+                    {
+                        try { await _relayPowerSupply.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                        try { await _relayPowerSupply.DisposeAsync().ConfigureAwait(false); } catch { }
+                    }
+                }
+                catch { }
+                _relayPowerSupply = null;
+            }
         }
 
         private async Task EnsureComponentDownAsync(CancellationToken token)
         {
             bool componentDownOk = false;
+
+            // 测阻抗前先关闭192.168.1.15 CH1，防止上电测阻抗
+            try
+            {
+                Log("正在关闭192.168.1.15 CH1...");
+                await using var tempPower = new PowerSupplySocketApi();
+                await tempPower.ConnectAsync("192.168.1.15", token).ConfigureAwait(false);
+                await tempPower.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, token).ConfigureAwait(false);
+                await tempPower.DisconnectAsync(token).ConfigureAwait(false);
+                Log("192.168.1.15 CH1 已关闭");
+                // 同步更新左上角上电状态
+                try { Prism.Ioc.ContainerLocator.Container.Resolve<IHydraulicPowerService>()?.SetPoweredState(false); } catch { }
+            }
+            catch (Exception ex)
+            {
+                Log($"关闭192.168.1.15 CH1异常: {ex.Message}");
+            }
 
             if (_componentPowerStateApi != null)
             {

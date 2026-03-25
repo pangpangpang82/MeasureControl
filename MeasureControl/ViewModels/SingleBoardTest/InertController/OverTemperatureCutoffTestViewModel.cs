@@ -6,6 +6,7 @@ using MeasureControl.Services.HardwareApis;
 using MeasureControl.Drivers;
 using Prism.Commands;
 using Prism.Events;
+using Prism.Ioc;
 using Prism.Mvvm;
 using System;
 using System.Collections.Generic;
@@ -43,6 +44,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private readonly IEventAggregator _eventAggregator;
         private readonly IDmmApi _dmm;
         private readonly IPxiChassisService _pxiChassisService;
+        private readonly IComponentPowerStateApi _componentPowerStateApi;
 
         private IPowerSupplyApi _power;
         private IPxi7012Api _resistor;
@@ -51,15 +53,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private TcpClient _fpgaClient;
         private NetworkStream _fpgaStream;
-        private CancellationTokenSource _fpgaRxCts;
-        private Task _fpgaRxTask;
 
         private readonly SemaphoreSlim _fpgaSendLock = new SemaphoreSlim(1, 1);
-        private TaskCompletionSource<uint> _fpgaForceReadTcs;
 
         private uint? _lastFpgaGpioInput;
         private DateTime? _lastFpgaGpioInputTime;
-        private volatile bool _isFpgaCaptureEnabled;
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _resistorLock = new SemaphoreSlim(1, 1);
@@ -85,13 +83,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             ProjectService projectService,
             IEventAggregator eventAggregator,
             IDmmApi dmm,
-            IPxiChassisService pxiChassisService)
+            IPxiChassisService pxiChassisService,
+            IComponentPowerStateApi componentPowerStateApi = null)
         {
             _singleBoardTestContext = singleBoardTestContext;
             _projectService = projectService;
             _eventAggregator = eventAggregator;
             _dmm = dmm;
             _pxiChassisService = pxiChassisService;
+            _componentPowerStateApi = componentPowerStateApi;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
@@ -149,30 +149,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 return;
             }
 
-            await EnsureFpgaTcpConnectedAsync(token).ConfigureAwait(false);
-
-            TaskCompletionSource<uint> tcs;
-            lock (this)
-            {
-                _fpgaForceReadTcs = new TaskCompletionSource<uint>(TaskCreationOptions.RunContinuationsAsynchronously);
-                tcs = _fpgaForceReadTcs;
-            }
-
             try
             {
+                await EnsureFpgaTcpConnectedAsync(token).ConfigureAwait(false);
+
                 await SendFpgaFrameAsync(0x0A, new byte[] { 0x00 }, token).ConfigureAwait(false);
                 Log("[FPGA TX] Force Read: AA 55 02 0A 00");
 
-                var completed = await Task.WhenAny(tcs.Task, Task.Delay(2000, token)).ConfigureAwait(false);
-                if (completed != tcs.Task)
-                {
-                    token.ThrowIfCancellationRequested();
-                    check.UpdateMeasurement(null, "未接收", "FAIL", measured: true);
-                    Log("等待FPGA强制读取回包超时(2000ms)");
-                    return;
-                }
-
-                var gpio = await tcs.Task.ConfigureAwait(false);
+                var gpio = await ReadFpgaGpioInputOnceAsync(2000, token, acceptCmd: 0x0A).ConfigureAwait(false);
                 var isHigh = GetIo43To64Bit(gpio, bitIndex.Value);
 
                 var valueText = isHigh ? "高电平" : "低电平";
@@ -183,13 +167,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 var ts = _lastFpgaGpioInputTime?.ToString("HH:mm:ss", CultureInfo.InvariantCulture) ?? "--";
                 Log($"FPGA IO读取: {check.Pin}=IO{ioNumber}(bit{bitIndex.Value}) => {valueText} => {(pass ? "PASS" : "FAIL")}, 数据时间={ts}");
             }
+            catch (TimeoutException ex)
+            {
+                check.UpdateMeasurement(null, "未接收", "FAIL", measured: true);
+                Log(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                check.UpdateMeasurement(null, "异常", "FAIL", measured: true);
+                Log($"FPGA采集异常: {ex.Message}");
+            }
             finally
             {
-                lock (this)
-                {
-                    if (ReferenceEquals(_fpgaForceReadTcs, tcs))
-                        _fpgaForceReadTcs = null;
-                }
+                try { await DisconnectFpgaTcpAsync().ConfigureAwait(false); } catch { }
             }
         }
 
@@ -325,6 +315,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 return;
             }
 
+            // 检查是否已总上电
+            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (_hps == null || !_hps.IsHydraulicPowered)
+            {
+                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             if (IsAutoTestRunning)
             {
                 await StopTestAsync().ConfigureAwait(false);
@@ -337,7 +335,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             ResetResults();
             OverallResult = "--";
             LastTestTime = "--";
-            _isFpgaCaptureEnabled = false;
             LastFpgaGpioInput = null;
             _lastFpgaGpioInputTime = null;
 
@@ -348,8 +345,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             try
             {
-                await EnsureFpgaTcpConnectedAsync(_cts.Token).ConfigureAwait(false);
-
                 Log($"电源: CH1 28V 1A, IP={PowerSupplyIpAddress}");
                 await EnsurePowerAsync(28.0, _cts.Token).ConfigureAwait(false);
                 IsPowerOn = true;
@@ -374,6 +369,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 return;
             }
 
+            // 检查是否已总上电
+            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (_hps == null || !_hps.IsHydraulicPowered)
+            {
+                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             var elapsed = (DateTime.Now - _lastAutoTestEndTime).TotalMilliseconds;
             if (elapsed < 1000)
             {
@@ -393,7 +396,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             ResetResults();
             OverallResult = "--";
             LastTestTime = "--";
-            _isFpgaCaptureEnabled = false;
             LastFpgaGpioInput = null;
             _lastFpgaGpioInputTime = null;
 
@@ -404,8 +406,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             try
             {
-                await EnsureFpgaTcpConnectedAsync(_cts.Token).ConfigureAwait(false);
-
                 Log($"电源: CH1 28V 1A, IP={PowerSupplyIpAddress}");
                 await EnsurePowerAsync(28.0, _cts.Token).ConfigureAwait(false);
                 IsPowerOn = true;
@@ -465,7 +465,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             ResetResults();
             OverallResult = "--";
             LastTestTime = "--";
-            _isFpgaCaptureEnabled = false;
             LastFpgaGpioInput = null;
             _lastFpgaGpioInputTime = null;
 
@@ -476,8 +475,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             try
             {
-                await EnsureFpgaTcpConnectedAsync(_cts.Token).ConfigureAwait(false);
-
                 Log($"电源: CH1 28V 1A, IP={PowerSupplyIpAddress}");
                 await EnsurePowerAsync(28.0, _cts.Token).ConfigureAwait(false);
                 IsPowerOn = true;
@@ -616,10 +613,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 Log($"电阻回读: {(r == null ? "--" : r.Value.ToString("0.###", CultureInfo.InvariantCulture))}Ω");
 
-                _isFpgaCaptureEnabled = true;
                 LastFpgaGpioInput = null;
                 _lastFpgaGpioInputTime = null;
-                Log("已启用FPGA数据保存(电阻输出后)");
             }
             catch (Exception ex)
             {
@@ -850,8 +845,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             IsManualTestRunning = false;
             IsAutoTestRunning = false;
             IsBusy = false;
-            _isFpgaCaptureEnabled = false;
-
             try
             {
                 await _dmm.DisconnectAsync(CancellationToken.None).ConfigureAwait(false);
@@ -924,11 +917,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task EnsurePowerAsync(double voltageV, CancellationToken cancellationToken)
         {
-            _power ??= new PowerSupplySocketApi();
-            await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
-            await _power.ApplyAsync(PowerSupplyChannel.CH1, voltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+            // 192.168.1.15 CH1 不再由本测试控制上电，由总上电统一管理
+            await Task.Delay(100, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task CleanupPowerAsync()
@@ -936,12 +926,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             var power = _power;
             _power = null;
 
+            // 192.168.1.15 CH1 不再由本测试控制下电
             if (power != null)
             {
-                if (!SkipMainPowerOff)
-                {
-                    try { await power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                }
                 try { await power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 try { await power.DisposeAsync().ConfigureAwait(false); } catch { }
             }
@@ -1103,6 +1090,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             try { CleanupResistorAsync().GetAwaiter().GetResult(); } catch { }
             try { CleanupDIDriverAsync().GetAwaiter().GetResult(); } catch { }
 
+            try { _fpgaSendLock?.Dispose(); } catch { }
             try { _measureLock?.Dispose(); } catch { }
             try { _resistorLock?.Dispose(); } catch { }
             try { _diLock?.Dispose(); } catch { }
@@ -1182,11 +1170,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 _fpgaClient = client;
                 _fpgaStream = _fpgaClient.GetStream();
 
-                _fpgaRxCts?.Cancel();
-                _fpgaRxCts?.Dispose();
-                _fpgaRxCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                _fpgaRxTask = Task.Run(() => FpgaReceiveLoopAsync(_fpgaRxCts.Token));
-
                 Log($"FPGA TCP连接成功: {FpgaServerIpAddress}:{FpgaServerPort}");
             }
             catch (Exception ex)
@@ -1201,37 +1184,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task DisconnectFpgaTcpAsync()
         {
-            try { _fpgaRxCts?.Cancel(); } catch { }
-
-            try
-            {
-                if (_fpgaRxTask != null)
-                {
-                    await Task.WhenAny(_fpgaRxTask, Task.Delay(300)).ConfigureAwait(false);
-                }
-            }
-            catch
-            {
-            }
-
             try { _fpgaStream?.Close(); } catch { }
             try { _fpgaClient?.Close(); } catch { }
 
             _fpgaStream = null;
             _fpgaClient = null;
-
-            try { _fpgaRxCts?.Dispose(); } catch { }
-            _fpgaRxCts = null;
-            _fpgaRxTask = null;
         }
 
-        private async Task<byte[]> ReadExactFpgaAsync(int count, CancellationToken token)
+        private async Task<byte[]> ReadExactFpgaAsync(int count, int timeoutMilliseconds, CancellationToken token)
         {
             var buf = new byte[count];
             var received = 0;
             while (received < count)
             {
-                var n = await _fpgaStream.ReadAsync(buf, received, count - received, token).ConfigureAwait(false);
+                var readTask = _fpgaStream.ReadAsync(buf, received, count - received, token);
+                var timeoutTask = Task.Delay(timeoutMilliseconds, token);
+                var completed = await Task.WhenAny(readTask, timeoutTask).ConfigureAwait(false);
+                if (completed != readTask)
+                {
+                    token.ThrowIfCancellationRequested();
+                    throw new TimeoutException($"FPGA接收超时({timeoutMilliseconds}ms)");
+                }
+
+                var n = await readTask.ConfigureAwait(false);
                 if (n == 0)
                     throw new InvalidOperationException("FPGA连接已断开(读取0字节)");
                 received += n;
@@ -1239,15 +1214,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             return buf;
         }
 
-        private async Task<(byte cmd, byte[] payload)> ReadFpgaFrameAsync(CancellationToken token)
+        private async Task<(byte cmd, byte[] payload)> ReadFpgaFrameAsync(int timeoutMilliseconds, CancellationToken token)
         {
-            var header = await ReadExactFpgaAsync(2, token).ConfigureAwait(false);
+            var header = await ReadExactFpgaAsync(2, timeoutMilliseconds, token).ConfigureAwait(false);
             if (header[0] != FpgaFrameHeader[0] || header[1] != FpgaFrameHeader[1])
                 throw new InvalidOperationException($"FPGA帧头校验失败: 0x{header[0]:X2} 0x{header[1]:X2}");
 
-            var lenBuf = await ReadExactFpgaAsync(1, token).ConfigureAwait(false);
+            var lenBuf = await ReadExactFpgaAsync(1, timeoutMilliseconds, token).ConfigureAwait(false);
             var totalLen = lenBuf[0];
-            var body = await ReadExactFpgaAsync(totalLen, token).ConfigureAwait(false);
+            var body = await ReadExactFpgaAsync(totalLen, timeoutMilliseconds, token).ConfigureAwait(false);
 
             var cmd = body[0];
             var payloadLen = totalLen - 1;
@@ -1255,75 +1230,43 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             if (payloadLen > 0)
                 Buffer.BlockCopy(body, 1, payload, 0, payloadLen);
 
+            var frame = new byte[2 + 1 + body.Length];
+            frame[0] = header[0];
+            frame[1] = header[1];
+            frame[2] = lenBuf[0];
+            Buffer.BlockCopy(body, 0, frame, 3, body.Length);
+            Log($"[{FpgaTs()}][FPGA RX] CMD=0x{cmd:X2} LEN={payloadLen} FRAME={ToHex(frame)}");
+
             return (cmd, payload);
         }
 
-        private async Task FpgaReceiveLoopAsync(CancellationToken token)
+        private async Task<uint> ReadFpgaGpioInputOnceAsync(int timeoutMilliseconds, CancellationToken token, byte? acceptCmd = null)
         {
-            while (!token.IsCancellationRequested)
+            await EnsureFpgaTcpConnectedAsync(token).ConfigureAwait(false);
+            if (_fpgaStream == null)
+                throw new InvalidOperationException("FPGA未连接");
+
+            using var timeoutCts = new CancellationTokenSource(timeoutMilliseconds);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
+
+            while (!linkedCts.IsCancellationRequested)
             {
-                try
+                var (cmd, payload) = await ReadFpgaFrameAsync(timeoutMilliseconds, linkedCts.Token).ConfigureAwait(false);
+                var cmdOk = cmd == 0x00 || (acceptCmd != null && cmd == acceptCmd.Value);
+                if (cmdOk && payload != null && payload.Length >= 4)
                 {
-                    if (_fpgaStream == null)
-                    {
-                        await Task.Delay(50, token).ConfigureAwait(false);
-                        continue;
-                    }
+                    var v = BitConverter.ToUInt32(payload, 0);
+                    LastFpgaGpioInput = v;
+                    _lastFpgaGpioInputTime = DateTime.Now;
 
-                    var (cmd, payload) = await ReadFpgaFrameAsync(token).ConfigureAwait(false);
-
-                    var payloadLen = payload?.Length ?? 0;
-                    var frame = new byte[2 + 1 + 1 + payloadLen];
-                    frame[0] = FpgaFrameHeader[0];
-                    frame[1] = FpgaFrameHeader[1];
-                    frame[2] = (byte)(1 + payloadLen);
-                    frame[3] = cmd;
-                    if (payloadLen > 0)
-                        Buffer.BlockCopy(payload, 0, frame, 4, payloadLen);
-                    Log($"[{FpgaTs()}][FPGA RX] CMD=0x{cmd:X2} LEN={payloadLen} FRAME={ToHex(frame)}");
-
-                    if (cmd == 0x0A && payload != null && payload.Length >= 4)
-                    {
-                        TaskCompletionSource<uint> tcs;
-                        lock (this)
-                        {
-                            tcs = _fpgaForceReadTcs;
-                        }
-
-                        if (tcs != null)
-                        {
-                            var v = BitConverter.ToUInt32(payload, 0);
-                            LastFpgaGpioInput = v;
-                            _lastFpgaGpioInputTime = DateTime.Now;
-                            tcs.TrySetResult(v);
-                        }
-                    }
-
-                    if (cmd == 0x00 && payload != null && payload.Length >= 4)
-                    {
-                        if (_isFpgaCaptureEnabled)
-                        {
-                            var v = BitConverter.ToUInt32(payload, 0);
-                            LastFpgaGpioInput = v;
-                            _lastFpgaGpioInputTime = DateTime.Now;
-                        }
-                    }
-
-                    var hex = payload == null || payload.Length == 0
-                        ? "--"
-                        : string.Join(" ", payload.Select(b => b.ToString("X2", CultureInfo.InvariantCulture)));
-                    Log($"[FPGA RX] CMD=0x{cmd:X2} LEN={payload?.Length ?? 0} DATA={hex}");
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    Log($"FPGA接收异常: {ex.Message}");
-                    break;
+                    var hex = string.Join(" ", payload.Take(4).Select(b => b.ToString("X2", CultureInfo.InvariantCulture)));
+                    Log($"[FPGA RX] GPIO Read(IO43-64) VALUE=0x{v:X8} DATA={hex}");
+                    return v;
                 }
             }
+
+            token.ThrowIfCancellationRequested();
+            throw new TimeoutException($"等待FPGA数据超时({timeoutMilliseconds}ms)");
         }
 
         public enum OverTempEvaluation

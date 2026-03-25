@@ -12,6 +12,7 @@ using MeasureControl.Events;
 using MeasureControl.Models;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
+using Prism.Ioc;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 {
@@ -177,6 +178,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 return;
             }
 
+            // 检查是否已总上电
+            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (_hps == null || !_hps.IsHydraulicPowered)
+            {
+                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             if (IsAutoTestRunning)
             {
                 await StopTestAsync().ConfigureAwait(false);
@@ -233,6 +242,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             if (IsAutoTestRunning)
             {
                 await StopTestAsync().ConfigureAwait(false);
+                return;
+            }
+
+            // 检查是否已总上电
+            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (_hps == null || !_hps.IsHydraulicPowered)
+            {
+                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -648,22 +665,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task EnsurePowerAsync(double voltageV, CancellationToken cancellationToken)
         {
-            _power ??= new PowerSupplySocketApi();
-            if (!_power.IsConnected)
-                await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
-            await _power.ApplyAsync(PowerSupplyChannel.CH1, voltageV, InputCurrentA, cancellationToken).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+            // 192.168.1.15 CH1 不再由本测试控制上电，由总上电统一管理
+            await Task.Delay(100, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task CleanupPowerAsync()
         {
+            // 192.168.1.15 CH1 不再由本测试控制下电
             if (_power != null)
             {
-                if (!SkipMainPowerOff)
-                {
-                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                }
                 try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
             }
         }
