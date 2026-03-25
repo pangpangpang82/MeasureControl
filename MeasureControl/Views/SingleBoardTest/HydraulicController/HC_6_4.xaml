@@ -593,20 +593,20 @@
                                             <ColumnDefinition Width="18" />
                                         </Grid.ColumnDefinitions>
                                         <TextBox
-                                             Width="58"
                                             Grid.Column="0"
+                                            Width="58"
                                             Height="28"
                                             Padding="2,0,0,0"
                                             HorizontalAlignment="Left"
                                             VerticalAlignment="Center"
+                                            VerticalContentAlignment="Center"
                                             BorderThickness="0"
                                             FontSize="22"
                                             FontWeight="Bold"
-                                            VerticalContentAlignment="Center"
-                                            ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                            Text="{Binding CustomVoltageInput, UpdateSourceTrigger=PropertyChanged}"
                                             LostFocus="TextBox_LostFocus"
+                                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                            ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                            Text="{Binding CustomVoltageInput, UpdateSourceTrigger=PropertyChanged}"
                                             TextChanged="TextBox_TextChanged" />
                                         <TextBlock
                                             Grid.Column="1"

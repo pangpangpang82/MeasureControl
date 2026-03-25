@@ -298,15 +298,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     LastTestResult = "--";
                     CurrentStepImage = CreateImageSource("/Resources/Logo/begin.png");
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
                     _simulation.SimProductArincRate = ArincRate;
-
-                    if (!_simulation.IsRealProduct)
-                    {
-                        if (!TrySetupSimChannelMapping(out var mapError))
-                            throw new InvalidOperationException(mapError);
-                    }
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：打开通道 A(TX={ATxChannel},RX={ARxChannel}) B(TX={BTxChannel},RX={BRxChannel})");
 
@@ -652,15 +646,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
                     catch { }
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
                     _simulation.SimProductArincRate = ArincRate;
-
-                    if (!_simulation.IsRealProduct)
-                    {
-                        if (!TrySetupSimChannelMapping(out var mapError))
-                            throw new InvalidOperationException(mapError);
-                    }
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");
 

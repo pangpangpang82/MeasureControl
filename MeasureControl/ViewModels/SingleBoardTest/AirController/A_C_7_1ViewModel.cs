@@ -24,10 +24,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
     {
         private const string TestItemKey = "AirController_7_1_PowerBoard_PowerToGroundImpedance";
         private const double ImpedanceThreshold = 200.0;
-        private const string RelayControlChannel = "DO9";
+        private const string RelayControlChannel = "DO2";
 
         private const string RelayPowerSupplyIpAddress = "192.168.1.16";
-        private const PowerSupplyChannel RelayPowerChannel = PowerSupplyChannel.CH2;
+        private const PowerSupplyChannel RelayPowerChannel = PowerSupplyChannel.CH1;
         private const double RelayPowerVoltage = 24.0;
         private const double RelayPowerCurrentLimit = 1.0;
 
