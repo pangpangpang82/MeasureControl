@@ -935,7 +935,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await DrainArincBufferAsync(cancellationToken).ConfigureAwait(false);
                 await Task.Delay(TemperatureSettleMs, cancellationToken).ConfigureAwait(false);
 
-
                 var samplesA = new List<double>(SamplesPerMeasure);
                 var samplesB = new List<double>(SamplesPerMeasure);
                 var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
@@ -1058,7 +1057,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     break;
             }
         }
-        
         private bool IsExpectedLabel(byte label)
         {
             return _arinc.ReverseLabel(label) == TempLabelDec;
