@@ -106,8 +106,9 @@ namespace MeasureControl.Services
         /// <param name="inputNodeId">输入节点ID</param>
         /// <param name="outputNodeId">输出节点ID</param>
         /// <param name="slotIndex">插槽索引</param>
-        /// <param name="ipAddress">目标IP地址</param>
-        /// <returns>操作是否成功</returns>
+        /// <param name="ipAddress">目标IP地址</para
+        /// 
+        /// 
         public async Task<bool> ConnectNodesAsync(
             string inputNodeId,
             string outputNodeId,

@@ -42,6 +42,7 @@ namespace MeasureControl.Services.HardwareApis
         public bool SuppressNativeDialogs { get; set; } = true;
         public bool ResetToZeroOnStop { get; set; } = true;
         public int ResetDelayMs { get; set; } = 500;
+        public bool UseOneBasedAoChannelNumbering { get; set; }
     }
 
     /// <summary>
@@ -117,7 +118,19 @@ namespace MeasureControl.Services.HardwareApis
                     return;
 
                 _driver = new MTX532Driver(_device, suppressNativeDialogs: _options.SuppressNativeDialogs, slotNumberOverride: _slotNumber);
-                _driver.SetEnabledChannels(enabledAoChannels);
+                if (enabledAoChannels != null)
+                {
+                    var normalized = enabledAoChannels
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Select(x => NormalizeAoChannel(x))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    _driver.SetEnabledChannels(normalized);
+                }
+                else
+                {
+                    _driver.SetEnabledChannels(null);
+                }
                 var ok = await _driver.ConnectAsync().ConfigureAwait(false);
                 if (!ok)
                     throw new InvalidOperationException("MTX532 connect returned false");
@@ -508,10 +521,9 @@ namespace MeasureControl.Services.HardwareApis
             var driver = _driver;
             if (driver == null || !driver.IsConnected)
                 return;
-
             for (int i = 0; i < 32; i++)
             {
-                var ch = NormalizeAoChannel($"AO{i}");
+                var ch = GetDriverAoChannel(i);
                 var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["SampleRate"] = sampleRateHz
@@ -528,10 +540,9 @@ namespace MeasureControl.Services.HardwareApis
             var driver = _driver;
             if (driver == null || !driver.IsConnected)
                 return;
-
             for (int i = 0; i < 32; i++)
             {
-                var ch = NormalizeAoChannel($"AO{i}");
+                var ch = GetDriverAoChannel(i);
                 var cfg = new Mtx532ChannelConfig
                 {
                     Channel = ch,
@@ -550,7 +561,7 @@ namespace MeasureControl.Services.HardwareApis
         /// <summary>
         /// 将通道名标准化为 AO0-AO31
         /// </summary>
-        private static string NormalizeAoChannel(string channel)
+        private string NormalizeAoChannel(string channel)
         {
             if (string.IsNullOrWhiteSpace(channel))
                 throw new ArgumentException("Channel is required", nameof(channel));
@@ -563,10 +574,29 @@ namespace MeasureControl.Services.HardwareApis
             if (!int.TryParse(num, NumberStyles.Integer, CultureInfo.InvariantCulture, out var idx))
                 throw new ArgumentException("Invalid AO channel index", nameof(channel));
 
+            if (idx == 0)
+                return "AO0";
+
+            if (_options.UseOneBasedAoChannelNumbering)
+            {
+                if (idx >= 1 && idx <= 32)
+                    return $"AO{idx - 1}";
+
+                throw new ArgumentOutOfRangeException(nameof(channel), "AO channel index must be 0 or 1..32");
+            }
+
             if (idx < 0 || idx > 31)
                 throw new ArgumentOutOfRangeException(nameof(channel), "AO channel index must be 0..31");
 
             return $"AO{idx}";
+        }
+
+        private static string GetDriverAoChannel(int index)
+        {
+            if (index < 0 || index > 31)
+                throw new ArgumentOutOfRangeException(nameof(index), "AO channel index must be 0..31");
+
+            return $"AO{index}";
         }
 
         public async ValueTask DisposeAsync()

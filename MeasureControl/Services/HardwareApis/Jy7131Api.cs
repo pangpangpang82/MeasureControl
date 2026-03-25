@@ -84,10 +84,10 @@ namespace MeasureControl.Services.HardwareApis
     /// </summary>
     public sealed class Jy7131Api : IJy7131Api
     {
-        private const string ThresholdComPort = "COM40";  // DI 阈值设置串口 加放油
+        private const string ThresholdComPort = "COM40";  // DI 阈值设置串口
         private const int ThresholdBaudRate = 115200;
 
-        private const string RelayComPort = "COM35";      // 外部485继电器/电源控制串口
+        private const string RelayComPort = "COM35";      // 外部 485 继电器控制串口
         private const int RelayBaudRate = 9600;
         private const byte RelaySlaveAddress = 1;
         private const ushort RelayStartCoilAddress = 0;
@@ -513,8 +513,8 @@ namespace MeasureControl.Services.HardwareApis
             // Hardware uses 0-based (DI0..DI31 / DO0..DO31).
             if (idx >= 0 && idx <= 31)
                 return idx;
-            //if (idx >= 1 && idx <= 32)
-            //    return idx - 1;
+            if (idx >= 1 && idx <= 32)
+                return idx - 1;
 
             throw new ArgumentOutOfRangeException(nameof(channel), "Channel index must be 0..31 or 1..32");
         }

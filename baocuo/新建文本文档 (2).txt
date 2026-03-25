@@ -1,0 +1,10 @@
+Ivi.Visa.NativeVisaException:“位置信息不足或系统中不存在设备或资源。”
+catch
+{
+    try { session?.Dispose(); } catch { }
+    try { _resourceManager?.Dispose(); } catch { }
+    _resourceManager = null;
+    _session = null;
+    _ipAddress = null;
+    throw;
+}
