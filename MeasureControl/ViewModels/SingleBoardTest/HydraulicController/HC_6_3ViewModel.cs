@@ -1057,7 +1057,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     break;
             }
         }
-
         private bool IsExpectedLabel(byte label)
         {
             return _arinc.ReverseLabel(label) == TempLabelDec;
