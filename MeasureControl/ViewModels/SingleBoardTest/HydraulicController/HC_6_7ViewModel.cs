@@ -89,7 +89,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
         private readonly IHydraulicPowerService _hydraulicPowerService;
-        private readonly Dictionary<int, string> _pinTexts = new Dictionary<int, string>();
+        private readonly Dictionary<int, string> _groundPinTexts = new Dictionary<int, string>();
+        private readonly Dictionary<int, string> _openPinTexts = new Dictionary<int, string>();
 
         private CancellationTokenSource _manualCts;
         private CancellationTokenSource _autoCts;
@@ -107,8 +108,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private bool _isManualTestStopping;
         private bool _isAutoTestStopping;
         private bool _canMeasure;
-        private bool _measured14;
+        private bool _measuredGround;
+        private bool _measuredOpen;
+        private bool _passedGround;
+        private bool _passedOpen;
         private bool _manualAborted;
+        private int _selectedTabIndex;
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
         private string _previousTestTime = "--";
@@ -242,9 +247,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        public bool CanMeasure14 => IsManualTestRunning && CanMeasure && !_measured14;
+        public bool CanMeasure14 => IsManualTestRunning && CanMeasure && !(_selectedTabIndex == 0 ? _measuredGround : _measuredOpen);
         public bool CanStartManualTest => !IsManualTestBusy && !IsAutoTestBusy && !IsAutoTestRunning;
         public bool CanStartAutoTest => !IsManualTestBusy && !IsAutoTestBusy && !IsManualTestRunning;
+
+        public int SelectedTabIndex
+        {
+            get => _selectedTabIndex;
+            set
+            {
+                if (SetProperty(ref _selectedTabIndex, value))
+                {
+                    RaisePropertyChanged(nameof(CanMeasure14));
+                    Measure14Command?.RaiseCanExecuteChanged();
+                }
+            }
+        }
 
         public string CurrentTestResult
         {
@@ -282,61 +300,117 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _detectedChannelText, value);
         }
 
-        public string Pin49Text => GetPinText(49);
-        public string Pin50Text => GetPinText(50);
-        public string Pin51Text => GetPinText(51);
-        public string Pin52Text => GetPinText(52);
-        public string Pin53Text => GetPinText(53);
-        public string Pin54Text => GetPinText(54);
-        public string Pin55Text => GetPinText(55);
-        public string Pin56Text => GetPinText(56);
-        public string Pin57Text => GetPinText(57);
-        public string Pin58Text => GetPinText(58);
-        public string Pin59Text => GetPinText(59);
-        public string Pin60Text => GetPinText(60);
-        public string Pin61Text => GetPinText(61);
-        public string Pin62Text => GetPinText(62);
-        public string Pin63Text => GetPinText(63);
-        public string Pin89Text => GetPinText(89);
-        public string Pin90Text => GetPinText(90);
-        public string Pin91Text => GetPinText(91);
-        public string Pin92Text => GetPinText(92);
-        public string Pin93Text => GetPinText(93);
-        public string Pin94Text => GetPinText(94);
-        public string Pin95Text => GetPinText(95);
-        public string Pin96Text => GetPinText(96);
-        public string Pin97Text => GetPinText(97);
-        public string Pin98Text => GetPinText(98);
-        public string Pin99Text => GetPinText(99);
-        public string Pin100Text => GetPinText(100);
+        public string GroundPin49Text => GetGroundPinText(49);
+        public string GroundPin50Text => GetGroundPinText(50);
+        public string GroundPin51Text => GetGroundPinText(51);
+        public string GroundPin52Text => GetGroundPinText(52);
+        public string GroundPin53Text => GetGroundPinText(53);
+        public string GroundPin54Text => GetGroundPinText(54);
+        public string GroundPin55Text => GetGroundPinText(55);
+        public string GroundPin56Text => GetGroundPinText(56);
+        public string GroundPin57Text => GetGroundPinText(57);
+        public string GroundPin58Text => GetGroundPinText(58);
+        public string GroundPin59Text => GetGroundPinText(59);
+        public string GroundPin60Text => GetGroundPinText(60);
+        public string GroundPin61Text => GetGroundPinText(61);
+        public string GroundPin62Text => GetGroundPinText(62);
+        public string GroundPin63Text => GetGroundPinText(63);
+        public string GroundPin89Text => GetGroundPinText(89);
+        public string GroundPin90Text => GetGroundPinText(90);
+        public string GroundPin91Text => GetGroundPinText(91);
+        public string GroundPin92Text => GetGroundPinText(92);
+        public string GroundPin93Text => GetGroundPinText(93);
+        public string GroundPin94Text => GetGroundPinText(94);
+        public string GroundPin95Text => GetGroundPinText(95);
+        public string GroundPin96Text => GetGroundPinText(96);
+        public string GroundPin97Text => GetGroundPinText(97);
+        public string GroundPin98Text => GetGroundPinText(98);
+        public string GroundPin99Text => GetGroundPinText(99);
+        public string GroundPin100Text => GetGroundPinText(100);
 
-        public bool IsPin49Pass => IsPinPass(49);
-        public bool IsPin50Pass => IsPinPass(50);
-        public bool IsPin51Pass => IsPinPass(51);
-        public bool IsPin52Pass => IsPinPass(52);
-        public bool IsPin53Pass => IsPinPass(53);
-        public bool IsPin54Pass => IsPinPass(54);
-        public bool IsPin55Pass => IsPinPass(55);
-        public bool IsPin56Pass => IsPinPass(56);
-        public bool IsPin57Pass => IsPinPass(57);
-        public bool IsPin58Pass => IsPinPass(58);
-        public bool IsPin59Pass => IsPinPass(59);
-        public bool IsPin60Pass => IsPinPass(60);
-        public bool IsPin61Pass => IsPinPass(61);
-        public bool IsPin62Pass => IsPinPass(62);
-        public bool IsPin63Pass => IsPinPass(63);
-        public bool IsPin89Pass => IsPinPass(89);
-        public bool IsPin90Pass => IsPinPass(90);
-        public bool IsPin91Pass => IsPinPass(91);
-        public bool IsPin92Pass => IsPinPass(92);
-        public bool IsPin93Pass => IsPinPass(93);
-        public bool IsPin94Pass => IsPinPass(94);
-        public bool IsPin95Pass => IsPinPass(95);
-        public bool IsPin96Pass => IsPinPass(96);
-        public bool IsPin97Pass => IsPinPass(97);
-        public bool IsPin98Pass => IsPinPass(98);
-        public bool IsPin99Pass => IsPinPass(99);
-        public bool IsPin100Pass => IsPinPass(100);
+        public string OpenPin49Text => GetOpenPinText(49);
+        public string OpenPin50Text => GetOpenPinText(50);
+        public string OpenPin51Text => GetOpenPinText(51);
+        public string OpenPin52Text => GetOpenPinText(52);
+        public string OpenPin53Text => GetOpenPinText(53);
+        public string OpenPin54Text => GetOpenPinText(54);
+        public string OpenPin55Text => GetOpenPinText(55);
+        public string OpenPin56Text => GetOpenPinText(56);
+        public string OpenPin57Text => GetOpenPinText(57);
+        public string OpenPin58Text => GetOpenPinText(58);
+        public string OpenPin59Text => GetOpenPinText(59);
+        public string OpenPin60Text => GetOpenPinText(60);
+        public string OpenPin61Text => GetOpenPinText(61);
+        public string OpenPin62Text => GetOpenPinText(62);
+        public string OpenPin63Text => GetOpenPinText(63);
+        public string OpenPin89Text => GetOpenPinText(89);
+        public string OpenPin90Text => GetOpenPinText(90);
+        public string OpenPin91Text => GetOpenPinText(91);
+        public string OpenPin92Text => GetOpenPinText(92);
+        public string OpenPin93Text => GetOpenPinText(93);
+        public string OpenPin94Text => GetOpenPinText(94);
+        public string OpenPin95Text => GetOpenPinText(95);
+        public string OpenPin96Text => GetOpenPinText(96);
+        public string OpenPin97Text => GetOpenPinText(97);
+        public string OpenPin98Text => GetOpenPinText(98);
+        public string OpenPin99Text => GetOpenPinText(99);
+        public string OpenPin100Text => GetOpenPinText(100);
+
+        public bool IsGroundPin49Pass => IsPinPass(49, true);
+        public bool IsGroundPin50Pass => IsPinPass(50, true);
+        public bool IsGroundPin51Pass => IsPinPass(51, true);
+        public bool IsGroundPin52Pass => IsPinPass(52, true);
+        public bool IsGroundPin53Pass => IsPinPass(53, true);
+        public bool IsGroundPin54Pass => IsPinPass(54, true);
+        public bool IsGroundPin55Pass => IsPinPass(55, true);
+        public bool IsGroundPin56Pass => IsPinPass(56, true);
+        public bool IsGroundPin57Pass => IsPinPass(57, true);
+        public bool IsGroundPin58Pass => IsPinPass(58, true);
+        public bool IsGroundPin59Pass => IsPinPass(59, true);
+        public bool IsGroundPin60Pass => IsPinPass(60, true);
+        public bool IsGroundPin61Pass => IsPinPass(61, true);
+        public bool IsGroundPin62Pass => IsPinPass(62, true);
+        public bool IsGroundPin63Pass => IsPinPass(63, true);
+        public bool IsGroundPin89Pass => IsPinPass(89, true);
+        public bool IsGroundPin90Pass => IsPinPass(90, true);
+        public bool IsGroundPin91Pass => IsPinPass(91, true);
+        public bool IsGroundPin92Pass => IsPinPass(92, true);
+        public bool IsGroundPin93Pass => IsPinPass(93, true);
+        public bool IsGroundPin94Pass => IsPinPass(94, true);
+        public bool IsGroundPin95Pass => IsPinPass(95, true);
+        public bool IsGroundPin96Pass => IsPinPass(96, true);
+        public bool IsGroundPin97Pass => IsPinPass(97, true);
+        public bool IsGroundPin98Pass => IsPinPass(98, true);
+        public bool IsGroundPin99Pass => IsPinPass(99, true);
+        public bool IsGroundPin100Pass => IsPinPass(100, true);
+
+        public bool IsOpenPin49Pass => IsPinPass(49, false);
+        public bool IsOpenPin50Pass => IsPinPass(50, false);
+        public bool IsOpenPin51Pass => IsPinPass(51, false);
+        public bool IsOpenPin52Pass => IsPinPass(52, false);
+        public bool IsOpenPin53Pass => IsPinPass(53, false);
+        public bool IsOpenPin54Pass => IsPinPass(54, false);
+        public bool IsOpenPin55Pass => IsPinPass(55, false);
+        public bool IsOpenPin56Pass => IsPinPass(56, false);
+        public bool IsOpenPin57Pass => IsPinPass(57, false);
+        public bool IsOpenPin58Pass => IsPinPass(58, false);
+        public bool IsOpenPin59Pass => IsPinPass(59, false);
+        public bool IsOpenPin60Pass => IsPinPass(60, false);
+        public bool IsOpenPin61Pass => IsPinPass(61, false);
+        public bool IsOpenPin62Pass => IsPinPass(62, false);
+        public bool IsOpenPin63Pass => IsPinPass(63, false);
+        public bool IsOpenPin89Pass => IsPinPass(89, false);
+        public bool IsOpenPin90Pass => IsPinPass(90, false);
+        public bool IsOpenPin91Pass => IsPinPass(91, false);
+        public bool IsOpenPin92Pass => IsPinPass(92, false);
+        public bool IsOpenPin93Pass => IsPinPass(93, false);
+        public bool IsOpenPin94Pass => IsPinPass(94, false);
+        public bool IsOpenPin95Pass => IsPinPass(95, false);
+        public bool IsOpenPin96Pass => IsPinPass(96, false);
+        public bool IsOpenPin97Pass => IsPinPass(97, false);
+        public bool IsOpenPin98Pass => IsPinPass(98, false);
+        public bool IsOpenPin99Pass => IsPinPass(99, false);
+        public bool IsOpenPin100Pass => IsPinPass(100, false);
 
         public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
         {
@@ -393,7 +467,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 await EnsureJy7131Async(_manualCts.Token).ConfigureAwait(false);
                 await EnsureRelay485Async(true, _manualCts.Token).ConfigureAwait(false);
-                await ApplyGroundingAsync(_manualCts.Token).ConfigureAwait(false);
                 await EnsureMtx532Async(_manualCts.Token).ConfigureAwait(false);
                 await EnsureArincRxAsync(_manualCts.Token).ConfigureAwait(false);
                 await StartAtpRequestAsync(_manualCts.Token).ConfigureAwait(false);
@@ -402,7 +475,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 IsManualTestInitializing = false;
                 IsManualTestRunning = true;
                 CanMeasure = true;
-                Log("手动测试初始化完成，可执行采集");
+                Log("手动测试初始化完成，请选择接地/接开页点击测量");
             }
             catch (Exception ex)
             {
@@ -468,7 +541,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 await EnsureJy7131Async(cancellationToken).ConfigureAwait(false);
                 await EnsureRelay485Async(true, cancellationToken).ConfigureAwait(false);
-                await ApplyGroundingAsync(cancellationToken).ConfigureAwait(false);
                 await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
                 await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
                 await StartAtpRequestAsync(cancellationToken).ConfigureAwait(false);
@@ -477,11 +549,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 IsAutoTestInitializing = false;
                 IsAutoTestRunning = true;
 
-                var success = await MeasureDiscreteAsync(cancellationToken).ConfigureAwait(false);
+                Log("步骤1: 测量接地状态");
+                await ApplyGroundingAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+                _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, 4096, false, false, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+                var groundOk = await MeasureDiscreteAsync(true, cancellationToken).ConfigureAwait(false);
                 if (!IsAutoTestRunning)
                     return CurrentTestResult ?? "--";
-                _measured14 = true;
-                await FinalizeAsync(success).ConfigureAwait(false);
+                _measuredGround = true;
+                _passedGround = groundOk;
+
+                Log("步骤2: 测量接开状态");
+                await ApplyOpenAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+                _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, 4096, false, false, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+                var openOk = await MeasureDiscreteAsync(false, cancellationToken).ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
+                _measuredOpen = true;
+                _passedOpen = openOk;
+
+                await FinalizeAsync().ConfigureAwait(false);
                 await StopAutoTestAsync().ConfigureAwait(false);
                 return LastTestResult;
             }
@@ -493,19 +583,53 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasure14Async()
         {
-            var success = await MeasureDiscreteAsync(_manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+            var token = _manualCts?.Token ?? CancellationToken.None;
+            bool isGround = _selectedTabIndex == 0;
+
+            CanMeasure = false;
+            await Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
+
+            if (isGround)
+            {
+                Log("手动测量: 接地状态");
+                await ApplyGroundingAsync(token).ConfigureAwait(false);
+            }
+            else
+            {
+                Log("手动测量: 接开状态");
+                await ApplyOpenAsync(token).ConfigureAwait(false);
+            }
+
+            await Task.Delay(200, token).ConfigureAwait(false);
+            _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, 4096, false, false, token).ConfigureAwait(false);
+            await Task.Delay(200, token).ConfigureAwait(false);
+
+            var success = await MeasureDiscreteAsync(isGround, token).ConfigureAwait(false);
+            CanMeasure = IsManualTestRunning;
             if (!IsManualTestRunning || _manualAborted)
                 return;
 
-            _measured14 = true;
+            if (isGround)
+            {
+                _measuredGround = true;
+                _passedGround = success;
+            }
+            else
+            {
+                _measuredOpen = true;
+                _passedOpen = success;
+            }
+
             RaisePropertyChanged(nameof(CanMeasure14));
             Measure14Command?.RaiseCanExecuteChanged();
-            await FinalizeAsync(success).ConfigureAwait(false);
+
+            if (_measuredGround && _measuredOpen)
+                await FinalizeAsync().ConfigureAwait(false);
         }
 
-        private async Task<bool> MeasureDiscreteAsync(CancellationToken cancellationToken)
+        private async Task<bool> MeasureDiscreteAsync(bool isGround, CancellationToken cancellationToken)
         {
-            if (!(IsAutoTestRunning || (IsManualTestRunning && CanMeasure)))
+            if (!(IsAutoTestRunning || IsManualTestRunning))
             {
                 Log("当前未处于可测量状态");
                 return false;
@@ -514,9 +638,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                ResetPinTextsForMeasurement();
-                Log("开始接收离散量采集结果");
-                _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, 4096, false, false, cancellationToken).ConfigureAwait(false);
+                ResetPinTextsForMode(isGround);
+                var modeLabel = isGround ? "接地" : "接开";
+                Log($"开始接收离散量采集结果({modeLabel})");
 
                 var values = CreateDefaultPinState();
                 var seenFrames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -542,11 +666,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         ApplyPbitSpecialLogic(label, sdi, data19, values);
                     }
 
-                    CommitPinState(values);
+                    CommitPinState(values, isGround);
                     
                     if (HasAllRequiredFrames(seenFrames, values))
                     {
-                        Log($"离散量采集完成，已收到 {seenFrames.Count} 帧有效信号");
+                        Log($"离散量采集完成({modeLabel})，已收到 {seenFrames.Count} 帧有效信号");
                         return true;
                     }
 
@@ -556,15 +680,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 if (seenFrames.Count > 0)
                 {
                     ApplyTimeoutState(values);
-                    CommitPinState(values);
-                    Log("离散量采集超时，按当前收到的信号输出");
+                    CommitPinState(values, isGround);
+                    Log($"离散量采集超时({modeLabel})，按当前收到的信号输出");
                     return false;
                 }
 
                 ApplyTimeoutState(values);
-                CommitPinState(values);
+                CommitPinState(values, isGround);
                 DetectedChannelText = "超时";
-                Log("离散量采集超时，未收到有效429信号");
+                Log($"离散量采集超时({modeLabel})，未收到有效429信号");
                 return false;
             }
             catch (OperationCanceledException)
@@ -593,12 +717,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        private async Task FinalizeAsync(bool success)
+        private async Task FinalizeAsync()
         {
-            if (_manualAborted || !_measured14)
+            if (_manualAborted || !(_measuredGround && _measuredOpen))
                 return;
 
-            success = success && AreAllPinsPassing();
+            var groundPass = _passedGround && ReportPins.All(p => IsPinPass(p, true));
+            var openPass = _passedOpen && ReportPins.All(p => IsPinPass(p, false));
+            var success = groundPass && openPass;
             var resultText = success ? "合格" : "不合格";
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
@@ -608,6 +734,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             LastTestTime = now;
             LastTestResult = resultText;
             SaveTestResultToProject();
+
+            if (!groundPass)
+                Log("接地测试: 不合格");
+            else
+                Log("接地测试: 合格");
+
+            if (!openPass)
+                Log("接开测试: 不合格");
+            else
+                Log("接开测试: 合格");
 
             Log($"测试结果: {resultText}");
 
@@ -724,25 +860,36 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
-            _measured14 = false;
+            _measuredGround = false;
+            _measuredOpen = false;
+            _passedGround = false;
+            _passedOpen = false;
             DetectedChannelText = "--";
-            ResetPinTextsForMeasurement();
+            ResetPinTextsForMode(true);
+            ResetPinTextsForMode(false);
             RaisePropertyChanged(nameof(CanMeasure14));
             Measure14Command?.RaiseCanExecuteChanged();
         }
 
-        private void ResetPinTextsForMeasurement()
+        private void ResetPinTextsForMode(bool isGround)
         {
+            var target = isGround ? _groundPinTexts : _openPinTexts;
+            var prefix = isGround ? "Ground" : "Open";
             foreach (var pin in GroundPins)
             {
-                _pinTexts[pin] = "--";
-                RaisePropertyChanged($"Pin{pin}Text");
+                target[pin] = "--";
+                RaisePropertyChanged($"{prefix}Pin{pin}Text");
             }
         }
 
-        private string GetPinText(int pin)
+        private string GetGroundPinText(int pin)
         {
-            return _pinTexts.TryGetValue(pin, out var value) ? value : "--";
+            return _groundPinTexts.TryGetValue(pin, out var value) ? value : "--";
+        }
+
+        private string GetOpenPinText(int pin)
+        {
+            return _openPinTexts.TryGetValue(pin, out var value) ? value : "--";
         }
 
         private static Dictionary<int, string> CreateDefaultPinState()
@@ -751,30 +898,39 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return state;
         }
 
-        private void CommitPinState(Dictionary<int, string> values)
+        private void CommitPinState(Dictionary<int, string> values, bool isGround)
         {
+            var target = isGround ? _groundPinTexts : _openPinTexts;
+            var prefix = isGround ? "Ground" : "Open";
             foreach (var pair in values)
             {
-                _pinTexts[pair.Key] = pair.Value;
-                RaisePropertyChanged($"Pin{pair.Key}Text");
-                RaisePropertyChanged($"IsPin{pair.Key}Pass");
+                target[pair.Key] = pair.Value;
+                RaisePropertyChanged($"{prefix}Pin{pair.Key}Text");
+                RaisePropertyChanged($"Is{prefix}Pin{pair.Key}Pass");
             }
 
             DetectedChannelText = "已接收";
         }
 
-        private bool AreAllPinsPassing()
+        private bool IsPinPass(int pin, bool isGround)
         {
-            return ReportPins.All(IsPinPass);
-        }
+            var text = isGround ? GetGroundPinText(pin) : GetOpenPinText(pin);
 
-        private bool IsPinPass(int pin)
-        {
-            if (pin == 89 || pin == 90)
+            if (pin == 99 || pin == 100)
+                return string.Equals(text, "1", StringComparison.OrdinalIgnoreCase);
+
+            if (isGround)
             {
-                return string.Equals(GetPinText(pin), "0", StringComparison.OrdinalIgnoreCase);
+                if (pin == 89 || pin == 90)
+                    return string.Equals(text, "0", StringComparison.OrdinalIgnoreCase);
+                return string.Equals(text, "1", StringComparison.OrdinalIgnoreCase);
             }
-            return string.Equals(GetPinText(pin), "1", StringComparison.OrdinalIgnoreCase);
+            else
+            {
+                if (pin == 89 || pin == 90)
+                    return string.Equals(text, "1", StringComparison.OrdinalIgnoreCase);
+                return string.Equals(text, "0", StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         private void ApplyPbitSpecialLogic(byte label, byte sdi, uint data19, Dictionary<int, string> values)
@@ -933,6 +1089,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 mask |= (1u << doIndex); }
 
             await _jy7131.WriteDoBitmaskAsync(mask, cancellationToken).ConfigureAwait(false);
+
+            await Task.Delay(RelaySettleDelayMs, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task ApplyOpenAsync(CancellationToken cancellationToken)
+        {
+            await _jy7131.WriteDoBitmaskAsync(0u, cancellationToken).ConfigureAwait(false);
 
             await Task.Delay(RelaySettleDelayMs, cancellationToken).ConfigureAwait(false);
         }
