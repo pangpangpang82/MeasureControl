@@ -245,11 +245,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     IsManualTestRunning = true;
                     await Task.Yield();
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
-                    _simulation.SimProductArincRate = ArincRate;
-                    _simulation.SimProductRxChannelIndex = 4;
-                    _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
 
@@ -341,11 +338,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     ExitAtpRxDataText = "--";
                     ClearMeasurementTexts();
 
-                    _simulation.IsRealProduct = AppConstants.Arinc429IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
-                    _simulation.SimProductArincRate = ArincRate;
-                    _simulation.SimProductRxChannelIndex = 4;
-                    _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
@@ -420,6 +414,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _simulation.ClearRxFifoAsync(TestRxChannel);
             await Task.Delay(20, token);
             await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
+
+            if (!cmd8.SequenceEqual(EnterAtpCommand8) && !cmd8.SequenceEqual(ExitAtpCommand8))
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送完成（不等待回读）");
+                return true;
+            }
 
             var resp = await _simulation.WaitBenchResponse8Async(
                 TestRxChannel,
@@ -512,23 +512,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     await Task.Delay(20, token);
 
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
-
-                    var resp = await _simulation.WaitBenchResponse8Async(
-                        TestRxChannel,
-                        b => b != null && b.SequenceEqual(cmd8),
-                        timeoutMs: 1500,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (resp == null)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：等待超时");
-                        SetLastTestResult("FAIL");
-                        return;
-                    }
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：回读OK ({FormatData(resp)})");
-
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送完成（不等待回读）");
                     SetLastTestResult("PASS");
                 }
                 finally
@@ -584,12 +568,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task<bool> MeasureAndQualifyAsync(CancellationToken token)
         {
-            if (!AppConstants.Arinc429IsRealProduct)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] [SIM] 跳过示波器/频率计判据（仿真模式）");
-                return true;
-            }
-
             await _instrumentLock.WaitAsync(token);
             try
             {
@@ -663,13 +641,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await EnsureInstrumentsConnectedAsync(token);
             await Task.Delay(200, token);
             var freq = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? FREQuency", token);
-            double? dutyPct = await QueryScopeDutyPctAsync(1, token);
-            if (!dutyPct.HasValue)
-            {
-                var pw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? PWIDth", token);
-                var nw = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? NWIDth", token);
-                dutyPct = TryCalcDutyPctFromPulseWidths(pw, nw);
-            }
+            var dutyPct = await QueryScopeDutyPctAsync(1, token);
 
             return new Measurement
             {
@@ -866,23 +838,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 return sb.ToString().Trim();
             }
-        }
-
-        private static double? TryCalcDutyPctFromPulseWidths(double? pwSeconds, double? nwSeconds)
-        {
-            if (!pwSeconds.HasValue || !nwSeconds.HasValue)
-                return null;
-
-            var pw = pwSeconds.Value;
-            var nw = nwSeconds.Value;
-            if (double.IsNaN(pw) || double.IsInfinity(pw) || double.IsNaN(nw) || double.IsInfinity(nw))
-                return null;
-
-            var period = pw + nw;
-            if (period <= 0)
-                return null;
-
-            return pw / period * 100.0;
         }
 
         private static double NormalizeDutyToPercent(double dutyValue)

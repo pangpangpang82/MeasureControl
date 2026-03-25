@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Import disabled by automation: Costura.Fody props removed to avoid MSBuild compatibility issues during CI/local edits -->
   <!-- <Import Project="..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props" Condition="Exists('..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props')" /> -->
@@ -62,6 +62,7 @@
     <DocumentationFile>bin\Debug\MeasureControl.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
     <PreferNativeArm64>false</PreferNativeArm64>
+    <UseVSHostingProcess>true</UseVSHostingProcess>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -218,7 +219,6 @@
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_7_3_2_1ViewModel.cs" />
     <Compile Include="Views\Common\FloatingWindow.xaml.cs">
       <DependentUpon>FloatingWindow.xaml</DependentUpon>
     </Compile>
@@ -273,6 +273,9 @@
     <Compile Include="Views\Dialogs\HydraulicAutoTestSelectionDialog.xaml.cs">
       <DependentUpon>HydraulicAutoTestSelectionDialog.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\Dialogs\PowerBoardSelectDialog.xaml.cs">
+      <DependentUpon>PowerBoardSelectDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\Dialogs\FuelAutoTestSelectionDialog.xaml.cs">
       <DependentUpon>FuelAutoTestSelectionDialog.xaml</DependentUpon>
     </Compile>
@@ -305,57 +308,6 @@
     </Compile>
     <Compile Include="Views\Login.xaml.cs">
       <DependentUpon>Login.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_1.xaml.cs">
-      <DependentUpon>HC_6_1.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_2.xaml.cs">
-      <DependentUpon>HC_6_2.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_3.xaml.cs">
-      <DependentUpon>HC_6_3.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_4.xaml.cs">
-      <DependentUpon>HC_6_4.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_5.xaml.cs">
-      <DependentUpon>HC_6_5.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_6.xaml.cs">
-      <DependentUpon>HC_6_6.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_7.xaml.cs">
-      <DependentUpon>HC_6_7.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_8.xaml.cs">
-      <DependentUpon>HC_6_8.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\DiscreteInputTestView.xaml.cs">
-      <DependentUpon>DiscreteInputTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\DiscreteOutputTestView.xaml.cs">
-      <DependentUpon>DiscreteOutputTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\LowVoltageAlarmTestView.xaml.cs">
-      <DependentUpon>LowVoltageAlarmTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\PowerImpedanceTestView.xaml.cs">
-      <DependentUpon>PowerImpedanceTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\RS422CommunicationFunctionTestView.xaml.cs">
-      <DependentUpon>RS422CommunicationFunctionTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\RS422SelfCheckTestView.xaml.cs">
-      <DependentUpon>RS422SelfCheckTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\SecondaryPowerTestView.xaml.cs">
-      <DependentUpon>SecondaryPowerTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\FuelController\TemperatureAcquisitionTestView.xaml.cs">
-      <DependentUpon>TemperatureAcquisitionTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TdmSystem\TDMSystem.xaml.cs">
-      <DependentUpon>TDMSystem.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_10_1_1View.xaml.cs">
       <DependentUpon>A_C_6_10_1_1View.xaml</DependentUpon>
@@ -441,12 +393,6 @@
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_5_2_3View.xaml.cs">
       <DependentUpon>A_C_6_5_2_3View.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_5_2_4View.xaml.cs">
-      <DependentUpon>A_C_6_5_2_4View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_5_2_5View.xaml.cs">
-      <DependentUpon>A_C_6_5_2_5View.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_5_2_6View.xaml.cs">
       <DependentUpon>A_C_6_5_2_6View.xaml</DependentUpon>
     </Compile>
@@ -455,102 +401,6 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_9_2_1View.xaml.cs">
       <DependentUpon>A_C_6_9_2_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_3_1_1_2View.xaml.cs">
-      <DependentUpon>A_C_7_3_1_1_2View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_3_1_2View.xaml.cs">
-      <DependentUpon>A_C_7_3_1_2View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_3_1_3View.xaml.cs">
-      <DependentUpon>A_C_7_3_1_3View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_3_2_1View.xaml.cs">
-      <DependentUpon>A_C_7_3_2_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_3_2_2View.xaml.cs">
-      <DependentUpon>A_C_7_3_2_2View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_3_3_1View.xaml.cs">
-      <DependentUpon>A_C_7_3_3_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_3_4_1View.xaml.cs">
-      <DependentUpon>A_C_7_3_4_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_4_1_1View.xaml.cs">
-      <DependentUpon>A_C_7_4_1_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_4_1_2View.xaml.cs">
-      <DependentUpon>A_C_7_4_1_2View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_4_2_1View.xaml.cs">
-      <DependentUpon>A_C_7_4_2_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_4_2_2View.xaml.cs">
-      <DependentUpon>A_C_7_4_2_2View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_4_3_1View.xaml.cs">
-      <DependentUpon>A_C_7_4_3_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_4_3_2View.xaml.cs">
-      <DependentUpon>A_C_7_4_3_2View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_4_4_1View.xaml.cs">
-      <DependentUpon>A_C_7_4_4_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_4_4_2View.xaml.cs">
-      <DependentUpon>A_C_7_4_4_2View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_4_5_1View.xaml.cs">
-      <DependentUpon>B_C_7_4_5_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_4_5_2View.xaml.cs">
-      <DependentUpon>B_C_7_4_5_2View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_4_6_1View.xaml.cs">
-      <DependentUpon>B_C_7_4_6_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_4_6_2View.xaml.cs">
-      <DependentUpon>B_C_7_4_6_2View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_4_7_1View.xaml.cs">
-      <DependentUpon>B_C_7_4_7_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_4_7_2View.xaml.cs">
-      <DependentUpon>B_C_7_4_7_2View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_4_8_1View.xaml.cs">
-      <DependentUpon>B_C_7_4_8_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_4_8_2View.xaml.cs">
-      <DependentUpon>B_C_7_4_8_2View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_5_1_1_2View.xaml.cs">
-      <DependentUpon>A_C_7_5_1_1_2View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_5_2_1View.xaml.cs">
-      <DependentUpon>A_C_7_5_2_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_5_3_1View.xaml.cs">
-      <DependentUpon>A_C_7_5_3_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_5_4_1View.xaml.cs">
-      <DependentUpon>A_C_7_5_4_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\A_C_7_5_8_1View.xaml.cs">
-      <DependentUpon>A_C_7_5_8_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_5_7_1View.xaml.cs">
-      <DependentUpon>B_C_7_5_7_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_5_6_1View.xaml.cs">
-      <DependentUpon>B_C_7_5_6_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_5_5_1View.xaml.cs">
-      <DependentUpon>B_C_7_5_5_1View.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\B_C_7_3_3_2View.xaml.cs">
-      <DependentUpon>B_C_7_3_3_2View.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A28vOc100mADiscreteOutputCh1TestView.xaml.cs">
       <DependentUpon>A28vOc100mADiscreteOutputCh1TestView.xaml</DependentUpon>
@@ -683,6 +533,57 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\BoardTest.xaml.cs">
       <DependentUpon>BoardTest.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\FuelController\DiscreteInputTestView.xaml.cs">
+      <DependentUpon>DiscreteInputTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\FuelController\DiscreteOutputTestView.xaml.cs">
+      <DependentUpon>DiscreteOutputTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\FuelController\LowVoltageAlarmTestView.xaml.cs">
+      <DependentUpon>LowVoltageAlarmTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\FuelController\PowerImpedanceTestView.xaml.cs">
+      <DependentUpon>PowerImpedanceTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\FuelController\RS422CommunicationFunctionTestView.xaml.cs">
+      <DependentUpon>RS422CommunicationFunctionTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\FuelController\RS422SelfCheckTestView.xaml.cs">
+      <DependentUpon>RS422SelfCheckTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\FuelController\SecondaryPowerTestView.xaml.cs">
+      <DependentUpon>SecondaryPowerTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\FuelController\TemperatureAcquisitionTestView.xaml.cs">
+      <DependentUpon>TemperatureAcquisitionTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_1.xaml.cs">
+      <DependentUpon>HC_6_1.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_2.xaml.cs">
+      <DependentUpon>HC_6_2.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_3.xaml.cs">
+      <DependentUpon>HC_6_3.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_4.xaml.cs">
+      <DependentUpon>HC_6_4.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_5.xaml.cs">
+      <DependentUpon>HC_6_5.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_6.xaml.cs">
+      <DependentUpon>HC_6_6.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_7.xaml.cs">
+      <DependentUpon>HC_6_7.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_8.xaml.cs">
+      <DependentUpon>HC_6_8.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\TdmSystem\TDMSystem.xaml.cs">
+      <DependentUpon>TDMSystem.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\TestControl\ButtonControl.xaml.cs">
       <DependentUpon>ButtonControl.xaml</DependentUpon>
@@ -821,9 +722,264 @@
     <Compile Include="Services\**\*.cs" />
     <Compile Include="Simulations\**\*.cs" />
     <Compile Include="MatrixSwitchDemo.cs" />
-    <Compile Include="ViewModels\**\*.cs" Exclude="ViewModels\**\*.Designer.cs" />
+    <Compile Include="ViewModels\LoginViewModel.cs" />
+    <Compile Include="ViewModels\ICloseGuard.cs" />
+    <Compile Include="ViewModels\Common\BaseViewModel.cs" />
+    <Compile Include="ViewModels\Common\FloatingWindowViewModel.cs" />
+    <Compile Include="ViewModels\Common\HomePageViewModel.cs" />
+    <Compile Include="ViewModels\Common\MainWindowViewModel.cs" />
+    <Compile Include="ViewModels\Common\NavigationViewModel.cs" />
+    <Compile Include="ViewModels\Common\ProjectManagementViewModel.cs" />
+    <Compile Include="ViewModels\Common\TimeManagementViewModel.cs" />
+    <Compile Include="ViewModels\Common\WindowControlViewModel.cs" />
+    <Compile Include="ViewModels\Hardware\HardwareConfigViewModel.cs" />
+    <Compile Include="ViewModels\Database\DatabaseConfigViewModel.cs" />
+    <Compile Include="ViewModels\Hardware\DeviceInfoViewModel.cs" />
+    <Compile Include="ViewModels\Hardware\PxiChassisViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\DmmTestPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\FrequencyCounterTestPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\OscilloscopeTestPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\SignalGeneratorTestPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\PowerSupplyTestPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ElectronicLoadTestPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\MatrixSwitchConfigTableViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\PXI4004CANConfigPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ART4229ConfigPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\SwitchPXI3022ControlPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\RsSerialDebugPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ConfigTabel\ChannelConfigTabelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ConfigTabel\ChannelTreeNode.cs" />
+    <Compile Include="ViewModels\TestTask\ConfigTabel\DataCalibrationViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ConfigTabel\IcdMappingTabelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ConfigTabel\SignalConfigTabelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\TestContent\ReportConfigTableViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\TestContent\TestInterfaceViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\PXI2601_SWITCHViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\ART1553BConfigPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\MT532_AOViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\MTX970_LVDSViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\PXI7012_ROViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\PXI9774_AIViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\PXIe7131_DIDOViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\MIL1394B\Mil1394TestPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\MIL1394B\Mil1394CardPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\MIL1394B\Mil1394NodeSendRcvPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\MIL1394B\Mil1394NodeDataCountPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\CardCATPanel\MIL1394B\Mil1394NodeConfigPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\LvdtSimulatorConfigPanelViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ResolverSimulatorConfigPanelViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\AddChassisDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\AddChannelDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\AddSignalDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\BCMessageEditDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\ReMessageBoxViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\SelfInspectionDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\SignalCalibrationDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\HydraulicAutoTestSelectionDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\FuelAutoTestSelectionDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\TestStartDialogViewModel.cs" />
+    <Compile Include="ViewModels\Dialogs\TestProgressDialogViewModel.cs" />
+    <Compile Include="ViewModels\TestTask\ConfigTabel\IcdConfigTabelViewModel.cs" />
+    <Compile Include="ViewModels\TdmSystem\TDMSystemViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_2_3ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_5_2_6ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_3ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_6_13_2_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_9_1_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_9_2_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_1_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_13_1_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_2_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_3_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_5_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_6_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_7_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\AirSimpleSequenceViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\PowerBoardSupplyTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_3ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_4ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_5ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_6ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_7ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_8ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\FuelController\PowerImpedanceTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\FuelController\SecondaryPowerTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_15_1_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_15_1_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_15_2_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_15_2_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_16_1_1_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_16_1_1_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_16_3_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_17_1_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_17_2_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_17_3_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_17_4_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_17_4_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_18_1_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_18_2_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_18_3_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_18_4_1ViewModel.cs" />
     <Compile Include="Views\**\*.cs" Exclude="Views\**\*.xaml.cs;Views\**\*.Designer.cs" />
-    <Page Include="Views\**\*.xaml">
+    <Page Include="Styles\ScrollBarStyles.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Styles\ComboBoxStyles.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Styles\ToggleSwitchStyles.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\Dialogs\AddIcdMappingDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\Dialogs\CreateIcdConfigTableDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\Dialogs\HydraulicAutoTestSelectionDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\Dialogs\PowerBoardSelectDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\Dialogs\FuelAutoTestSelectionDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\Login.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\Common\MainWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_9_2_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_10_1_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_13_1_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\S_C_6_13_2_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_10_2_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_10_3_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_10_5_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_10_6_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_10_7_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_11_1_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_12_1_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_15_1_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_15_1_2View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_15_2_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_15_2_2View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_16_1_1_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_16_1_1_2View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_16_3_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_17_1_2View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_17_2_2View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_17_3_2View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_17_4_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_17_4_2View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_18_1_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_18_2_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_18_3_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_18_4_1View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Remove="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml" />
+    <Page Include="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Remove="Views\SingleBoardTest\AirController\S_C_8_7_3View.xaml" />
+    <Page Include="Views\SingleBoardTest\AirController\S_C_8_7_3View.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -1249,10 +1405,38 @@
     <Content Include="Libs\pxi4088.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Libs\OKAIDaq.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Resources\Logo\search_w.png" />
     <Resource Include="Resources\Logo\search_b.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="ViewModels\**\*.cs" />
+    <Compile Include="ViewModels\**\*.cs" Exclude="ViewModels\**\*.Designer.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Views\**\*.cs" />
+    <Compile Include="Views\**\*.cs" Exclude="Views\**\*.Designer.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Views\**\*.xaml.cs">
+      <DependentUpon>%(Filename)</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Remove="Views\**\*.xaml" />
+    <Page Remove="Styles\**\*.xaml" />
+    <Page Include="Views\**\*.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Styles\**\*.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
   </ItemGroup>
   <Target Name="CopyLibsToOutput" AfterTargets="CopyFilesToOutputDirectory">
     <ItemGroup>
@@ -1278,9 +1462,11 @@
     <Error Condition="'$(OS)' != 'Windows_NT' AND !Exists('..\packages\SkiaSharp.NativeAssets.Linux.NoDependencies.3.119.0\build\net462\SkiaSharp.NativeAssets.Linux.NoDependencies.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\SkiaSharp.NativeAssets.Linux.NoDependencies.3.119.0\build\net462\SkiaSharp.NativeAssets.Linux.NoDependencies.targets'))" />
     <Error Condition="'$(OS)' != 'Windows_NT' AND !Exists('..\packages\SkiaSharp.NativeAssets.macOS.3.119.0\build\net462\SkiaSharp.NativeAssets.macOS.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\SkiaSharp.NativeAssets.macOS.3.119.0\build\net462\SkiaSharp.NativeAssets.macOS.targets'))" />
     <Error Condition="!Exists('..\packages\SkiaSharp.NativeAssets.Win32.3.119.0\build\net462\SkiaSharp.NativeAssets.Win32.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\SkiaSharp.NativeAssets.Win32.3.119.0\build\net462\SkiaSharp.NativeAssets.Win32.targets'))" />
+    <Error Condition="!Exists('..\packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets'))" />
   </Target>
   <Import Project="..\packages\Costura.Fody.6.0.0\build\Costura.Fody.targets" Condition="Exists('..\packages\Costura.Fody.6.0.0\build\Costura.Fody.targets')" />
   <Import Project="..\packages\SkiaSharp.NativeAssets.Linux.NoDependencies.3.119.0\build\net462\SkiaSharp.NativeAssets.Linux.NoDependencies.targets" Condition="Exists('..\packages\SkiaSharp.NativeAssets.Linux.NoDependencies.3.119.0\build\net462\SkiaSharp.NativeAssets.Linux.NoDependencies.targets')" />
   <Import Project="..\packages\SkiaSharp.NativeAssets.macOS.3.119.0\build\net462\SkiaSharp.NativeAssets.macOS.targets" Condition="Exists('..\packages\SkiaSharp.NativeAssets.macOS.3.119.0\build\net462\SkiaSharp.NativeAssets.macOS.targets')" />
   <Import Project="..\packages\SkiaSharp.NativeAssets.Win32.3.119.0\build\net462\SkiaSharp.NativeAssets.Win32.targets" Condition="Exists('..\packages\SkiaSharp.NativeAssets.Win32.3.119.0\build\net462\SkiaSharp.NativeAssets.Win32.targets')" />
+  <Import Project="..\packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets" Condition="Exists('..\packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets')" />
 </Project>

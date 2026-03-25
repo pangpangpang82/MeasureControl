@@ -30,6 +30,7 @@ namespace MeasureControl.Services.HardwareApis
     {
         public int? FrequencyRangeIndex { get; set; }
         public int? TimeoutMilliseconds { get; set; }
+        public double? FrequencyApertureSeconds { get; set; }
     }
 
     /// <summary>
@@ -212,10 +213,23 @@ namespace MeasureControl.Services.HardwareApis
 
             try
             {
-                if (mode == DmmMeasureMode.FREQ && options?.FrequencyRangeIndex != null)
+                if (mode == DmmMeasureMode.FREQ)
                 {
-                    await TrySendFrequencyModeAsync(cancellationToken).ConfigureAwait(false);
-                    await SendAsync($":MEASure:FREQuency {options.FrequencyRangeIndex.Value}", cancellationToken).ConfigureAwait(false);
+                    var voltRange = options?.FrequencyRangeIndex ?? 10;
+                    var aperture = options?.FrequencyApertureSeconds ?? 0.1;
+                    var apertureStr = aperture.ToString("0.######", CultureInfo.InvariantCulture);
+
+                    await SendAsync($":CONF:FREQ {voltRange}", cancellationToken);
+                    await Task.Delay(150, cancellationToken);
+
+                    await SendAsync($":SENS:FREQ:APER {apertureStr}", cancellationToken);
+                    await Task.Delay(150, cancellationToken);
+
+                    await SendAsync("*CLS", cancellationToken);
+                    await Task.Delay(50, cancellationToken);
+
+                    var freqRaw = await QueryAsync(":READ?", cancellationToken);
+                    return ParseReading(freqRaw?.Trim(), "Hz");  
                 }
 
                 var (query, unit) = GetQuery(mode);

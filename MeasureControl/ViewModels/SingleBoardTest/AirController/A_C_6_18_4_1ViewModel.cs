@@ -107,7 +107,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             PreviousTestTime = "--";
             PreviousTestResult = "--";
 
-            IsRealProduct = AppConstants.Arinc429IsRealProduct;
+            IsRealProduct = true;
 
             ManualTestCommand = new DelegateCommand(OnManualTest);
             AutoTestCommand = new DelegateCommand(OnAutoTest);
@@ -376,11 +376,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     LastTestTime = "--";
                     LastTestResult = "--";
 
-                    _simulation.IsRealProduct = IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
-                    _simulation.SimProductArincRate = ArincRate;
-                    _simulation.SimProductRxChannelIndex = 4;
-                    _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：开始打开设备");
 
@@ -768,12 +765,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task<double?> ReadDmmVoltageAsync(string pointName, (string inNode, string outNode, int slot, int? basePort)[] ops, CancellationToken token)
         {
-            if (!IsRealProduct)
-            {
-                await Task.Delay(50, token);
-                return 3.3;
-            }
-
             bool matrixOk = await ConnectMatrixAsync(pointName, ops, token);
             if (!matrixOk)
                 throw new InvalidOperationException("矩阵开关通路建立失败");
@@ -943,11 +934,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
                     catch { }
 
-                    _simulation.IsRealProduct = IsRealProduct;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
-                    _simulation.SimProductArincRate = ArincRate;
-                    _simulation.SimProductRxChannelIndex = 4;
-                    _simulation.SimProductTxChannelIndex = 5;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));

@@ -35,7 +35,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const int DefaultScopePort = 5555;
         private const string DefaultScopeIpAddress = "192.168.1.18";
 
-        private static readonly byte[] FpgaTestCommand = { 0x0A, 0x55, 0x02, 0x07, 0x09 };
+        private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
+        private static readonly byte[] StepperPulseCommandFrame = { 0xAA, 0x55, 0x06, 0x04, 0x60, 0xE8, 0x03, 0xF4, 0x01 };
 
         private const double ExpectedFrequencyHz = 250.0; // 1000/4
         private const double FrequencyToleranceHz = 1.0;
@@ -445,8 +446,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 try
                 {
                     await EnsureFpgaConnectedAsync(token).ConfigureAwait(false);
-                    AddLog($"FPGA发送测试指令: {FormatData(FpgaTestCommand)}");
-                    await _fpga.WriteAsync(FpgaTestCommand, 0, FpgaTestCommand.Length, token).ConfigureAwait(false);
+
+                    AddLog($"FPGA发送指令(设备初始化): {FormatData(DeviceInitCommandFrame)}");
+                    await _fpga.WriteAsync(DeviceInitCommandFrame, 0, DeviceInitCommandFrame.Length, token).ConfigureAwait(false);
+
+                    AddLog($"FPGA发送指令(STEP脉冲1000Hz): {FormatData(StepperPulseCommandFrame)}");
+                    await _fpga.WriteAsync(StepperPulseCommandFrame, 0, StepperPulseCommandFrame.Length, token).ConfigureAwait(false);
                     return true;
                 }
                 finally

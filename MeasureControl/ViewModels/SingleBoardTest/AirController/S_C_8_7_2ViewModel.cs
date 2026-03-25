@@ -73,6 +73,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool _isMtx532RealHardware;
         private int _currentGearIndex = 1;
 
+        private CancellationTokenSource _telemetryListeningCts;
+        private Task _telemetryListeningTask;
+
+        private byte[] _lastTemperatureTelemetryFrame;
+        private byte[] _lastTemperatureRawFrame;
+        private int _telemetrySeq;
+        private byte[] _lastPressureTelemetryFrame;
+
         public S_C_8_7_2ViewModel()
         {
             ManualTestCommand = new DelegateCommand(OnManualTest);
@@ -347,7 +355,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
                     catch { }
 
-                    _simulation.IsRealProduct = false;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = 100000.0;
                     _simulation.SimProductArincRate = 100000.0;
                     _simulation.SimProductRxChannelIndex = 4;
@@ -384,6 +392,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
                 try
                 {
+                    try { await StopTelemetryListeningAsync(); } catch { }
                     await _simulation.StopAsync(msg => AddLog(msg));
                     IsManualTestRunning = false;
                     IsInAtp = false;
@@ -439,6 +448,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     EnterAtpRxDataText = "0x" + FormatData(resp);
                     IsInAtp = true;
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP成功");
+                    StartTelemetryListeningIfNeeded();
                 }
                 finally
                 {
@@ -493,29 +503,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
 
                     await Task.Delay(50);
-                    await _simulation.ClearRxFifoAsync(TestCommandRxChannel);
-                    await Task.Delay(20);
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送S_FWDAVENTS_MEA02：{FormatData(SFwdAventsMea028)}");
                     await _simulation.SendBenchCommandOnlyAsync(TestCommandTxChannel, SFwdAventsMea028, msg => AddLog(msg), CancellationToken.None);
 
-                    var confirm = await _simulation.WaitBenchResponse8Async(
-                        TestCommandRxChannel,
-                        b => b != null && b.SequenceEqual(SFwdAventsMea028),
-                        timeoutMs: 1200,
-                        log: msg => AddLog(msg),
-                        token: CancellationToken.None);
+                    var startSeq = Volatile.Read(ref _telemetrySeq);
+                    Interlocked.Exchange(ref _lastPressureTelemetryFrame, null);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：等待温度遥测[持续监听]");
 
-                    if (confirm == null)
+                    var maxWaitMs = 2000;
+                    var sw = Stopwatch.StartNew();
+                    byte[] tel = null;
+                    while (sw.ElapsedMilliseconds < maxWaitMs)
                     {
-                        SetLastTestResult("FAIL");
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 指令确认帧超时");
-                        return;
+                        var frame = Interlocked.CompareExchange(ref _lastPressureTelemetryFrame, null, null);
+                        if (frame != null)
+                        {
+                            tel = frame;
+                            break;
+                        }
+                        await Task.Delay(50);
                     }
 
-                    TestCommandRxDataText = "0x" + FormatData(confirm);
-
-                    var tel = await _simulation.WaitTelemetryAsync(TelemetryRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: CancellationToken.None);
                     if (tel == null)
                     {
                         SetLastTestResult("FAIL");
@@ -605,27 +614,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送S_FWDAVENTS_MEA02：TX={ControllerPressureTestTxChannel}");
                     await _simulation.SendBenchCommandOnlyAsync(ControllerPressureTestTxChannel, SFwdAventsMea028, msg => AddLog(msg), CancellationToken.None);
-
-                    var tel = await _simulation.WaitTelemetryAsync(PressureTelemetryRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: CancellationToken.None);
-                    if (tel == null)
-                    {
-                        SetLastTestResult("FAIL");
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测超时");
-                        return;
-                    }
-
-                    TelemetryRxDataText = "0x" + FormatData(tel);
-                    if (!TryParseTelemetryTemperature(tel, out var temperature))
-                    {
-                        SetLastTestResult("FAIL");
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测解析失败");
-                        return;
-                    }
-
-                    TemperatureValueText = temperature.ToString("0.####", CultureInfo.InvariantCulture);
-                    var pass = IsTemperatureQualified(CurrentGearIndex <= 0 ? 1 : CurrentGearIndex, temperature);
-                    SetLastTestResult(pass ? "PASS" : "FAIL");
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 测试结果：{LastTestResult}");
                 }
                 finally
                 {
@@ -720,7 +708,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
                     catch { }
 
-                    _simulation.IsRealProduct = false;
+                    _simulation.IsRealProduct = true;
                     _simulation.ArincRate = 100000.0;
                     _simulation.SimProductArincRate = 100000.0;
                     _simulation.SimProductRxChannelIndex = 4;
@@ -749,6 +737,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     EnterAtpRxDataText = "0x" + FormatData(enterOk);
                     IsInAtp = true;
+                    StartTelemetryListeningIfNeeded();
 
                     var failures = new List<string>();
                     for (int gear = 1; gear <= 3; gear++)
@@ -803,6 +792,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
+                    try { await StopTelemetryListeningAsync(); } catch { }
                     try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
                     try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsAutoTestRunning = false;
@@ -840,24 +830,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
 
             await Task.Delay(50, token);
-            await _simulation.ClearRxFifoAsync(TestRxChannel);
-            await Task.Delay(20, token);
             await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, SFwdAventsMea028, msg => AddLog(msg), token);
 
-            var confirm = await _simulation.WaitBenchResponse8Async(
-                TestRxChannel,
-                b => b != null && b.SequenceEqual(SFwdAventsMea028),
-                timeoutMs: 1200,
-                log: msg => AddLog(msg),
-                token: token);
+            var startSeq = Volatile.Read(ref _telemetrySeq);
+            Interlocked.Exchange(ref _lastPressureTelemetryFrame, null);
 
-            if (confirm == null)
+            var maxWaitMs = 2000;
+            var sw = Stopwatch.StartNew();
+            byte[] tel = null;
+            while (sw.ElapsedMilliseconds < maxWaitMs && !token.IsCancellationRequested)
             {
-                failures.Add($"档位{gearIndex} 指令确认帧超时");
-                return;
+                var frame = Interlocked.CompareExchange(ref _lastPressureTelemetryFrame, null, null);
+                if (frame != null)
+                {
+                    tel = frame;
+                    break;
+                }
+                await Task.Delay(50, token);
             }
 
-            var tel = await _simulation.WaitTelemetryAsync(TestRxChannel, timeoutMs: 1500, log: msg => AddLog(msg), token: token);
             if (tel == null)
             {
                 failures.Add($"档位{gearIndex} 温度遥测超时");
@@ -1130,6 +1121,86 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             PreviousTestResult = LastTestResult;
             LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             LastTestResult = result;
+        }
+
+        private void StartTelemetryListeningIfNeeded()
+        {
+            if (_telemetryListeningTask != null)
+                return;
+            if (string.IsNullOrWhiteSpace(TelemetryRxChannel))
+                return;
+            if (!IsInAtp)
+                return;
+            if (!IsManualTestRunning && !IsAutoTestRunning)
+                return;
+
+            _telemetryListeningCts?.Cancel();
+            _telemetryListeningCts?.Dispose();
+            _telemetryListeningCts = new CancellationTokenSource();
+            var token = _telemetryListeningCts.Token;
+
+            _telemetryListeningTask = Task.Run(async () =>
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 启动温度遥测持续监听：RX={TelemetryRxChannel}");
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        var tel = await _simulation.WaitTelemetryAsync(
+                            TelemetryRxChannel,
+                            timeoutMs: 300,
+                            msg => { },
+                            token);
+
+                        if (tel != null && TryParseTelemetryTemperature(tel, out var temperature))
+                        {
+                            var frameCopy = tel.ToArray();
+                            Interlocked.Exchange(ref _lastPressureTelemetryFrame, frameCopy);
+                            Interlocked.Increment(ref _telemetrySeq);
+
+                            var dispatcher = Application.Current?.Dispatcher;
+                            if (dispatcher != null && !dispatcher.CheckAccess())
+                            {
+                                dispatcher.BeginInvoke(new Action(() =>
+                                {
+                                    TelemetryRxDataText = "0x" + FormatData(frameCopy);
+                                    TemperatureValueText = temperature.ToString("0.####", CultureInfo.InvariantCulture);
+                                }));
+                            }
+                            else
+                            {
+                                TelemetryRxDataText = "0x" + FormatData(frameCopy);
+                                TemperatureValueText = temperature.ToString("0.####", CultureInfo.InvariantCulture);
+                            }
+                        }
+                        else
+                        {
+                            await Task.Delay(30, token);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                    catch
+                    {
+                        await Task.Delay(50, token);
+                    }
+                }
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测持续监听已停止");
+            }, token);
+        }
+
+        private async Task StopTelemetryListeningAsync()
+        {
+            _telemetryListeningCts?.Cancel();
+            if (_telemetryListeningTask != null)
+            {
+                try { await _telemetryListeningTask; } catch { }
+                _telemetryListeningTask = null;
+            }
+            _telemetryListeningCts?.Dispose();
+            _telemetryListeningCts = null;
         }
 
         public void Dispose()

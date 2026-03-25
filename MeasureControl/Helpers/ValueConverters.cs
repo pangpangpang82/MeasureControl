@@ -538,7 +538,7 @@ namespace MeasureControl.Helpers
     }
 
     /// <summary>
-    /// Baud number to/from string converter.
+    /// Baud number <-> string converter.
     /// Supports plain numbers ("500000") or suffixed forms like "500k", "500K", "1M".
     /// Converts numeric values (uint/int) to plain decimal string.
     /// </summary>
@@ -2134,6 +2134,27 @@ namespace MeasureControl.Helpers
             }
             return Binding.DoNothing; // 返回DoNothing避免不匹配时设置null
         }
+    }
+
+    /// <summary>
+    /// 通道地址显示转换器：将 "AI0" → "AI1"，"AO0" → "AO1" 等 0-based 地址转为 1-based 显示
+    /// </summary>
+    public class ChannelAddressDisplayConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is string s && !string.IsNullOrEmpty(s))
+            {
+                int i = 0;
+                while (i < s.Length && !char.IsDigit(s[i])) i++;
+                if (i > 0 && i < s.Length && int.TryParse(s.Substring(i), out int num))
+                    return $"{s.Substring(0, i)}{num + 1}";
+            }
+            return value;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
     }
 
 }

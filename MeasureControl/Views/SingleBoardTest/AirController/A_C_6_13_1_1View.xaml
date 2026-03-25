@@ -11,64 +11,48 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <Style x:Key="EnableCheckBoxStyle" TargetType="CheckBox">
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Styles/ScrollBarStyles.xaml" />
+                <ResourceDictionary Source="/Styles/ComboBoxStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
 
-            <Setter Property="Template">
-
-                <Setter.Value>
-
-                    <ControlTemplate TargetType="CheckBox">
-
-                        <Grid>
-
-                            <Border
-                                x:Name="checkBoxBorder"
-                                Width="16"
-                                Height="16"
-                                Background="White"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="2">
-
-                                <Path
-                                    x:Name="checkMark"
-                                    Data="M 2 8 L 6 12 L 14 4"
-                                    Stroke="White"
-                                    StrokeThickness="2"
-                                    Visibility="Collapsed" />
-
-                            </Border>
-
-                        </Grid>
-
-                        <ControlTemplate.Triggers>
-
-                            <Trigger Property="IsChecked" Value="True">
-
-                                <Setter TargetName="checkBoxBorder" Property="Background" Value="#3b82f6" />
-
-                                <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#3b82f6" />
-
-                                <Setter TargetName="checkMark" Property="Visibility" Value="Visible" />
-
-                            </Trigger>
-
-                            <Trigger Property="IsMouseOver" Value="True">
-
-                                <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#3b82f6" />
-
-                            </Trigger>
-
-                        </ControlTemplate.Triggers>
-
-                    </ControlTemplate>
-
-                </Setter.Value>
-
-            </Setter>
-
-        </Style>
-
+            <Style x:Key="EnableCheckBoxStyle" TargetType="CheckBox">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="CheckBox">
+                            <Grid>
+                                <Border
+                                    x:Name="checkBoxBorder"
+                                    Width="16"
+                                    Height="16"
+                                    Background="White"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="2">
+                                    <Path
+                                        x:Name="checkMark"
+                                        Data="M 2 8 L 6 12 L 14 4"
+                                        Stroke="White"
+                                        StrokeThickness="2"
+                                        Visibility="Collapsed" />
+                                </Border>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="checkBoxBorder" Property="Background" Value="#3b82f6" />
+                                    <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#3b82f6" />
+                                    <Setter TargetName="checkMark" Property="Visibility" Value="Visible" />
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#3b82f6" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
     </UserControl.Resources>
 
 
