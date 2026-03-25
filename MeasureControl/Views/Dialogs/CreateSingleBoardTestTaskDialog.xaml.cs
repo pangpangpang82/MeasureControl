@@ -30,7 +30,8 @@ namespace MeasureControl.Views.Dialogs
             {
                 "空气单板",
                 "液压单板",
-                "惰化单板",
+                "惰化模拟板",
+                "惰化控制板",
                 "加放油单板",
                 "自定义单板"
             };
