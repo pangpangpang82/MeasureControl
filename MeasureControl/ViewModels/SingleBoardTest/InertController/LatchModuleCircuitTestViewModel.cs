@@ -2,6 +2,7 @@ using MeasureControl.Services.HardwareApis;
 using MeasureControl.Drivers;
 using MeasureControl.Models.Devices;
 using Prism.Commands;
+using Prism.Ioc;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -29,6 +30,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         public bool SkipMainPowerOff { get; set; }
         private const double LatchSupplyCurrentA = 0.1;
         private readonly IPxiChassisService _pxiChassisService;
+        private readonly IComponentPowerStateApi _componentPowerStateApi;
 
         private IPowerSupplyApi _power;
         private IPxi7012Api _resistor;
@@ -60,9 +62,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private PowerSupplyChannel _latchSupplyChannel = PowerSupplyChannel.CH3;
 
-        public LatchModuleCircuitTestViewModel(IPxiChassisService pxiChassisService)
+        public LatchModuleCircuitTestViewModel(IPxiChassisService pxiChassisService, IComponentPowerStateApi componentPowerStateApi = null)
         {
             _pxiChassisService = pxiChassisService;
+            _componentPowerStateApi = componentPowerStateApi;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
@@ -240,6 +243,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 return;
             }
 
+            // 检查是否已总上电
+            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (_hps == null || !_hps.IsHydraulicPowered)
+            {
+                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             if (IsAutoTestRunning)
             {
                 await StopTestAsync().ConfigureAwait(false);
@@ -282,6 +293,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             if (IsAutoTestRunning)
             {
                 await StopTestAsync().ConfigureAwait(false);
+                return;
+            }
+
+            // 检查是否已总上电
+            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (_hps == null || !_hps.IsHydraulicPowered)
+            {
+                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -642,23 +661,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task EnsureMainPowerAsync(double voltageV, CancellationToken cancellationToken)
         {
+            // 192.168.1.15 CH1 不再由本测试控制上电，由总上电统一管理
+            // 仍需连接电源以便后续控制CH2/CH3
             _power ??= new PowerSupplySocketApi();
             await _power.ConnectAsync(PowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
-            await _power.ApplyAsync(PowerSupplyChannel.CH1, voltageV, MainPowerCurrentA, cancellationToken).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(100, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task CleanupPowerAsync()
         {
             try
             {
+                // 192.168.1.15 CH1 不再由本测试控制下电
                 if (_power != null)
                 {
-                    if (!SkipMainPowerOff)
-                    {
-                        try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    }
                     try { await _power.SetOutputEnabledAsync(LatchSupplyChannel, false, CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
@@ -1014,44 +1030,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             var needGpio = step?.Inject3V3 == true;
             try
             {
-                await EnsureFpgaTcpConnectedAsync(token).ConfigureAwait(false);
-
                 if (needGpio)
                 {
-                    //for (int i = 0; i < 3; i++)
-                    //{
-                        await ApplySupplyViaFpgaAsync(step, token).ConfigureAwait(false);
-                        Log("等待复位高！！！");
-                        await Task.Delay(1000, token).ConfigureAwait(false);
-                        Log("等待复位低！！！");
-                        await SendFpgaFrameAsync(0x00, new byte[] { 0x00, 0x00, 0x00, 0x00 }, token).ConfigureAwait(false);
-                        //Log("[FPGA TX] Pre Read: AA 55 05 0A 00 00 00 00");
-                        await Task.Delay(2000, token).ConfigureAwait(false);
-                        await SendFpgaFrameAsync(0x0A, new byte[] { 0x00 }, token).ConfigureAwait(false);
-                        await ReadFpgaGpioInputOnceAsync(2000, token, acceptCmd: 0x0A).ConfigureAwait(false);
-                        await SendFpgaFrameAsync(0x0A, new byte[] { 0x00 }, token).ConfigureAwait(false);
-                        await ReadFpgaGpioInputOnceAsync(2000, token, acceptCmd: 0x0A).ConfigureAwait(false);
-                        await SendFpgaFrameAsync(0x0A, new byte[] { 0x00 }, token).ConfigureAwait(false);
-                        await ReadFpgaGpioInputOnceAsync(2000, token, acceptCmd: 0x0A).ConfigureAwait(false);
-                    //}
-
-                }
-                else
-                {
-                    await SendFpgaFrameAsync(0x0A, new byte[] { 0x00 }, token).ConfigureAwait(false);
-                    await ReadFpgaGpioInputOnceAsync(2000, token, acceptCmd: 0x0A).ConfigureAwait(false);
-                }
-
-                if (!needGpio)
-                {
+                    // 第1次连接：发送高电平，然后断开
+                    await EnsureFpgaTcpConnectedAsync(token).ConfigureAwait(false);
+                    await ApplySupplyViaFpgaAsync(step, token).ConfigureAwait(false);
+                    await DisconnectFpgaTcpAsync().ConfigureAwait(false);
+                    Log("等待复位高！！！");
                     await Task.Delay(1000, token).ConfigureAwait(false);
-                    await SendFpgaFrameAsync(0x0A, new byte[] { 0x00 }, token).ConfigureAwait(false);
-                    await ReadFpgaGpioInputOnceAsync(2000, token, acceptCmd: 0x0A).ConfigureAwait(false);
+
+                    // 第2次连接：发送低电平复位，然后断开
+                    await EnsureFpgaTcpConnectedAsync(token).ConfigureAwait(false);
+                    Log("等待复位低！！！");
+                    await SendFpgaFrameAsync(0x00, new byte[] { 0x00, 0x00, 0x00, 0x00 }, token).ConfigureAwait(false);
+                    await DisconnectFpgaTcpAsync().ConfigureAwait(false);
+                    await Task.Delay(2000, token).ConfigureAwait(false);
                 }
 
+                // 最后一次连接：发送读取，读取结果，然后在finally中断开
+                await EnsureFpgaTcpConnectedAsync(token).ConfigureAwait(false);
                 await SendFpgaFrameAsync(0x0A, new byte[] { 0x00 }, token).ConfigureAwait(false);
-                Log("[FPGA TX] Force Read: AA 55 02 0A 00");
-
                 var gpio = await ReadFpgaGpioInputOnceAsync(2000, token, acceptCmd: 0x0A).ConfigureAwait(false);
                 var bitIndex = MapPinToIo43To64BitIndex(step.Item.MeasurePin);
                 if (bitIndex == null)
@@ -1086,13 +1084,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 {
                     try
                     {
-                        //await SendFpgaFrameAsync(0x00, new byte[] { 0x00, 0x00, 0x00, 0x00 }, CancellationToken.None).ConfigureAwait(false);
-                        //Log("[FPGA TX] Reset: AA 55 05 00 00 00 00 00");
+                        await SendFpgaFrameAsync(0x00, new byte[] { 0x00, 0x00, 0x00, 0x00 }, CancellationToken.None).ConfigureAwait(false);
+                        Log("[FPGA TX] Reset: AA 55 05 00 00 00 00 00");
                     }
                     catch (Exception ex)
                     {
                         Log($"FPGA复位发送失败: {ex.Message}");
                     }
+                }
+
+                try
+                {
+                    await DisconnectFpgaTcpAsync().ConfigureAwait(false);
+                    Log("FPGA TCP连接已断开");
+                }
+                catch (Exception ex)
+                {
+                    Log($"FPGA断开连接失败: {ex.Message}");
                 }
             }
         }

@@ -8,6 +8,8 @@ namespace MeasureControl.Views.Dialogs
         public static readonly IReadOnlyList<string> AvailableBoardTypes = new List<string>
         {
             "液压单板",
+            "惰化模拟板",
+            "惰化控制板",
         };
 
         public string SelectedBoardType { get; private set; }

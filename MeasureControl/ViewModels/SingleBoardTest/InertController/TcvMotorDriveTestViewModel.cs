@@ -57,6 +57,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
         private readonly ProjectService _projectService;
         private readonly IEventAggregator _eventAggregator;
+        private readonly IComponentPowerStateApi _componentPowerStateApi;
         private IPowerSupplyApi _power;
 
         private IArt4229Api _arinc;
@@ -88,11 +89,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         public TcvMotorDriveTestViewModel(
             ISingleBoardTestContextService singleBoardTestContext,
             ProjectService projectService,
-            IEventAggregator eventAggregator)
+            IEventAggregator eventAggregator,
+            IComponentPowerStateApi componentPowerStateApi = null)
         {
             _singleBoardTestContext = singleBoardTestContext;
             _projectService = projectService;
             _eventAggregator = eventAggregator;
+            _componentPowerStateApi = componentPowerStateApi;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
@@ -358,6 +361,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 return;
             }
 
+            // 检查是否已总上电
+            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (_hps == null || !_hps.IsHydraulicPowered)
+            {
+                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             if (IsAutoTestRunning)
             {
                 await StopAsync().ConfigureAwait(false);
@@ -519,6 +530,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             if (IsAutoTestRunning)
             {
                 await StopAsync().ConfigureAwait(false);
+                return;
+            }
+
+            // 检查是否已总上电
+            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (_hps == null || !_hps.IsHydraulicPowered)
+            {
+                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -1144,13 +1163,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task EnsurePowerAsync(double voltageV, CancellationToken token)
         {
-            _power ??= new PowerSupplySocketApi();
-            if (!_power.IsConnected)
-                await _power.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
-
-            await _power.ApplyAsync(PowerSupplyChannel.CH1, voltageV, InputCurrentA, token).ConfigureAwait(false);
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token).ConfigureAwait(false);
-            await Task.Delay(300, token).ConfigureAwait(false);
+            // 192.168.1.15 CH1 不再由本测试控制上电，由总上电统一管理
+            await Task.Delay(100, token).ConfigureAwait(false);
 
             Log($"[{DateTime.Now:HH:mm:ss}] 已供电：{PowerSupplyIpAddress} CH1 {voltageV:0.###}V {InputCurrentA:0.###}A");
         }
@@ -1162,10 +1176,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 if (_power == null)
                     return;
 
-                if (!SkipMainPowerOff)
-                {
-                    try { await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                }
+                // 192.168.1.15 CH1 不再由本测试控制下电
                 try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
             }

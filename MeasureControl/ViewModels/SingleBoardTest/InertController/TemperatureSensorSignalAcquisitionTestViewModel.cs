@@ -25,6 +25,7 @@ using MeasureControl.Services.HardwareApis;
 using MeasureControl.Services;
 
 using Prism.Ioc;
+using System.Windows;
 
 
 
@@ -54,7 +55,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private readonly Prism.Events.IEventAggregator _eventAggregator;
 
-
+        private readonly IComponentPowerStateApi _componentPowerStateApi;
 
         private readonly SemaphoreSlim _opLock = new SemaphoreSlim(1, 1);
 
@@ -124,7 +125,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             ISingleBoardTestContextService singleBoardTestContext,
 
-            Prism.Events.IEventAggregator eventAggregator)
+            Prism.Events.IEventAggregator eventAggregator,
+
+            IComponentPowerStateApi componentPowerStateApi = null)
 
         {
 
@@ -133,6 +136,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             _uiContext = SynchronizationContext.Current;
 
             _eventAggregator = eventAggregator;
+
+            _componentPowerStateApi = componentPowerStateApi;
 
 
 
@@ -837,6 +842,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             }
 
+            // 检查是否已总上电
+            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (_hps == null || !_hps.IsHydraulicPowered)
+            {
+                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             if (IsAutoTestRunning)
 
             {
@@ -1111,6 +1124,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             }
 
+            // 检查是否已总上电
+            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (_hps == null || !_hps.IsHydraulicPowered)
+            {
+                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             if (IsManualTestRunning)
 
             {
@@ -1357,17 +1378,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         {
 
-            _power ??= new PowerSupplySocketApi();
+            // 192.168.1.15 CH1 不再由本测试控制上电，由总上电统一管理
 
-            if (!_power.IsConnected)
-
-                await _power.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
-
-            await _power.ApplyAsync(PowerSupplyChannel.CH1, InputVoltageV, InputCurrentA, token).ConfigureAwait(false);
-
-            await _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token).ConfigureAwait(false);
-
-            await Task.Delay(200, token).ConfigureAwait(false);
+            await Task.Delay(100, token).ConfigureAwait(false);
 
             PostToUi(() =>
 
@@ -1399,11 +1412,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                     await _power.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
 
+                // 192.168.1.15 CH1 不再由本测试控制下电
                 foreach (var ch in Enum.GetValues(typeof(PowerSupplyChannel)).Cast<PowerSupplyChannel>())
 
                 {
 
-                    if (ch == PowerSupplyChannel.CH1 && SkipMainPowerOff)
+                    if (ch == PowerSupplyChannel.CH1)
                         continue;
 
                     try { await _power.SetOutputEnabledAsync(ch, false, token).ConfigureAwait(false); } catch { }

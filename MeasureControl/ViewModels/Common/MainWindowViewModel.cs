@@ -1507,22 +1507,34 @@ namespace MeasureControl.ViewModels.Common
                     var dlg = new PowerBoardSelectDialog();
                     if (dlg.ShowDialog() != true) return;
                     var selectedBoard = dlg.SelectedBoardType;
+                    if (string.IsNullOrEmpty(selectedBoard)) return;
+
+                    // 液压单板需要额外控制 JY7131 DO25
                     if (string.Equals(selectedBoard, "液压单板", System.StringComparison.OrdinalIgnoreCase))
                     {
-                        await SetHydraulicAuxDoAsync(true, CancellationToken.None).ConfigureAwait(false);
-                        await _hydraulicPowerService.PowerOnAsync().ConfigureAwait(false);
+                        await SetHydraulicAuxDoAsync(true, CancellationToken.None);
                     }
+
+                    // 所有单板共用同一台程控电源 28V / 192.168.1.15 / CH1
+                    await _hydraulicPowerService.PowerOnAsync(selectedBoard);
                 }
                 else
                 {
+                    var boardType = _hydraulicPowerService.PoweredBoardType ?? "组件";
                     var confirm = ReMessageBox.Show(
-                        "是否停止 28V 上电",
+                        $"是否停止 {boardType} 28V 上电",
                         "组件下电",
                         MessageBoxButton.YesNo,
                         MessageBoxImage.Question);
                     if (confirm != MessageBoxResult.Yes) return;
-                    await _hydraulicPowerService.PowerOffAsync().ConfigureAwait(false);
-                    await SetHydraulicAuxDoAsync(false, CancellationToken.None).ConfigureAwait(false);
+
+                    var wasHydraulic = string.Equals(_hydraulicPowerService.PoweredBoardType, "液压单板", System.StringComparison.OrdinalIgnoreCase);
+                    await _hydraulicPowerService.PowerOffAsync();
+                    // 仅液压单板需要关闭 JY7131 DO25
+                    if (wasHydraulic)
+                    {
+                        await SetHydraulicAuxDoAsync(false, CancellationToken.None);
+                    }
                 }
             }
             catch (Exception ex)

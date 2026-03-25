@@ -14,7 +14,7 @@ namespace MeasureControl.Services
         /// </summary>
         string PoweredBoardType { get; }
         event EventHandler IsHydraulicPoweredChanged;
-        Task PowerOnAsync(CancellationToken cancellationToken = default);
+        Task PowerOnAsync(string boardType = null, CancellationToken cancellationToken = default);
         Task PowerOffAsync(CancellationToken cancellationToken = default);
         /// <summary>
         /// 由测试项直接管理硬件调用后调用，仅更新状态标志，不发起网络操作
@@ -53,7 +53,7 @@ namespace MeasureControl.Services
 
         public event EventHandler IsHydraulicPoweredChanged;
 
-        public async Task PowerOnAsync(CancellationToken cancellationToken = default)
+        public async Task PowerOnAsync(string boardType = null, CancellationToken cancellationToken = default)
         {
             var api = new PowerSupplySocketApi();
             try
@@ -62,7 +62,7 @@ namespace MeasureControl.Services
                 await api.ApplyAsync(PowerSupplyChannel.CH1, Voltage28V, Current1A, cancellationToken).ConfigureAwait(false);
                 await api.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
                 IsHydraulicPowered = true;
-                PoweredBoardType = HydraulicBoardTypeName;
+                PoweredBoardType = boardType ?? HydraulicBoardTypeName;
             }
             finally
             {
