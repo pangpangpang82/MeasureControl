@@ -1804,38 +1804,63 @@ namespace MeasureControl.Views.Common
                     if (IsSingleBoardStepSelected("离散量采集测试"))
                     {
                         var hc67Executed = DidSingleBoardStepExecute("离散量采集测试");
-                        var hc67Values = new[]
+
+                        var hc67GroundValues = new[]
                         {
-                            vm67.Pin49Text, vm67.Pin50Text, vm67.Pin51Text, vm67.Pin52Text, vm67.Pin53Text, vm67.Pin54Text, vm67.Pin55Text,
-                            vm67.Pin56Text, vm67.Pin57Text, vm67.Pin58Text, vm67.Pin59Text, vm67.Pin60Text, vm67.Pin61Text, vm67.Pin62Text,
-                            vm67.Pin63Text, vm67.Pin89Text, vm67.Pin90Text, vm67.Pin91Text, vm67.Pin92Text, vm67.Pin93Text, vm67.Pin94Text,
-                            vm67.Pin95Text, vm67.Pin96Text, vm67.Pin97Text, vm67.Pin98Text, vm67.Pin99Text, vm67.Pin100Text
+                            vm67.GroundPin49Text, vm67.GroundPin50Text, vm67.GroundPin51Text, vm67.GroundPin52Text, vm67.GroundPin53Text, vm67.GroundPin54Text, vm67.GroundPin55Text,
+                            vm67.GroundPin56Text, vm67.GroundPin57Text, vm67.GroundPin58Text, vm67.GroundPin59Text, vm67.GroundPin60Text, vm67.GroundPin61Text, vm67.GroundPin62Text,
+                            vm67.GroundPin63Text, vm67.GroundPin89Text, vm67.GroundPin90Text, vm67.GroundPin91Text, vm67.GroundPin92Text, vm67.GroundPin93Text, vm67.GroundPin94Text,
+                            vm67.GroundPin95Text, vm67.GroundPin96Text, vm67.GroundPin97Text, vm67.GroundPin98Text, vm67.GroundPin99Text, vm67.GroundPin100Text
                         };
 
-                        var hc67Passes = new[]
+                        var hc67GroundPasses = new[]
                         {
-                            vm67.IsPin49Pass, vm67.IsPin50Pass, vm67.IsPin51Pass, vm67.IsPin52Pass, vm67.IsPin53Pass, vm67.IsPin54Pass, vm67.IsPin55Pass,
-                            vm67.IsPin56Pass, vm67.IsPin57Pass, vm67.IsPin58Pass, vm67.IsPin59Pass, vm67.IsPin60Pass, vm67.IsPin61Pass, vm67.IsPin62Pass,
-                            vm67.IsPin63Pass, vm67.IsPin89Pass, vm67.IsPin90Pass, vm67.IsPin91Pass, vm67.IsPin92Pass, vm67.IsPin93Pass, vm67.IsPin94Pass,
-                            vm67.IsPin95Pass, vm67.IsPin96Pass, vm67.IsPin97Pass, vm67.IsPin98Pass, vm67.IsPin99Pass, vm67.IsPin100Pass
+                            vm67.IsGroundPin49Pass, vm67.IsGroundPin50Pass, vm67.IsGroundPin51Pass, vm67.IsGroundPin52Pass, vm67.IsGroundPin53Pass, vm67.IsGroundPin54Pass, vm67.IsGroundPin55Pass,
+                            vm67.IsGroundPin56Pass, vm67.IsGroundPin57Pass, vm67.IsGroundPin58Pass, vm67.IsGroundPin59Pass, vm67.IsGroundPin60Pass, vm67.IsGroundPin61Pass, vm67.IsGroundPin62Pass,
+                            vm67.IsGroundPin63Pass, vm67.IsGroundPin89Pass, vm67.IsGroundPin90Pass, vm67.IsGroundPin91Pass, vm67.IsGroundPin92Pass, vm67.IsGroundPin93Pass, vm67.IsGroundPin94Pass,
+                            vm67.IsGroundPin95Pass, vm67.IsGroundPin96Pass, vm67.IsGroundPin97Pass, vm67.IsGroundPin98Pass, vm67.IsGroundPin99Pass, vm67.IsGroundPin100Pass
                         };
 
-                        for (var i = 0; i < hc67Values.Length; i++)
+                        var hc67OpenValues = new[]
+                        {
+                            vm67.OpenPin49Text, vm67.OpenPin50Text, vm67.OpenPin51Text, vm67.OpenPin52Text, vm67.OpenPin53Text, vm67.OpenPin54Text, vm67.OpenPin55Text,
+                            vm67.OpenPin56Text, vm67.OpenPin57Text, vm67.OpenPin58Text, vm67.OpenPin59Text, vm67.OpenPin60Text, vm67.OpenPin61Text, vm67.OpenPin62Text,
+                            vm67.OpenPin63Text, vm67.OpenPin89Text, vm67.OpenPin90Text, vm67.OpenPin91Text, vm67.OpenPin92Text, vm67.OpenPin93Text, vm67.OpenPin94Text,
+                            vm67.OpenPin95Text, vm67.OpenPin96Text, vm67.OpenPin97Text, vm67.OpenPin98Text, vm67.OpenPin99Text, vm67.OpenPin100Text
+                        };
+
+                        var hc67OpenPasses = new[]
+                        {
+                            vm67.IsOpenPin49Pass, vm67.IsOpenPin50Pass, vm67.IsOpenPin51Pass, vm67.IsOpenPin52Pass, vm67.IsOpenPin53Pass, vm67.IsOpenPin54Pass, vm67.IsOpenPin55Pass,
+                            vm67.IsOpenPin56Pass, vm67.IsOpenPin57Pass, vm67.IsOpenPin58Pass, vm67.IsOpenPin59Pass, vm67.IsOpenPin60Pass, vm67.IsOpenPin61Pass, vm67.IsOpenPin62Pass,
+                            vm67.IsOpenPin63Pass, vm67.IsOpenPin89Pass, vm67.IsOpenPin90Pass, vm67.IsOpenPin91Pass, vm67.IsOpenPin92Pass, vm67.IsOpenPin93Pass, vm67.IsOpenPin94Pass,
+                            vm67.IsOpenPin95Pass, vm67.IsOpenPin96Pass, vm67.IsOpenPin97Pass, vm67.IsOpenPin98Pass, vm67.IsOpenPin99Pass, vm67.IsOpenPin100Pass
+                        };
+
+                        for (var i = 0; i < hc67GroundValues.Length; i++)
                         {
                             var row = 51 + i;
-                            SetExcelCellValue(cells, row, 5, hc67Executed ? hc67Values[i] : "--");
-                            SetExcelCellValue(cells, row, 6, hc67Executed ? (hc67Passes[i] ? "合格" : "不合格") : "--");
-                            SetExcelCellFontColor(cells, row, 6, hc67Executed && !hc67Passes[i] ? 255 : (int?)null);
+                            SetExcelCellValue(cells, row, 5, hc67Executed ? hc67GroundValues[i] : "--");
+                            SetExcelCellValue(cells, row, 6, hc67Executed ? (hc67GroundPasses[i] ? "合格" : "不合格") : "--");
+                            SetExcelCellFontColor(cells, row, 6, hc67Executed && !hc67GroundPasses[i] ? 255 : (int?)null);
+                        }
+
+                        for (var i = 0; i < hc67OpenValues.Length; i++)
+                        {
+                            var row = 78 + i;
+                            SetExcelCellValue(cells, row, 5, hc67Executed ? hc67OpenValues[i] : "--");
+                            SetExcelCellValue(cells, row, 6, hc67Executed ? (hc67OpenPasses[i] ? "合格" : "不合格") : "--");
+                            SetExcelCellFontColor(cells, row, 6, hc67Executed && !hc67OpenPasses[i] ? 255 : (int?)null);
                         }
 
                         var hc67Result = GetSingleBoardStepResult("离散量采集测试", vm67.CurrentTestResult);
-                        SetExcelRangeValue(sheet, "G51:G77", hc67Result, string.Equals(hc67Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null, false);
+                        SetExcelRangeValue(sheet, "G51:G104", hc67Result, string.Equals(hc67Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null, false);
                     }
                     else
                     {
-                        FillUntestedCells(cells, 51, 5, 77);
-                        FillUntestedCells(cells, 51, 6, 77);
-                        SetExcelRangeValue(sheet, "G51:G77", "未测试", null, false);
+                        FillUntestedCells(cells, 51, 5, 104);
+                        FillUntestedCells(cells, 51, 6, 104);
+                        SetExcelRangeValue(sheet, "G51:G104", "未测试", null, false);
                     }
                 }
 
@@ -1870,7 +1895,7 @@ namespace MeasureControl.Views.Common
 
                         for (var i = 0; i < hc68OpenValues.Length; i++)
                         {
-                            var row = 78 + i;
+                            var row = 105 + i;
                             SetExcelCellValue(cells, row, 5, hc68Executed ? hc68OpenValues[i] : "--");
                             SetExcelCellValue(cells, row, 6, hc68Executed ? (hc68OpenPasses[i] ? "合格" : "不合格") : "--");
                             SetExcelCellFontColor(cells, row, 6, hc68Executed && !hc68OpenPasses[i] ? 255 : (int?)null);
@@ -1878,20 +1903,20 @@ namespace MeasureControl.Views.Common
 
                         for (var i = 0; i < hc68CloseValues.Length; i++)
                         {
-                            var row = 85 + i;
+                            var row = 112 + i;
                             SetExcelCellValue(cells, row, 5, hc68Executed ? hc68CloseValues[i] : "--");
                             SetExcelCellValue(cells, row, 6, hc68Executed ? (hc68ClosePasses[i] ? "合格" : "不合格") : "--");
                             SetExcelCellFontColor(cells, row, 6, hc68Executed && !hc68ClosePasses[i] ? 255 : (int?)null);
                         }
 
                         var hc68Result = GetSingleBoardStepResult("离散量输出测试", vm68.CurrentTestResult);
-                        SetExcelRangeValue(sheet, "G78:G91", hc68Result, string.Equals(hc68Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null, false);
+                        SetExcelRangeValue(sheet, "G105:G118", hc68Result, string.Equals(hc68Result, "不合格", StringComparison.OrdinalIgnoreCase) ? 255 : (int?)null, false);
                     }
                     else
                     {
-                        FillUntestedCells(cells, 78, 5, 91);
-                        FillUntestedCells(cells, 78, 6, 91);
-                        SetExcelRangeValue(sheet, "G78:G91", "未测试", null, false);
+                        FillUntestedCells(cells, 105, 5, 118);
+                        FillUntestedCells(cells, 105, 6, 118);
+                        SetExcelRangeValue(sheet, "G105:G118", "未测试", null, false);
                     }
                 }
 
