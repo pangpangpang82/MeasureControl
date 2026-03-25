@@ -772,7 +772,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     break;
             }
             RefreshMeasureCommand();
-            await TryFinalizeAsync().ConfigureAwait(false);
         }
 
         private async Task OnMeasureCustomCurrentAsync()
@@ -862,7 +861,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 var voltageV = ConvertCurrentToVoltage(currentmA);
                 await SetAo67891011Async(voltageV, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(AoSettleMs, cancellationToken).ConfigureAwait(false);
-                _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, 4096, false, false, cancellationToken).ConfigureAwait(false);
+                await DrainArincBufferAsync(cancellationToken).ConfigureAwait(false);
                 await Task.Delay(PostSwitchRxFlushMs, cancellationToken).ConfigureAwait(false);
 
                 var samples = new Dictionary<string, List<double>>(StringComparer.OrdinalIgnoreCase)
@@ -908,6 +907,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     if (samples.Values.All(l => l.Count >= SamplesPerMeasure))
                     {
                         var range = GetExpectedRange(currentmA);
+
+                        if (range == null)
+                        {
+                            foreach (var kv in samples)
+                            {
+                                var average = kv.Value.Average();
+                                setTextByName(kv.Key, $"{average:0.0} {PressureUnit}");
+                            }
+
+                            Log($"{title}: 完成，自定义电流无判据范围，仅显示测量值");
+                            return true;
+                        }
+
                         var outOfRangeChannels = new List<string>();
 
                         foreach (var kv in samples)
@@ -915,7 +927,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                             var average = kv.Value.Average();
                             setTextByName(kv.Key, $"{average:0.0} {PressureUnit}");
 
-                            if (!IsWithinRange(average, range.min, range.max))
+                            if (!IsWithinRange(average, range.Value.min, range.Value.max))
                             {
                                 outOfRangeChannels.Add($"{kv.Key}={average:0.0}");
                             }
@@ -923,11 +935,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                         if (outOfRangeChannels.Count == 0)
                         {
-                            Log($"{title}: 完成，全部测点满足判据[{range.min:0.##}, {range.max:0.##}]");
+                            Log($"{title}: 完成，全部测点满足判据[{range.Value.min:0.##}, {range.Value.max:0.##}]");
                             return true;
                         }
 
-                        Log($"{title}: 判定不合格，压差值: {string.Join(", ", outOfRangeChannels)}，判据范围[{range.min:0.##}, {range.max:0.##}]");
+                        Log($"{title}: 判定不合格，压差值: {string.Join(", ", outOfRangeChannels)}，判据范围[{range.Value.min:0.##}, {range.Value.max:0.##}]");
                         return false;
                     }
 
@@ -978,6 +990,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        private async Task DrainArincBufferAsync(CancellationToken cancellationToken)
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                var batch = await _arinc.ReadRxWordsAsync(
+                    RxChannelIndex, maxCount: 4096,
+                    enableTimeTag: false, enableRateAdaption: false,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (batch.Count == 0)
+                    break;
+            }
+        }
+
         private DptChannelDefinition ResolveChannel(byte label, byte sdi)
         {
             return DptChannels.FirstOrDefault(d => IsExpectedLabel(label, d.Label) && d.Sdi == sdi);
@@ -997,7 +1022,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return Math.Round(value, 1, MidpointRounding.AwayFromZero);
         }
 
-        private (double min, double max) GetExpectedRange(double currentmA)
+        private (double min, double max)? GetExpectedRange(double currentmA)
         {
             if (Math.Abs(currentmA - Current4mA) < 0.001)
                 return (Range4mAMin, Range4mAMax);
@@ -1008,7 +1033,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (Math.Abs(currentmA - Current10mA) < 0.001)
                 return (Range10mAMin, Range10mAMax);
 
-            throw new InvalidOperationException($"未知电流档位: {currentmA:0.###}mA");
+            return null;
         }
 
         private static bool IsWithinRange(double value, double min, double max)
