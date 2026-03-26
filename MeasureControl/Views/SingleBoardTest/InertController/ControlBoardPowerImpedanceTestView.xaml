@@ -1,0 +1,380 @@
+<UserControl
+    x:Class="MeasureControl.Views.SingleBoardTest.InertController.ControlBoardPowerImpedanceTestView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:MeasureControl.Views.SingleBoardTest.InertController"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    d:DesignHeight="550"
+    d:DesignWidth="970"
+    mc:Ignorable="d">
+    <Grid
+        x:Name="RootGrid"
+        Background="White"
+        Focusable="True">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="0.8*" />
+                <RowDefinition Height="6*" />
+                <RowDefinition Height="1.2*" />
+            </Grid.RowDefinitions>
+
+            <Border
+                Grid.Row="0"
+                Margin="8,8,8,4"
+                Background="White"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1.5"
+                CornerRadius="8">
+                <Grid>
+                    <TextBlock
+                        Width="360"
+                        Margin="10,0,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        FontSize="24"
+                        FontWeight="Bold"
+                        Text="控制板电源阻抗测试" />
+                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                        <Button
+                            Width="100"
+                            Height="32"
+                            Margin="0,0,20,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding ManualTestCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="6">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image
+                                                x:Name="DeviceImage"
+                                                Width="15"
+                                                Height="15"
+                                                Margin="5,0,5,0"
+                                                Source="/Resources/Logo/hand_w.png" />
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="16"
+                                                Foreground="White"
+                                                Text="手动测试" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsManualTestRunning}" Value="True">
+                                            <Setter Property="Tag" Value="True" />
+                                            <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsManualTestRunning}" Value="False">
+                                            <Setter Property="Tag" Value="False" />
+                                        </DataTrigger>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                        </MultiTrigger>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                        </MultiTrigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Button
+                            Width="100"
+                            Height="32"
+                            Margin="0,0,30,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding AutoTestCommand}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#22c55e"
+                                        CornerRadius="6">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image
+                                                x:Name="DeviceImage"
+                                                Width="15"
+                                                Height="15"
+                                                Margin="5,0,5,0"
+                                                Source="/Resources/Logo/auto.png" />
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="16"
+                                                Foreground="White"
+                                                Text="自动测试" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="True">
+                                            <Setter Property="Tag" Value="True" />
+                                            <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="False">
+                                            <Setter Property="Tag" Value="False" />
+                                        </DataTrigger>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                        </MultiTrigger>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
+                                        </MultiTrigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border
+                Grid.Row="1"
+                Margin="8,4,8,4"
+                Background="White"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1.5"
+                CornerRadius="8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.6*" />
+                        <ColumnDefinition Width="1*" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock
+                        Grid.Row="0"
+                        Margin="10,5,0,5"
+                        VerticalAlignment="Center"
+                        FontSize="20"
+                        FontWeight="Bold"
+                        Text="测试步骤（下电状态）" />
+
+                    <StackPanel Grid.Row="1" Margin="10,5,10,5">
+                        <Border
+                            Margin="0,0,0,0"
+                            Padding="6"
+                            Background="#fef3c7"
+                            BorderBrush="#f59e0b"
+                            BorderThickness="1"
+                            CornerRadius="6">
+                            <TextBlock Text="前置条件：控制板下电；按测试项目提示连接万用表两表笔后点击‘测量’" FontWeight="Bold" Foreground="#92400e" />
+                        </Border>
+
+                        <Border Margin="0,5,0,0" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <ItemsControl ItemsSource="{Binding Items}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,10,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="120" />
+                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="70" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="18" Foreground="#111827" VerticalAlignment="Center" />
+
+                                            <TextBlock Grid.Column="1" Text="{Binding ImpedanceText}" FontSize="18" Foreground="#111827" HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+                                            <TextBlock Grid.Column="2" Text="{Binding Result}" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#6b7280" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Result}" Value="PASS">
+                                                                <Setter Property="Foreground" Value="#16a34a" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Result}" Value="FAIL">
+                                                                <Setter Property="Foreground" Value="#dc2626" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+
+                                            <Button Grid.Column="3" Width="60" Height="28" Margin="0" BorderThickness="0" Command="{Binding MeasureCommand}">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="测量" />
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsPressed" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                                <Setter Property="Cursor" Value="Arrow" />
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <TextBlock Text="综合结果：" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
+                            <Border CornerRadius="4" Padding="15,5" Margin="10,0">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="#f3f4f6" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding OverallResult}" Value="PASS">
+                                                <Setter Property="Background" Value="#dcfce7" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding OverallResult}" Value="FAIL">
+                                                <Setter Property="Background" Value="#fee2e2" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="{Binding OverallResult}" FontSize="16" FontWeight="Bold">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#6b7280" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding OverallResult}" Value="PASS">
+                                                    <Setter Property="Foreground" Value="#16a34a" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding OverallResult}" Value="FAIL">
+                                                    <Setter Property="Foreground" Value="#dc2626" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
+                            <TextBlock Text="上次测试时间：" FontSize="14" VerticalAlignment="Center" Margin="20,0,5,0" />
+                            <TextBlock Text="{Binding LastTestTime}" FontSize="14" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Border
+                        Grid.Row="0"
+                        Grid.RowSpan="3"
+                        Grid.Column="1"
+                        Margin="5"
+                        Background="Transparent"
+                        BorderBrush="Transparent"
+                        BorderThickness="0"
+                        CornerRadius="6">
+                        <Grid VerticalAlignment="Center">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Margin="10,6,0,6" Orientation="Horizontal">
+                                <TextBlock VerticalAlignment="Center" FontSize="18" FontWeight="Bold" Text="测试信息" />
+                                <Button Width="80" Height="30" Margin="180,3,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding ClearLogCommand}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="15" Foreground="White" Text="清除内容" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+
+                            <Border
+                                Grid.Row="1"
+                                MinWidth="240"
+                                MinHeight="300"
+                                MaxWidth="350"
+                                MaxHeight="420"
+                                Margin="10,0,10,10"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                CornerRadius="6">
+                                <Border Background="White" BorderBrush="#d1d5db" BorderThickness="1" CornerRadius="4">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding Logs}" Margin="8">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" Margin="0,1" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Border>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border
+                Grid.Row="2"
+                Margin="8,4,8,8"
+                Background="White"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1.5"
+                CornerRadius="8">
+                <Grid>
+                    <TextBlock
+                        Margin="10,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        Text="测试判据：测量阻抗值大于500Ω则合格。" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

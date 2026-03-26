@@ -69,7 +69,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         // 采样配置
         private const int SamplesPerMeasure = 1;
-        private const int SampleTimeoutMs = 3000;
+        private const int SampleTimeoutMs = 5000;
 
         // 电压合格范围（允许偏差 ±1.5%）
         private const double Min5V = 4.82;
@@ -723,7 +723,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 setText("超时");
                 setValue(null);
 
-                var timeoutMsg = $"{title}: 测量超时(3秒内未接收到{SamplesPerMeasure}帧有效数据)";
+                var timeoutMsg = $"{title}: 测量超时(5秒内未接收到{SamplesPerMeasure}帧有效数据)";
                 Log(timeoutMsg);
 
                 if (IsManualTestRunning)
@@ -889,7 +889,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             IsManualTestStopping = true;
             try { CanMeasure = false; _manualCts?.Cancel(); } catch { }
             Log("手动测试停止/结束，正在断开设备...");
-            await CleanupIoAsync().ConfigureAwait(false);
+            await CleanupIoAsync(CancellationToken.None).ConfigureAwait(false);
             IsManualTestRunning = false;
             IsManualTestInitializing = false;
             IsManualTestStopping = false;
@@ -905,7 +905,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             IsAutoTestStopping = true;
             try { _autoCts?.Cancel(); } catch { }
             Log("自动测试停止/结束，正在断开设备...");
-            await CleanupIoAsync().ConfigureAwait(false);
+            await CleanupIoAsync(CancellationToken.None).ConfigureAwait(false);
             IsAutoTestRunning = false;
             IsAutoTestInitializing = false;
             IsAutoTestStopping = false;
@@ -1016,8 +1016,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
         {
-            if (_hydraulicPowerService.IsHydraulicPowered) return;
-            await _hydraulicPowerService.PowerOnAsync(cancellationToken).ConfigureAwait(false);
+            if (!_hydraulicPowerService.IsHydraulicPowered)
+            {
+                await _hydraulicPowerService.PowerOnAsync(null, cancellationToken).ConfigureAwait(false);
+            }
             await Task.Delay(PowerStabilizeDelayMs, cancellationToken).ConfigureAwait(false);
         }
 
@@ -1133,9 +1135,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return AtpLabelDec;
         }
 
-        private async Task CleanupIoAsync()
+        private async Task CleanupIoAsync(CancellationToken cancellationToken)
         {
-            await StopAtpRequestAsync(true, CancellationToken.None).ConfigureAwait(false);
+            //await StopAtpRequestAsync(true, CancellationToken.None).ConfigureAwait(false);
 
             try
             {
@@ -1164,7 +1166,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 }
             }
             catch { }
-            finally { _arinc = null; }
+            finally { _arinc = null;
+            await Task.Delay(800, cancellationToken).ConfigureAwait(false);
+            }
 
             try
             {
