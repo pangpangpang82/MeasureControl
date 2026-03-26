@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Controls;
 using MeasureControl.Events;
+using MeasureControl.Services;
 using MeasureControl.Views.SingleBoardTest.AirController;
 using MeasureControl.Views.SingleBoardTest.HydraulicController;
 using MeasureControl.Views.SingleBoardTest.FuelController;
@@ -12,6 +13,7 @@ using Prism.Commands;
 using Prism.Events;
 using Prism.Mvvm;
 using Prism.Regions;
+using System.Windows;
 using System.Threading.Tasks;
 
 namespace MeasureControl.ViewModels.SingleBoardTest
@@ -26,7 +28,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
     public class BoardTestViewModel : BindableBase, INavigationAware, IConfirmNavigationRequest, ICloseGuard
     {
         private readonly IEventAggregator _eventAggregator;
-        private readonly MeasureControl.Services.ISingleBoardTestContextService _singleBoardTestContext;
+        private readonly ISingleBoardTestContextService _singleBoardTestContext;
+        private readonly IHydraulicPowerService _hydraulicPowerService;
         private const string CommonBoardTypeKey = "Common";
         private bool _isStoppingCurrentTest;
 
@@ -178,7 +181,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     "加放油单板",
                     new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
                     {
-                        { "电源阻抗测试", () => new PowerImpedanceTestView() },
+                        { "电源阻抗测试", () => new Views.SingleBoardTest.FuelController.PowerImpedanceTestView() },
                         { "二次电源测试", () => new SecondaryPowerTestView() },
                         { "低电压告警功能测试", () => new LowVoltageAlarmTestView() },
                         { "温度采集功能", () => new TemperatureAcquisitionTestView() },
@@ -186,6 +189,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "离散量输出功能测试", () => new DiscreteOutputTestView() },
                         { "RS422通信功能测试", () => new RS422CommunicationFunctionTestView() },
                         { "RS422通信自检测功能测试", () => new RS422SelfCheckTestView() },
+                    }
+                },
+                {
+                    "惰化模拟板",
+                    new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "电源阻抗测试", () => new Views.SingleBoardTest.InertController.PowerImpedanceTestView() },
+                        { "二次、三次电源测试", () => new Views.SingleBoardTest.InertController.SecondaryTertiaryPowerTestView() },
+                        { "超温切断模块电路测试", () => new Views.SingleBoardTest.InertController.OverTemperatureCutoffTestView() },
+                        { "锁存模块电路测试", () => new Views.SingleBoardTest.InertController.LatchModuleCircuitTestView() },
+                    }
+                }
+                ,
+                {
+                    "惰化控制板",
+                    new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "控制板电源阻抗测试", () => new Views.SingleBoardTest.InertController.ControlBoardPowerImpedanceTestView() },
+                        { "控制板二、三次电源测试", () => new Views.SingleBoardTest.InertController.ControlBoardSecondaryTertiaryPowerTestView() },
+                        { "控制板离散输入模块测试", () => new Views.SingleBoardTest.InertController.ControlBoardDiscreteInputModuleTestView() },
+                        { "离散输出模块测试", () => new Views.SingleBoardTest.InertController.DiscreteOutputModuleTestView() },
+                        { "温度传感器信号采集", () => new Views.SingleBoardTest.InertController.TemperatureSensorSignalAcquisitionTestView() },
+                        { "压力传感器信号采集", () => new Views.SingleBoardTest.InertController.PressureSensorSignalAcquisitionTestView() },
+                        { "氧气传感器信号采集", () => new Views.SingleBoardTest.InertController.OxygenSensorSignalAcquisitionTestView() },
+                        { "TCV电机驱动测试", () => new Views.SingleBoardTest.InertController.TcvMotorDriveTestView() },
                     }
                 }
             };
@@ -219,6 +247,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "离散量输出功能测试", "\t a) DO接地时，对地阻抗小于10Ω；\r\n\t b) DO开路时，对地阻抗大于100kΩ；\r\n\t c) 28V上电后，J14电压不低于16V。" },
                         { "RS422通信功能测试", "\t a/b/c/d四个步骤：发送0xAA 55，接收数据与发送数据一致为PASS。" },
                         { "RS422通信自检测功能测试", "\t a) CRM_PIN9发送，CRM_PIN19接收，回环数据一致为PASS；\r\n\t b) CRM_PIN10发送，CRM_PIN20接收，回环数据一致为PASS。" },
+                    }
+                },
+                {
+                    "惰化模拟板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "电源阻抗测试", "\t 测量阻抗值大于500Ω则合格。" },
+                        { "二次、三次电源测试", "\t a) 15V检测：15±1.5V；\r\n \t b) -15V检测：-15±1.5V；\r\n \t c) 5V检测：5±0.5V；\r\n \t d) 3.3V检测：3.3±0.33V。" },
+                        { "超温切断模块电路测试", "\t a) PT500A电阻配置为（715.25±3.5）Ω：J31(T1_AWARN)输出高电平(3.3±0.33V)，J11(IIV +28VDC PWR IN_FB)开路(≤16V)，J12(IIV +28VDC PWR IN)开路(≤16V)。\r\n \t b) PT1000A电阻配置为（1411.6±7.1）Ω：J32(T2_AWARN)输出高电平(3.3±0.33V)，J13(TIV +28VDC PWR IN_FB)开路(≤16V)，J14(TIV +28VDC PWR IN)开路(≤16V)。" },
+                        { "锁存模块电路测试", "\t a) PT500A=730Ω：J31输出为高电平(3.3±0.33V)；\r\n \t b) PT500A降低为500Ω：J31输出仍为高电平(3.3±0.33V)；\r\n \t c) J34供电3.3V后：J31输出为低电平(0±0.1V)；\r\n \t d) PT1000A=1500Ω：J32输出为高电平(3.3±0.33V)；\r\n \t e) PT1000A降低为1000Ω：J32输出仍为高电平(3.3±0.33V)；\r\n \t f) J35供电3.3V后：J32输出为低电平(0±0.1V)。" },
+                    }
+                },
+                {
+                    "惰化控制板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "控制板电源阻抗测试", "\t 控制板下电；测量J1、J2、J4、J5到J18（COM）、J70（EARTH）之间的阻抗，阻抗值大于500Ω则合格。" },
+                        { "控制板二、三次电源测试", "\t a) 控制板-15V：读取电压值满足[-15.75V,-14.25V]为合格；\r\n \t b) 控制板+15V：读取电压值满足[14.25V,15.75V]为合格；\r\n \t c) 控制板5V：读取电压值满足[4.75V,5.25V]为合格；\r\n \t d) 控制板3.3V：读取电压值满足[3.135V,3.465V]为合格；\r\n \t e) 控制板1.5V：读取电压值满足[1.425V,1.575V]为合格。" },
+                        { "控制板离散输入模块测试", "\t 控制板供电28V；将引脚J40-J45、J75-J83分别配置为GND和开路，通过通信读取采集结果；将引脚J84、J85分别配置为28V和开路，通过通信读取采集结果。采集结果应与配置状态一致。" },
+                        { "离散输出模块测试", "\t 控制板供电28V；通过ARINC429通道0发送Label173/SDI1高/低指令；J11/J12/J13/J14/J17输出状态应分别为GND/开路；J21/J22输出状态应分别为28V/开路。" },
+                        { "温度传感器信号采集", "\t 控制板供电28V；按表7-2配置PT500A/PT500B/PT1000A/PT1000B模拟电阻值，通过通信读取换算温度；上位机读取温度满足表7-3与表7-4为合格。" },
+                        { "压力传感器信号采集", "\t 通过引脚J25、J26将“压力传感器”的模拟电压按表7-5进行设置，通过通讯读取的“压力”的数值；上位机读取的“压力”数据显示的值满足表7-6为合格。" },
+                        { "氧气传感器信号采集", "\t 通过引脚J23、J24和引脚J59、J60将“氧气浓度传感器”、“氧气压力传感器”的模拟电流按表7-7进行设置，通过通讯读取“氧气浓度”、“氧气压力”的数值；上位机读取的“氧气浓度”、“氧气压力”显示的值满足表7-8为合格。" },
+                        { "TCV电机驱动测试", "\t 控制板供电28V；试验台使用电阻6Ω（功率不小于150W）和电感12mH模拟负载；分别设置步进频率500Hz/1000Hz，设置正转/反转并给出电机使能信号；上位机读取TCV电机A相(J9/J10)、B相(J7/J8)电流值；A、B每相电流读数不持续为0则合格。" },
                     }
                 },
                 {
@@ -257,7 +309,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
                         {
+                            "电源阻抗测试",
+                            ""
+                        },
+                        {
+                            "二次电源测试",
+                            "控制器上电后20s内才能进入ATP，发送二次电源数据供试验台接收"
+                        },
+                        {
                             "温度采集测试",
+                            ""
+                        },
+                        {
+                            "压力传感器信号采集测试",
                             ""
                         },
                         {
@@ -265,7 +329,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                             ""
                         },
                         {
+                            "油量传感器信号采集测试",
+                            ""
+                        },
+                        {
                             "离散量采集测试",
+                            ""
+                        },
+                        {
+                            "离散量输出测试",
                             ""
                         },
 
@@ -291,6 +363,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             get => _selectedTestNotesText;
             private set => SetProperty(ref _selectedTestNotesText, value);
         }
+
+        private readonly HashSet<string> _navigationLockSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private bool _isNavigationLocked;
 
         public string TestTaskName
         {
@@ -318,11 +394,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
         public DelegateCommand CloseInRegionCommand { get; }
 
-        public BoardTestViewModel(IEventAggregator eventAggregator, MeasureControl.Services.ISingleBoardTestContextService singleBoardTestContext)
+        public bool IsBoardAccessible
+        {
+            get
+            {
+                var powered = _hydraulicPowerService?.PoweredBoardType;
+                if (powered == null) return true;
+                return string.Equals(powered, BoardType, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        private void OnPowerStateChanged(object sender, EventArgs e)
+        {
+            RaisePropertyChanged(nameof(IsBoardAccessible));
+        }
+
+        public BoardTestViewModel(IEventAggregator eventAggregator, ISingleBoardTestContextService singleBoardTestContext, IHydraulicPowerService hydraulicPowerService)
         {
             _eventAggregator = eventAggregator ?? throw new ArgumentNullException(nameof(eventAggregator));
             _singleBoardTestContext = singleBoardTestContext ?? throw new ArgumentNullException(nameof(singleBoardTestContext));
+            _hydraulicPowerService = hydraulicPowerService;
+            if (_hydraulicPowerService != null)
+                _hydraulicPowerService.IsHydraulicPoweredChanged += OnPowerStateChanged;
             CloseInRegionCommand = new DelegateCommand(OnCloseInRegion);
+
+            _eventAggregator.GetEvent<NavigationLockChangedEvent>().Subscribe(OnNavigationLockChanged, ThreadOption.UIThread, keepSubscriberReferenceAlive: true);
         }
 
         public ObservableCollection<TestSequenceItem> TestSequenceItems { get; } = new ObservableCollection<TestSequenceItem>();
@@ -344,6 +440,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             get => _selectedTestItem;
             set
             {
+                if (_isNavigationLocked && value != null && !ReferenceEquals(value, _selectedTestItem))
+                {
+                    try
+                    {
+                        MessageBox.Show("测试进行中，请先停止测试或等待测试结束后再切换界面。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    catch
+                    {
+                    }
+
+                    RaisePropertyChanged(nameof(SelectedTestItem));
+                    return;
+                }
+
                 if (_isStoppingCurrentTest)
                 {
                     System.Windows.Application.Current?.Dispatcher.InvokeAsync(
@@ -387,18 +497,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
                 if (SetProperty(ref _selectedTestItem, value))
                 {
-                    // ── FIX：value == null 时同时清空两个面板 ──────────────────
                     if (value == null)
                     {
                         RightPanelContent = null;
                         SelectedTestCriteriaText = string.Empty;
-                        SelectedTestNotesText = string.Empty;  // ← 新增
+                        SelectedTestNotesText = string.Empty;
                         return;
                     }
 
-                    // ── FIX：正常分支同时更新测试判据与操作步骤 ───────────────
                     SelectedTestCriteriaText = ResolveCriteriaText(BoardType, value.Name);
-                    SelectedTestNotesText = ResolveNotesText(BoardType, value.Name);  // ← 新增
+                    SelectedTestNotesText = ResolveNotesText(BoardType, value.Name);
 
                     if (TryGetViewFactory(BoardType, value.Name, out var viewFactory))
                     {
@@ -409,6 +517,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     RightPanelContent = new TextBlock { Text = value.Name, Margin = new System.Windows.Thickness(10) };
                 }
             }
+        }
+
+        private void OnNavigationLockChanged(NavigationLockChangedEventArgs args)
+        {
+            var source = args?.Source;
+            if (args?.IsLocked == true)
+            {
+                if (!string.IsNullOrWhiteSpace(source))
+                    _navigationLockSources.Add(source);
+                else
+                    _navigationLockSources.Add("Unknown");
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(source))
+                    _navigationLockSources.Remove(source);
+                else
+                    _navigationLockSources.Clear();
+            }
+
+            _isNavigationLocked = _navigationLockSources.Count > 0;
         }
 
         public object RightPanelContent
@@ -426,12 +555,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                              ?? parameters?.GetValue<string>("ChassisName")
                              ?? string.Empty;
 
-            _singleBoardTestContext.Update(ParentChassisName, TestTaskName, BoardType);
-
             var instanceId = string.IsNullOrWhiteSpace(ParentChassisName) ? TestTaskName : $"{ParentChassisName}-{TestTaskName}";
             PageKey = string.IsNullOrWhiteSpace(instanceId) ? "BoardTest" : $"BoardTest_{instanceId}";
 
+            _singleBoardTestContext.Update(ParentChassisName, TestTaskName, BoardType);
+
             LoadFixedTestItems(BoardType);
+            RaisePropertyChanged(nameof(IsBoardAccessible));
 
             // ── FIX：直接赋值触发 setter，setter 内部会同时更新判据与操作步骤 ──
             // 原代码末尾多余的 SelectedTestNotesText = ResolveNotesText(BoardType, value.Name)
@@ -901,8 +1031,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("离散量输出测试"));
             }
 
-            if (string.Equals(boardType, "惰化单板", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(boardType, "惰化模拟板", StringComparison.OrdinalIgnoreCase))
             {
+                TestSequenceItems.Add(new TestSequenceItem("电源阻抗测试"));
+                TestSequenceItems.Add(new TestSequenceItem("二次、三次电源测试"));
+                TestSequenceItems.Add(new TestSequenceItem("超温切断模块电路测试"));
+                TestSequenceItems.Add(new TestSequenceItem("锁存模块电路测试"));
+                return;
+            }
+
+            if (string.Equals(boardType, "惰化控制板", StringComparison.OrdinalIgnoreCase))
+            {
+                TestSequenceItems.Add(new TestSequenceItem("控制板电源阻抗测试"));
+                TestSequenceItems.Add(new TestSequenceItem("控制板二、三次电源测试"));
+                TestSequenceItems.Add(new TestSequenceItem("控制板离散输入模块测试"));
+                TestSequenceItems.Add(new TestSequenceItem("离散输出模块测试"));
+                TestSequenceItems.Add(new TestSequenceItem("温度传感器信号采集"));
+                TestSequenceItems.Add(new TestSequenceItem("压力传感器信号采集"));
+                TestSequenceItems.Add(new TestSequenceItem("氧气传感器信号采集"));
+                TestSequenceItems.Add(new TestSequenceItem("TCV电机驱动测试"));
                 return;
             }
 

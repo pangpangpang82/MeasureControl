@@ -48,6 +48,17 @@ namespace MeasureControl.Events
     {
     }
 
+    public class NavigationLockChangedEvent : PubSubEvent<NavigationLockChangedEventArgs>
+    {
+    }
+
+    public class NavigationLockChangedEventArgs
+    {
+        public bool IsLocked { get; set; }
+
+        public string Source { get; set; }
+    }
+
     public class StartSingleBoardAutoTestEvent : PubSubEvent<StartSingleBoardAutoTestEventArgs>
     {
     }

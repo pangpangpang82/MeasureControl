@@ -1861,12 +1861,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _powerA.ApplyAsync(PowerSupplyChannel.CH1, Input24VoltageV, Input24CurrentA, cancellationToken).ConfigureAwait(false);
             await _powerA.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
 
-            if (!_hydraulicPowerService.IsHydraulicPowered)
+            if (_hydraulicPowerService.IsHydraulicPowered)
             {
-                await _power28.ApplyAsync(PowerSupplyChannel.CH1, Input28VoltageV, Input28CurrentA, cancellationToken).ConfigureAwait(false);
-                await _power28.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-                _hydraulicPowerService.SetPoweredState(true);
+                await _power28.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
             }
+            await _power28.ApplyAsync(PowerSupplyChannel.CH1, Input28VoltageV, Input28CurrentA, cancellationToken).ConfigureAwait(false);
+            await _power28.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
+            _hydraulicPowerService.SetPoweredState(true);
 
             await _power28.ApplyAsync(PowerSupplyChannel.CH2, Input28VoltageV, MeasureChannelCurrentA, cancellationToken).ConfigureAwait(false);
             await _power28.SetOutputEnabledAsync(PowerSupplyChannel.CH2, true, cancellationToken).ConfigureAwait(false);

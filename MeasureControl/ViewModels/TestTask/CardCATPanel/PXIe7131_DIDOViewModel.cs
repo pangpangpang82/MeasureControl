@@ -30,7 +30,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
     /// </summary>
     public class PXIe7131_DIDOViewModel : BindableBase, IDisposable, ICloseGuard, IConfirmNavigationRequest
     {
-        
+
         private DeviceBase _device;
         private string _chassisName;
         private string _cardModel;
@@ -77,9 +77,13 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         private DelegateCommand _relayAllOnCommand;
         private DelegateCommand _relayAllOffCommand;
 
-        private const string ThresholdComPort = "COM40"; // DAC DI阈值
+        private const string ThresholdComPort = "COM40"; //第一套
+        //private const string ThresholdComPort = "COM10"; //第二套
+        //private const string ThresholdComPort = "COM9"; //第三套
 
-        private const string RelayComPort = "COM30"; // 485电源/继电器
+        private const string RelayComPort = "COM35"; //第一套
+        //private const string RelayComPort = "COM11"; //第二套
+        //private const string RelayComPort = "COM9"; //第三套
         private const int RelayBaudRate = 9600;
         private const byte RelaySlaveAddress = 1;
         private const ushort RelayStartCoilAddress = 0;
@@ -2164,7 +2168,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
                 var timeoutTask = Task.Delay(2000);
                 var acquireTask = SerialPortMutex.AcquireAsync(RelayComPort);
                 var completedTask = await Task.WhenAny(acquireTask, timeoutTask);
-                
+
                 if (completedTask == timeoutTask)
                 {
                     System.Diagnostics.Debug.WriteLine($"[DiscreteConfig] 关闭485继电器超时，跳过");
@@ -2496,7 +2500,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         {
             // 注意：不检查 IsBusy，因为可能被 CloseDeviceWithStopAsync 调用（已设置 IsBusy = true）
             // 如果需要防止重入，应该使用其他标志
-            
+
             try
             {
                 System.Diagnostics.Debug.WriteLine($"[DiscreteConfig] 停止调试: {Device?.Name}");

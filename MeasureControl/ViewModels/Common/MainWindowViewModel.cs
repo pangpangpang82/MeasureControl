@@ -29,6 +29,7 @@ using Prism.Services.Dialogs;
 using DialogServiceAlias = MeasureControl.Services.DialogService;
 using MeasureControl.ViewModels.IcdConfig;
 using MeasureControl.Helpers.SelfInspection;
+using MeasureControl.Services.HardwareApis;
 using MeasureControl.Views.Dialogs;
 using MeasureControl.ViewModels.Dialogs;
 
@@ -621,10 +622,17 @@ namespace MeasureControl.ViewModels.Common
                 });
                 testTasks.Children.Add(new ProjectItem
                 {
-                    Name = "惰化单板",
+                    Name = "惰化模拟板",
                     Icon = AppConstants.IconTasks,
                     Type = AppConstants.NodeTypeTestTask,
-                    Tag = "惰化单板"
+                    Tag = "惰化模拟板"
+                });
+                testTasks.Children.Add(new ProjectItem
+                {
+                    Name = "惰化控制板",
+                    Icon = AppConstants.IconTasks,
+                    Type = AppConstants.NodeTypeTestTask,
+                    Tag = "惰化控制板"
                 });
                 testTasks.Children.Add(new ProjectItem
                 {
@@ -642,6 +650,49 @@ namespace MeasureControl.ViewModels.Common
                 });
             }
 
+            try
+            {
+                var legacy = testTasks.Children.FirstOrDefault(c => c != null
+                    && c.Type == AppConstants.NodeTypeTestTask
+                    && (string.Equals(c.Tag as string, "惰化单板", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(c.Name, "惰化单板", StringComparison.OrdinalIgnoreCase)));
+
+                if (legacy != null)
+                {
+                    var index = testTasks.Children.IndexOf(legacy);
+                    if (index < 0)
+                        index = 0;
+
+                    testTasks.Children.Remove(legacy);
+
+                    var sim = new ProjectItem
+                    {
+                        Name = "惰化模拟板",
+                        Icon = AppConstants.IconTasks,
+                        Type = AppConstants.NodeTypeTestTask,
+                        Tag = "惰化模拟板"
+                    };
+
+                    var control = new ProjectItem
+                    {
+                        Name = "惰化控制板",
+                        Icon = AppConstants.IconTasks,
+                        Type = AppConstants.NodeTypeTestTask,
+                        Tag = "惰化控制板"
+                    };
+
+                    testTasks.Children.Insert(index, sim);
+                    testTasks.Children.Insert(index + 1, control);
+                }
+            }
+            catch
+            {
+            }
+
+            foreach (var task in testTasks.Children.Where(c => c != null && c.Type == AppConstants.NodeTypeTestTask))
+            {
+                task.Children?.Clear();
+            }
             projectRoot.Children.Clear();
             projectRoot.Children.Add(hardwareConfig);
             projectRoot.Children.Add(testTasks);
@@ -1453,29 +1504,86 @@ namespace MeasureControl.ViewModels.Common
             {
                 if (!IsHydraulicPowered)
                 {
-                    var confirm = ReMessageBox.Show(
-                        "是否执行 28V 上电（192.168.1.15 CH1 输出 28V 1A）？",
-                        "28V 上电",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Question);
-                    if (confirm != MessageBoxResult.Yes) return;
-                    await _hydraulicPowerService.PowerOnAsync().ConfigureAwait(false);
+                    var dlg = new PowerBoardSelectDialog();
+                    if (dlg.ShowDialog() != true) return;
+                    var selectedBoard = dlg.SelectedBoardType;
+                    if (string.IsNullOrEmpty(selectedBoard)) return;
+
+                    // 液压单板需要额外控制 JY7131 DO25
+                    if (string.Equals(selectedBoard, "液压单板", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        await SetHydraulicAuxDoAsync(true, CancellationToken.None);
+                    }
+
+                    // 所有单板共用同一台程控电源 28V / 192.168.1.15 / CH1
+                    await _hydraulicPowerService.PowerOnAsync(selectedBoard);
                 }
                 else
                 {
+                    var boardType = _hydraulicPowerService.PoweredBoardType ?? "组件";
                     var confirm = ReMessageBox.Show(
-                        "是否停止 28V 上电（关闭 192.168.1.15 CH1 输出）？",
-                        "28V 下电",
+                        $"是否停止 {boardType} 28V 上电",
+                        "组件下电",
                         MessageBoxButton.YesNo,
                         MessageBoxImage.Question);
                     if (confirm != MessageBoxResult.Yes) return;
-                    await _hydraulicPowerService.PowerOffAsync().ConfigureAwait(false);
+
+                    var wasHydraulic = string.Equals(_hydraulicPowerService.PoweredBoardType, "液压单板", System.StringComparison.OrdinalIgnoreCase);
+                    await _hydraulicPowerService.PowerOffAsync();
+                    // 仅液压单板需要关闭 JY7131 DO25
+                    if (wasHydraulic)
+                    {
+                        await SetHydraulicAuxDoAsync(false, CancellationToken.None);
+                    }
                 }
             }
             catch (Exception ex)
             {
                 ReMessageBox.Show($"操作程控电源失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private async Task SetHydraulicAuxDoAsync(bool on, CancellationToken cancellationToken)
+        {
+            var device = FindFirstJy7131DeviceForPower();
+            if (device == null) return;
+            var slot = device is DigitalIODevice dio ? dio.SlotIndex : 0;
+            var jy7131 = new Jy7131Api(device, slot);
+            try
+            {
+                await jy7131.ConnectAsync(cancellationToken).ConfigureAwait(false);
+                if (!jy7131.IsRunning)
+                {
+                    await jy7131.SetOutputModeAsync(Jy7131OutputMode.Sinking, cancellationToken).ConfigureAwait(false);
+                    await jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
+                }
+                await jy7131.WriteDoAsync("DO25", on, cancellationToken).ConfigureAwait(false);
+                if (!on)
+                {
+                    await jy7131.StopAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                try { await jy7131.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                try { await jy7131.DisposeAsync().ConfigureAwait(false); } catch { }
+            }
+        }
+
+        private DeviceBase FindFirstJy7131DeviceForPower()
+        {
+            var chassisList = _pxiChassisService?.GetAllChassis();
+            if (chassisList == null) return null;
+            foreach (var chassis in chassisList)
+            {
+                var device = chassis?.Devices?.FirstOrDefault(d =>
+                    d is DigitalIODevice ||
+                    (d?.Model?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("离散量", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("数字量", StringComparison.OrdinalIgnoreCase) >= 0));
+                if (device != null) return device;
+            }
+            return null;
         }
 
         /// <summary>
