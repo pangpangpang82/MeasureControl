@@ -980,7 +980,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     return false;
                 }
 
-                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
 
                 // 使用万用表测量电阻（超时时间 8 秒）
                 DmmReading reading = null;

@@ -870,7 +870,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await ApplyExcitationMeasurementRouteAsync(channel, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(ExcitationReadSettleMs, cancellationToken).ConfigureAwait(false);
 
+
+
+                await Task.Delay(FreqModeSettleMs, cancellationToken).ConfigureAwait(false);
+
+                // ③ 再读电压
+                var voltageReading = await _dmm.ReadOnceAsync(
+                    DmmMeasureMode.ACV,
+                    new DmmReadOptions { TimeoutMilliseconds = 8000 },
+                    cancellationToken).ConfigureAwait(false);
+
                 // ① 先读频率
+                //var frequencyReading = 12;
+                await Task.Delay(FreqModeSettleMs, cancellationToken).ConfigureAwait(false);
                 var frequencyReading = await _dmm.ReadOnceAsync(
                     DmmMeasureMode.FREQ,
                     new DmmReadOptions
@@ -884,11 +896,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 // ② FREQ读完后等一下，再切ACV档
                 await Task.Delay(FreqModeSettleMs, cancellationToken).ConfigureAwait(false);
 
-                // ③ 再读电压
-                var voltageReading = await _dmm.ReadOnceAsync(
-                    DmmMeasureMode.ACV,
-                    new DmmReadOptions { TimeoutMilliseconds = 8000 },
-                    cancellationToken).ConfigureAwait(false);
+                //// ③ 再读电压
+                //var voltageReading = await _dmm.ReadOnceAsync(
+                //    DmmMeasureMode.ACV,
+                //    new DmmReadOptions { TimeoutMilliseconds = 8000 },
+                //    cancellationToken).ConfigureAwait(false);
 
 
 
