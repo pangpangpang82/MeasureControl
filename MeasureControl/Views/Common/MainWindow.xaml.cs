@@ -154,7 +154,9 @@ namespace MeasureControl.Views.Common
             }
 
             var v = (projectItem.Tag ?? projectItem.Name)?.Trim();
-            return string.Equals(v, "空气单板", StringComparison.OrdinalIgnoreCase)
+            return string.Equals(v, "空气控制板", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(v, "空气功率板", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(v, "空气安全板", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(v, "液压单板", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(v, "惰化单板", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(v, "惰化模拟板", StringComparison.OrdinalIgnoreCase)
@@ -711,7 +713,9 @@ namespace MeasureControl.Views.Common
                     // 单板测试任务节点：增加“启动测试”（整板自动测试）
                     // 目前仅液压单板实现整板自动测试，其他单板进入页面后会提示未实现。
                     var boardType = (projectItem.Tag ?? projectItem.Name)?.Trim();
-                    if (string.Equals(boardType, "空气单板", StringComparison.OrdinalIgnoreCase)
+                    if (string.Equals(boardType, "空气控制板", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(boardType, "空气功率板", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(boardType, "空气安全板", StringComparison.OrdinalIgnoreCase)
                         || string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase)
                         || string.Equals(boardType, "惰化单板", StringComparison.OrdinalIgnoreCase)
                         || string.Equals(boardType, "惰化模拟板", StringComparison.OrdinalIgnoreCase)
@@ -1083,7 +1087,9 @@ namespace MeasureControl.Views.Common
             {
                 steps = boardType switch
                 {
-                    "空气单板" => BuildAirSteps(),
+                    "空气控制板" => BuildAirSteps(),
+                    "空气功率板" => BuildAirSteps(),
+                    "空气安全板" => BuildAirSteps(),
                     "惰化单板" => BuildInertingSteps(),
                     _ => null
                 };
@@ -2049,7 +2055,9 @@ namespace MeasureControl.Views.Common
                         FileNamePrefix = "惰化控制板测试",
                         FillAction = FillInertControlBoardExcelReport
                     };
-                case "空气单板":
+                case "空气控制板":
+                case "空气功率板":
+                case "空气安全板":
                 case "惰化单板":
                 default:
                     return null;

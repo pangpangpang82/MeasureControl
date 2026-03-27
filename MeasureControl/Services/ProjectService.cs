@@ -187,10 +187,24 @@ namespace MeasureControl.Services
                 };
                 testTasks.Children.Add(new ProjectItem
                 {
-                    Name = "空气单板",
+                    Name = "空气控制板",
                     Icon = AppConstants.IconTasks,
                     Type = AppConstants.NodeTypeTestTask,
-                    Tag = "空气单板"
+                    Tag = "空气控制板"
+                });
+                testTasks.Children.Add(new ProjectItem
+                {
+                    Name = "空气功率板",
+                    Icon = AppConstants.IconTasks,
+                    Type = AppConstants.NodeTypeTestTask,
+                    Tag = "空气功率板"
+                });
+                testTasks.Children.Add(new ProjectItem
+                {
+                    Name = "空气安全板",
+                    Icon = AppConstants.IconTasks,
+                    Type = AppConstants.NodeTypeTestTask,
+                    Tag = "空气安全板"
                 });
                 testTasks.Children.Add(new ProjectItem
                 {
@@ -975,6 +989,9 @@ namespace MeasureControl.Services
                 };
                 var project = JsonConvert.DeserializeObject<ProjectItem>(json, settings);
                 
+                // 迁移旧项目结构（如空气单板拆分）
+                MigrateLegacyProjectStructure(project);
+
                 // 确保所有必需的属性都有默认值
                 CurrentProjectRoot = project;
                 EnsureProjectItemProperties(project);
@@ -983,6 +1000,44 @@ namespace MeasureControl.Services
             catch (Exception ex)
             {
                 throw new Exception($"加载项目失败: {ex.Message}", ex);
+            }
+        }
+
+        private void MigrateLegacyProjectStructure(ProjectItem root)
+        {
+            if (root?.Children == null) return;
+
+            var testTasksNode = root.Children.FirstOrDefault(c => c.Tag == "TestTasks" || c.Type == "test_tasks");
+            if (testTasksNode?.Children == null) return;
+
+            // 检查是否存在"空气单板"
+            var airSingleBoard = testTasksNode.Children.FirstOrDefault(c => c.Name == "空气单板" || c.Tag == "空气单板");
+            if (airSingleBoard != null)
+            {
+                Debug.WriteLine("[Project] Migrating legacy '空气单板' node...");
+                testTasksNode.Children.Remove(airSingleBoard);
+
+                // 确保三个新单板存在
+                EnsureTestTaskNode(testTasksNode, "空气控制板", AppConstants.IconTasks, AppConstants.NodeTypeTestTask, "空气控制板");
+                EnsureTestTaskNode(testTasksNode, "空气功率板", AppConstants.IconTasks, AppConstants.NodeTypeTestTask, "空气功率板");
+                EnsureTestTaskNode(testTasksNode, "空气安全板", AppConstants.IconTasks, AppConstants.NodeTypeTestTask, "空气安全板");
+            }
+        }
+
+        private void EnsureTestTaskNode(ProjectItem parent, string name, string icon, string type, string tag)
+        {
+            if (!parent.Children.Any(c => c.Name == name || c.Tag == tag))
+            {
+                // 插入到前面，或者直接添加
+                // 这里为了保持顺序，如果可以的话尽量插在前面（空气系列通常在前面）
+                // 简单起见直接Add，如果需要排序可以后续处理
+                parent.Children.Add(new ProjectItem
+                {
+                    Name = name,
+                    Icon = icon,
+                    Type = type,
+                    Tag = tag
+                });
             }
         }
 
