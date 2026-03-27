@@ -615,10 +615,24 @@ namespace MeasureControl.ViewModels.Common
             {
                 testTasks.Children.Add(new ProjectItem
                 {
-                    Name = "空气单板",
+                    Name = "空气控制板",
                     Icon = AppConstants.IconTasks,
                     Type = AppConstants.NodeTypeTestTask,
-                    Tag = "空气单板"
+                    Tag = "空气控制板"
+                });
+                testTasks.Children.Add(new ProjectItem
+                {
+                    Name = "空气功率板",
+                    Icon = AppConstants.IconTasks,
+                    Type = AppConstants.NodeTypeTestTask,
+                    Tag = "空气功率板"
+                });
+                testTasks.Children.Add(new ProjectItem
+                {
+                    Name = "空气安全板",
+                    Icon = AppConstants.IconTasks,
+                    Type = AppConstants.NodeTypeTestTask,
+                    Tag = "空气安全板"
                 });
                 testTasks.Children.Add(new ProjectItem
                 {
@@ -648,6 +662,65 @@ namespace MeasureControl.ViewModels.Common
                     Type = AppConstants.NodeTypeTestTask,
                     Tag = "液压单板"
                 });
+            }
+
+            try
+            {
+                var legacyAir = testTasks.Children.FirstOrDefault(c => c != null
+                    && c.Type == AppConstants.NodeTypeTestTask
+                    && (string.Equals(c.Tag as string, "空气单板", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(c.Name, "空气单板", StringComparison.OrdinalIgnoreCase)));
+
+                if (legacyAir != null)
+                {
+                    var index = testTasks.Children.IndexOf(legacyAir);
+                    if (index < 0)
+                        index = 0;
+
+                    testTasks.Children.Remove(legacyAir);
+
+                    var airNames = new[] { "空气控制板", "空气功率板", "空气安全板" };
+                    foreach (var existing in testTasks.Children
+                                 .Where(c => c != null
+                                     && c.Type == AppConstants.NodeTypeTestTask
+                                     && airNames.Any(n => string.Equals(c.Tag as string, n, StringComparison.OrdinalIgnoreCase)
+                                                      || string.Equals(c.Name, n, StringComparison.OrdinalIgnoreCase)))
+                                 .ToArray())
+                    {
+                        testTasks.Children.Remove(existing);
+                    }
+
+                    var airControl = new ProjectItem
+                    {
+                        Name = "空气控制板",
+                        Icon = AppConstants.IconTasks,
+                        Type = AppConstants.NodeTypeTestTask,
+                        Tag = "空气控制板"
+                    };
+
+                    var airPower = new ProjectItem
+                    {
+                        Name = "空气功率板",
+                        Icon = AppConstants.IconTasks,
+                        Type = AppConstants.NodeTypeTestTask,
+                        Tag = "空气功率板"
+                    };
+
+                    var airSafety = new ProjectItem
+                    {
+                        Name = "空气安全板",
+                        Icon = AppConstants.IconTasks,
+                        Type = AppConstants.NodeTypeTestTask,
+                        Tag = "空气安全板"
+                    };
+
+                    testTasks.Children.Insert(index, airControl);
+                    testTasks.Children.Insert(index + 1, airPower);
+                    testTasks.Children.Insert(index + 2, airSafety);
+                }
+            }
+            catch
+            {
             }
 
             try
