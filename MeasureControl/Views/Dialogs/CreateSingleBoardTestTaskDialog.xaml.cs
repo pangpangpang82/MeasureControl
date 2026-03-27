@@ -28,7 +28,9 @@ namespace MeasureControl.Views.Dialogs
 
             BoardTypeComboBox.ItemsSource = new List<string>
             {
-                "空气单板",
+                "空气控制板",
+                "空气功率板",
+                "空气安全板",
                 "液压单板",
                 "惰化模拟板",
                 "惰化控制板",
