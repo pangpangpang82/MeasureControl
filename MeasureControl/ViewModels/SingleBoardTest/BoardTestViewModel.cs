@@ -381,20 +381,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "6.10.4控制通道WAIPSI2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：0.25V、5.00V、9.75V；\r\n\t b) 每挡发送压力测试指令(07 03 04 01 00 00 00 00)，接收压力遥测(07 03 04 02 .. .. .. ..)；\r\n\t c) 1挡压力范围[-3.7473, -1.5305]psia，2挡[46.3916, 48.6084]psia，3挡[96.5305, 98.7473]psia。" },
                     }
                 },
-                {
-                    "惰化控制板",
-                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        { "控制板电源阻抗测试", "\t 控制板下电；测量J1、J2、J4、J5到J18（COM）、J70（EARTH）之间的阻抗，阻抗值大于500Ω则合格。" },
-                        { "控制板二、三次电源测试", "\t a) 控制板-15V：读取电压值满足[-15.75V,-14.25V]为合格；\r\n \t b) 控制板+15V：读取电压值满足[14.25V,15.75V]为合格；\r\n \t c) 控制板5V：读取电压值满足[4.75V,5.25V]为合格；\r\n \t d) 控制板3.3V：读取电压值满足[3.135V,3.465V]为合格；\r\n \t e) 控制板1.5V：读取电压值满足[1.425V,1.575V]为合格。" },
-                        { "控制板离散输入模块测试", "\t 控制板供电28V；将引脚J40-J45、J75-J83分别配置为GND和开路，通过通信读取采集结果；将引脚J84、J85分别配置为28V和开路，通过通信读取采集结果。采集结果应与配置状态一致。" },
-                        { "离散输出模块测试", "\t 控制板供电28V；通过ARINC429通道0发送Label173/SDI1高/低指令；J11/J12/J13/J14/J17输出状态应分别为GND/开路；J21/J22输出状态应分别为28V/开路。" },
-                        { "温度传感器信号采集", "\t 控制板供电28V；按表7-2配置PT500A/PT500B/PT1000A/PT1000B模拟电阻值，通过通信读取换算温度；上位机读取温度满足表7-3与表7-4为合格。" },
-                        { "压力传感器信号采集", "\t 通过引脚J25、J26将“压力传感器”的模拟电压按表7-5进行设置，通过通讯读取的“压力”的数值；上位机读取的“压力”数据显示的值满足表7-6为合格。" },
-                        { "氧气传感器信号采集", "\t 通过引脚J23、J24和引脚J59、J60将“氧气浓度传感器”、“氧气压力传感器”的模拟电流按表7-7进行设置，通过通讯读取“氧气浓度”、“氧气压力”的数值；上位机读取的“氧气浓度”、“氧气压力”显示的值满足表7-8为合格。" },
-                        { "TCV电机驱动测试", "\t 控制板供电28V；试验台使用电阻6Ω（功率不小于150W）和电感12mH模拟负载；分别设置步进频率500Hz/1000Hz，设置正转/反转并给出电机使能信号；上位机读取TCV电机A相(J9/J10)、B相(J7/J8)电流值；A、B每相电流读数不持续为0则合格。" },
-                    }
-                },
             };
 
         private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> NotesByBoardType =
@@ -637,27 +623,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     RightPanelContent = new TextBlock { Text = value.Name, Margin = new System.Windows.Thickness(10) };
                 }
             }
-        }
-
-        private void OnNavigationLockChanged(NavigationLockChangedEventArgs args)
-        {
-            var source = args?.Source;
-            if (args?.IsLocked == true)
-            {
-                if (!string.IsNullOrWhiteSpace(source))
-                    _navigationLockSources.Add(source);
-                else
-                    _navigationLockSources.Add("Unknown");
-            }
-            else
-            {
-                if (!string.IsNullOrWhiteSpace(source))
-                    _navigationLockSources.Remove(source);
-                else
-                    _navigationLockSources.Clear();
-            }
-
-            _isNavigationLocked = _navigationLockSources.Count > 0;
         }
 
         public object RightPanelContent
