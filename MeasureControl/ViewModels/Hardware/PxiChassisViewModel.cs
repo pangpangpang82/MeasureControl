@@ -800,7 +800,7 @@ namespace MeasureControl.ViewModels
                 device.ConnectionMethod = "LAN";
                 if (!string.IsNullOrWhiteSpace(projectItem?.Name))
                 {
-                    if (projectItem.Name.Contains("RS422") || projectItem.Name.Contains("RS232") || projectItem.Name.Contains("FPGA"))
+                    if (projectItem.Name.Contains("RS422") || projectItem.Name.Contains("RS232") || projectItem.Name.Contains("FPGA") || projectItem.Name.Contains("Chroma") || projectItem.Name.Contains("6314"))
                     {
                         device.ConnectionMethod = "USB";
                     }
@@ -2989,9 +2989,9 @@ namespace MeasureControl.ViewModels
             // 程控设备类型识别
             if (projectItem.Name.Contains("电源")) return "程控电源";
             if (projectItem.Name.Contains("负载")) return "电子负载";
-            // Chroma设备具体类型识别
-            if (projectItem.Name.Contains("Chroma 6314A")) return "程控电源";
-            if (projectItem.Name.Contains("Chroma 6312A")) return "电子负载";
+            // Chroma设备具体类型识别 - 6314A/6312A/6310A 等都是电子负载
+            if (projectItem.Name.Contains("Chroma 6314A") || projectItem.Name.Contains("Chroma 6312A") || projectItem.Name.Contains("Chroma 6310")) return "电子负载";
+            if (projectItem.Name.Contains("6314A") || projectItem.Name.Contains("6312A") || projectItem.Name.Contains("6310A")) return "电子负载";
             if (projectItem.Name.Contains("Chroma")) return "程控仪器仪表";
             if (projectItem.Name.Contains("PXI-3022") || projectItem.Name.Contains("PXI-2601")) return "矩阵开关";
             // 程控仪器仪表子类型识别
@@ -2999,7 +2999,6 @@ namespace MeasureControl.ViewModels
             if (projectItem.Name.Contains("DM3068") || projectItem.Name.Contains("数字多用表")) return "数字多用表";
             if (projectItem.Name.Contains("DH04804") || projectItem.Name.Contains("示波器")) return "示波器";
             if (projectItem.Name.Contains("53220A") || projectItem.Name.Contains("频率计")) return "频率计";
-            if (projectItem.Name.Contains("6314A")) return "串口";
             // 其他程控仪器仪表设备
             if (projectItem.Name.Contains("普源") || projectItem.Name.Contains("是德") ||
                 projectItem.Name.Contains("DH") || projectItem.Name.Contains("MS")) return "程控仪器仪表";
@@ -3265,45 +3264,53 @@ namespace MeasureControl.ViewModels
                     return;
                 }
                 
-                // 只在设备列表为空时才自动生成，避免重复清空再生成导致系统控制器冲突
-                if (uiChassisDevice.Children.Count > 0)
+                // 只在设备列表为空时才自动生成板卡，避免重复清空再生成导致系统控制器冲突
+                if (uiChassisDevice.Children.Count == 0)
                 {
-                    return;
+                    _isApplyingFixedDemoLayout = true;
+                    try
+                    {
+                        var sequence = new List<string>
+                            {
+                                "凌华 PXIe-3987",
+                                "欧开 PXI-4087A",
+                                "欧开 PXI-4087C",
+                                "欧开 PXI-4087C",
+                                "阿尔泰 PXI-7012",
+                                "阿尔泰 PXI-7012",
+                                "芒果树 MT-X532",
+                                "阿尔泰 PXIe-4227",
+                                "阿尔泰 PXIe-9774",
+                                "盲板",
+                                "阿尔泰 PXI-4004",
+                                "简仪 PXIe-7131",
+                                "芒果树 MT-X970",
+                                "阿尔泰 PXI-4332",
+                                "怀智 HZ-MIL1394B-PX1e-4N",
+                                "盲板",
+                                "盲板",
+                                "盲板"
+                            };
+                        foreach (var name in sequence)
+                        {
+                            var toolItem = FindToolItemByName(name);
+                            if (toolItem == null)
+                            {
+                                toolItem = new ProjectItem { Name = name };
+                            }
+                            OnAddDevice(toolItem);
+                        }
+                    }
+                    finally
+                    {
+                        _isApplyingFixedDemoLayout = false;
+                    }
                 }
                 
+                // 无论板卡是否已存在，都检查并添加缺失的仪器设备（包括电子负载）
                 _isApplyingFixedDemoLayout = true;
                 try
                 {
-                    var sequence = new List<string>
-                        {
-                            "凌华 PXIe-3987",
-                            "欧开 PXI-4087A",
-                            "欧开 PXI-4087C",
-                            "欧开 PXI-4087C",
-                            "阿尔泰 PXI-7012",
-                            "阿尔泰 PXI-7012",
-                            "芒果树 MT-X532",
-                            "阿尔泰 PXIe-4227",
-                            "阿尔泰 PXIe-9774",
-                            "盲板",
-                            "阿尔泰 PXI-4004",
-                            "简仪 PXIe-7131",
-                            "芒果树 MT-X970",
-                            "阿尔泰 PXI-4332",
-                            "怀智 HZ-MIL1394B-PX1e-4N",
-                            "盲板",
-                            "盲板",
-                            "盲板"
-                        };
-                    foreach (var name in sequence)
-                    {
-                        var toolItem = FindToolItemByName(name);
-                        if (toolItem == null)
-                        {
-                            toolItem = new ProjectItem { Name = name };
-                        }
-                        OnAddDevice(toolItem);
-                    }
                     EnsureRequiredFixedDemoInstruments();
                     LoadChassisDevices();
                 }
@@ -3418,15 +3425,17 @@ namespace MeasureControl.ViewModels
             {
                 return;
             }
-            var required = new Dictionary<string, int>(StringComparer.Ordinal)
+            // 使用有序列表确保设备按顺序添加
+            var requiredList = new List<(string Name, int Count)>
             {
-                { "普源 DG1032Z", 1 },
-                { "普源 DM3068", 1 },
-                { "是德 53220A", 1 },
-                { "普源 DH04804", 1 },
-                { "艾德克斯 IT-N6332B", 3 },
-                { "RS422模块", 2 },
-                { "RS232模块", 1 },
+                ("普源 DG1032Z", 1),
+                ("普源 DM3068", 1),
+                ("是德 53220A", 1),
+                ("普源 DH04804", 1),
+                ("艾德克斯 IT-N6332B", 3),
+                ("RS422模块", 2),
+                ("RS232模块", 1),
+                ("Chroma 6314A", 1),
             };
             var current = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (var d in ChassisDevices)
@@ -3437,13 +3446,13 @@ namespace MeasureControl.ViewModels
                 if (!current.ContainsKey(d.Name)) current[d.Name] = 0;
                 current[d.Name] += 1;
             }
-            foreach (var kv in required)
+            foreach (var (name, requiredCount) in requiredList)
             {
-                current.TryGetValue(kv.Key, out var count);
-                int need = kv.Value - count;
+                current.TryGetValue(name, out var count);
+                int need = requiredCount - count;
                 for (int i = 0; i < need; i++)
                 {
-                    var toolItem = FindToolItemByName(kv.Key) ?? new ProjectItem { Name = kv.Key };
+                    var toolItem = FindToolItemByName(name) ?? new ProjectItem { Name = name };
                     OnAddDevice(toolItem);
                 }
             }
