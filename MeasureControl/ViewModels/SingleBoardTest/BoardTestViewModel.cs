@@ -34,135 +34,179 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         private bool _isStoppingCurrentTest;
 
         private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, Func<UserControl>>> TestItemViewFactoriesByBoardType =
-            new Dictionary<string, IReadOnlyDictionary<string, Func<UserControl>>>(StringComparer.OrdinalIgnoreCase)
-            {
-                {
-                    "空气单板",
-                    new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        { "6.1电源对地阻抗检查", () => new PowerToGroundImpedanceTestView() },
-                        { "8.1电源对地阻抗测试", () => new A_C_8_1View() },
-                        { "7.1功率板电源对地阻抗测试", () => new A_C_7_1View() },
-                        { "6.4控制通道光耦供电测试", () => new AC_6_4CommTabView() },
-                        { "6.14.1控制通道GND/OC离散输入通道输入测试", () => new GndOcDiscreteInputTestView() },
-                        { "6.15.1.1GND/OC型离散输出通道3输出测试", () => new GndOcDiscreteOutputCh3TestView() },
-                        { "6.15.1.2GND/OC型100mA离散输出通道2输出测试", () => new GndOcDiscreteOutputCh2TestView() },
-                        { "6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试", () => new A28vOc100mADiscreteOutputCh1TestView() },
-                        { "6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试", () => new A28vOc100mADiscreteOutputCh2TestView() },
-                        { "6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试", () => new A28vOc400mADiscreteOutputCh1TestView() },
-                        { "6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试", () => new A28vOc400mADiscreteOutputCh2TestView() },
-                        { "6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试", () => new A28vOc400mADiscreteOutputCh3TestView() },
-                        { "6.8.1控制通道PDTS传感器测试", () => new PT500TemperatureSensorCommTabView() },
-                        { "6.8.2控制通道MIXTS传感器测试", () => new R_6_8_2View() },
-                        { "6.8.3控制通道CAR_TS传感器测试", () => new R_6_8_3View() },
-                        { "6.8.4控制通道CKPT_DTS传感器测试", () => new R_6_8_4View() },
-                        { "6.8.5控制通道CAB_DTS传感器测试", () => new R_6_8_5View() },
-                        { "6.8.6控制通道CAR_DTS传感器测试", () => new R_6_8_6View() },
-                        { "6.8.7控制通道BTS传感器测试", () => new R_6_8_7View() },
-                        { "6.8.8控制通道PTS传感器测试", () => new R_6_8_8View() },
-                        { "6.8.9控制通道CDTS传感器测试", () => new R_6_8_9View() },
-                        { "6.5.1.1控制通道ARINC429发送通道1测试", () => new A_C_6_5_1_1View() },
-                        { "6.5.1.2A控制通道ARINC429发送通道2/B控制通道ARINC429接收通道5测试", () => new A_C_6_5_1_2View() },
-                        { "6.5.2.1A控制通道ARINC接收通道1测试", () => new A_C_6_5_2_1View() },
-                        { "6.5.2.2A控制通道ARINC接收通道2测试", () => new A_C_6_5_2_2View() },
-                        { "6.5.2.3A控制通道ARINC接收通道3测试", () => new A_C_6_5_2_3View() },
-                        { "6.5.2.4A控制通道ARINC接收通道4测试", () => new A_C_6_5_2_4View() },
-                        { "6.5.2.5A控制通道ARINC接收通道5测试", () => new A_C_6_5_2_5View() },
-                        { "6.5.2.6A控制通道ARINC接收通道6测试", () => new A_C_6_5_2_6View() },
-                        { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
-                        { "8.3.2 S安全通道ARINC429接收通道1测试", () => new S_C_8_3_2View() },
-                        { "8.3.3 S安全通道ARINC429接收通道2测试", () => new S_C_8_3_3View() },
-                        { "8.10.1 S通道OFV/TRV直流电机驱动模块速度控制测试", () => new S_C_8_10_1View() },
-                        { "7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试", () => new A_C_7_3_1_1_2View() },
-                        { "7.3.1.2 A控制通道功率板RATA直流电机驱动模块速度控制测试", () => new A_C_7_3_1_2View() },
-                        { "7.3.1.3 A控制通道功率板RATA直流电机驱动模块方向控制测试", () => new A_C_7_3_1_3View() },
-                        { "7.3.2.1 A控制通道功率板AVV直流电机驱动模块供电测试", () => new A_C_7_3_2_1View() },
-                        { "7.3.2.2 A控制通道功率板AVV直流电机驱动模块速度控制测试", () => new A_C_7_3_2_2View() },
-                        { "7.3.2.3 A控制通道功率板AVV直流电机驱动模块方向控制测试", () => new A_C_7_3_2_3View() },
-                        { "7.3.3.1B控制通道功率板RAIA直流电机驱动模块供电测试", () => new A_C_7_3_3_1View() },
-                        { "7.3.3.2 B控制通道功率板RAIA直流电机驱动模块速度控制测试", () => new B_C_7_3_3_2View() },
-                        { "7.3.3.3B控制通道功率板RAIA直流电机驱动模块方向控制测试", () => new A_C_7_3_3_3View() },
-                        { "7.3.4.1B控制通道功率板CBV直流电机驱动模块供电电流测试", () => new A_C_7_3_4_1View() },
-                        { "7.3.4.2B控制通道功率板CBV直流电机驱动模块方向控制测试", () => new A_C_7_3_4_2View() },
-                        { "7.4.1.1 A控制通道功率板TCV步进电机驱动模块输出测试", () => new A_C_7_4_1_1View() },
-                        { "7.4.1.2 A控制通道功率板TCV步进电机驱动模块方向测试", () => new A_C_7_4_1_2View() },
-                        { "7.4.2.1 A控制通道功率板驾驶舱TAV步进电机驱动模块输出测试", () => new A_C_7_4_2_1View() },
-                        { "7.4.2.2 A控制通道功率板驾驶舱TAV步进电机驱动模块方向测试", () => new A_C_7_4_2_2View() },
-                        { "7.4.3.1 A控制通道功率板前后客舱TAV步进电机驱动模块输出测试", () => new A_C_7_4_3_1View() },
-                        { "7.4.3.2 A控制通道功率板前后客舱TAV步进电机驱动模块方向测试", () => new A_C_7_4_3_2View() },
-                        { "7.4.4.1 A控制通道功率板前货舱TAV步进电机驱动模块供电电流测试", () => new A_C_7_4_4_1View() },
-                        { "7.4.4.2 A控制通道功率板前货舱TAV步进电机驱动模块方向测试", () => new A_C_7_4_4_2View() },
-                        { "7.4.5.1 B控制通道功率板TCV步进电机驱动模块输出测试", () => new B_C_7_4_5_1View() },
-                        { "7.4.5.2 B控制通道功率板TCV步进电机驱动模块方向测试", () => new B_C_7_4_5_2View() },
-                        { "7.4.6.1 B控制通道功率板驾驶舱TAV步进电机驱动模块输出测试", () => new B_C_7_4_6_1View() },
-                        { "7.4.6.2 B控制通道功率板驾驶舱TAV步进电机驱动模块方向测试", () => new B_C_7_4_6_2View() },
-                        { "7.4.7.1 B控制通道功率板前后客舱TAV步进电机驱动模块输出测试", () => new B_C_7_4_7_1View() },
-                        { "7.4.7.2 B控制通道功率板前后客舱TAV步进电机驱动模块方向测试", () => new B_C_7_4_7_2View() },
-                        { "7.4.8.1 B控制通道功率板前货舱TAV步进电机驱动模块供电电流测试", () => new B_C_7_4_8_1View() },
-                        { "7.4.8.2 B控制通道功率板前货舱TAV步进电机驱动模块方向测试", () => new B_C_7_4_8_2View() },
-                        { "7.5.1.1 A控制通道功率板FAV力矩电机驱动测试", () => new A_C_7_5_1_1_2View() },
-                        { "7.5.2.1 A控制通道功率板PRSOV力矩电机驱动测试", () => new A_C_7_5_2_1View() },
-                        { "7.5.3.1 A控制通道功率板FCV力矩电机驱动测试", () => new A_C_7_5_3_1View() },
-                        { "7.5.4.1 A控制通道功率板WAIV力矩电机驱动测试", () => new A_C_7_5_4_1View() },
-                        { "7.5.5.1 B控制通道功率板FAV力矩电机驱动测试", () => new B_C_7_5_5_1View() },
-                        { "7.5.6.1 B控制通道功率板PRSOV力矩电机驱动测试", () => new B_C_7_5_6_1View() },
-                        { "7.5.7.1 B控制通道功率板FCV力矩电机驱动测试", () => new B_C_7_5_7_1View() },
-                        { "7.5.8.1 B控制通道功率板WAIV力矩电机驱动测试", () => new A_C_7_5_8_1View() },
-                        { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
-                        { "6.2.1A控制通道供电测试", () => new AirSimpleSequenceView("6.2.1A控制通道供电测试") },
-                        { "5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
-                        { "6.3 5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
-                        { "A控制通道功率板供电测试", () => new PowerBoardSupplyTestView("A", "A控制通道功率板供电测试") },
-                        { "7.2.1A控制通道功率板供电测试", () => new PowerBoardSupplyTestView("A", "7.2.1A控制通道功率板供电测试") },
-                        { "B控制通道功率板供电测试", () => new PowerBoardSupplyTestView("B", "B控制通道功率板供电测试") },
-                        { "7.2.2B控制通道功率板供电测试", () => new PowerBoardSupplyTestView("B", "7.2.2B控制通道功率板供电测试") },
-                        { "CAN发送测试", () => new CanCommTestView() },
-                        { "6.6.1CAN发送测试", () => new CanCommTestView() },
-                        { "CAN接收测试", () => new CanReceiveTestView() },
-                        { "6.6.2CAN接收测试", () => new CanReceiveTestView() },
-                        { "安全板CAN测试", () => new AirSimpleSequenceView("安全板CAN测试") },
-                        { "8.5.1安全通道CAN发送测试", () => new S_C_8_5_1View() },
-                        { "8.5.2安全通道CAN接收测试", () => new S_C_8_5_2View() },
-                        { "8.6.1 S安全通道WAITS1传感器测试", () => new S_C_8_6_1View() },
-                        { "8.6.2 S安全通道WAITS2传感器测试", () => new S_C_8_6_2View() },
-                        { "8.7.1S安全通道FWD_AVENTS1传感器测试", () => new S_C_8_7_1View() },
-                        { "8.7.2S安全通道FWD_AVENTS2传感器测试", () => new S_C_8_7_2View() },
-                        { "8.7.3S安全通道AFT_AVENTS传感器测试", () => new S_C_8_7_3View() },
-                        { "RS422通信测试", () => new RS422CommTabView() },
-                        { "控制通道422发送测试", () => new RS422Control422TransmitTestView() },
-                        { "控制通道422接收测试", () => new RS422Control422ReceiveTestView() },
+            CreateTestItemViewFactoriesByBoardType();
 
-                        { "6.9.1A控制通道CKPT_VENTS传感器测试", () => new A_C_6_9_1_1View() },
-                        { "6.9.2控制通道CAB_VENTS传感器测试", () => new A_C_6_9_2_1View() },
-                        { "6.10.1控制通道BMPS压力传感器测试", () => new A_C_6_10_1_1View() },
-                        { "6.10.2A控制通道BPS传感器测试", () => new A_C_6_10_2_1View() },
-                        { "6.10.3控制通道WAIPSI1传感器测试", () => new A_C_6_10_3_1View() },
-                        { "6.10.4控制通道WAIPSI2传感器测试", () => new A_C_6_10_4_1View() },
-                        { "6.10.5控制通道PDPS传感器测试", () => new A_C_6_10_5_1View() },
-                        { "6.10.6A控制通道PIFS传感器测试", () => new A_C_6_10_6_1View() },
-                        { "6.13.1控制通道压力传感器采集测试", () => new A_C_6_13_1_1View() },
-                        { "6.13.2 S安全通道压力传感器测试", () => new S_C_6_13_2_1View() },
-                        { "6.10.7控制通道RAIA_POS传感器测试", () => new A_C_6_10_7_1View() },
-                        { "6.11.1控制通道角度反馈传感器测试", () => new A_C_6_11_1_1View() },
-                        { "6.12.1控制通道选气楔传感器测试", () => new A_C_6_12_1_1View() },
-                        { "6.15.1.1 A控制通道功率板RAIA直流电机驱动模块速度控制测试", () => new A_C_6_15_1_1View() },
-                        { "6.15.1.2 A控制通道功率板RAIA直流电机驱动模块方向控制测试", () => new A_C_6_15_1_2View() },
-                        { "6.16.1.1.1 A控制通道功率板TCV步进电机驱动模块输出测试", () => new A_C_6_16_1_1_1View() },
-                        { "6.16.2.1 A控制通道功率板驾驶舱TAV步进电机驱动模块测试", () => new A_C_6_16_1_1_2View() },
-                        { "6.16.3.1 A控制通道功率板前后客舱TAV步进电机驱动模块测试", () => new A_C_6_16_3_1View() },
-                        { "6.17.4.1 A控制通道功率板前后客舱TAV步进电机驱动模块测试", () => new A_C_6_17_4_1View() },
-                        { "6.17.1.2 A控制通道功率板TCV方向控制测试", () => new A_C_6_17_1_2View() },
-                        { "6.17.2.2 A控制通道功率板TAV步进电机驱动模块方向测试", () => new A_C_6_17_2_2View() },
-                        { "6.17.3.2 A控制通道功率板前后客舱TAV步进电机驱动模块方向测试", () => new A_C_6_17_3_2View() },
-                        { "6.17.4.2 A控制通道功率板前货舱TAV步进电机驱动模块方向测试", () => new A_C_6_17_4_2View() },
-                        { "6.18.1.1 A控制通道功率板FAV力矩电机驱动测试", () => new A_C_6_18_1_1View() },
-                        { "6.18.2.1 A控制通道功率板PRSOV力矩电机驱动测试", () => new A_C_6_18_2_1View() },
-                        { "6.18.3.1 A控制通道功率板FCV力矩电机驱动测试", () => new A_C_6_18_3_1View() },
-                        { "6.18.4.1 A控制通道功率板VAV力矩电机驱动测试", () => new A_C_6_18_4_1View() },
-                        { "6.15.2.1 A控制通道功率板AWV直流电机驱动模块速度控制测试", () => new A_C_6_15_2_1View() },
-                        { "6.15.2.2 A控制通道功率板AVV直流电机驱动模块方向控制测试", () => new A_C_6_15_2_2View() },
-                    }
-                },
+        private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, Func<UserControl>>> CreateTestItemViewFactoriesByBoardType()
+        {
+            var airAll = new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "6.1电源对地阻抗检查", () => new PowerToGroundImpedanceTestView() },
+                { "8.1电源对地阻抗测试", () => new A_C_8_1View() },
+                { "7.1功率板电源对地阻抗测试", () => new A_C_7_1View() },
+                { "6.4控制通道光耦供电测试", () => new AC_6_4CommTabView() },
+                { "6.14.1控制通道GND/OC离散输入通道输入测试", () => new GndOcDiscreteInputTestView() },
+                { "6.15.1.1GND/OC型离散输出通道3输出测试", () => new GndOcDiscreteOutputCh3TestView() },
+                { "6.15.1.2GND/OC型100mA离散输出通道2输出测试", () => new GndOcDiscreteOutputCh2TestView() },
+                { "6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试", () => new A28vOc100mADiscreteOutputCh1TestView() },
+                { "6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试", () => new A28vOc100mADiscreteOutputCh2TestView() },
+                { "6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试", () => new A28vOc400mADiscreteOutputCh1TestView() },
+                { "6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试", () => new A28vOc400mADiscreteOutputCh2TestView() },
+                { "6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试", () => new A28vOc400mADiscreteOutputCh3TestView() },
+                { "6.8.1控制通道PDTS传感器测试", () => new PT500TemperatureSensorCommTabView() },
+                { "6.8.2控制通道MIXTS传感器测试", () => new R_6_8_2View() },
+                { "6.8.3控制通道CAR_TS传感器测试", () => new R_6_8_3View() },
+                { "6.8.4控制通道CKPT_DTS传感器测试", () => new R_6_8_4View() },
+                { "6.8.5控制通道CAB_DTS传感器测试", () => new R_6_8_5View() },
+                { "6.8.6控制通道CAR_DTS传感器测试", () => new R_6_8_6View() },
+                { "6.8.7控制通道BTS传感器测试", () => new R_6_8_7View() },
+                { "6.8.8控制通道PTS传感器测试", () => new R_6_8_8View() },
+                { "6.8.9控制通道CDTS传感器测试", () => new R_6_8_9View() },
+                { "6.5.1.1控制通道ARINC429发送通道1测试", () => new A_C_6_5_1_1View() },
+                { "6.5.1.2A控制通道ARINC429发送通道2/B控制通道ARINC429接收通道5测试", () => new A_C_6_5_1_2View() },
+                { "6.5.2.1A控制通道ARINC接收通道1测试", () => new A_C_6_5_2_1View() },
+                { "6.5.2.2A控制通道ARINC接收通道2测试", () => new A_C_6_5_2_2View() },
+                { "6.5.2.3A控制通道ARINC接收通道3测试", () => new A_C_6_5_2_3View() },
+                { "6.5.2.4A控制通道ARINC接收通道4测试", () => new A_C_6_5_2_4View() },
+                { "6.5.2.5A控制通道ARINC接收通道5测试", () => new A_C_6_5_2_5View() },
+                { "6.5.2.6A控制通道ARINC接收通道6测试", () => new A_C_6_5_2_6View() },
+                { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
+                { "8.3.2 S安全通道ARINC429接收通道1测试", () => new S_C_8_3_2View() },
+                { "8.3.3 S安全通道ARINC429接收通道2测试", () => new S_C_8_3_3View() },
+                { "8.10.1 S通道OFV/TRV直流电机驱动模块速度控制测试", () => new S_C_8_10_1View() },
+                { "7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试", () => new A_C_7_3_1_1_2View() },
+                { "7.3.1.2 A控制通道功率板RATA直流电机驱动模块速度控制测试", () => new A_C_7_3_1_2View() },
+                { "7.3.1.3 A控制通道功率板RATA直流电机驱动模块方向控制测试", () => new A_C_7_3_1_3View() },
+                { "7.3.2.1 A控制通道功率板AVV直流电机驱动模块供电测试", () => new A_C_7_3_2_1View() },
+                { "7.3.2.2 A控制通道功率板AVV直流电机驱动模块速度控制测试", () => new A_C_7_3_2_2View() },
+                { "7.3.2.3 A控制通道功率板AVV直流电机驱动模块方向控制测试", () => new A_C_7_3_2_3View() },
+                { "7.3.3.1B控制通道功率板RAIA直流电机驱动模块供电测试", () => new A_C_7_3_3_1View() },
+                { "7.3.3.2 B控制通道功率板RAIA直流电机驱动模块速度控制测试", () => new B_C_7_3_3_2View() },
+                { "7.3.3.3B控制通道功率板RAIA直流电机驱动模块方向控制测试", () => new A_C_7_3_3_3View() },
+                { "7.3.4.1B控制通道功率板CBV直流电机驱动模块供电电流测试", () => new A_C_7_3_4_1View() },
+                { "7.3.4.2B控制通道功率板CBV直流电机驱动模块方向控制测试", () => new A_C_7_3_4_2View() },
+                { "7.4.1.1 A控制通道功率板TCV步进电机驱动模块输出测试", () => new A_C_7_4_1_1View() },
+                { "7.4.1.2 A控制通道功率板TCV步进电机驱动模块方向测试", () => new A_C_7_4_1_2View() },
+                { "7.4.2.1 A控制通道功率板驾驶舱TAV步进电机驱动模块输出测试", () => new A_C_7_4_2_1View() },
+                { "7.4.2.2 A控制通道功率板驾驶舱TAV步进电机驱动模块方向测试", () => new A_C_7_4_2_2View() },
+                { "7.4.3.1 A控制通道功率板前后客舱TAV步进电机驱动模块输出测试", () => new A_C_7_4_3_1View() },
+                { "7.4.3.2 A控制通道功率板前后客舱TAV步进电机驱动模块方向测试", () => new A_C_7_4_3_2View() },
+                { "7.4.4.1 A控制通道功率板前货舱TAV步进电机驱动模块供电电流测试", () => new A_C_7_4_4_1View() },
+                { "7.4.4.2 A控制通道功率板前货舱TAV步进电机驱动模块方向测试", () => new A_C_7_4_4_2View() },
+                { "7.4.5.1 B控制通道功率板TCV步进电机驱动模块输出测试", () => new B_C_7_4_5_1View() },
+                { "7.4.5.2 B控制通道功率板TCV步进电机驱动模块方向测试", () => new B_C_7_4_5_2View() },
+                { "7.4.6.1 B控制通道功率板驾驶舱TAV步进电机驱动模块输出测试", () => new B_C_7_4_6_1View() },
+                { "7.4.6.2 B控制通道功率板驾驶舱TAV步进电机驱动模块方向测试", () => new B_C_7_4_6_2View() },
+                { "7.4.7.1 B控制通道功率板前后客舱TAV步进电机驱动模块输出测试", () => new B_C_7_4_7_1View() },
+                { "7.4.7.2 B控制通道功率板前后客舱TAV步进电机驱动模块方向测试", () => new B_C_7_4_7_2View() },
+                { "7.4.8.1 B控制通道功率板前货舱TAV步进电机驱动模块供电电流测试", () => new B_C_7_4_8_1View() },
+                { "7.4.8.2 B控制通道功率板前货舱TAV步进电机驱动模块方向测试", () => new B_C_7_4_8_2View() },
+                { "7.5.1.1 A控制通道功率板FAV力矩电机驱动测试", () => new A_C_7_5_1_1_2View() },
+                { "7.5.2.1 A控制通道功率板PRSOV力矩电机驱动测试", () => new A_C_7_5_2_1View() },
+                { "7.5.3.1 A控制通道功率板FCV力矩电机驱动测试", () => new A_C_7_5_3_1View() },
+                { "7.5.4.1 A控制通道功率板WAIV力矩电机驱动测试", () => new A_C_7_5_4_1View() },
+                { "7.5.5.1 B控制通道功率板FAV力矩电机驱动测试", () => new B_C_7_5_5_1View() },
+                { "7.5.6.1 B控制通道功率板PRSOV力矩电机驱动测试", () => new B_C_7_5_6_1View() },
+                { "7.5.7.1 B控制通道功率板FCV力矩电机驱动测试", () => new B_C_7_5_7_1View() },
+                { "7.5.8.1 B控制通道功率板WAIV力矩电机驱动测试", () => new A_C_7_5_8_1View() },
+                { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
+                { "6.2.1A控制通道供电测试", () => new AirSimpleSequenceView("6.2.1A控制通道供电测试") },
+                { "5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
+                { "6.3 5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
+                { "A控制通道功率板供电测试", () => new PowerBoardSupplyTestView("A", "A控制通道功率板供电测试") },
+                { "7.2.1A控制通道功率板供电测试", () => new PowerBoardSupplyTestView("A", "7.2.1A控制通道功率板供电测试") },
+                { "B控制通道功率板供电测试", () => new PowerBoardSupplyTestView("B", "B控制通道功率板供电测试") },
+                { "7.2.2B控制通道功率板供电测试", () => new PowerBoardSupplyTestView("B", "7.2.2B控制通道功率板供电测试") },
+                { "CAN发送测试", () => new CanCommTestView() },
+                { "6.6.1CAN发送测试", () => new CanCommTestView() },
+                { "CAN接收测试", () => new CanReceiveTestView() },
+                { "6.6.2CAN接收测试", () => new CanReceiveTestView() },
+                { "8.5.1安全通道CAN发送测试", () => new S_C_8_5_1View() },
+                { "8.5.2安全通道CAN接收测试", () => new S_C_8_5_2View() },
+                { "8.6.1 S安全通道WAITS1传感器测试", () => new S_C_8_6_1View() },
+                { "8.6.2 S安全通道WAITS2传感器测试", () => new S_C_8_6_2View() },
+                { "8.7.1S安全通道FWD_AVENTS1传感器测试", () => new S_C_8_7_1View() },
+                { "8.7.2S安全通道FWD_AVENTS2传感器测试", () => new S_C_8_7_2View() },
+                { "8.7.3S安全通道AFT_AVENTS传感器测试", () => new S_C_8_7_3View() },
+                { "RS422通信测试", () => new RS422CommTabView() },
+                { "控制通道422发送测试", () => new RS422Control422TransmitTestView() },
+                { "控制通道422接收测试", () => new RS422Control422ReceiveTestView() },
+                { "6.9.1A控制通道CKPT_VENTS传感器测试", () => new A_C_6_9_1_1View() },
+                { "6.9.2控制通道CAB_VENTS传感器测试", () => new A_C_6_9_2_1View() },
+                { "6.10.1控制通道BMPS压力传感器测试", () => new A_C_6_10_1_1View() },
+                { "6.10.2A控制通道BPS传感器测试", () => new A_C_6_10_2_1View() },
+                { "6.10.3控制通道WAIPSI1传感器测试", () => new A_C_6_10_3_1View() },
+                { "6.10.4控制通道WAIPSI2传感器测试", () => new A_C_6_10_4_1View() },
+                { "6.10.5控制通道PDPS传感器测试", () => new A_C_6_10_5_1View() },
+                { "6.10.6A控制通道PIFS传感器测试", () => new A_C_6_10_6_1View() },
+                { "6.13.1控制通道压力传感器采集测试", () => new A_C_6_13_1_1View() },
+                { "6.13.2 S安全通道压力传感器测试", () => new S_C_6_13_2_1View() },
+                { "6.10.7控制通道RAIA_POS传感器测试", () => new A_C_6_10_7_1View() },
+                { "6.11.1控制通道角度反馈传感器测试", () => new A_C_6_11_1_1View() },
+                { "6.12.1控制通道选气楔传感器测试", () => new A_C_6_12_1_1View() },
+                { "6.15.1.1 A控制通道功率板RAIA直流电机驱动模块速度控制测试", () => new A_C_6_15_1_1View() },
+                { "6.15.1.2 A控制通道功率板RAIA直流电机驱动模块方向控制测试", () => new A_C_6_15_1_2View() },
+                { "6.16.1.1.1 A控制通道功率板TCV步进电机驱动模块输出测试", () => new A_C_6_16_1_1_1View() },
+                { "6.16.2.1 A控制通道功率板驾驶舱TAV步进电机驱动模块测试", () => new A_C_6_16_1_1_2View() },
+                { "6.16.3.1 A控制通道功率板前后客舱TAV步进电机驱动模块测试", () => new A_C_6_16_3_1View() },
+                { "6.17.4.1 A控制通道功率板前后客舱TAV步进电机驱动模块测试", () => new A_C_6_17_4_1View() },
+                { "6.17.1.2 A控制通道功率板TCV方向控制测试", () => new A_C_6_17_1_2View() },
+                { "6.17.2.2 A控制通道功率板TAV步进电机驱动模块方向测试", () => new A_C_6_17_2_2View() },
+                { "6.17.3.2 A控制通道功率板前后客舱TAV步进电机驱动模块方向测试", () => new A_C_6_17_3_2View() },
+                { "6.17.4.2 A控制通道功率板前货舱TAV步进电机驱动模块方向测试", () => new A_C_6_17_4_2View() },
+                { "6.18.1.1 A控制通道功率板FAV力矩电机驱动测试", () => new A_C_6_18_1_1View() },
+                { "6.18.2.1 A控制通道功率板PRSOV力矩电机驱动测试", () => new A_C_6_18_2_1View() },
+                { "6.18.3.1 A控制通道功率板FCV力矩电机驱动测试", () => new A_C_6_18_3_1View() },
+                { "6.18.4.1 A控制通道功率板VAV力矩电机驱动测试", () => new A_C_6_18_4_1View() },
+                { "6.15.2.1 A控制通道功率板AWV直流电机驱动模块速度控制测试", () => new A_C_6_15_2_1View() },
+                { "6.15.2.2 A控制通道功率板AVV直流电机驱动模块方向控制测试", () => new A_C_6_15_2_2View() },
+            };
+
+            bool IsAirControlItem(string name)
+            {
+                if (string.IsNullOrWhiteSpace(name)) return false;
+                if (name.StartsWith("6.", StringComparison.OrdinalIgnoreCase)) return true;
+                if (string.Equals(name, "RS422通信测试", StringComparison.OrdinalIgnoreCase)) return true;
+                if (string.Equals(name, "控制通道422发送测试", StringComparison.OrdinalIgnoreCase)) return true;
+                if (string.Equals(name, "控制通道422接收测试", StringComparison.OrdinalIgnoreCase)) return true;
+                if (string.Equals(name, "CAN发送测试", StringComparison.OrdinalIgnoreCase)) return true;
+                if (string.Equals(name, "CAN接收测试", StringComparison.OrdinalIgnoreCase)) return true;
+                if (name.IndexOf("5V传感器供电电压测试", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                if (name.IndexOf("电源模块测试", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                return false;
+            }
+
+            bool IsAirPowerItem(string name)
+            {
+                if (string.IsNullOrWhiteSpace(name)) return false;
+                if (name.StartsWith("7.", StringComparison.OrdinalIgnoreCase)) return true;
+                if (name.IndexOf("功率板", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                return false;
+            }
+
+            bool IsAirSafetyItem(string name)
+            {
+                if (string.IsNullOrWhiteSpace(name)) return false;
+                if (name.StartsWith("8.", StringComparison.OrdinalIgnoreCase)) return true;
+                if (name.IndexOf("安全", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                return false;
+            }
+
+            var airControl = airAll.Where(kvp => IsAirControlItem(kvp.Key) && !IsAirSafetyItem(kvp.Key) && !IsAirPowerItem(kvp.Key))
+                .ToDictionary(k => k.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
+            foreach (var kvp in airAll.Where(kvp => kvp.Key.StartsWith("6.", StringComparison.OrdinalIgnoreCase)))
+                airControl[kvp.Key] = kvp.Value;
+
+            var airPower = airAll.Where(kvp => IsAirPowerItem(kvp.Key) && !kvp.Key.StartsWith("6.", StringComparison.OrdinalIgnoreCase) && !kvp.Key.StartsWith("8.", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(k => k.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
+
+            var airSafety = airAll.Where(kvp => IsAirSafetyItem(kvp.Key) && !kvp.Key.StartsWith("6.", StringComparison.OrdinalIgnoreCase) && !kvp.Key.StartsWith("7.", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(k => k.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
+
+            return new Dictionary<string, IReadOnlyDictionary<string, Func<UserControl>>>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "空气控制板", airControl },
+                { "空气功率板", airPower },
+                { "空气安全板", airSafety },
                 {
                     "液压单板",
                     new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
@@ -200,8 +244,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "超温切断模块电路测试", () => new Views.SingleBoardTest.InertController.OverTemperatureCutoffTestView() },
                         { "锁存模块电路测试", () => new Views.SingleBoardTest.InertController.LatchModuleCircuitTestView() },
                     }
-                }
-                ,
+                },
                 {
                     "惰化控制板",
                     new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
@@ -217,10 +260,49 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     }
                 }
             };
+        }
 
         private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> CriteriaTextsByBoardType =
             new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
             {
+                {
+                    "空气控制板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "6.1电源对地阻抗检查", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.13.1控制通道压力传感器采集测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1095.21,1104.79]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1496.21,1504.79]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1995.21,2004.79]mbar。" },
+                        { "6.13.2 S安全通道压力传感器测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1082,1118]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1482,1518]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1982,2018]mbar。" },
+                        { "6.5.1.1控制通道ARINC429发送通道1测试", "\t 上位机显示\"7F00AA55\"则检查通过。" },
+                        { "6.10.4控制通道WAIPSI2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：0.25V、5.00V、9.75V；\r\n\t b) 每挡发送压力测试指令(07 03 04 01 00 00 00 00)，接收压力遥测(07 03 04 02 .. .. .. ..)；\r\n\t c) 1挡压力范围[-3.7473, -1.5305]psia，2挡[46.3916, 48.6084]psia，3挡[96.5305, 98.7473]psia。" },
+                    }
+                },
+                {
+                    "空气功率板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "7.1功率板电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试", "\t a) 接入50±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS；\r\n\t b) 接入12±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS。" },
+                    }
+                },
+                {
+                    "空气安全板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "8.1电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "8.5.1安全通道CAN发送测试", "\t 上位机显示\"01010101\"（对应CAN帧后4字节为01 01 01 01）则检查通过。" },
+                        { "8.5.2安全通道CAN接收测试", "\t 上位机显示\"01010101\"则检查通过。" },
+                        { "8.6.1 S安全通道WAITS1传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电阻：351.65Ω、550.0Ω、693.53Ω；\r\n\t b) 发送测试指令（15 01 01 01 00 00 00 00）；\r\n\t c) 1挡温度范围[-77.05, -72.95]℃(10~50℃环境)或[-79.05, -70.95]℃；\r\n\t   2挡温度范围[23.63, 27.73]℃(10~50℃环境)或[21.63, 29.73]℃；\r\n\t   3挡温度范围[97.95, 102.05]℃(10~50℃环境)或[95.95, 104.05]℃。" },
+                        { "8.6.2 S安全通道WAITS2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电阻：351.65Ω、550.0Ω、693.53Ω；\r\n\t b) 发送测试指令（15 01 02 01 00 00 00 00）；\r\n\t c) 1挡温度范围[-77.05, -72.95]℃(10~50℃环境)或[-79.05, -70.95]℃；\r\n\t   2挡温度范围[23.63, 27.73]℃(10~50℃环境)或[21.63, 29.73]℃；\r\n\t   3挡温度范围[97.95, 102.05]℃(10~50℃环境)或[95.95, 104.05]℃。" },
+                        { "8.7.1S安全通道FWD_AVENTS1传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t b) 每挡发送S_FWDAVENTS_MEA01(15 02 01 01 00 00 00 00)，接收温度遥测(15 02 01 02 .. .. .. ..)；\r\n\t c) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                        { "8.7.2S安全通道FWD_AVENTS2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t b) 每挡发送S_FWDAVENTS_MEA02(15 02 02 01 00 00 00 00)，接收温度遥测(15 02 02 02 .. .. .. ..)；\r\n\t c) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                        { "8.7.3S安全通道AFT_AVENTS传感器测试", "\t a) 测试J55、J56；\r\n\t b) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t c) 每挡发送S_AFTAVENTS_MEA(15 02 03 01 00 00 00 00)，接收温度遥测(15 02 03 02 .. .. .. ..)；\r\n\t d) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                    }
+                },
                 {
                     "液压单板",
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -298,7 +380,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "8.7.3S安全通道AFT_AVENTS传感器测试", "\t a) 测试J55、J56；\r\n\t b) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t c) 每挡发送S_AFTAVENTS_MEA(15 02 03 01 00 00 00 00)，接收温度遥测(15 02 03 02 .. .. .. ..)；\r\n\t d) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
                         { "6.10.4控制通道WAIPSI2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：0.25V、5.00V、9.75V；\r\n\t b) 每挡发送压力测试指令(07 03 04 01 00 00 00 00)，接收压力遥测(07 03 04 02 .. .. .. ..)；\r\n\t c) 1挡压力范围[-3.7473, -1.5305]psia，2挡[46.3916, 48.6084]psia，3挡[96.5305, 98.7473]psia。" },
                     }
-                }
+                },
             };
 
         private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> NotesByBoardType =
@@ -367,6 +449,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         private readonly HashSet<string> _navigationLockSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         private bool _isNavigationLocked;
+
+        private void OnNavigationLockChanged(NavigationLockChangedEventArgs args)
+        {
+            try
+            {
+                var source = args?.Source;
+                if (string.IsNullOrWhiteSpace(source))
+                    source = "Unknown";
+
+                if (args?.IsLocked == true)
+                {
+                    _navigationLockSources.Add(source);
+                }
+                else
+                {
+                    _navigationLockSources.Remove(source);
+                }
+
+                _isNavigationLocked = _navigationLockSources.Count > 0;
+            }
+            catch
+            {
+            }
+        }
 
         public string TestTaskName
         {
@@ -517,27 +623,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     RightPanelContent = new TextBlock { Text = value.Name, Margin = new System.Windows.Thickness(10) };
                 }
             }
-        }
-
-        private void OnNavigationLockChanged(NavigationLockChangedEventArgs args)
-        {
-            var source = args?.Source;
-            if (args?.IsLocked == true)
-            {
-                if (!string.IsNullOrWhiteSpace(source))
-                    _navigationLockSources.Add(source);
-                else
-                    _navigationLockSources.Add("Unknown");
-            }
-            else
-            {
-                if (!string.IsNullOrWhiteSpace(source))
-                    _navigationLockSources.Remove(source);
-                else
-                    _navigationLockSources.Clear();
-            }
-
-            _isNavigationLocked = _navigationLockSources.Count > 0;
         }
 
         public object RightPanelContent
@@ -898,16 +983,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         {
             TestSequenceItems.Clear();
 
-            if (string.Equals(boardType, "空气单板", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(boardType, "空气控制板", StringComparison.OrdinalIgnoreCase))
             {
                 TestSequenceItems.Add(new TestSequenceItem("6.1电源对地阻抗检查"));
                 TestSequenceItems.Add(new TestSequenceItem("6.2.1A控制通道供电测试"));
-                TestSequenceItems.Add(new TestSequenceItem("7.1功率板电源对地阻抗测试"));
-                TestSequenceItems.Add(new TestSequenceItem("7.2.1A控制通道功率板供电测试"));
-                TestSequenceItems.Add(new TestSequenceItem("7.2.2B控制通道功率板供电测试"));
-                TestSequenceItems.Add(new TestSequenceItem("7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试"));
-                TestSequenceItems.Add(new TestSequenceItem("7.3.1.2 A控制通道功率板RATA直流电机驱动模块速度控制测试"));
-                TestSequenceItems.Add(new TestSequenceItem("7.3.1.3 A控制通道功率板RATA直流电机驱动模块方向控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.3.2.1 A控制通道功率板AVV直流电机驱动模块供电测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.3.2.2 A控制通道功率板AVV直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.3.2.3 A控制通道功率板AVV直流电机驱动模块方向控制测试"));
@@ -991,11 +1070,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.18.4.1 A控制通道功率板VAV力矩电机驱动测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.2.1 A控制通道功率板AWV直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.2.2 A控制通道功率板AVV直流电机驱动模块方向控制测试"));
-                TestSequenceItems.Add(new TestSequenceItem("8.1电源对地阻抗测试"));
-                TestSequenceItems.Add(new TestSequenceItem("8.3.1 S安全通道ARINC429发送通道1测试"));
-                TestSequenceItems.Add(new TestSequenceItem("8.3.2 S安全通道ARINC429接收通道1测试"));
-                TestSequenceItems.Add(new TestSequenceItem("8.3.3 S安全通道ARINC429接收通道2测试"));
-                TestSequenceItems.Add(new TestSequenceItem("8.10.1 S通道OFV/TRV直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.14.1控制通道GND/OC离散输入通道输入测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.1.1GND/OC型离散输出通道3输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.1.2GND/OC型100mA离散输出通道2输出测试"));
@@ -1006,6 +1080,62 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.6.1CAN发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.6.2CAN接收测试"));
+                TestSequenceItems.Add(new TestSequenceItem("RS422通信测试"));
+                TestSequenceItems.Add(new TestSequenceItem("控制通道422发送测试"));
+                TestSequenceItems.Add(new TestSequenceItem("控制通道422接收测试"));
+                return;
+            }
+
+            if (string.Equals(boardType, "空气功率板", StringComparison.OrdinalIgnoreCase))
+            {
+                TestSequenceItems.Add(new TestSequenceItem("7.1功率板电源对地阻抗测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.2.1A控制通道功率板供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.2.2B控制通道功率板供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.1.2 A控制通道功率板RATA直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.1.3 A控制通道功率板RATA直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.2.1 A控制通道功率板AVV直流电机驱动模块供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.2.2 A控制通道功率板AVV直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.2.3 A控制通道功率板AVV直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.3.1B控制通道功率板RAIA直流电机驱动模块供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.3.2 B控制通道功率板RAIA直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.3.3B控制通道功率板RAIA直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.4.1B控制通道功率板CBV直流电机驱动模块供电电流测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.4.2B控制通道功率板CBV直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.1.1 A控制通道功率板TCV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.1.2 A控制通道功率板TCV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.2.1 A控制通道功率板驾驶舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.2.2 A控制通道功率板驾驶舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.3.1 A控制通道功率板前后客舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.3.2 A控制通道功率板前后客舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.4.1 A控制通道功率板前货舱TAV步进电机驱动模块供电电流测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.4.2 A控制通道功率板前货舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.5.1 B控制通道功率板TCV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.5.2 B控制通道功率板TCV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.6.1 B控制通道功率板驾驶舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.6.2 B控制通道功率板驾驶舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.7.1 B控制通道功率板前后客舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.7.2 B控制通道功率板前后客舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.8.1 B控制通道功率板前货舱TAV步进电机驱动模块供电电流测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.8.2 B控制通道功率板前货舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.1.1 A控制通道功率板FAV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.2.1 A控制通道功率板PRSOV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.3.1 A控制通道功率板FCV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.4.1 A控制通道功率板WAIV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.5.1 B控制通道功率板FAV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.6.1 B控制通道功率板PRSOV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.7.1 B控制通道功率板FCV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.8.1 B控制通道功率板WAIV力矩电机驱动测试"));
+                return;
+            }
+
+            if (string.Equals(boardType, "空气安全板", StringComparison.OrdinalIgnoreCase))
+            {
+                TestSequenceItems.Add(new TestSequenceItem("8.1电源对地阻抗测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.3.1 S安全通道ARINC429发送通道1测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.3.2 S安全通道ARINC429接收通道1测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.3.3 S安全通道ARINC429接收通道2测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.10.1 S通道OFV/TRV直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.5.1安全通道CAN发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.5.2安全通道CAN接收测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.6.1 S安全通道WAITS1传感器测试"));
@@ -1013,9 +1143,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("8.7.1S安全通道FWD_AVENTS1传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.7.2S安全通道FWD_AVENTS2传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.7.3S安全通道AFT_AVENTS传感器测试"));
-                TestSequenceItems.Add(new TestSequenceItem("RS422通信测试"));
-                TestSequenceItems.Add(new TestSequenceItem("控制通道422发送测试"));
-                TestSequenceItems.Add(new TestSequenceItem("控制通道422接收测试"));
                 return;
             }
 
