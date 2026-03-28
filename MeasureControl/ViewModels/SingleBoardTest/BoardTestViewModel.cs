@@ -355,6 +355,46 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "TCV电机驱动测试", "\t 控制板供电28V；试验台使用电阻6Ω（功率不小于150W）和电感12mH模拟负载；分别设置步进频率500Hz/1000Hz，设置正转/反转并给出电机使能信号；上位机读取TCV电机A相(J9/J10)、B相(J7/J8)电流值；A、B每相电流读数不持续为0则合格。" },
                     }
                 },
+                {
+                    "空气单板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "6.1电源对地阻抗检查", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "8.1电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "7.1功率板电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试", "\t a) 接入50±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS；\r\n\t b) 接入12±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS。" },
+                        { "6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.13.1控制通道压力传感器采集测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1095.21,1104.79]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1496.21,1504.79]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1995.21,2004.79]mbar。" },
+                        { "6.13.2 S安全通道压力传感器测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1082,1118]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1482,1518]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1982,2018]mbar。" },
+                        { "6.5.1.1控制通道ARINC429发送通道1测试", "\t 上位机显示\"7F00AA55\"则检查通过。" },
+                        { "8.5.1安全通道CAN发送测试", "\t 上位机显示\"01010101\"（对应CAN帧后4字节为01 01 01 01）则检查通过。" },
+                        { "8.5.2安全通道CAN接收测试", "\t 上位机显示\"01010101\"则检查通过。" },
+                        { "8.6.1 S安全通道WAITS1传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电阻：351.65Ω、550.0Ω、693.53Ω；\r\n\t b) 发送测试指令（15 01 01 01 00 00 00 00）；\r\n\t c) 1挡温度范围[-77.05, -72.95]℃(10~50℃环境)或[-79.05, -70.95]℃；\r\n\t   2挡温度范围[23.63, 27.73]℃(10~50℃环境)或[21.63, 29.73]℃；\r\n\t   3挡温度范围[97.95, 102.05]℃(10~50℃环境)或[95.95, 104.05]℃。" },
+                        { "8.6.2 S安全通道WAITS2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电阻：351.65Ω、550.0Ω、693.53Ω；\r\n\t b) 发送测试指令（15 01 02 01 00 00 00 00）；\r\n\t c) 1挡温度范围[-77.05, -72.95]℃(10~50℃环境)或[-79.05, -70.95]℃；\r\n\t   2挡温度范围[23.63, 27.73]℃(10~50℃环境)或[21.63, 29.73]℃；\r\n\t   3挡温度范围[97.95, 102.05]℃(10~50℃环境)或[95.95, 104.05]℃。" },
+                        { "8.7.1S安全通道FWD_AVENTS1传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t b) 每挡发送S_FWDAVENTS_MEA01(15 02 01 01 00 00 00 00)，接收温度遥测(15 02 01 02 .. .. .. ..)；\r\n\t c) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                        { "8.7.2S安全通道FWD_AVENTS2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t b) 每挡发送S_FWDAVENTS_MEA02(15 02 02 01 00 00 00 00)，接收温度遥测(15 02 02 02 .. .. .. ..)；\r\n\t c) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                        { "8.7.3S安全通道AFT_AVENTS传感器测试", "\t a) 测试J55、J56；\r\n\t b) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t c) 每挡发送S_AFTAVENTS_MEA(15 02 03 01 00 00 00 00)，接收温度遥测(15 02 03 02 .. .. .. ..)；\r\n\t d) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                        { "6.10.4控制通道WAIPSI2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：0.25V、5.00V、9.75V；\r\n\t b) 每挡发送压力测试指令(07 03 04 01 00 00 00 00)，接收压力遥测(07 03 04 02 .. .. .. ..)；\r\n\t c) 1挡压力范围[-3.7473, -1.5305]psia，2挡[46.3916, 48.6084]psia，3挡[96.5305, 98.7473]psia。" },
+                    }
+                },
+                {
+                    "惰化控制板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "控制板电源阻抗测试", "\t 控制板下电；测量J1、J2、J4、J5到J18（COM）、J70（EARTH）之间的阻抗，阻抗值大于500Ω则合格。" },
+                        { "控制板二、三次电源测试", "\t a) 控制板-15V：读取电压值满足[-15.75V,-14.25V]为合格；\r\n \t b) 控制板+15V：读取电压值满足[14.25V,15.75V]为合格；\r\n \t c) 控制板5V：读取电压值满足[4.75V,5.25V]为合格；\r\n \t d) 控制板3.3V：读取电压值满足[3.135V,3.465V]为合格；\r\n \t e) 控制板1.5V：读取电压值满足[1.425V,1.575V]为合格。" },
+                        { "控制板离散输入模块测试", "\t 控制板供电28V；将引脚J40-J45、J75-J83分别配置为GND和开路，通过通信读取采集结果；将引脚J84、J85分别配置为28V和开路，通过通信读取采集结果。采集结果应与配置状态一致。" },
+                        { "离散输出模块测试", "\t 控制板供电28V；通过ARINC429通道0发送Label173/SDI1高/低指令；J11/J12/J13/J14/J17输出状态应分别为GND/开路；J21/J22输出状态应分别为28V/开路。" },
+                        { "温度传感器信号采集", "\t 控制板供电28V；按表7-2配置PT500A/PT500B/PT1000A/PT1000B模拟电阻值，通过通信读取换算温度；上位机读取温度满足表7-3与表7-4为合格。" },
+                        { "压力传感器信号采集", "\t 通过引脚J25、J26将“压力传感器”的模拟电压按表7-5进行设置，通过通讯读取的“压力”的数值；上位机读取的“压力”数据显示的值满足表7-6为合格。" },
+                        { "氧气传感器信号采集", "\t 通过引脚J23、J24和引脚J59、J60将“氧气浓度传感器”、“氧气压力传感器”的模拟电流按表7-7进行设置，通过通讯读取“氧气浓度”、“氧气压力”的数值；上位机读取的“氧气浓度”、“氧气压力”显示的值满足表7-8为合格。" },
+                        { "TCV电机驱动测试", "\t 控制板供电28V；试验台使用电阻6Ω（功率不小于150W）和电感12mH模拟负载；分别设置步进频率500Hz/1000Hz，设置正转/反转并给出电机使能信号；上位机读取TCV电机A相(J9/J10)、B相(J7/J8)电流值；A、B每相电流读数不持续为0则合格。" },
+                    }
+                },
             };
 
         private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> NotesByBoardType =
@@ -597,6 +637,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     RightPanelContent = new TextBlock { Text = value.Name, Margin = new System.Windows.Thickness(10) };
                 }
             }
+        }
+
+        private void OnNavigationLockChanged(NavigationLockChangedEventArgs args)
+        {
+            var source = args?.Source;
+            if (args?.IsLocked == true)
+            {
+                if (!string.IsNullOrWhiteSpace(source))
+                    _navigationLockSources.Add(source);
+                else
+                    _navigationLockSources.Add("Unknown");
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(source))
+                    _navigationLockSources.Remove(source);
+                else
+                    _navigationLockSources.Clear();
+            }
+
+            _isNavigationLocked = _navigationLockSources.Count > 0;
         }
 
         public object RightPanelContent
@@ -961,6 +1022,41 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 TestSequenceItems.Add(new TestSequenceItem("6.1电源对地阻抗检查"));
                 TestSequenceItems.Add(new TestSequenceItem("6.2.1A控制通道供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.2.1 A控制通道功率板AVV直流电机驱动模块供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.2.2 A控制通道功率板AVV直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.2.3 A控制通道功率板AVV直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.3.1B控制通道功率板RAIA直流电机驱动模块供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.3.2 B控制通道功率板RAIA直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.3.3B控制通道功率板RAIA直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.4.1B控制通道功率板CBV直流电机驱动模块供电电流测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.3.4.2B控制通道功率板CBV直流电机驱动模块方向控制测试"));
+
+                TestSequenceItems.Add(new TestSequenceItem("7.4.1.1 A控制通道功率板TCV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.1.2 A控制通道功率板TCV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.2.1 A控制通道功率板驾驶舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.2.2 A控制通道功率板驾驶舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.3.1 A控制通道功率板前后客舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.3.2 A控制通道功率板前后客舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.4.1 A控制通道功率板前货舱TAV步进电机驱动模块供电电流测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.4.2 A控制通道功率板前货舱TAV步进电机驱动模块方向测试"));
+
+                TestSequenceItems.Add(new TestSequenceItem("7.4.5.1 B控制通道功率板TCV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.5.2 B控制通道功率板TCV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.6.1 B控制通道功率板驾驶舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.6.2 B控制通道功率板驾驶舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.7.1 B控制通道功率板前后客舱TAV步进电机驱动模块输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.7.2 B控制通道功率板前后客舱TAV步进电机驱动模块方向测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.8.1 B控制通道功率板前货舱TAV步进电机驱动模块供电电流测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.4.8.2 B控制通道功率板前货舱TAV步进电机驱动模块方向测试"));
+
+                TestSequenceItems.Add(new TestSequenceItem("7.5.1.1 A控制通道功率板FAV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.2.1 A控制通道功率板PRSOV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.3.1 A控制通道功率板FCV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.4.1 A控制通道功率板WAIV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.5.1 B控制通道功率板FAV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.6.1 B控制通道功率板PRSOV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.7.1 B控制通道功率板FCV力矩电机驱动测试"));
+                TestSequenceItems.Add(new TestSequenceItem("7.5.8.1 B控制通道功率板WAIV力矩电机驱动测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.1控制通道PDTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.2控制通道MIXTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.3控制通道CAR_TS传感器测试"));
