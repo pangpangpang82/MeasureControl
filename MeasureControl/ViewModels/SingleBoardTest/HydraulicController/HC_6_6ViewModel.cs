@@ -965,7 +965,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             try
             {
                 await ApplyQuantityOutputsAsync(point.Target, cancellationToken).ConfigureAwait(false);
-                _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, 4096, false, false, cancellationToken).ConfigureAwait(false);
+                await DrainArincBufferAsync(cancellationToken).ConfigureAwait(false);
                 await Task.Delay(PostSwitchRxFlushMs, cancellationToken).ConfigureAwait(false);
 
                 var samples = new Dictionary<byte, List<double>>
@@ -1398,6 +1398,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _arinc.ConfigureRxAsync(RxChannelIndex, ArincRate, Art4229Parity.Odd, Art4229WordFormat.Standard429, false, 512, false, cancellationToken).ConfigureAwait(false);
             await _arinc.StartRxAsync(RxChannelIndex, cancellationToken).ConfigureAwait(false);
             _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, 4096, false, false, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task DrainArincBufferAsync(CancellationToken cancellationToken)
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                var batch = await _arinc.ReadRxWordsAsync(
+                    RxChannelIndex, maxCount: 4096,
+                    enableTimeTag: false, enableRateAdaption: false,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (batch == null || batch.Count == 0)
+                    break;
+            }
         }
 
         private bool IsExpectedLabel(byte label)
