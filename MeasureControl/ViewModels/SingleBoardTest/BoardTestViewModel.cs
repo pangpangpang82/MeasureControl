@@ -212,13 +212,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
                     {
                         { "电源阻抗测试", () => new HC_6_1() },
-                        { "二次电源测试", () => new HC_6_2() },
-                        { "温度采集测试", () => new HC_6_3() },
-                        { "压力传感器信号采集测试", () => new HC_6_4() },
-                        { "压差传感器信号采集测试", () => new HC_6_5() },
-                        { "油量传感器信号采集测试", () => new HC_6_6() },
-                        { "离散量采集测试", () => new HC_6_7() },
-                        { "离散量输出测试", () => new HC_6_8() },
+                        { "二次电源测试", () => new HC_6_3() },
+                        { "温度采集测试", () => new HC_6_4() },
+                        { "压力传感器信号采集测试", () => new HC_6_5() },
+                        { "压差传感器信号采集测试", () => new HC_6_6() },
+                        { "油量传感器信号采集测试", () => new HC_6_7() },
+                        { "离散量采集测试", () => new HC_6_8() },
+                        { "离散量输出测试", () => new HC_6_9() },
                     }
                 },
                 {

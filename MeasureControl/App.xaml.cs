@@ -113,13 +113,13 @@ namespace MeasureControl
             containerRegistry.Register<FloatingWindowViewModel>();
             containerRegistry.Register<DataCalibrationViewModel>();
             containerRegistry.RegisterSingleton<HC_6_1ViewModel>();
-            containerRegistry.RegisterSingleton<HC_6_2ViewModel>();
             containerRegistry.RegisterSingleton<HC_6_3ViewModel>();
             containerRegistry.RegisterSingleton<HC_6_4ViewModel>();
             containerRegistry.RegisterSingleton<HC_6_5ViewModel>();
             containerRegistry.RegisterSingleton<HC_6_6ViewModel>();
             containerRegistry.RegisterSingleton<HC_6_7ViewModel>();
             containerRegistry.RegisterSingleton<HC_6_8ViewModel>();
+            containerRegistry.RegisterSingleton<HC_6_9ViewModel>();
             containerRegistry.Register<PowerImpedanceTestViewModel>();
             containerRegistry.Register<SecondaryPowerTestViewModel>();
             containerRegistry.Register<LowVoltageAlarmTestViewModel>();
