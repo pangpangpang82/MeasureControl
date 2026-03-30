@@ -22,8 +22,8 @@
     <Prefer32Bit>false</Prefer32Bit>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <AssemblyTitle>MeasureControl -      豸    ϵͳ</AssemblyTitle>
-    <AssemblyDescription>רҵ  PXI     豸    Ϳ   ϵͳ</AssemblyDescription>
+    <AssemblyTitle>MeasureControl - 测试设备控制系统</AssemblyTitle>
+    <AssemblyDescription>专业的PXI测试设备管理和控制系统</AssemblyDescription>
     <AssemblyCompany>MeasureControl Team</AssemblyCompany>
     <AssemblyProduct>MeasureControl</AssemblyProduct>
     <AssemblyCopyright>Copyright 2024</AssemblyCopyright>
@@ -560,6 +560,12 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_1.xaml.cs">
       <DependentUpon>HC_6_1.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_10.xaml.cs">
+      <DependentUpon>HC_6_10.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_2.xaml.cs">
+      <DependentUpon>HC_6_2.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_3.xaml.cs">
       <DependentUpon>HC_6_3.xaml</DependentUpon>
@@ -1470,6 +1476,7 @@
     <Compile Include="ViewModels\SingleBoardTest\FuelController\SecondaryPowerTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\TemperatureAcquisitionTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_3ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_4ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_5ViewModel.cs" />
@@ -2826,6 +2833,14 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_10.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_2.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Views\SingleBoardTest\HydraulicController\HC_6_3.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -3103,7 +3118,7 @@
   </PropertyGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
-      <ErrorText>  ̨       ȱ ٴ   Ŀ   õ  NuGet        ʹ á NuGet        ԭ          Щ        йظ     Ϣ    μ  http://go.microsoft.com/fwlink/?LinkID=322105  ȱ ٵ  ļ    {0}  </ErrorText>
+      <ErrorText>这台计算机上缺少此项目引用的 NuGet 程序包。使用“NuGet 程序包还原”可下载这些程序包。有关更多信息，请参见 http://go.microsoft.com/fwlink/?LinkID=322105。缺少的文件是 {0}。</ErrorText>
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\Fody.6.8.2\build\Fody.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Fody.6.8.2\build\Fody.targets'))" />
     <Error Condition="!Exists('..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props'))" />
