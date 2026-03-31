@@ -1131,7 +1131,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 0xAA, 0x55,
                 0x06,0x03,
-                0xC0,
+                0x03,
                 (byte)(p & 0xFF), (byte)(p >> 8),
                 (byte)(low & 0xFF), (byte)(low >> 8)
             };
