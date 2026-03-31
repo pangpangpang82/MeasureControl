@@ -21,7 +21,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
     public class HC_6_2ViewModel : BindableBase
     {
         private const int CanRxChannelIndex = 0;
-        private const uint CanBaudRate = 500000;
+        private const uint CanBaudRate = 500000; // 波特率
         private const int CanReceiveTimeoutMs = 5000;
         private const int PowerStabilizeDelayMs = 500;
         
@@ -716,7 +716,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     BaudRate = CanBaudRate,
                     WorkMode = 0,
                     EnableTimestamp = true,
-                    AcceptExtendedId = false
+                    AcceptExtendedId = false // 标准帧
                 };
                 
                 await _canApi.OpenChannelAsync(CanRxChannelIndex, canParams, cancellationToken).ConfigureAwait(false);
