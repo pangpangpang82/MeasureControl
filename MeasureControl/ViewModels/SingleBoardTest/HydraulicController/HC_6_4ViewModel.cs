@@ -1287,14 +1287,46 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 throw new InvalidOperationException("未找到MTX532(模拟量输出)板卡");
 
             var slot = device is PxiDeviceBase pxi ? pxi.SlotIndex : 7;
-            _mtx532 = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 20000.0 }, slotNumber: slot);
+            async Task ConnectAndStartAsync()
+            {
+                _mtx532 = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 20000.0 }, slotNumber: slot);
 
-            await _mtx532.ConnectAsync(cancellationToken, new[] { "AO0", "AO1", "AO2", "AO3", "AO4", "AO5" }).ConfigureAwait(false);
-            await SetAo012Async(0.0, cancellationToken).ConfigureAwait(false);
-            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
-            await WaitForMtx532ReadyAsync(cancellationToken).ConfigureAwait(false);
-            await _mtx532.StartOutputAsync(cancellationToken).ConfigureAwait(false);
-            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+                await _mtx532.ConnectAsync(cancellationToken, new[] { "AO0", "AO1", "AO2", "AO3", "AO4", "AO5" }).ConfigureAwait(false);
+                await SetAo012Async(0.0, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+                await WaitForMtx532ReadyAsync(cancellationToken).ConfigureAwait(false);
+                await _mtx532.StartOutputAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+            }
+
+            async Task CleanupMtxAfterFailureAsync()
+            {
+                if (_mtx532 == null)
+                {
+                    return;
+                }
+
+                try { await _mtx532.StopOutputAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                try { await _mtx532.ResetAllToZeroAsync(disableAfterReset: true, cancellationToken: CancellationToken.None).ConfigureAwait(false); } catch { }
+                try { await _mtx532.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                try { await _mtx532.DisposeAsync().ConfigureAwait(false); } catch { }
+                _mtx532 = null;
+            }
+
+            try
+            {
+                Log("HC_6_4: 正在初始化MTX532");
+                await ConnectAndStartAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex) when (!(ex is OperationCanceledException))
+            {
+                Log($"HC_6_4: MTX532首次初始化失败，准备重试。原因: {ex.Message}");
+                await CleanupMtxAfterFailureAsync().ConfigureAwait(false);
+                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+
+                Log("HC_6_4: 正在重试初始化MTX532");
+                await ConnectAndStartAsync().ConfigureAwait(false);
+            }
         }
 
         private async Task EnsureRelay485Async(bool on, CancellationToken cancellationToken)
