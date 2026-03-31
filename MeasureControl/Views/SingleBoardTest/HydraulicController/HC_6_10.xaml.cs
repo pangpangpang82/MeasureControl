@@ -16,18 +16,13 @@ using System.Windows.Shapes;
 namespace MeasureControl.Views.SingleBoardTest.HydraulicController
 {
     /// <summary>
-    /// HC_6_2.xaml 的交互逻辑
+    /// HC_6_10.xaml 的交互逻辑
     /// </summary>
-    public partial class HC_6_2 : UserControl
+    public partial class HC_6_10 : UserControl
     {
-        public HC_6_2()
+        public HC_6_10()
         {
             InitializeComponent();
-        }
-        
-        private void RootGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)
-        {
-            RootGrid.Focus();
         }
     }
 }

@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Globalization;
 using MeasureControl.ViewModels.SingleBoardTest.HydraulicController;
+using Prism.Ioc;
 
 namespace MeasureControl.Views.SingleBoardTest.HydraulicController
 {
@@ -17,6 +18,7 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
         public HC_6_5()
         {
             InitializeComponent();
+            DataContext = ContainerLocator.Container.Resolve<HC_6_5ViewModel>();
         }
 
         private void RootGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -77,22 +79,20 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
                 return;
             }
 
-            var sanitized = SanitizeCurrentText(textBox.Text);
-            if (string.Equals(textBox.Text, sanitized, System.StringComparison.Ordinal))
+            var sanitized = SanitizeVoltageText(textBox.Text);
+            if (!string.Equals(textBox.Text, sanitized, System.StringComparison.Ordinal))
             {
-                return;
-            }
-
-            try
-            {
-                _isUpdatingCustomInput = true;
-                var caretIndex = textBox.CaretIndex;
-                textBox.Text = sanitized;
-                textBox.CaretIndex = System.Math.Min(caretIndex, sanitized.Length);
-            }
-            finally
-            {
-                _isUpdatingCustomInput = false;
+                try
+                {
+                    _isUpdatingCustomInput = true;
+                    var caretIndex = textBox.CaretIndex;
+                    textBox.Text = sanitized;
+                    textBox.CaretIndex = System.Math.Min(caretIndex, sanitized.Length);
+                }
+                finally
+                {
+                    _isUpdatingCustomInput = false;
+                }
             }
         }
 
@@ -103,7 +103,7 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
                 return;
             }
 
-            var formatted = FormatCurrentText(textBox.Text);
+            var formatted = FormatVoltageText(textBox.Text);
             try
             {
                 _isUpdatingCustomInput = true;
@@ -117,18 +117,18 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
 
             if (DataContext is HC_6_5ViewModel viewModel)
             {
-                viewModel.CustomCurrentInput = formatted;
+                viewModel.CustomVoltageInput = formatted;
             }
         }
 
-        private static string SanitizeCurrentText(string text)
+        private static string SanitizeVoltageText(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
             {
                 return string.Empty;
             }
 
-            var raw = text.Replace("mA", string.Empty).Replace("MA", string.Empty).Replace("ma", string.Empty).Trim();
+            var raw = text.Replace("V", string.Empty).Replace("v", string.Empty).Trim();
             raw = raw.Replace(',', '.');
 
             var chars = new System.Collections.Generic.List<char>(raw.Length);
@@ -140,7 +140,7 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
                 {
                     if (hasDot)
                     {
-                        if (decimalCount >= 1)
+                        if (decimalCount >= 2)
                         {
                             continue;
                         }
@@ -159,12 +159,18 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
                 }
             }
 
-            return new string(chars.ToArray());
+            var sanitized = new string(chars.ToArray());
+            if (sanitized.EndsWith(".", System.StringComparison.Ordinal))
+            {
+                return sanitized;
+            }
+
+            return sanitized;
         }
 
-        private static string FormatCurrentText(string text)
+        private static string FormatVoltageText(string text)
         {
-            var sanitized = SanitizeCurrentText(text);
+            var sanitized = SanitizeVoltageText(text);
             if (string.IsNullOrWhiteSpace(sanitized) || sanitized.EndsWith(".", System.StringComparison.Ordinal))
             {
                 sanitized = sanitized.TrimEnd('.');
@@ -175,9 +181,9 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
                 return sanitized;
             }
 
-            value = System.Math.Max(4d, System.Math.Min(20d, value));
-            value = System.Math.Truncate(value * 10d) / 10d;
-            return value.ToString("0.0", CultureInfo.InvariantCulture);
+            value = System.Math.Max(0d, System.Math.Min(7.17d, value));
+            value = System.Math.Truncate(value * 100d) / 100d;
+            return value.ToString("0.##", CultureInfo.InvariantCulture);
         }
     }
 }

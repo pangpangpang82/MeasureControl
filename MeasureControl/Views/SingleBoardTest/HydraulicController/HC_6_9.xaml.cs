@@ -8,14 +8,14 @@ using Prism.Ioc;
 namespace MeasureControl.Views.SingleBoardTest.HydraulicController
 {
     /// <summary>
-    /// HC_6_3.xaml 的交互逻辑
+    /// HC_6_9.xaml 的交互逻辑
     /// </summary>
-    public partial class HC_6_3 : UserControl
+    public partial class HC_6_9 : UserControl
     {
-        public HC_6_3()
+        public HC_6_9()
         {
             InitializeComponent();
-            DataContext = ContainerLocator.Container.Resolve<HC_6_3ViewModel>();
+            DataContext = ContainerLocator.Container.Resolve<HC_6_9ViewModel>();
         }
 
         private void RootGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)

@@ -2,9 +2,8 @@
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Linq;
+using System.Globalization;
 using MeasureControl.ViewModels.SingleBoardTest.HydraulicController;
-using Prism.Ioc;
 
 namespace MeasureControl.Views.SingleBoardTest.HydraulicController
 {
@@ -13,12 +12,11 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
     /// </summary>
     public partial class HC_6_6 : UserControl
     {
-        private bool _isUpdatingIntegerInput;
+        private bool _isUpdatingCustomInput;
 
         public HC_6_6()
         {
             InitializeComponent();
-            DataContext = ContainerLocator.Container.Resolve<HC_6_6ViewModel>();
         }
 
         private void RootGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -72,84 +70,114 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
             return false;
         }
 
-        private void IntegerTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (_isUpdatingIntegerInput || sender is not TextBox textBox)
+            if (_isUpdatingCustomInput || sender is not TextBox textBox)
+            {
                 return;
+            }
 
-            var sanitized = SanitizeIntegerText(textBox.Text);
-            if (textBox.Text == sanitized)
+            var sanitized = SanitizeCurrentText(textBox.Text);
+            if (string.Equals(textBox.Text, sanitized, System.StringComparison.Ordinal))
+            {
                 return;
+            }
 
             try
             {
-                _isUpdatingIntegerInput = true;
+                _isUpdatingCustomInput = true;
                 var caretIndex = textBox.CaretIndex;
                 textBox.Text = sanitized;
                 textBox.CaretIndex = System.Math.Min(caretIndex, sanitized.Length);
             }
             finally
             {
-                _isUpdatingIntegerInput = false;
+                _isUpdatingCustomInput = false;
             }
         }
 
-        private void IntegerTextBox_LostFocus(object sender, RoutedEventArgs e)
+        private void TextBox_LostFocus(object sender, RoutedEventArgs e)
         {
-            if (_isUpdatingIntegerInput || sender is not TextBox textBox)
+            if (_isUpdatingCustomInput || sender is not TextBox textBox)
+            {
                 return;
+            }
 
-            var formatted = SanitizeIntegerText(textBox.Text);
-            var tag = textBox.Tag as string;
-
+            var formatted = FormatCurrentText(textBox.Text);
             try
             {
-                _isUpdatingIntegerInput = true;
+                _isUpdatingCustomInput = true;
                 textBox.Text = formatted;
                 textBox.CaretIndex = formatted.Length;
             }
             finally
             {
-                _isUpdatingIntegerInput = false;
+                _isUpdatingCustomInput = false;
             }
 
             if (DataContext is HC_6_6ViewModel viewModel)
             {
-                if (string.Equals(tag, "Low", System.StringComparison.Ordinal))
-                    viewModel.ManualRangeLowInput = formatted;
-                else if (string.Equals(tag, "High", System.StringComparison.Ordinal))
-                    viewModel.ManualRangeHighInput = formatted;
-
-                viewModel.NormalizeManualRangeInputs(tag);
-
-                try
-                {
-                    _isUpdatingIntegerInput = true;
-                    if (string.Equals(tag, "Low", System.StringComparison.Ordinal))
-                    {
-                        textBox.Text = viewModel.ManualRangeLowInput;
-                    }
-                    else if (string.Equals(tag, "High", System.StringComparison.Ordinal))
-                    {
-                        textBox.Text = viewModel.ManualRangeHighInput;
-                    }
-
-                    textBox.CaretIndex = textBox.Text.Length;
-                }
-                finally
-                {
-                    _isUpdatingIntegerInput = false;
-                }
+                viewModel.CustomCurrentInput = formatted;
             }
         }
 
-        private static string SanitizeIntegerText(string text)
+        private static string SanitizeCurrentText(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
+            {
                 return string.Empty;
+            }
 
-            var chars = text.Where(char.IsDigit).ToArray();
-            return new string(chars);
+            var raw = text.Replace("mA", string.Empty).Replace("MA", string.Empty).Replace("ma", string.Empty).Trim();
+            raw = raw.Replace(',', '.');
+
+            var chars = new System.Collections.Generic.List<char>(raw.Length);
+            var hasDot = false;
+            var decimalCount = 0;
+            foreach (var ch in raw)
+            {
+                if (char.IsDigit(ch))
+                {
+                    if (hasDot)
+                    {
+                        if (decimalCount >= 1)
+                        {
+                            continue;
+                        }
+
+                        decimalCount++;
+                    }
+
+                    chars.Add(ch);
+                    continue;
+                }
+
+                if (ch == '.' && !hasDot)
+                {
+                    hasDot = true;
+                    chars.Add(ch);
+                }
+            }
+
+            return new string(chars.ToArray());
+        }
+
+        private static string FormatCurrentText(string text)
+        {
+            var sanitized = SanitizeCurrentText(text);
+            if (string.IsNullOrWhiteSpace(sanitized) || sanitized.EndsWith(".", System.StringComparison.Ordinal))
+            {
+                sanitized = sanitized.TrimEnd('.');
+            }
+
+            if (!double.TryParse(sanitized, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var value))
+            {
+                return sanitized;
+            }
+
+            value = System.Math.Max(4d, System.Math.Min(20d, value));
+            value = System.Math.Truncate(value * 10d) / 10d;
+            return value.ToString("0.0", CultureInfo.InvariantCulture);
         }
     }
 }
