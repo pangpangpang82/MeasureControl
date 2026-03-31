@@ -282,10 +282,28 @@
                         FontSize="16"
                         Text="1.进入ATP模式：" />
 
-                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0" Orientation="Horizontal">
-                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
-                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" ><Run Text="429_CH"/><Run Language="zh-cn" Text="1"/></TextBlock>
+                    <StackPanel
+                        Grid.Row="0"
+                        Grid.Column="1"
+                        Margin="0"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="TX" />
+                        <Border
+                            Width="100"
+                            Height="28"
+                            Margin="5,0,0,0"
+                            Background="#E8E8E8"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"><Run Text="429_CH" /><Run Language="zh-cn" Text="1" /></TextBlock>
                         </Border>
 
                         <Border
@@ -345,10 +363,28 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0" Orientation="Horizontal">
-                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
-                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" ><Run Text="429_CH"/><Run Language="zh-cn" Text="0"/></TextBlock>
+                    <StackPanel
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Margin="0"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="RX" />
+                        <Border
+                            Width="100"
+                            Height="28"
+                            Margin="5,0,0,0"
+                            Background="#E8E8E8"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"><Run Text="429_CH" /><Run Language="zh-cn" Text="0" /></TextBlock>
                         </Border>
 
                         <Border
@@ -467,10 +503,28 @@
                         VerticalAlignment="Center"
                         FontSize="16"><Run Text="3.控制器" /><Run Language="zh-cn" Text="温度" /><Run Text="测试：" /></TextBlock>
 
-                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0" Orientation="Horizontal">
-                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
-                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" ><Run Text="429_CH"/><Run Language="zh-cn" Text="1"/></TextBlock>
+                    <StackPanel
+                        Grid.Row="0"
+                        Grid.Column="1"
+                        Margin="0"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="TX" />
+                        <Border
+                            Width="100"
+                            Height="28"
+                            Margin="5,0,0,0"
+                            Background="#E8E8E8"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"><Run Text="429_CH" /><Run Language="zh-cn" Text="1" /></TextBlock>
                         </Border>
 
                         <Border
@@ -541,9 +595,24 @@
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
                         FontSize="16"><Run Text="4." /><Run Language="zh-cn" Text="温度" /><Run Text="回采值：" /></TextBlock>
-                    <TextBlock Margin="0,0,0,0" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                    <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                        <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" ><Run Text="429_CH"/><Run Language="zh-cn" Text="0"/></TextBlock>
+                    <TextBlock
+                        Margin="0,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="RX" />
+                    <Border
+                        Width="100"
+                        Height="28"
+                        Margin="5,0,0,0"
+                        Background="#E8E8E8"
+                        BorderBrush="#D9D9D9"
+                        BorderThickness="1"
+                        CornerRadius="3">
+                        <TextBlock
+                            Margin="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="12"><Run Text="429_CH" /><Run Language="zh-cn" Text="0" /></TextBlock>
                     </Border>
                     <Border
                         Width="100"
@@ -599,10 +668,28 @@
                         FontSize="16"
                         Text="5.退出ATP模式：" />
 
-                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="2" Orientation="Horizontal">
-                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
-                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" ><Run Text="429_CH"/><Run Language="zh-cn" Text="1"/></TextBlock>
+                    <StackPanel
+                        Grid.Row="0"
+                        Grid.Column="1"
+                        Margin="2"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="TX" />
+                        <Border
+                            Width="100"
+                            Height="28"
+                            Margin="5,0,0,0"
+                            Background="#E8E8E8"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"><Run Text="429_CH" /><Run Language="zh-cn" Text="1" /></TextBlock>
                         </Border>
 
                         <Border
@@ -661,10 +748,28 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0" Orientation="Horizontal">
-                        <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
-                        <Border Width="100" Height="28" Margin="5,0,0,0" Background="#E8E8E8" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" ><Run Text="429_CH"/><Run Language="zh-cn" Text="0"/></TextBlock>
+                    <StackPanel
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Margin="0"
+                        Orientation="Horizontal">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Text="RX" />
+                        <Border
+                            Width="100"
+                            Height="28"
+                            Margin="5,0,0,0"
+                            Background="#E8E8E8"
+                            BorderBrush="#D9D9D9"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <TextBlock
+                                Margin="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"><Run Text="429_CH" /><Run Language="zh-cn" Text="0" /></TextBlock>
                         </Border>
 
                         <Border

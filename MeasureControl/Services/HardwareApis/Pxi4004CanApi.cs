@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Threading;
 using System.Threading.Tasks;
 using MeasureControl.Drivers;
 using MeasureControl.Drivers.PXI4004CAN;
+using MeasureControl.Models;
 using MeasureControl.Models.Devices;
 
 namespace MeasureControl.Services.HardwareApis
@@ -92,6 +94,21 @@ namespace MeasureControl.Services.HardwareApis
         private readonly HashSet<int> _openedChannels = new HashSet<int>();
         private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
+        private sealed class Pxi4004CanDevice : DeviceBase
+        {
+            public override string DeviceTypeName => "CAN";
+
+            public override ObservableCollection<DeviceInfoItem> GetDeviceInfoItems()
+            {
+                return new ObservableCollection<DeviceInfoItem>();
+            }
+
+            public override void InitializeChildren()
+            {
+                Children?.Clear();
+            }
+        }
+
         public bool IsConnected => _driver?.IsConnected ?? false;
         public int SlotNumber => _slotNumber;
 
@@ -106,7 +123,7 @@ namespace MeasureControl.Services.HardwareApis
                 }
 
                 _slotNumber = slotNumber;
-                _device = new DeviceBase
+                _device = new Pxi4004CanDevice
                 {
                     Id = $"PXI4004-CAN-{slotNumber}",
                     Name = "PXI4004 CAN",
@@ -308,9 +325,12 @@ namespace MeasureControl.Services.HardwareApis
                 nAccMaskA = parameters.AcceptanceMaskA,
                 nAccMaskB = parameters.AcceptanceMaskB,
                 nFrameInterval = parameters.FrameInterval,
+                nReserved1 = new uint[7],
+                nReserved2 = new uint[32],
                 SendTrig = new PXI4004.ARTCANX1_TRIG_PARAM
                 {
-                    nTriggerType = PXI4004.ARTCANX1_TRIGTYPE_NONE
+                    nTriggerType = PXI4004.ARTCANX1_TRIGTYPE_NONE,
+                    nReserved = new uint[20]
                 }
             };
             return param;
