@@ -36,6 +36,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const int RelayTimeoutMs = 2000;
         private const int RelayPowerTimeoutMs = 2000;
 
+        private const int Relay485ChannelIndex = 0;
+
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
         private readonly ProjectService _projectService;
         private readonly IEventAggregator _eventAggregator;
@@ -63,6 +65,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _powerStatus = "未就绪";
         private bool _useSimulatedDmm;
         private bool _relaySupplyOn;
+        private bool _isRelay485On;
 
         private double? _impedanceA;
         private double? _impedanceB;
@@ -97,8 +100,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             _simulation = new A_C_7_1Simulation { ImpedanceThreshold = ImpedanceThreshold };
 
-            ManualTestCommand = new DelegateCommand(OnManualTest);
-            AutoTestCommand = new DelegateCommand(OnAutoTest);
+            ManualTestCommand = new DelegateCommand(OnManualTest, () => !IsAutoTestRunning);
+            AutoTestCommand = new DelegateCommand(OnAutoTest, () => !IsManualTestRunning);
             ToggleRelayCommand = new DelegateCommand(async () => await ToggleRelayAsync(), () => !IsBusy && IsManualTestRunning);
 
             MeasureACommand = new DelegateCommand(async () => await MeasureSinglePointAsync("A"), () => !IsBusy && IsRelayActivated);
@@ -612,9 +615,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly (string In, string Out, int Slot) MatrixDmmH_ABC = ("I4", "O2", MatrixSlotDmm);
         private static readonly (string In, string Out, int Slot) MatrixDmmH_DE = ("I4", "O7", MatrixSlotDmm);
 
-        private static readonly (string In, string Out, int Slot) MatrixPointA1 = ("I1", "O8", MatrixSlotSig);
-        private static readonly (string In, string Out, int Slot) MatrixPointB1 = ("I1", "O9", MatrixSlotSig);
-        private static readonly (string In, string Out, int Slot) MatrixPointC1 = ("I1", "O10", MatrixSlotSig);
+        private static readonly (string In, string Out, int Slot) MatrixPointA1 = ("I1", "O24", MatrixSlotSig);
+        private static readonly (string In, string Out, int Slot) MatrixPointB1 = ("I1", "O25", MatrixSlotSig);
+        private static readonly (string In, string Out, int Slot) MatrixPointC1 = ("I1", "O26", MatrixSlotSig);
         private static readonly (string In, string Out, int Slot) MatrixPointD1 = ("I0", "O0", MatrixSlotSigDe);
         private static readonly (string In, string Out, int Slot) MatrixPointE1 = ("I0", "O1", MatrixSlotSigDe);
 
@@ -738,6 +741,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         AddLog("7131板卡已启动");
                     }
 
+                    // 打开485继电器第1路
+                    try
+                    {
+                        await _jy7131Api.SetRelayAsync(Relay485ChannelIndex, true, timeoutCts.Token);
+                        await Task.Delay(200, timeoutCts.Token);
+                        _isRelay485On = true;
+                        AddLog($"485继电器第{Relay485ChannelIndex + 1}路已打开");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"485继电器操作失败: {ex.Message}");
+                    }
+
                     AddLog($"正在写{RelayControlChannel}（高电平）...");
                     await _jy7131Api.WriteDoAsync(RelayControlChannel, true, timeoutCts.Token);
                     try
@@ -797,6 +813,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     catch (Exception ex)
                     {
                         AddLog($"DO写回读取失败: {ex.Message}");
+                    }
+
+                    // 关闭485继电器第1路
+                    try
+                    {
+                        await _jy7131Api.SetRelayAsync(Relay485ChannelIndex, false, timeoutCts.Token);
+                        await Task.Delay(200, timeoutCts.Token);
+                        _isRelay485On = false;
+                        AddLog($"485继电器第{Relay485ChannelIndex + 1}路已关闭");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"485继电器操作失败: {ex.Message}");
                     }
                 }
                 else
@@ -1044,6 +1073,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             Application.Current?.Dispatcher?.Invoke(() =>
             {
+                ManualTestCommand?.RaiseCanExecuteChanged();
+                AutoTestCommand?.RaiseCanExecuteChanged();
                 ToggleRelayCommand?.RaiseCanExecuteChanged();
                 MeasureACommand?.RaiseCanExecuteChanged();
                 MeasureBCommand?.RaiseCanExecuteChanged();
@@ -1190,6 +1221,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsRelayActivated && _jy7131Api != null)
                     _jy7131Api.WriteDoAsync(RelayControlChannel, false).GetAwaiter().GetResult();
+            }
+            catch { }
+
+            try
+            {
+                if (_isRelay485On && _jy7131Api != null)
+                    _jy7131Api.SetRelayAsync(Relay485ChannelIndex, false).GetAwaiter().GetResult();
             }
             catch { }
 

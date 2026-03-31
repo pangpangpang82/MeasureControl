@@ -43,8 +43,8 @@
                             Margin="0,0,20,0"
                             VerticalAlignment="Center"
                             BorderThickness="0"
-                            IsEnabled="{Binding CanStartManualTest, FallbackValue=True}"
                             Command="{Binding ManualTestCommand}"
+                            IsEnabled="{Binding CanStartManualTest, FallbackValue=True}"
                             Visibility="Collapsed">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
@@ -139,8 +139,8 @@
                             Margin="0,0,30,0"
                             VerticalAlignment="Center"
                             BorderThickness="0"
-                            IsEnabled="{Binding CanStartAutoTest, FallbackValue=True}"
-                            Command="{Binding AutoTestCommand}">
+                            Command="{Binding AutoTestCommand}"
+                            IsEnabled="{Binding CanStartAutoTest, FallbackValue=True}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border
@@ -284,9 +284,9 @@
                                     Margin="15,0,0,0"
                                     VerticalAlignment="Center"
                                     BorderThickness="0"
-                                    Visibility="Collapsed"
                                     Command="{Binding Measure14Command}"
-                                    IsEnabled="{Binding CanMeasure14, FallbackValue=False}">
+                                    IsEnabled="{Binding CanMeasure14, FallbackValue=False}"
+                                    Visibility="Collapsed">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border
@@ -354,11 +354,11 @@
                                     Width="50"
                                     Height="28"
                                     Margin="15,0,0,0"
-                                    Visibility="Collapsed"
                                     VerticalAlignment="Center"
                                     BorderThickness="0"
                                     Command="{Binding Measure182Command}"
-                                    IsEnabled="{Binding CanMeasure182, FallbackValue=False}">
+                                    IsEnabled="{Binding CanMeasure182, FallbackValue=False}"
+                                    Visibility="Collapsed">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border

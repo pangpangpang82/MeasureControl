@@ -35,16 +35,17 @@
                         VerticalAlignment="Center"
                         FontSize="24"
                         FontWeight="Bold"
-                        Text="温度采集测试" />
+                        Text="二次电源测试" />
                     <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                         <Button
                             Width="100"
                             Height="32"
+                            Visibility="Collapsed"
                             Margin="0,0,20,0"
                             VerticalAlignment="Center"
                             BorderThickness="0"
-                            Command="{Binding ManualTestCommand}"
-                            IsEnabled="{Binding CanStartManualTest, FallbackValue=True}">
+                            IsEnabled="{Binding CanStartManualTest, FallbackValue=True}"
+                            Command="{Binding ManualTestCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border
@@ -138,8 +139,8 @@
                             Margin="0,0,30,0"
                             VerticalAlignment="Center"
                             BorderThickness="0"
-                            Command="{Binding AutoTestCommand}"
-                            IsEnabled="{Binding CanStartAutoTest, FallbackValue=True}">
+                            IsEnabled="{Binding CanStartAutoTest, FallbackValue=True}"
+                            Command="{Binding AutoTestCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border
@@ -249,29 +250,26 @@
                             <RowDefinition Height="*" />
                             <RowDefinition Height="*" />
                             <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
                         <StackPanel
                             Grid.Row="0"
-                            Height="85"
-                            Margin="10,10,10,0"
+                            Height="110"
+                            Margin="10"
                             VerticalAlignment="Center"
                             Orientation="Vertical">
                             <TextBlock
-                                Height="25"
-                                VerticalAlignment="Center"
                                 FontSize="20"
                                 FontWeight="Bold"
-                                Text="PT1000 763.3Ω电阻测试" />
+                                Text="5V隔离二次电源" />
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock
-                                    Margin="20,20,0,20"
+                                    Margin="20"
                                     FontSize="16"
-                                    Text="针脚112-114温度：" />
+                                    Text="电源输出电压：" />
                                 <Border
-                                    Width="80"
+                                    Width="100"
                                     Height="28"
-                                    Margin="0,0,0,0"
+                                    Margin="10,0,0,0"
                                     VerticalAlignment="Center"
                                     BorderBrush="#D9D9D9"
                                     BorderThickness="1"
@@ -280,34 +278,17 @@
                                         Margin="5,0,1,0"
                                         VerticalAlignment="Center"
                                         FontSize="15"
-                                        Text="{Binding Temp1Text, TargetNullValue=---, FallbackValue=---}" />
-                                </Border>
-                                <TextBlock
-                                    Margin="20,20,0,20"
-                                    FontSize="16"
-                                    Text="针脚116-118温度：" />
-                                <Border
-                                    Width="80"
-                                    Height="28"
-                                    Margin="0,0,0,0"
-                                    VerticalAlignment="Center"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        Margin="5,0,1,0"
-                                        VerticalAlignment="Center"
-                                        FontSize="15"
-                                        Text="{Binding Temp1BText, TargetNullValue=---, FallbackValue=---}" />
+                                        Text="{Binding Voltage5VText, TargetNullValue=---, FallbackValue=---}" />
                                 </Border>
                                 <Button
                                     Width="50"
+                                    Visibility="Collapsed"
                                     Height="28"
                                     Margin="15,0,0,0"
                                     VerticalAlignment="Center"
                                     BorderThickness="0"
-                                    Command="{Binding MeasurePoint1Command}"
-                                    IsEnabled="{Binding CanMeasurePoint1, FallbackValue=False}">
+                                    Command="{Binding Measure5VCommand}"
+                                    IsEnabled="{Binding CanMeasure5V, FallbackValue=False}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border
@@ -344,25 +325,23 @@
 
                         <StackPanel
                             Grid.Row="1"
-                            Height="85"
+                            Height="110"
                             Margin="10"
                             VerticalAlignment="Center"
                             Orientation="Vertical">
                             <TextBlock
-                                Height="25"
-                                VerticalAlignment="Center"
                                 FontSize="20"
                                 FontWeight="Bold"
-                                Text="PT1000 1758.6Ω电阻测试" />
+                                Text="15V隔离二次电源" />
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock
-                                    Margin="20,20,0,20"
+                                    Margin="20"
                                     FontSize="16"
-                                    Text="针脚112-114温度：" />
+                                    Text="电源输出电压：" />
                                 <Border
-                                    Width="80"
+                                    Width="100"
                                     Height="28"
-                                    Margin="0,0,0,0"
+                                    Margin="10,0,0,0"
                                     VerticalAlignment="Center"
                                     BorderBrush="#D9D9D9"
                                     BorderThickness="1"
@@ -371,34 +350,17 @@
                                         Margin="5,0,1,0"
                                         VerticalAlignment="Center"
                                         FontSize="15"
-                                        Text="{Binding Temp2Text, TargetNullValue=---, FallbackValue=---}" />
-                                </Border>
-                                <TextBlock
-                                    Margin="20,20,0,20"
-                                    FontSize="16"
-                                    Text="针脚116-118温度：" />
-                                <Border
-                                    Width="80"
-                                    Height="28"
-                                    Margin="0,0,0,0"
-                                    VerticalAlignment="Center"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        Margin="5,0,1,0"
-                                        VerticalAlignment="Center"
-                                        FontSize="15"
-                                        Text="{Binding Temp2BText, TargetNullValue=---, FallbackValue=---}" />
+                                        Text="{Binding Voltage15VText, TargetNullValue=---, FallbackValue=---}" />
                                 </Border>
                                 <Button
                                     Width="50"
+                                    Visibility="Collapsed"
                                     Height="28"
                                     Margin="15,0,0,0"
                                     VerticalAlignment="Center"
                                     BorderThickness="0"
-                                    Command="{Binding MeasurePoint2Command}"
-                                    IsEnabled="{Binding CanMeasurePoint2, FallbackValue=False}">
+                                    Command="{Binding Measure15VCommand}"
+                                    IsEnabled="{Binding CanMeasure15V, FallbackValue=False}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border
@@ -435,25 +397,23 @@
 
                         <StackPanel
                             Grid.Row="2"
-                            Height="85"
+                            Height="110"
                             Margin="10"
                             VerticalAlignment="Center"
                             Orientation="Vertical">
                             <TextBlock
-                                Height="25"
-                                VerticalAlignment="Center"
                                 FontSize="20"
                                 FontWeight="Bold"
-                                Text="PT1000 1155.4Ω电阻测试" />
+                                Text="-15V隔离二次电源" />
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock
-                                    Margin="20,20,0,20"
+                                    Margin="20"
                                     FontSize="16"
-                                    Text="针脚112-114温度：" />
+                                    Text="电源输出电压：" />
                                 <Border
-                                    Width="80"
+                                    Width="100"
                                     Height="28"
-                                    Margin="0,0,0,0"
+                                    Margin="10,0,0,0"
                                     VerticalAlignment="Center"
                                     BorderBrush="#D9D9D9"
                                     BorderThickness="1"
@@ -462,169 +422,17 @@
                                         Margin="5,0,1,0"
                                         VerticalAlignment="Center"
                                         FontSize="15"
-                                        Text="{Binding Temp3Text, TargetNullValue=---, FallbackValue=---}" />
-                                </Border>
-                                <TextBlock
-                                    Margin="20,20,0,20"
-                                    FontSize="16"
-                                    Text="针脚116-118温度：" />
-                                <Border
-                                    Width="80"
-                                    Height="28"
-                                    Margin="0,0,0,0"
-                                    VerticalAlignment="Center"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        Margin="5,0,1,0"
-                                        VerticalAlignment="Center"
-                                        FontSize="15"
-                                        Text="{Binding Temp3BText, TargetNullValue=---, FallbackValue=---}" />
+                                        Text="{Binding VoltageM15VText, TargetNullValue=---, FallbackValue=---}" />
                                 </Border>
                                 <Button
                                     Width="50"
                                     Height="28"
                                     Margin="15,0,0,0"
+                                    Visibility="Collapsed"
                                     VerticalAlignment="Center"
                                     BorderThickness="0"
-                                    Command="{Binding MeasurePoint3Command}"
-                                    IsEnabled="{Binding CanMeasurePoint3, FallbackValue=False}">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border
-                                                x:Name="border"
-                                                Background="#3b82f6"
-                                                CornerRadius="4">
-                                                <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                    <TextBlock
-                                                        x:Name="DeviceAction"
-                                                        HorizontalAlignment="Center"
-                                                        VerticalAlignment="Center"
-                                                        FontSize="14"
-                                                        Foreground="White"
-                                                        Text="测量" />
-                                                </StackPanel>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                </Trigger>
-                                                <Trigger Property="IsPressed" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                </Trigger>
-                                                <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                    <Setter Property="Cursor" Value="Arrow" />
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                </Button>
-                            </StackPanel>
-                        </StackPanel>
-
-                        <StackPanel
-                            Grid.Row="3"
-                            Height="85"
-                            Margin="10"
-                            VerticalAlignment="Center"
-                            Orientation="Vertical">
-                            <StackPanel Height="27" Orientation="Horizontal">
-                                <TextBlock
-                                    Height="25"
-                                    VerticalAlignment="Center"
-                                    FontSize="20"
-                                    FontWeight="Bold"
-                                    Text="PT1000 " />
-                                <Border
-                                    Width="93"
-                                    Height="23"
-                                    VerticalAlignment="Center"
-                                    BorderBrush="black"
-                                    BorderThickness="2"
-                                    CornerRadius="3">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="18" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBox
-                                            Grid.Column="0"
-                                            Height="22"
-                                            Padding="2,0,0,0"
-                                            HorizontalAlignment="Stretch"
-                                            VerticalAlignment="Bottom"
-                                            BorderThickness="0"
-                                            FontSize="20"
-                                            FontWeight="Bold"
-                                            VerticalContentAlignment="Center"
-                                            ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                            Text="{Binding CustomResistanceInput, UpdateSourceTrigger=PropertyChanged}"
-                                            LostFocus="TextBox_LostFocus"
-                                            TextChanged="TextBox_TextChanged" />
-                                        <TextBlock
-                                            Grid.Column="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="20"
-                                            FontWeight="Bold"
-                                            Text="Ω" />
-                                    </Grid>
-                                </Border>
-                                <TextBlock
-                                    Height="25"
-                                    VerticalAlignment="Center"
-                                    FontSize="20"
-                                    FontWeight="Bold"
-                                    Text="电阻测试" />
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock
-                                    Margin="20,20,0,20"
-                                    FontSize="16"
-                                    Text="针脚112-114温度：" />
-                                <Border
-                                    Width="80"
-                                    Height="28"
-                                    Margin="0,0,0,0"
-                                    VerticalAlignment="Center"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        Margin="5,0,1,0"
-                                        VerticalAlignment="Center"
-                                        FontSize="15"
-                                        Text="{Binding TempCustomText, TargetNullValue=---, FallbackValue=---}" />
-                                </Border>
-                                <TextBlock
-                                    Margin="20,20,0,20"
-                                    FontSize="16"
-                                    Text="针脚116-118温度：" />
-                                <Border
-                                    Width="80"
-                                    Height="28"
-                                    Margin="0,0,0,0"
-                                    VerticalAlignment="Center"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        Margin="5,0,1,0"
-                                        VerticalAlignment="Center"
-                                        FontSize="15"
-                                        Text="{Binding TempCustomBText, TargetNullValue=---, FallbackValue=---}" />
-                                </Border>
-                                <Button
-                                    Width="50"
-                                    Height="28"
-                                    Margin="15,0,0,0"
-                                    VerticalAlignment="Center"
-                                    BorderThickness="0"
-                                    Command="{Binding MeasureCustomPointCommand}"
-                                    IsEnabled="{Binding CanMeasureCustomPoint, FallbackValue=False}">
+                                    Command="{Binding MeasureM15VCommand}"
+                                    IsEnabled="{Binding CanMeasureM15V, FallbackValue=False}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border

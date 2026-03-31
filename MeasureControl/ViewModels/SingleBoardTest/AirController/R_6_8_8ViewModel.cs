@@ -21,6 +21,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
     {
         private const byte DefaultLabel = 0x6A;
 
+        private const string ResistorChannelId = "RO0";
+
         private static readonly byte[] AtpR = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] AtpEnterOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] AtpE = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
@@ -298,23 +300,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 var targetOhm = GetTargetResistanceOhm(ResistorGear);
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：接入电阻，档位={ResistorGear}，目标={targetOhm.ToString("F2", CultureInfo.InvariantCulture)}Ω");
 
-                var relayOk = await _resistorDriver.SetRelayStateAsync("RO0", true, false);
+                var relayOk = await _resistorDriver.SetRelayStateAsync(ResistorChannelId, true, false);
                 if (!relayOk)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012设置RO0继电器失败(通路闭合/短路断开)");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012设置{ResistorChannelId}继电器失败(通路闭合/短路断开)");
                     return;
                 }
 
-                var writeOk = await _resistorDriver.WriteChannelAsync("RO0", targetOhm);
+                var writeOk = await _resistorDriver.WriteChannelAsync(ResistorChannelId, targetOhm);
                 if (!writeOk)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012写入RO0失败");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7012写入{ResistorChannelId}失败");
                     return;
                 }
 
                 await Task.Delay(50);
 
-                var readBack = await _resistorDriver.ReadChannelAsync("RO0");
+                var readBack = await _resistorDriver.ReadChannelAsync(ResistorChannelId);
                 MeasuredResistanceValueText = $"{readBack.ToString("F5", CultureInfo.InvariantCulture)}Ω";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡读回电阻：{MeasuredResistanceValueText}");
             }
@@ -510,7 +512,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 await StopTemperatureTelemetryListeningAsync();
 
                 await _simulation.StopAsync(msg => AddLog(msg));
-                await DisconnectResistorAsync();
+                await StopResistorOutputAsync();
 
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             }
@@ -589,6 +591,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
+                    try { await StopTemperatureTelemetryListeningAsync(); } catch { }
+
+                    try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
+                    try { await StopResistorOutputAsync(); } catch { }
+
                     try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsAutoTestRunning = false;
                     _autoTestLock.Release();
@@ -822,7 +829,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return string.Join(" ", data.Take(len).Select(b => b.ToString("X2")));
         }
 
-        private async Task<bool> EnsureResistorReadyAsync()
+        private async Task<bool> EnsureResistorReadyAsync(bool enableLog = true)
         {
             if (_resistorDriver != null && _resistorDriver.IsConnected)
                 return true;
@@ -832,7 +839,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 var candidates = new uint[] { 1, 0, 2, 3, 4, 5, 6, 7 };
                 foreach (var logicalId in candidates)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡直连：尝试ACTS6010逻辑ID={logicalId}");
+                    if (enableLog)
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡直连：尝试ACTS6010逻辑ID={logicalId}");
                     var dummy = new ProgrammableResistorDevice
                     {
                         Name = "电阻输出",
@@ -846,19 +854,41 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     if (ok)
                     {
                         _resistorDriver = driver;
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡已连接：ACTS6010 逻辑ID={logicalId}");
+                        if (enableLog)
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡已连接：ACTS6010 逻辑ID={logicalId}");
                         return true;
                     }
                 }
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡打开失败：ACTS6010 逻辑ID 0-7 均连接失败");
+                if (enableLog)
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡打开失败：ACTS6010 逻辑ID 0-7 均连接失败");
                 return false;
             }
             catch (Exception ex)
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡打开异常：{ex.Message}");
+                if (enableLog)
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡打开异常：{ex.Message}");
                 _resistorDriver = null;
                 return false;
+            }
+        }
+
+        private async Task StopResistorOutputAsync()
+        {
+            try
+            {
+                var ready = await EnsureResistorReadyAsync(enableLog: false);
+                if (!ready || _resistorDriver == null || !_resistorDriver.IsConnected)
+                    return;
+
+                await _resistorDriver.SetRelayStateAsync(ResistorChannelId, pathRelayClosed: false, shortCircuitClosed: false);
+            }
+            catch
+            {
+            }
+            finally
+            {
+                try { await DisconnectResistorAsync(); } catch { }
             }
         }
 
@@ -887,10 +917,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts?.Cancel();
                 _telemetryListeningCts?.Cancel();
                 _simulation?.Dispose();
-                if (_resistorDriver != null)
-                {
-                    _ = _resistorDriver.DisconnectAsync();
-                }
+                StopResistorOutputAsync().GetAwaiter().GetResult();
             }
             catch { }
         }

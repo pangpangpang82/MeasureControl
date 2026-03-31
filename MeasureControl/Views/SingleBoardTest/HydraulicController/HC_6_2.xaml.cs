@@ -15,7 +15,7 @@ namespace MeasureControl.Views.SingleBoardTest.HydraulicController
         public HC_6_2()
         {
             InitializeComponent();
-            DataContext = ContainerLocator.Container.Resolve<HC_6_2ViewModel>();
+            DataContext = ContainerLocator.Container.Resolve<HC_6_1ViewModel>();
         }
 
         private void RootGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)
