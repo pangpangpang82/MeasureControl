@@ -561,12 +561,6 @@
     <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_1.xaml.cs">
       <DependentUpon>HC_6_1.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_10.xaml.cs">
-      <DependentUpon>HC_6_10.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_2.xaml.cs">
-      <DependentUpon>HC_6_2.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_3.xaml.cs">
       <DependentUpon>HC_6_3.xaml</DependentUpon>
     </Compile>
@@ -2007,6 +2001,12 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_1.xaml.cs">
       <DependentUpon>HC_6_1.xaml</DependentUpon>
+    </Compile>
+        <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_10.xaml.cs">
+      <DependentUpon>HC_6_10.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_2.xaml.cs">
+      <DependentUpon>HC_6_2.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\HydraulicController\HC_6_3.xaml.cs">
       <DependentUpon>HC_6_3.xaml</DependentUpon>
