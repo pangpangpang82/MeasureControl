@@ -9,7 +9,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using MeasureControl.Helpers;
+using MeasureControl.Models.Devices;
 using MeasureControl.Services;
+using MeasureControl.Services.HardwareApis;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
@@ -17,6 +19,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
     {
         private const string DefaultFpgaIpAddress = "192.168.1.10";
         private const int DefaultFpgaPort = 5001;
+
+        private const string PowerSupply28VIpAddress = "192.168.1.15";
+        private const string PowerSupply3V3IpAddress = "192.168.1.16";
+
+        private const PowerSupplyChannel PowerSupply28VCh1 = PowerSupplyChannel.CH1;
+        private const PowerSupplyChannel PowerSupply28VCh2 = PowerSupplyChannel.CH2;
+        private const double Power28VVoltage = 28.0;
+        private const double Power28VCurrentLimit = 3.0;
+
+        private const PowerSupplyChannel PowerSupply3V3Channel = PowerSupplyChannel.CH3;
+        private const double Power3V3Voltage = 3.3;
+        private const double Power3V3CurrentLimit = 1.0;
 
         private const string DefaultMatrixIpAddress = "192.168.1.3";
         private const int DefaultMatrixTcpBasePort = 50200;
@@ -53,6 +67,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private FpgaTcpClient _fpga;
 
+        private IPowerSupplyApi _powerSupply28V;
+        private IPowerSupplyApi _powerSupply3V3;
+
         private TcpClient _scopeTcpClient;
         private NetworkStream _scopeTcpStream;
 
@@ -67,7 +84,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool _isBusy;
 
         private bool _isPowerOn;
-        private string _powerStatus = "未供电";
+        private string _powerStatus = "未上电";
 
         private string _phaseHighText = "--";
         private string _phaseLowText = "--";
@@ -251,7 +268,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
                 try
                 {
-                    await Apply28VPowerAsync(CancellationToken.None).ConfigureAwait(false);
+                    await PowerOnAsync(CancellationToken.None).ConfigureAwait(false);
                     await EnsureFpgaConnectedAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 finally
@@ -284,7 +301,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     await CleanupAsync(CancellationToken.None).ConfigureAwait(false);
                     if (IsPowerOn)
-                        await ApplyDownPowerAsync(CancellationToken.None).ConfigureAwait(false);
+                        await PowerOffAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -332,7 +349,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     IsBusy = true;
                     try
                     {
-                        await Apply28VPowerAsync(token).ConfigureAwait(false);
+                        await PowerOnAsync(token).ConfigureAwait(false);
                         await EnsureFpgaConnectedAsync(token).ConfigureAwait(false);
                     }
                     finally
@@ -389,7 +406,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 finally
                 {
                     try { await CleanupAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { if (IsPowerOn) await ApplyDownPowerAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { if (IsPowerOn) await PowerOffAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
                     IsAutoTestRunning = false;
                     try { _autoTestCts?.Dispose(); } catch { }
@@ -557,65 +574,91 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return deg;
         }
 
-        private async Task Apply28VPowerAsync(CancellationToken token)
+        private async Task PowerOnAsync(CancellationToken token)
         {
+            AddLog("组件供电：上电中...");
+
+            await EnsurePowerSupply28VConnectedAsync(token).ConfigureAwait(false);
             try
             {
-                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                if (api != null)
-                {
-                    await api.ApplyComponent28VStateAsync(token).ConfigureAwait(false);
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        IsPowerOn = true;
-                        PowerStatus = "供电";
-                    });
-                    AddLog("组件28V供电已开启");
-                }
-                else
-                {
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        IsPowerOn = false;
-                        PowerStatus = "未知";
-                    });
-                    AddLog("IComponentPowerStateApi不可用");
-                }
+                await _powerSupply28V.ApplyAsync(PowerSupply28VCh1, Power28VVoltage, Power28VCurrentLimit, token).ConfigureAwait(false);
+                await _powerSupply28V.ApplyAsync(PowerSupply28VCh2, Power28VVoltage, Power28VCurrentLimit, token).ConfigureAwait(false);
+                await _powerSupply28V.SetOutputEnabledAsync(PowerSupply28VCh1, true, token).ConfigureAwait(false);
+                await _powerSupply28V.SetOutputEnabledAsync(PowerSupply28VCh2, true, token).ConfigureAwait(false);
+                await Task.Delay(300, token).ConfigureAwait(false);
+                AddLog($"组件供电：28V 上电 CH1+CH2, IP={PowerSupply28VIpAddress}");
             }
             catch (Exception ex)
             {
-                Application.Current?.Dispatcher?.Invoke(() =>
-                {
-                    IsPowerOn = false;
-                    PowerStatus = "未供电";
-                });
-                AddLog($"组件28V供电失败: {ex.Message}");
-                throw;
+                AddLog($"组件供电：28V 上电失败: {ex.Message}");
             }
-        }
 
-        private async Task ApplyDownPowerAsync(CancellationToken token)
-        {
+            await EnsurePowerSupply3V3ConnectedAsync(token).ConfigureAwait(false);
             try
             {
-                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                if (api != null)
+                await _powerSupply3V3.ApplyAsync(PowerSupply3V3Channel, Power3V3Voltage, Power3V3CurrentLimit, token).ConfigureAwait(false);
+                await _powerSupply3V3.SetOutputEnabledAsync(PowerSupply3V3Channel, true, token).ConfigureAwait(false);
+                await Task.Delay(200, token).ConfigureAwait(false);
+                AddLog($"组件供电：3.3V 上电 CH3, IP={PowerSupply3V3IpAddress}");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"组件供电：3.3V 上电失败: {ex.Message}");
+            }
+
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsPowerOn = true;
+                PowerStatus = "已上电";
+            });
+        }
+
+        private async Task PowerOffAsync(CancellationToken token)
+        {
+            AddLog("组件供电：下电中...");
+
+            try { await UnrouteMatrixAsync(token).ConfigureAwait(false); } catch { }
+
+            try
+            {
+                if (_powerSupply3V3 != null)
+                    await _powerSupply3V3.SetOutputEnabledAsync(PowerSupply3V3Channel, false, token).ConfigureAwait(false);
+            }
+            catch { }
+
+            try
+            {
+                if (_powerSupply28V != null)
                 {
-                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+                    await _powerSupply28V.SetOutputEnabledAsync(PowerSupply28VCh1, false, token).ConfigureAwait(false);
+                    await _powerSupply28V.SetOutputEnabledAsync(PowerSupply28VCh2, false, token).ConfigureAwait(false);
                 }
             }
-            catch
+            catch { }
+
+            Application.Current?.Dispatcher?.Invoke(() =>
             {
-            }
-            finally
-            {
-                Application.Current?.Dispatcher?.Invoke(() =>
-                {
-                    IsPowerOn = false;
-                    PowerStatus = "未供电";
-                });
-                AddLog("组件已下电");
-            }
+                IsPowerOn = false;
+                PowerStatus = "未上电";
+            });
+        }
+
+        private async Task EnsurePowerSupply28VConnectedAsync(CancellationToken token)
+        {
+            if (_powerSupply28V != null && _powerSupply28V.IsConnected)
+                return;
+
+            _powerSupply28V ??= new PowerSupplySocketApi();
+            await _powerSupply28V.ConnectAsync(PowerSupply28VIpAddress, token).ConfigureAwait(false);
+        }
+
+        private async Task EnsurePowerSupply3V3ConnectedAsync(CancellationToken token)
+        {
+            if (_powerSupply3V3 != null && _powerSupply3V3.IsConnected)
+                return;
+
+            _powerSupply3V3 ??= new PowerSupplySocketApi();
+            await _powerSupply3V3.ConnectAsync(PowerSupply3V3IpAddress, token).ConfigureAwait(false);
         }
 
         private async Task EnsureFpgaConnectedAsync(CancellationToken token)
@@ -878,7 +921,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _autoTestCts = null;
 
             try { CleanupAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
-            try { if (IsPowerOn) ApplyDownPowerAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
+            try { if (IsPowerOn) PowerOffAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
 
             try { _manualTestLock?.Dispose(); } catch { }
             try { _autoTestLock?.Dispose(); } catch { }
