@@ -1348,7 +1348,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 _isRelay485On = false;
             }
         }
-
         private async Task EnsureRelay485Async(bool on, CancellationToken cancellationToken)
         {
             await _relayLock.WaitAsync(cancellationToken).ConfigureAwait(false);

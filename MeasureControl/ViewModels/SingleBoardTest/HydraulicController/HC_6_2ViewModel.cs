@@ -23,14 +23,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int CanRxChannelIndex = 0;
         private const uint CanBaudRate = 500000; // 波特率
         private const int CanReceiveTimeoutMs = 5000;
-        private const int PowerStabilizeDelayMs = 500;
+        private const int PowerStabilizeDelayMs = 1200;
+        private const int PowerOffHoldDelayMs = 1500;
+        private const int CanFlushWindowMs = 120;
+        private const int PostSwitchRxFlushDelayMs = 200;
         
         private const int RelayDo24Index = 24;
         private const int RelayDo25Index = 25;
         private const int Relay485ChannelIndex = 6;
         
         private const uint ExpectedCanIdChannelA = 0x100;
-        private const uint ExpectedCanIdChannelB = 0x100;
+        private const uint ExpectedCanIdChannelB = 0x103;
         private const byte ExpectedByteIndexChannelA = 1;
         private const byte ExpectedByteIndexChannelB = 1;
         private const byte ExpectedValueChannelA = 0x01;
@@ -355,15 +358,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             try
             {
                 await SetChannelAConfigAsync(_manualCts.Token).ConfigureAwait(false);
-                
-                if (_hydraulicPowerService?.IsHydraulicPowered == true)
-                {
-                    await _hydraulicPowerService.PowerOffAsync(_manualCts.Token).ConfigureAwait(false);
-                    await Task.Delay(500, _manualCts.Token).ConfigureAwait(false);
-                }
-                
-                await _hydraulicPowerService.PowerOnAsync(null, _manualCts.Token).ConfigureAwait(false);
-                await Task.Delay(PowerStabilizeDelayMs, _manualCts.Token).ConfigureAwait(false);
+
+                await RestartBoardPowerAsync(_manualCts.Token).ConfigureAwait(false);
+                await FlushCanRxBufferAsync(_manualCts.Token).ConfigureAwait(false);
+                await Task.Delay(PostSwitchRxFlushDelayMs, _manualCts.Token).ConfigureAwait(false);
                 
                 var result = await ReceiveAndCheckChannelAsync(ExpectedCanIdChannelA, ExpectedByteIndexChannelA, ExpectedValueChannelA, _manualCts.Token).ConfigureAwait(false);
                 
@@ -389,15 +387,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             try
             {
                 await SetChannelBConfigAsync(_manualCts.Token).ConfigureAwait(false);
-                
-                if (_hydraulicPowerService?.IsHydraulicPowered == true)
-                {
-                    await _hydraulicPowerService.PowerOffAsync(_manualCts.Token).ConfigureAwait(false);
-                    await Task.Delay(500, _manualCts.Token).ConfigureAwait(false);
-                }
-                
-                await _hydraulicPowerService.PowerOnAsync(null, _manualCts.Token).ConfigureAwait(false);
-                await Task.Delay(PowerStabilizeDelayMs, _manualCts.Token).ConfigureAwait(false);
+
+                await RestartBoardPowerAsync(_manualCts.Token).ConfigureAwait(false);
+                await FlushCanRxBufferAsync(_manualCts.Token).ConfigureAwait(false);
+                await Task.Delay(PostSwitchRxFlushDelayMs, _manualCts.Token).ConfigureAwait(false);
                 
                 var result = await ReceiveAndCheckChannelAsync(ExpectedCanIdChannelB, ExpectedByteIndexChannelB, ExpectedValueChannelB, _manualCts.Token).ConfigureAwait(false);
                 
@@ -481,15 +474,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 
                 Log("测试通道A识别（针脚99接地，针脚100开路）");
                 await SetChannelAConfigAsync(cancellationToken).ConfigureAwait(false);
-                
-                if (_hydraulicPowerService?.IsHydraulicPowered == true)
-                {
-                    await _hydraulicPowerService.PowerOffAsync(cancellationToken).ConfigureAwait(false);
-                    await Task.Delay(500, cancellationToken).ConfigureAwait(false);
-                }
-                
-                await _hydraulicPowerService.PowerOnAsync(null, cancellationToken).ConfigureAwait(false);
-                await Task.Delay(PowerStabilizeDelayMs, cancellationToken).ConfigureAwait(false);
+
+                await RestartBoardPowerAsync(cancellationToken).ConfigureAwait(false);
+                await FlushCanRxBufferAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(PostSwitchRxFlushDelayMs, cancellationToken).ConfigureAwait(false);
                 
                 var resultA = await ReceiveAndCheckChannelAsync(ExpectedCanIdChannelA, ExpectedByteIndexChannelA, ExpectedValueChannelA, cancellationToken).ConfigureAwait(false);
                 _channelAResult = resultA ? "通道A" : "识别失败";
@@ -500,15 +488,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 
                 Log("测试通道B识别（针脚99开路，针脚100接地）");
                 await SetChannelBConfigAsync(cancellationToken).ConfigureAwait(false);
-                
-                if (_hydraulicPowerService?.IsHydraulicPowered == true)
-                {
-                    await _hydraulicPowerService.PowerOffAsync(cancellationToken).ConfigureAwait(false);
-                    await Task.Delay(500, cancellationToken).ConfigureAwait(false);
-                }
-                
-                await _hydraulicPowerService.PowerOnAsync(null, cancellationToken).ConfigureAwait(false);
-                await Task.Delay(PowerStabilizeDelayMs, cancellationToken).ConfigureAwait(false);
+
+                await RestartBoardPowerAsync(cancellationToken).ConfigureAwait(false);
+                await FlushCanRxBufferAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(PostSwitchRxFlushDelayMs, cancellationToken).ConfigureAwait(false);
                 
                 var resultB = await ReceiveAndCheckChannelAsync(ExpectedCanIdChannelB, ExpectedByteIndexChannelB, ExpectedValueChannelB, cancellationToken).ConfigureAwait(false);
                 _channelBResult = resultB ? "通道B" : "识别失败";
@@ -569,6 +552,55 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 Log($"CAN接收异常: {ex.Message}");
                 return false;
+            }
+            finally
+            {
+                _measureLock.Release();
+            }
+        }
+
+        private async Task RestartBoardPowerAsync(CancellationToken cancellationToken)
+        {
+            if (_hydraulicPowerService?.IsHydraulicPowered == true)
+            {
+                Log($"准备重新上电: 先下电并保持 {PowerOffHoldDelayMs}ms");
+                await _hydraulicPowerService.PowerOffAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(PowerOffHoldDelayMs, cancellationToken).ConfigureAwait(false);
+            }
+
+            Log($"准备重新上电: 上电后等待稳定 {PowerStabilizeDelayMs}ms");
+            await _hydraulicPowerService.PowerOnAsync(null, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(PowerStabilizeDelayMs, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task FlushCanRxBufferAsync(CancellationToken cancellationToken)
+        {
+            if (_canApi == null)
+            {
+                return;
+            }
+
+            await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var drainedCount = 0;
+                var deadline = DateTime.UtcNow.AddMilliseconds(CanFlushWindowMs);
+
+                while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
+                {
+                    var frames = await _canApi.ReceiveFramesBatchAsync(CanRxChannelIndex, maxFrames: 100, timeout: 0.01, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    if (frames == null || frames.Count == 0)
+                    {
+                        break;
+                    }
+
+                    drainedCount += frames.Count;
+                }
+
+                if (drainedCount > 0)
+                {
+                    Log($"已清空CAN接收缓存，丢弃历史帧 {drainedCount} 条");
+                }
             }
             finally
             {
