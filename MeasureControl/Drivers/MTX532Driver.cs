@@ -222,6 +222,41 @@ namespace MeasureControl.Drivers
                 var swTotal = Stopwatch.StartNew();
                 Debug.WriteLine($"[MTX532Driver] 连接设备 {DeviceName}");
 
+                if (_deviceRef != null)
+                {
+                    try
+                    {
+                        if (_isAcquisitionRunning)
+                        {
+                            await StopAcquisitionAsync();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[MTX532Driver] 连接前停止旧输出任务失败: {ex.Message}");
+                    }
+
+                    try
+                    {
+                        MTDAQ.Close(_deviceRef);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[MTX532Driver] 连接前关闭旧设备句柄失败: {ex.Message}");
+                    }
+                    finally
+                    {
+                        _deviceRef = null;
+                        _deviceRefLen = 0;
+                        _isConnected = false;
+                        _isAcquisitionRunning = false;
+                        _producerTask = null;
+                        _consumerTask = null;
+                        _aoTask = null;
+                        _runningEnabledChannelIds = null;
+                    }
+                }
+
                 var swBuild = Stopwatch.StartNew();
                 string configString = BuildConfigString();
                 swBuild.Stop();
@@ -332,6 +367,12 @@ namespace MeasureControl.Drivers
                 // 重置状态标志
                 _isConnected = false;
                 _isAcquisitionRunning = false;
+                _deviceRef = null;
+                _deviceRefLen = 0;
+                _producerTask = null;
+                _consumerTask = null;
+                _aoTask = null;
+                _runningEnabledChannelIds = null;
                 swTotal.Stop();
                 Debug.WriteLine($"[MTX532Driver] DisconnectAsync total elapsed={swTotal.ElapsedMilliseconds}ms");
                 return true;
@@ -1276,6 +1317,7 @@ namespace MeasureControl.Drivers
 
             _runningSamplesPerChannel = 0;
             _runningChannelCount = 0;
+            _runningEnabledChannelIds = null;
 
             try
             {
@@ -1300,9 +1342,16 @@ namespace MeasureControl.Drivers
                 if (tasks.Any())
                 {
                     var swWait = Stopwatch.StartNew();
-                    await Task.WhenAny(Task.WhenAll(tasks), Task.Delay(2000));
+                    var waitTimeoutMs = Math.Max(_aoWriteTimeoutMs + 1000, 4000);
+                    var allTasks = Task.WhenAll(tasks);
+                    var timeoutTask = Task.Delay(waitTimeoutMs);
+                    var completedTask = await Task.WhenAny(allTasks, timeoutTask);
                     swWait.Stop();
                     Debug.WriteLine($"[MTX532Driver] StopAcquisitionAsync waited elapsed={swWait.ElapsedMilliseconds}ms");
+                    if (completedTask == timeoutTask)
+                    {
+                        Debug.WriteLine($"[MTX532Driver] StopAcquisitionAsync wait timeout={waitTimeoutMs}ms，后台任务可能仍在退出中");
+                    }
                 }
 
                 // 清空缓冲区队列
@@ -1313,6 +1362,10 @@ namespace MeasureControl.Drivers
                 {
                     _phaseAccumulators.Clear();
                 }
+
+                _producerTask = null;
+                _consumerTask = null;
+                _aoTask = null;
             }
             catch (Exception ex)
             {

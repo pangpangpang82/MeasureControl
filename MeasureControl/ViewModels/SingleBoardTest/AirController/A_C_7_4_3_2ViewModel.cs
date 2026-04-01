@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using MeasureControl.Helpers;
 using MeasureControl.Services;
+using MeasureControl.Services.HardwareApis;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
@@ -17,6 +18,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
     {
         private const string DefaultFpgaIpAddress = "192.168.1.10";
         private const int DefaultFpgaPort = 5001;
+
+        private const string PowerSupply28VIpAddress = "192.168.1.15";
+        private const string PowerSupply3V3IpAddress = "192.168.1.16";
+
+        private const PowerSupplyChannel PowerSupply28VCh1 = PowerSupplyChannel.CH1;
+        private const PowerSupplyChannel PowerSupply28VCh2 = PowerSupplyChannel.CH2;
+        private const double Power28VVoltage = 28.0;
+        private const double Power28VCurrentLimit = 3.0;
+
+        private const PowerSupplyChannel PowerSupply3V3Channel = PowerSupplyChannel.CH3;
+        private const double Power3V3Voltage = 3.3;
+        private const double Power3V3CurrentLimit = 1.0;
 
         private const string DefaultMatrixIpAddress = "192.168.1.3";
         private const int DefaultMatrixTcpBasePort = 50200;
@@ -54,6 +67,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private CancellationTokenSource _autoTestCts;
 
         private FpgaTcpClient _fpga;
+
+        private IPowerSupplyApi _powerSupply28V;
+        private IPowerSupplyApi _powerSupply3V3;
 
         private TcpClient _scopeTcpClient;
         private NetworkStream _scopeTcpStream;
@@ -553,28 +569,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task Apply28VPowerAsync(CancellationToken token)
         {
+            AddLog("组件供电：上电中...");
+
             try
             {
-                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                if (api != null)
+                await EnsurePowerSupply28VConnectedAsync(token).ConfigureAwait(false);
+                await _powerSupply28V.ApplyAsync(PowerSupply28VCh1, Power28VVoltage, Power28VCurrentLimit, token).ConfigureAwait(false);
+                await _powerSupply28V.ApplyAsync(PowerSupply28VCh2, Power28VVoltage, Power28VCurrentLimit, token).ConfigureAwait(false);
+                await _powerSupply28V.SetOutputEnabledAsync(PowerSupply28VCh1, true, token).ConfigureAwait(false);
+                await _powerSupply28V.SetOutputEnabledAsync(PowerSupply28VCh2, true, token).ConfigureAwait(false);
+                await Task.Delay(300, token).ConfigureAwait(false);
+                AddLog($"组件供电：28V 上电 CH1+CH2, IP={PowerSupply28VIpAddress}");
+
+                await EnsurePowerSupply3V3ConnectedAsync(token).ConfigureAwait(false);
+                await _powerSupply3V3.ApplyAsync(PowerSupply3V3Channel, Power3V3Voltage, Power3V3CurrentLimit, token).ConfigureAwait(false);
+                await _powerSupply3V3.SetOutputEnabledAsync(PowerSupply3V3Channel, true, token).ConfigureAwait(false);
+                await Task.Delay(200, token).ConfigureAwait(false);
+                AddLog($"组件供电：3.3V 上电 CH3, IP={PowerSupply3V3IpAddress}");
+
+                Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    await api.ApplyComponent28VStateAsync(token).ConfigureAwait(false);
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        IsPowerOn = true;
-                        PowerStatus = "供电";
-                    });
-                    AddLog("组件28V供电已开启");
-                }
-                else
-                {
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        IsPowerOn = false;
-                        PowerStatus = "未知";
-                    });
-                    AddLog("IComponentPowerStateApi不可用");
-                }
+                    IsPowerOn = true;
+                    PowerStatus = "供电";
+                });
             }
             catch (Exception ex)
             {
@@ -583,23 +600,37 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     IsPowerOn = false;
                     PowerStatus = "未供电";
                 });
-                AddLog($"组件28V供电失败: {ex.Message}");
+                AddLog($"组件供电上电失败: {ex.Message}");
                 throw;
             }
         }
 
         private async Task ApplyDownPowerAsync(CancellationToken token)
         {
+            AddLog("组件供电：下电中...");
+
             try
             {
-                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                if (api != null)
+                try
                 {
-                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
+                    if (_powerSupply3V3 != null)
+                        await _powerSupply3V3.SetOutputEnabledAsync(PowerSupply3V3Channel, false, token).ConfigureAwait(false);
                 }
-            }
-            catch
-            {
+                catch
+                {
+                }
+
+                try
+                {
+                    if (_powerSupply28V != null)
+                    {
+                        await _powerSupply28V.SetOutputEnabledAsync(PowerSupply28VCh1, false, token).ConfigureAwait(false);
+                        await _powerSupply28V.SetOutputEnabledAsync(PowerSupply28VCh2, false, token).ConfigureAwait(false);
+                    }
+                }
+                catch
+                {
+                }
             }
             finally
             {
@@ -610,6 +641,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 });
                 AddLog("组件已下电");
             }
+        }
+
+        private async Task EnsurePowerSupply28VConnectedAsync(CancellationToken token)
+        {
+            if (_powerSupply28V != null && _powerSupply28V.IsConnected)
+                return;
+
+            _powerSupply28V ??= new PowerSupplySocketApi();
+            await _powerSupply28V.ConnectAsync(PowerSupply28VIpAddress, token).ConfigureAwait(false);
+        }
+
+        private async Task EnsurePowerSupply3V3ConnectedAsync(CancellationToken token)
+        {
+            if (_powerSupply3V3 != null && _powerSupply3V3.IsConnected)
+                return;
+
+            _powerSupply3V3 ??= new PowerSupplySocketApi();
+            await _powerSupply3V3.ConnectAsync(PowerSupply3V3IpAddress, token).ConfigureAwait(false);
         }
 
         private async Task EnsureFpgaConnectedAsync(CancellationToken token)

@@ -117,6 +117,23 @@ namespace MeasureControl.Services.HardwareApis
                 if (IsConnected)
                     return;
 
+                if (_driver != null)
+                {
+                    try
+                    {
+                        await _driver.DisconnectAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                    }
+                    finally
+                    {
+                        _driver = null;
+                        _isOutputRunning = false;
+                        _isOutputPrepared = false;
+                    }
+                }
+
                 _driver = new MTX532Driver(_device, suppressNativeDialogs: _options.SuppressNativeDialogs, slotNumberOverride: _slotNumber);
                 if (enabledAoChannels != null)
                 {
@@ -133,7 +150,10 @@ namespace MeasureControl.Services.HardwareApis
                 }
                 var ok = await _driver.ConnectAsync().ConfigureAwait(false);
                 if (!ok)
+                {
+                    _driver = null;
                     throw new InvalidOperationException("MTX532 connect returned false");
+                }
 
                 _isOutputRunning = false;
                 _isOutputPrepared = false;

@@ -115,6 +115,7 @@ namespace MeasureControl.Views.Common
         private bool _inertSimLatchSelected;
         private bool _inertSimLatchExecuted;
         private HC_6_1ViewModel _hydraulicAutoTestVm61;
+        private HC_6_2ViewModel _hydraulicAutoTestVm62ChannelId;
         private HC_6_3ViewModel _hydraulicAutoTestVm62;
         private HC_6_4ViewModel _hydraulicAutoTestVm63;
         private HC_6_5ViewModel _hydraulicAutoTestVm64;
@@ -1403,6 +1404,7 @@ namespace MeasureControl.Views.Common
                 _selectedSingleBoardAutoTestItems = null;
                 _singleBoardAutoStepResults = null;
                 _hydraulicAutoTestVm61 = null;
+                _hydraulicAutoTestVm62ChannelId = null;
                 _hydraulicAutoTestVm62 = null;
                 _hydraulicAutoTestVm63 = null;
                 _hydraulicAutoTestVm64 = null;
@@ -1461,6 +1463,7 @@ namespace MeasureControl.Views.Common
         private (string Name, Func<CancellationToken, Task<string>> Run)[] BuildHydraulicSteps()
         {
             _hydraulicAutoTestVm61 = ContainerLocator.Container.Resolve<HC_6_1ViewModel>();
+            _hydraulicAutoTestVm62ChannelId = ContainerLocator.Container.Resolve<HC_6_2ViewModel>();
             _hydraulicAutoTestVm62 = ContainerLocator.Container.Resolve<HC_6_3ViewModel>();
             _hydraulicAutoTestVm63 = ContainerLocator.Container.Resolve<HC_6_4ViewModel>();
             _hydraulicAutoTestVm64 = ContainerLocator.Container.Resolve<HC_6_5ViewModel>();
@@ -1470,6 +1473,7 @@ namespace MeasureControl.Views.Common
             _hydraulicAutoTestVm68 = ContainerLocator.Container.Resolve<HC_6_9ViewModel>();
 
             var vm61 = _hydraulicAutoTestVm61;
+            var vm62ChannelId = _hydraulicAutoTestVm62ChannelId;
             var vm62 = _hydraulicAutoTestVm62;
             var vm63 = _hydraulicAutoTestVm63;
             var vm64 = _hydraulicAutoTestVm64;
@@ -1481,6 +1485,7 @@ namespace MeasureControl.Views.Common
             return new (string Name, Func<CancellationToken, Task<string>> Run)[]
             {
                 ("电源阻抗测试", ct => vm61.RunOnceAsync(ct)),
+                ("通道ID测试", ct => vm62ChannelId.RunOnceAsync(ct)),
                 ("二次电源测试", ct => vm62.RunOnceAsync(ct)),
                 ("温度采集测试", ct => vm63.RunOnceAsync(ct)),
                 ("压力传感器信号采集测试", ct => vm64.RunOnceAsync(ct)),
