@@ -36,7 +36,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const string DefaultScopeIpAddress = "192.168.1.18";
 
         private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
-        private static readonly byte[] StepperPulseCommandFrame = { 0xAA, 0x55, 0x06, 0x04, 0x60, 0xE8, 0x03, 0xF4, 0x01 };
+        private static readonly byte[] StepperPulseCommandFrame = { 0xAA, 0x55, 0x06, 0x04, 0x06, 0xE8, 0x03, 0xF4, 0x01 };
 
         private const double ExpectedFrequencyHz = 250.0; // 1000/4
         private const double FrequencyToleranceHz = 1.0;
