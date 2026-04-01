@@ -59,6 +59,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private readonly IHydraulicPowerService _hydraulicPowerService;
         private IJy7131Api _jy7131;
         private bool _isRelay485On;
+        private bool _isAuxPowerOn;
 
         private const string TestItemName = "电源阻抗测试";
 
@@ -844,6 +845,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             await _auxPower.ApplyAsync(PowerSupplyChannel.CH1, AuxPowerVoltageV, AuxPowerCurrentA, cancellationToken).ConfigureAwait(false);
             await _auxPower.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
+            _isAuxPowerOn = true;
             await Task.Delay(100, cancellationToken).ConfigureAwait(false);
         }
 
@@ -853,7 +855,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 if (_auxPower != null)
                 {
-                    try { await _auxPower.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    // 如果处于上电状态才执行下电，已下电则不执行
+                    if (_isAuxPowerOn)
+                    {
+                        try { await _auxPower.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    }
                     try { await _auxPower.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _auxPower.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
@@ -861,6 +867,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             finally
             {
                 _auxPower = null;
+                _isAuxPowerOn = false;
             }
         }
 

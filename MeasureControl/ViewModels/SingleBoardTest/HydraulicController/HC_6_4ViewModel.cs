@@ -8,25 +8,25 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using MeasureControl.Drivers;
-using MeasureControl.Events;
 using MeasureControl.Models.Devices;
 using MeasureControl.Models.Devices.DeviceCategories;
+using MeasureControl.Events;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
 using Prism.Events;
 using Prism.Ioc;
+using MeasureControl.Drivers;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
     /// <summary>
-    /// HC_6_4 测试项：压力信号测试（压力传感器校验）
-    /// 测试目的：通过 MTX532 模拟量输出板卡输出特定电压，模拟压力传感器信号，
-    ///          再从 ARINC429 总线接收压力数据，验证三路压力系统（SDI0/1/2）是否正确。
+    /// HC_6_4 测试项：温度信号测试（PT500/温度通道校验）
+    /// 测试目的：通过“程控电阻箱”模拟 PT500 传感器的电阻值，
+    ///          再从 ARINC429 总线接收温度数据，验证两路温度（SDI0/SDI1）是否在允许范围内。
     /// 测试方法：
     /// 1) 给被测板供电 28V。
-    /// 2) MTX532 的 AO1/AO2/AO3 同时输出指定电压（点1: 0.5V, 点2: 7.17V, 点3: 3.0V）。
-    /// 3) 从 ARINC429 接收压力 Label=174(oct)（十进制 124）数据，分别统计 SDI0/1/2（对应 SYS1/2/3）。
+    /// 2) 将程控电阻 RO0/RO1 同时设置为指定电阻（点1/点2/点3）。
+    /// 3) 从 ARINC429 接收温度 Label=175(oct)（十进制 125）数据，分别统计 SDI0 与 SDI1。
     /// 4) 每路采集 5 帧有效数据取平均值，并与阈值范围比对，给出“合格/不合格”。
     /// </summary>
     public class HC_6_4ViewModel : BindableBase
@@ -40,52 +40,54 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int RxChannelIndex = 2;
         private const double ArincRate = 100000.0;
 
-        // 压力数据定义（Label=174(oct) 即十进制 124）
-        private const byte PressLabelDec = 124; // 174(oct)
-        private const string TestItemName = "压力信号测试";
-        private const int PressureBitLength = 12;
+        // 温度数据定义与采样参数
+        private const byte TempLabelDec = 125; // 175(oct)
+        private const int SamplesPerMeasure = 3;
+        private const int SampleTimeoutMs = 3000;
+        private const int ResistanceSettleMs = 400;
+        private const int TemperatureSettleMs = 1000;
 
-        // 协议规定 SSM=0 为正常数据
-        private const byte SsmNormal = 3;
+        // 三个测试点对应的“模拟电阻值”（由程控电阻箱输出到 PT500 模拟通道）
+        private const double R1_Ohm = 763.3;
+        private const double R2_Ohm = 1758.6;
+        private const double R3_Ohm = 1155.4;
 
-        // 采样参数
-        private const int SamplesPerMeasure = 1;      // 每路采集 3 帧取平均
-        private const int SampleTimeoutMs = 3000;     // 采样超时 5 秒
-        private const int AoSettleMs = 800;            // 模拟量输出稳定等待时间
-        private const int Mtx532ReadyTimeoutMs = 6000;
-        private const int Mtx532ReadyPollMs = 200;
-        private const int PostSwitchRxFlushMs = 120;
+        // 三个测试点的温度判据范围（单位：℃）
+        private const double T1_Min = -66.60;
+        private const double T1_Max = -53.40;
+        private const double T2_Min = 193.40;
+        private const double T2_Max = 206.60;
+        private const double T3_Min = 32.40;
+        private const double T3_Max = 46.60;
 
-        // 三个测试点对应的模拟电压（由 MTX532 输出到压力传感器模拟通道）
-        private const double Point1VoltageV = 0.5;    // 点1: 0.5V
-        private const double Point2VoltageV = 7.17;   // 点2: 7.17V
-        private const double Point3VoltageV = 3.0;    // 点3: 3.0V
+        // 温度的 ARINC429 编码参数（BNR：有符号二进制数）
+        private const int TempBnrBitLength = 9;
+        private const double TempResolution = 1.0;
+        private const int TempMsbPosition = 28;
+
+        // 同一温度 Label 下，用 SDI 区分两路温度系统
+        private const int RelayAuxDoIndex = 25;
+        //private const int RelayGroundDoIndex = 26;
+        private const int Relay485ChannelIndex = 6;
+        private const byte TempChannel112To114Sdi = 2;
+        private const byte TempChannel116To118Sdi = 3;
+        private const byte TempSsmNormal = 3;
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _relayLock = new SemaphoreSlim(1, 1);
-        private readonly IPxiChassisService _pxiChassisService;
-        private readonly ISingleBoardTestContextService _singleBoardTestContext;
-        private readonly IHydraulicPowerService _hydraulicPowerService;
-
         private CancellationTokenSource _manualCts;
         private CancellationTokenSource _autoCts;
 
+        private readonly IPxiChassisService _pxiChassisService;
+        private readonly ISingleBoardTestContextService _singleBoardTestContext;
+        private readonly IHydraulicPowerService _hydraulicPowerService;
         private IPowerSupplyApi _power;
         private IArt4229Api _arinc;
-        private IMtx532Api _mtx532;
-        private Jy7131Api _jy7131;
+        private IJy7131Api _jy7131;
+
+        private const string TestItemName = "温度采集测试";
+        private ACTS6010Driver _res;
         private bool _isRelay485On;
-
-        private const int Relay485ChannelIndex = 6;
-        private const int RelayAuxDoIndex = 25;
-        //private const int RelayGroundDoIndex = 26;
-
-        private bool _measured1;
-        private bool _measured2;
-        private bool _measured3;
-        private bool _manualAborted;
-        private bool _historyLoaded;
-
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
         private bool _isManualTestInitializing;
@@ -94,37 +96,34 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private bool _isAutoTestStopping;
         private bool _canMeasure;
 
+        private bool _measured1;
+        private bool _measured2;
+        private bool _measured3;
+        private bool _manualAborted;
+        private bool _historyLoaded;
+
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
         private string _previousTestTime = "--";
         private string _previousTestResult = "--";
         private string _currentTestResult = "--";
 
-        private string _p1Sys1Text = "--";
-        private string _p1Sys2Text = "--";
-        private string _p1Sys3Text = "--";
+        private string _temp1Text = "--";
+        private string _temp2Text = "--";
+        private string _temp3Text = "--";
 
-        private string _p2Sys1Text = "--";
-        private string _p2Sys2Text = "--";
-        private string _p2Sys3Text = "--";
-
-        private string _p3Sys1Text = "--";
-        private string _p3Sys2Text = "--";
-        private string _p3Sys3Text = "--";
-        private string _customSys1Text = "--";
-        private string _customSys2Text = "--";
-        private string _customSys3Text = "--";
-        private string _customVoltageInput = "3.0";
-
-        private double? _p1Sys1;
-        private double? _p1Sys2;
-        private double? _p1Sys3;
-        private double? _p2Sys1;
-        private double? _p2Sys2;
-        private double? _p2Sys3;
-        private double? _p3Sys1;
-        private double? _p3Sys2;
-        private double? _p3Sys3;
+        private string _temp1BText = "--";
+        private string _temp2BText = "--";
+        private string _temp3BText = "--";
+        private string _tempCustomText = "--";
+        private string _tempCustomBText = "--";
+        private string _customResistanceInput = "1154.4";
+        private double? _temp1;
+        private double? _temp2;
+        private double? _temp3;
+        private double? _temp1B;
+        private double? _temp2B;
+        private double? _temp3B;
 
         public HC_6_4ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IHydraulicPowerService hydraulicPowerService)
         {
@@ -266,13 +265,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public bool IsManualTestRunning
         {
             get => _isManualTestRunning;
-            private set
+            set
             {
                 if (SetProperty(ref _isManualTestRunning, value))
                 {
+                    RaisePropertyChanged(nameof(CanMeasurePoint1));
+                    RaisePropertyChanged(nameof(CanMeasurePoint2));
+                    RaisePropertyChanged(nameof(CanMeasurePoint3));
+                    RaisePropertyChanged(nameof(CanMeasureCustomPoint));
                     RaisePropertyChanged(nameof(CanStartManualTest));
                     RaisePropertyChanged(nameof(CanStartAutoTest));
-                    RefreshMeasureCommands();
+                    MeasurePoint1Command?.RaiseCanExecuteChanged();
+                    MeasurePoint2Command?.RaiseCanExecuteChanged();
+                    MeasurePoint3Command?.RaiseCanExecuteChanged();
+                    MeasureCustomPointCommand?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -280,13 +286,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public bool IsAutoTestRunning
         {
             get => _isAutoTestRunning;
-            private set
+            set
             {
                 if (SetProperty(ref _isAutoTestRunning, value))
                 {
+                    RaisePropertyChanged(nameof(CanMeasurePoint1));
+                    RaisePropertyChanged(nameof(CanMeasurePoint2));
+                    RaisePropertyChanged(nameof(CanMeasurePoint3));
+                    RaisePropertyChanged(nameof(CanMeasureCustomPoint));
                     RaisePropertyChanged(nameof(CanStartManualTest));
                     RaisePropertyChanged(nameof(CanStartAutoTest));
-                    RefreshMeasureCommands();
+                    MeasurePoint1Command?.RaiseCanExecuteChanged();
+                    MeasurePoint2Command?.RaiseCanExecuteChanged();
+                    MeasurePoint3Command?.RaiseCanExecuteChanged();
+                    MeasureCustomPointCommand?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -297,14 +310,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set
             {
                 if (SetProperty(ref _canMeasure, value))
-                    RefreshMeasureCommands();
+                {
+                    RaisePropertyChanged(nameof(CanMeasurePoint1));
+                    RaisePropertyChanged(nameof(CanMeasurePoint2));
+                    RaisePropertyChanged(nameof(CanMeasurePoint3));
+                    RaisePropertyChanged(nameof(CanMeasureCustomPoint));
+                    MeasurePoint1Command?.RaiseCanExecuteChanged();
+                    MeasurePoint2Command?.RaiseCanExecuteChanged();
+                    MeasurePoint3Command?.RaiseCanExecuteChanged();
+                    MeasureCustomPointCommand?.RaiseCanExecuteChanged();
+                }
             }
         }
 
         public bool CanMeasurePoint1 => IsManualTestRunning && CanMeasure;
         public bool CanMeasurePoint2 => IsManualTestRunning && CanMeasure;
         public bool CanMeasurePoint3 => IsManualTestRunning && CanMeasure;
-        public bool CanMeasureCustomPoint => IsManualTestRunning && CanMeasure && TryGetValidatedCustomVoltage(out _);
+        public bool CanMeasureCustomPoint => IsManualTestRunning && CanMeasure && TryGetValidatedCustomResistance(out _);
         public bool CanStartManualTest => !IsManualTestBusy && !IsAutoTestBusy && !IsAutoTestRunning;
         public bool CanStartAutoTest => !IsManualTestBusy && !IsAutoTestBusy && !IsManualTestRunning;
 
@@ -322,8 +344,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         /// <summary>
         /// 整板串行自动测试入口。
-        /// 由外部(整板自动测试)调用，支持 await 等待完成，并通过 CancellationToken 实现“立即停止当前测量”。
-        /// 返回值仅为“合格/不合格”。
+        /// 由外部(整板自动测试)调用，支持 await 等待完成，并通过 CancellationToken 实现"立即停止当前测量"。
+        /// 返回值仅为"合格/不合格"。
         /// </summary>
         public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
         {
@@ -353,109 +375,61 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        public string LastTestTime
+        public string Temp1Text
         {
-            get => _lastTestTime;
-            set => SetProperty(ref _lastTestTime, value);
+            get => _temp1Text;
+            private set => SetProperty(ref _temp1Text, value);
         }
 
-        public string LastTestResult
+        public string Temp2Text
         {
-            get => _lastTestResult;
-            set => SetProperty(ref _lastTestResult, value);
+            get => _temp2Text;
+            private set => SetProperty(ref _temp2Text, value);
         }
 
-        public string PreviousTestTime
+        public string Temp3Text
         {
-            get => _previousTestTime;
-            set => SetProperty(ref _previousTestTime, value);
+            get => _temp3Text;
+            private set => SetProperty(ref _temp3Text, value);
         }
 
-        public string PreviousTestResult
+        public string Temp1BText
         {
-            get => _previousTestResult;
-            set => SetProperty(ref _previousTestResult, value);
+            get => _temp1BText;
+            private set => SetProperty(ref _temp1BText, value);
         }
 
-        public string PressurePoint1Sys1Text
+        public string Temp2BText
         {
-            get => _p1Sys1Text;
-            private set => SetProperty(ref _p1Sys1Text, value);
+            get => _temp2BText;
+            private set => SetProperty(ref _temp2BText, value);
         }
 
-        public string PressurePoint1Sys2Text
+        public string Temp3BText
         {
-            get => _p1Sys2Text;
-            private set => SetProperty(ref _p1Sys2Text, value);
+            get => _temp3BText;
+            private set => SetProperty(ref _temp3BText, value);
         }
 
-        public string PressurePoint1Sys3Text
+        public string TempCustomText
         {
-            get => _p1Sys3Text;
-            private set => SetProperty(ref _p1Sys3Text, value);
+            get => _tempCustomText;
+            private set => SetProperty(ref _tempCustomText, value);
         }
 
-        public string PressurePoint2Sys1Text
+        public string TempCustomBText
         {
-            get => _p2Sys1Text;
-            private set => SetProperty(ref _p2Sys1Text, value);
+            get => _tempCustomBText;
+            private set => SetProperty(ref _tempCustomBText, value);
         }
 
-        public string PressurePoint2Sys2Text
+        public string CustomResistanceInput
         {
-            get => _p2Sys2Text;
-            private set => SetProperty(ref _p2Sys2Text, value);
-        }
-
-        public string PressurePoint2Sys3Text
-        {
-            get => _p2Sys3Text;
-            private set => SetProperty(ref _p2Sys3Text, value);
-        }
-
-        public string PressurePoint3Sys1Text
-        {
-            get => _p3Sys1Text;
-            private set => SetProperty(ref _p3Sys1Text, value);
-        }
-
-        public string PressurePoint3Sys2Text
-        {
-            get => _p3Sys2Text;
-            private set => SetProperty(ref _p3Sys2Text, value);
-        }
-
-        public string PressurePoint3Sys3Text
-        {
-            get => _p3Sys3Text;
-            private set => SetProperty(ref _p3Sys3Text, value);
-        }
-
-        public string CustomPressureSys1Text
-        {
-            get => _customSys1Text;
-            private set => SetProperty(ref _customSys1Text, value);
-        }
-
-        public string CustomPressureSys2Text
-        {
-            get => _customSys2Text;
-            private set => SetProperty(ref _customSys2Text, value);
-        }
-
-        public string CustomPressureSys3Text
-        {
-            get => _customSys3Text;
-            private set => SetProperty(ref _customSys3Text, value);
-        }
-
-        public string CustomVoltageInput
-        {
-            get => _customVoltageInput;
+            get => _customResistanceInput;
             set
             {
-                var normalized = NormalizeVoltageInput(value);
-                if (SetProperty(ref _customVoltageInput, normalized))
+                var normalized = NormalizeResistanceInput(value);
+                if (SetProperty(ref _customResistanceInput, normalized))
                 {
                     RaisePropertyChanged(nameof(CanMeasureCustomPoint));
                     MeasureCustomPointCommand?.RaiseCanExecuteChanged();
@@ -463,42 +437,75 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        public double? PressurePoint1Sys1Value => _p1Sys1;
+        public double? Temp1Value => _temp1;
 
-        public double? PressurePoint1Sys2Value => _p1Sys2;
+        public double? Temp2Value => _temp2;
 
-        public double? PressurePoint1Sys3Value => _p1Sys3;
+        public double? Temp3Value => _temp3;
 
-        public double? PressurePoint2Sys1Value => _p2Sys1;
+        public double? Temp1BValue => _temp1B;
 
-        public double? PressurePoint2Sys2Value => _p2Sys2;
+        public double? Temp2BValue => _temp2B;
 
-        public double? PressurePoint2Sys3Value => _p2Sys3;
+        public double? Temp3BValue => _temp3B;
 
-        public double? PressurePoint3Sys1Value => _p3Sys1;
+        public bool IsTemp1Pass => _temp1 != null && _temp1 >= T1_Min && _temp1 <= T1_Max;
 
-        public double? PressurePoint3Sys2Value => _p3Sys2;
+        public bool IsTemp1BPass => _temp1B != null && _temp1B >= T1_Min && _temp1B <= T1_Max;
 
-        public double? PressurePoint3Sys3Value => _p3Sys3;
+        public bool IsTemp2Pass => _temp2 != null && _temp2 >= T2_Min && _temp2 <= T2_Max;
 
-        public bool IsPressurePoint1Sys1Pass => IsPressureWithinRange(_p1Sys1, 0.0, 85.0);
+        public bool IsTemp2BPass => _temp2B != null && _temp2B >= T2_Min && _temp2B <= T2_Max;
 
-        public bool IsPressurePoint1Sys2Pass => IsPressureWithinRange(_p1Sys2, 0.0, 85.0);
+        public bool IsTemp3Pass => _temp3 != null && _temp3 >= T3_Min && _temp3 <= T3_Max;
 
-        public bool IsPressurePoint1Sys3Pass => IsPressureWithinRange(_p1Sys3, 0.0, 85.0);
+        public bool IsTemp3BPass => _temp3B != null && _temp3B >= T3_Min && _temp3B <= T3_Max;
 
-        public bool IsPressurePoint2Sys1Pass => IsPressureWithinRange(_p2Sys1, 3915.0, 4000.0);
+        public string LastTestTime
+        {
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _lastTestTime;
+            }
+            set => SetProperty(ref _lastTestTime, value);
+        }
 
-        public bool IsPressurePoint2Sys2Pass => IsPressureWithinRange(_p2Sys2, 3915.0, 4000.0);
+        public string LastTestResult
+        {
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _lastTestResult;
+            }
+            set => SetProperty(ref _lastTestResult, value);
+        }
 
-        public bool IsPressurePoint2Sys3Pass => IsPressureWithinRange(_p2Sys3, 3915.0, 4000.0);
+        public string PreviousTestTime
+        {
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _previousTestTime;
+            }
+            set => SetProperty(ref _previousTestTime, value);
+        }
 
-        public bool IsPressurePoint3Sys1Pass => IsPressureWithinRange(_p3Sys1, 1414.0, 1585.0);
+        public string PreviousTestResult
+        {
+            get
+            {
+                LoadLastTestResultFromProject();
+                return _previousTestResult;
+            }
+            set => SetProperty(ref _previousTestResult, value);
+        }
 
-        public bool IsPressurePoint3Sys2Pass => IsPressureWithinRange(_p3Sys2, 1414.0, 1585.0);
-
-        public bool IsPressurePoint3Sys3Pass => IsPressureWithinRange(_p3Sys3, 1414.0, 1585.0);
-
+        /// <summary>
+        /// 手动测试流程
+        /// 进入手动模式后，先初始化电源/ARINC429/程控电阻箱，
+        /// 然后由用户分别点击“点1/点2/点3”执行测量。
+        /// </summary>
         private async Task OnManualTestAsync()
         {
             if (IsManualTestStopping)
@@ -527,28 +534,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _measured2 = false;
             _measured3 = false;
 
-            ResetPointDisplays();
+            _temp1 = null;
+            _temp2 = null;
+            _temp3 = null;
+            _temp1B = null;
+            _temp2B = null;
+            _temp3B = null;
+            Temp1Text = "--";
+            Temp2Text = "--";
+            Temp3Text = "--";
+            Temp1BText = "--";
+            Temp2BText = "--";
+            Temp3BText = "--";
+            TempCustomText = "--";
+            TempCustomBText = "--";
 
             _manualCts?.Cancel();
             _manualCts?.Dispose();
             _manualCts = new CancellationTokenSource();
 
             Log("开始手动测试");
-            Log("正在初始化设备...");
-
 
             try
             {
                 await EnsureRelay485Async(on: true, cancellationToken: _manualCts.Token).ConfigureAwait(false);
                 await EnsureGroundDoAsync(on: true, cancellationToken: _manualCts.Token).ConfigureAwait(false);
                 await EnsureArincRxAsync(_manualCts.Token).ConfigureAwait(false);
-                await EnsureMtx532Async(_manualCts.Token).ConfigureAwait(false);
                 await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
-
+                await EnsureResistanceAsync(_manualCts.Token).ConfigureAwait(false);
                 IsManualTestInitializing = false;
                 IsManualTestRunning = true;
                 CanMeasure = true;
-                Log("手动测试初始化完成，可点击三档固定电压或输入自定义电压测量压力");
+                Log("手动测试初始化完成，可点击三档固定电阻或输入自定义阻值测量温度");
             }
             catch (Exception ex)
             {
@@ -556,6 +573,106 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
+        {
+            CanMeasure = false;
+            _manualAborted = false;
+
+            _measured1 = false;
+            _measured2 = false;
+            _measured3 = false;
+
+            _temp1 = null;
+            _temp2 = null;
+            _temp3 = null;
+            _temp1B = null;
+            _temp2B = null;
+            _temp3B = null;
+            Temp1Text = "--";
+            Temp2Text = "--";
+            Temp3Text = "--";
+            Temp1BText = "--";
+            Temp2BText = "--";
+            Temp3BText = "--";
+            TempCustomText = "--";
+            TempCustomBText = "--";
+
+            Log("开始自动测试");
+
+            try
+            {
+                await EnsureRelay485Async(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await EnsureGroundDoAsync(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+                await EnsureResistanceAsync(cancellationToken).ConfigureAwait(false);
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = true;
+
+                await MeasurePointAsync(
+                        "763.3±2.0Ω",
+                        R1_Ohm,
+                        setTextA: t => Temp1Text = t,
+                        setValueA: v => _temp1 = v,
+                        setTextB: t => Temp1BText = t,
+                        setValueB: v => _temp1B = v,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
+                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+
+                await MeasurePointAsync(
+                        "1758.6±4.0Ω",
+                        R2_Ohm,
+                        setTextA: t => Temp2Text = t,
+                        setValueA: v => _temp2 = v,
+                        setTextB: t => Temp2BText = t,
+                        setValueB: v => _temp2B = v,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
+                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+
+                await MeasurePointAsync(
+                        "1155.4±1.6Ω",
+                        R3_Ohm,
+                        setTextA: t => Temp3Text = t,
+                        setValueA: v => _temp3 = v,
+                        setTextB: t => Temp3BText = t,
+                        setValueB: v => _temp3B = v,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
+
+                _measured1 = true;
+                _measured2 = true;
+                _measured3 = true;
+
+                await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
+                await StopAutoTestAsync().ConfigureAwait(false);
+                return LastTestResult;
+            }
+            catch (OperationCanceledException)
+            {
+                Log("自动测试已停止");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"自动测试异常: {ex.Message}");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 自动测试流程
+        /// 自动按点1->点2->点3顺序设置电阻并接收温度，三点都满足判据则“合格”。
+        /// </summary>
         private async Task OnAutoTestAsync()
         {
             if (IsAutoTestStopping)
@@ -584,15 +701,81 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _measured2 = false;
             _measured3 = false;
 
-            ResetPointDisplays();
+            _temp1 = null;
+            _temp2 = null;
+            _temp3 = null;
+            _temp1B = null;
+            _temp2B = null;
+            _temp3B = null;
+            Temp1Text = "--";
+            Temp2Text = "--";
+            Temp3Text = "--";
+            Temp1BText = "--";
+            Temp2BText = "--";
+            Temp3BText = "--";
+            TempCustomText = "--";
+            TempCustomBText = "--";
 
             _autoCts?.Cancel();
             _autoCts?.Dispose();
             _autoCts = new CancellationTokenSource();
 
+            Log("开始自动测试");
+
             try
             {
-                _ = await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
+                await EnsureRelay485Async(on: true, cancellationToken: _autoCts.Token).ConfigureAwait(false);
+                await EnsureGroundDoAsync(on: true, cancellationToken: _autoCts.Token).ConfigureAwait(false);
+                await EnsureArincRxAsync(_autoCts.Token).ConfigureAwait(false);
+                await EnsurePowerAsync(_autoCts.Token).ConfigureAwait(false);
+                await EnsureResistanceAsync(_autoCts.Token).ConfigureAwait(false);
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = true;
+
+                await MeasurePointAsync(
+                        "点1",
+                        R1_Ohm,
+                        setTextA: t => Temp1Text = t,
+                        setValueA: v => _temp1 = v,
+                        setTextB: t => Temp1BText = t,
+                        setValueB: v => _temp1B = v,
+                        cancellationToken: _autoCts.Token)
+                    .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return;
+                await Task.Delay(80, _autoCts.Token).ConfigureAwait(false);
+
+                await MeasurePointAsync(
+                        "点2",
+                        R2_Ohm,
+                        setTextA: t => Temp2Text = t,
+                        setValueA: v => _temp2 = v,
+                        setTextB: t => Temp2BText = t,
+                        setValueB: v => _temp2B = v,
+                        cancellationToken: _autoCts.Token)
+                    .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return;
+                await Task.Delay(80, _autoCts.Token).ConfigureAwait(false);
+
+                await MeasurePointAsync(
+                        "点3",
+                        R3_Ohm,
+                        setTextA: t => Temp3Text = t,
+                        setValueA: v => _temp3 = v,
+                        setTextB: t => Temp3BText = t,
+                        setValueB: v => _temp3B = v,
+                        cancellationToken: _autoCts.Token)
+                    .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return;
+
+                _measured1 = true;
+                _measured2 = true;
+                _measured3 = true;
+
+                await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
+                await StopAutoTestAsync().ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -611,110 +794,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
-        {
-            CanMeasure = false;
-            _manualAborted = false;
-
-            _measured1 = false;
-            _measured2 = false;
-            _measured3 = false;
-
-            ResetPointDisplays();
-
-            Log("开始自动测试");
-
-            try
-            {
-                await EnsureRelay485Async(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-                await EnsureGroundDoAsync(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-                await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
-                await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
-                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
-
-                IsAutoTestInitializing = false;
-                IsAutoTestRunning = true;
-
-                var ok1 = await MeasurePointAllSystemsAsync("0.5V", Point1VoltageV,
-                    setSys1: t => PressurePoint1Sys1Text = t,
-                    setSys2: t => PressurePoint1Sys2Text = t,
-                    setSys3: t => PressurePoint1Sys3Text = t,
-                    setV1: v => _p1Sys1 = v,
-                    setV2: v => _p1Sys2 = v,
-                    setV3: v => _p1Sys3 = v,
-                    cancellationToken).ConfigureAwait(false);
-                if (!IsAutoTestRunning)
-                    return CurrentTestResult ?? "--";
-
-                _measured1 = true;
-
-                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
-
-                var ok2 = await MeasurePointAllSystemsAsync("7.17V", Point2VoltageV,
-                    setSys1: t => PressurePoint2Sys1Text = t,
-                    setSys2: t => PressurePoint2Sys2Text = t,
-                    setSys3: t => PressurePoint2Sys3Text = t,
-                    setV1: v => _p2Sys1 = v,
-                    setV2: v => _p2Sys2 = v,
-                    setV3: v => _p2Sys3 = v,
-                    cancellationToken).ConfigureAwait(false);
-                if (!IsAutoTestRunning)
-                    return CurrentTestResult ?? "--";
-
-                _measured2 = true;
-
-                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
-
-                var ok3 = await MeasurePointAllSystemsAsync("3.0V", Point3VoltageV,
-                    setSys1: t => PressurePoint3Sys1Text = t,
-                    setSys2: t => PressurePoint3Sys2Text = t,
-                    setSys3: t => PressurePoint3Sys3Text = t,
-                    setV1: v => _p3Sys1 = v,
-                    setV2: v => _p3Sys2 = v,
-                    setV3: v => _p3Sys3 = v,
-                    cancellationToken).ConfigureAwait(false);
-                if (!IsAutoTestRunning)
-                    return CurrentTestResult ?? "--";
-
-                _measured3 = true;
-
-                await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
-                await StopAutoTestAsync().ConfigureAwait(false);
-
-                return LastTestResult;
-            }
-            catch (OperationCanceledException)
-            {
-                Log("自动测试已停止");
-                await StopAutoTestAsync().ConfigureAwait(false);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Log($"自动测试异常: {ex.Message}");
-                await StopAutoTestAsync().ConfigureAwait(false);
-                throw;
-            }
-        }
-
+        /// <summary>
+        /// 测量点1（手动模式）
+        /// </summary>
         private async Task OnMeasurePoint1Async()
         {
-            PressurePoint1Sys1Text = "--";
-            PressurePoint1Sys2Text = "--";
-            PressurePoint1Sys3Text = "--";
-            _p1Sys1 = null;
-            _p1Sys2 = null;
-            _p1Sys3 = null;
+            Temp1Text = "--";
+            Temp1BText = "--";
+            _temp1 = null;
+            _temp1B = null;
             CanMeasure = false;
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
-            var ok = await MeasurePointAllSystemsAsync("0.5V", Point1VoltageV,
-                setSys1: t => PressurePoint1Sys1Text = t,
-                setSys2: t => PressurePoint1Sys2Text = t,
-                setSys3: t => PressurePoint1Sys3Text = t,
-                setV1: v => _p1Sys1 = v,
-                setV2: v => _p1Sys2 = v,
-                setV3: v => _p1Sys3 = v,
-                _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+            var ok = await MeasurePointAsync(
+                    "点1",
+                    R1_Ohm,
+                    setTextA: t => Temp1Text = t,
+                    setValueA: v => _temp1 = v,
+                    setTextB: t => Temp1BText = t,
+                    setValueB: v => _temp1B = v,
+                    _manualCts?.Token ?? CancellationToken.None)
+                .ConfigureAwait(false);
             CanMeasure = IsManualTestRunning;
             if (!IsManualTestRunning || _manualAborted) return;
             _measured1 = true;
@@ -722,24 +820,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 测量点2（手动模式）
+        /// </summary>
         private async Task OnMeasurePoint2Async()
         {
-            PressurePoint2Sys1Text = "--";
-            PressurePoint2Sys2Text = "--";
-            PressurePoint2Sys3Text = "--";
-            _p2Sys1 = null;
-            _p2Sys2 = null;
-            _p2Sys3 = null;
+            Temp2Text = "--";
+            Temp2BText = "--";
+            _temp2 = null;
+            _temp2B = null;
             CanMeasure = false;
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
-            var ok = await MeasurePointAllSystemsAsync("7.17V", Point2VoltageV,
-                setSys1: t => PressurePoint2Sys1Text = t,
-                setSys2: t => PressurePoint2Sys2Text = t,
-                setSys3: t => PressurePoint2Sys3Text = t,
-                setV1: v => _p2Sys1 = v,
-                setV2: v => _p2Sys2 = v,
-                setV3: v => _p2Sys3 = v,
-                _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+            var ok = await MeasurePointAsync(
+                    "点2",
+                    R2_Ohm,
+                    setTextA: t => Temp2Text = t,
+                    setValueA: v => _temp2 = v,
+                    setTextB: t => Temp2BText = t,
+                    setValueB: v => _temp2B = v,
+                    _manualCts?.Token ?? CancellationToken.None)
+                .ConfigureAwait(false);
             CanMeasure = IsManualTestRunning;
             if (!IsManualTestRunning || _manualAborted) return;
             _measured2 = true;
@@ -747,24 +846,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 测量点3（手动模式）
+        /// </summary>
         private async Task OnMeasurePoint3Async()
         {
-            PressurePoint3Sys1Text = "--";
-            PressurePoint3Sys2Text = "--";
-            PressurePoint3Sys3Text = "--";
-            _p3Sys1 = null;
-            _p3Sys2 = null;
-            _p3Sys3 = null;
+            Temp3Text = "--";
+            Temp3BText = "--";
+            _temp3 = null;
+            _temp3B = null;
             CanMeasure = false;
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
-            var ok = await MeasurePointAllSystemsAsync("3.0V", Point3VoltageV,
-                setSys1: t => PressurePoint3Sys1Text = t,
-                setSys2: t => PressurePoint3Sys2Text = t,
-                setSys3: t => PressurePoint3Sys3Text = t,
-                setV1: v => _p3Sys1 = v,
-                setV2: v => _p3Sys2 = v,
-                setV3: v => _p3Sys3 = v,
-                _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+            var ok = await MeasurePointAsync(
+                    "点3",
+                    R3_Ohm,
+                    setTextA: t => Temp3Text = t,
+                    setValueA: v => _temp3 = v,
+                    setTextB: t => Temp3BText = t,
+                    setValueB: v => _temp3B = v,
+                    _manualCts?.Token ?? CancellationToken.None)
+                .ConfigureAwait(false);
             CanMeasure = IsManualTestRunning;
             if (!IsManualTestRunning || _manualAborted) return;
             _measured3 = true;
@@ -774,43 +874,50 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task OnMeasureCustomPointAsync()
         {
-            if (!TryGetValidatedCustomVoltage(out var voltage))
+            if (!TryGetValidatedCustomResistance(out var resistanceOhm))
             {
-                Log("自定义电压输入无效，请输入 0~7.17V，最多 2 位小数");
+                Log("自定义电阻输入无效，请输入 716.1~2146.7Ω，且最多 1 位小数");
                 RefreshMeasureCommands();
                 return;
             }
 
-            CustomPressureSys1Text = "--";
-            CustomPressureSys2Text = "--";
-            CustomPressureSys3Text = "--";
+            TempCustomText = "--";
+            TempCustomBText = "--";
             CanMeasure = false;
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
-            var ok = await MeasurePointAllSystemsAsync($"自定义点({voltage:0.##}V)", voltage,
-                setSys1: t => CustomPressureSys1Text = t,
-                setSys2: t => CustomPressureSys2Text = t,
-                setSys3: t => CustomPressureSys3Text = t,
-                setV1: v => { },
-                setV2: v => { },
-                setV3: v => { },
-                _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+            var ok = await MeasurePointAsync(
+                    $"自定义点({resistanceOhm:0.0}Ω)",
+                    resistanceOhm,
+                    setTextA: t => TempCustomText = t,
+                    setValueA: v => { },
+                    setTextB: t => TempCustomBText = t,
+                    setValueB: v => { },
+                    _manualCts?.Token ?? CancellationToken.None)
+                .ConfigureAwait(false);
             CanMeasure = IsManualTestRunning;
 
             if (!IsManualTestRunning || _manualAborted || !ok)
                 return;
 
-            Log($"自定义电压测量完成: {voltage:0.##}V，可继续测量");
+            Log($"自定义电阻测量完成: {resistanceOhm:0.0}Ω，可继续测量");
         }
 
-        private async Task<bool> MeasurePointAllSystemsAsync(
+        /// <summary>
+        /// 测量一个测试点（核心测量方法）
+        /// 流程：
+        /// 1) 设置程控电阻 RO0/RO1 为指定电阻，并等待稳定。
+        /// 2) 从 ARINC429 接收温度数据，过滤 Label=175(oct) 并分别统计 SDI0 与 SDI1。
+        /// 3) 每路采集 5 帧有效数据取平均值，写回界面显示并返回成功。
+        /// </summary>
+        /// <param name="title">点位名称（点1/点2/点3，用于日志）</param>
+        /// <param name="resistanceOhm">需要设置到电阻箱的阻值（Ω）</param>
+        /// <returns>true=成功采集到两路温度，false=超时/异常/被取消</returns>
+        private async Task<bool> MeasurePointAsync(
             string title,
-            double aoVoltage,
-            Action<string> setSys1,
-            Action<string> setSys2,
-            Action<string> setSys3,
-            Action<double?> setV1,
-            Action<double?> setV2,
-            Action<double?> setV3,
+            double resistanceOhm,
+            Action<string> setTextA,
+            Action<double?> setValueA,
+            Action<string> setTextB,
+            Action<double?> setValueB,
             CancellationToken cancellationToken)
         {
             if (!IsAutoTestRunning && !IsManualTestRunning)
@@ -822,20 +929,112 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await SetAo012Async(aoVoltage, cancellationToken).ConfigureAwait(false);
-                await Task.Delay(AoSettleMs, cancellationToken).ConfigureAwait(false);
-                _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
-                await Task.Delay(PostSwitchRxFlushMs, cancellationToken).ConfigureAwait(false);
+                Log($"{title}: 设置程控电阻 RO0/RO1={resistanceOhm:0.###}Ω");
+                await SetResistanceAsync(resistanceOhm, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(ResistanceSettleMs, cancellationToken).ConfigureAwait(false);
+                await DrainArincBufferAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TemperatureSettleMs, cancellationToken).ConfigureAwait(false);
 
-                return await MeasureAllSystemsAsync(
-                    title,
-                    setSys1,
-                    setSys2,
-                    setSys3,
-                    setV1,
-                    setV2,
-                    setV3,
-                    cancellationToken).ConfigureAwait(false);
+                var samplesA = new List<double>(SamplesPerMeasure);
+                var samplesB = new List<double>(SamplesPerMeasure);
+                var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
+
+                // 循环接收 ARINC429 数据直到采集足够样本或超时
+                while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
+                {
+                    var words = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 512, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (words.Count > 0)
+                    {
+                        foreach (var w in words)
+                        {
+                            _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out var ssm);
+
+                            // 只处理温度 Label（175(oct)）
+                            if (!IsExpectedLabel(label))
+                                continue;
+
+                            if (ssm != TempSsmNormal)
+                                continue;
+
+                            var v = DecodeTemp(data19);
+                            if (v == null)
+                                continue;
+
+                            if (wordSdi == TempChannel112To114Sdi)
+                            {
+                                if (samplesA.Count < SamplesPerMeasure)
+                                    samplesA.Add(v.Value);
+                                setTextA($"{v.Value:0} ℃");
+                            }
+                            else if (wordSdi == TempChannel116To118Sdi)
+                            {
+                                if (samplesB.Count < SamplesPerMeasure)
+                                    samplesB.Add(v.Value);
+                                setTextB($"{v.Value:0} ℃");
+                            }
+                            else
+                            {
+                                continue;
+                            }
+
+                            if (samplesA.Count >= SamplesPerMeasure && samplesB.Count >= SamplesPerMeasure)
+                            {
+                                var avgA = samplesA.Average();
+                                var avgB = samplesB.Average();
+
+                                setValueA(avgA);
+                                setValueB(avgB);
+
+                                setTextA($"{avgA:0} ℃");
+                                setTextB($"{avgB:0} ℃");
+
+                                Log($"{title}: 完成，针脚112~114={avgA:0.###}℃ 针脚112~114={avgB:0.###}℃");
+                                return true;
+                            }
+                        }
+                    }
+
+                    await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+                }
+
+                setTextA("超时");
+                setValueA(null);
+
+                setTextB("超时");
+                setValueB(null);
+
+                if (IsManualTestRunning)
+                {
+                    Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效温度数据");
+                }
+                else if (IsAutoTestRunning)
+                {
+                    Log($"{title}: 接收超时，未获取到{SamplesPerMeasure}帧有效温度数据");
+                }
+
+                return false;
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
+            catch (Exception ex)
+            {
+                setTextA("--");
+                setValueA(null);
+                setTextB("--");
+                setValueB(null);
+                if (IsManualTestRunning)
+                {
+                    await AbortManualTestAsync($"{title}: 采集异常，手动测试中止: {ex.Message}").ConfigureAwait(false);
+                }
+                else if (IsAutoTestRunning)
+                {
+                    await AbortAutoTestAsync($"{title}: 采集异常，自动测试中止: {ex.Message}").ConfigureAwait(false);
+                }
+                return false;
             }
             finally
             {
@@ -843,189 +1042,74 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        private sealed class PressureMeasureState
+        /// <summary>
+        /// 判断当前 ARINC429 Label 是否为温度 Label（兼容字节序反转）
+        /// </summary>
+        private async Task DrainArincBufferAsync(CancellationToken cancellationToken)
         {
-            public PressureMeasureState(string title, byte sdi, Action<string> setText, Action<double?> setValue)
+            for (int i = 0; i < 100; i++)
             {
-                Title = title;
-                Sdi = sdi;
-                SetText = setText;
-                SetValue = setValue;
+                var batch = await _arinc.ReadRxWordsAsync(
+                    RxChannelIndex, maxCount: 4096,
+                    enableTimeTag: false, enableRateAdaption: false,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (batch.Count == 0)
+                    break;
             }
-
-            public string Title { get; }
-            public byte Sdi { get; }
-            public Action<string> SetText { get; }
-            public Action<double?> SetValue { get; }
-            public List<double> Samples { get; } = new List<double>(SamplesPerMeasure);
-            public bool Completed { get; set; }
         }
-
-        private async Task<bool> MeasureAllSystemsAsync(
-            string title,
-            Action<string> setSys1,
-            Action<string> setSys2,
-            Action<string> setSys3,
-            Action<double?> setV1,
-            Action<double?> setV2,
-            Action<double?> setV3,
-            CancellationToken cancellationToken)
-        {
-            var states = new[]
-            {
-                new PressureMeasureState($"{title}-SYS1", 1, setSys1, setV1),
-                new PressureMeasureState($"{title}-SYS2", 2, setSys2, setV2),
-                new PressureMeasureState($"{title}-SYS3", 3, setSys3, setV3),
-            };
-
-            foreach (var state in states)
-                Log($"{state.Title}: 开始接收压力数据");
-
-            var stateBySdi = states.ToDictionary(x => x.Sdi);
-            var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
-
-            while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
-            {
-                var words = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 512, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (words.Count > 0)
-                {
-                    foreach (var w in words)
-                    {
-                        _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out var ssm);
-
-                        if (!IsExpectedLabel(label))
-                            continue;
-
-                        if (!stateBySdi.TryGetValue(wordSdi, out var state) || state.Completed)
-                            continue;
-
-                        if (ssm != SsmNormal)
-                            continue;
-
-                        var value = DecodePressure(data19);
-                        state.Samples.Add(value);
-
-                        var avg = state.Samples.Average();
-                        state.SetText($"{value:0.0}");
-
-                        if (state.Samples.Count >= SamplesPerMeasure)
-                        {
-                            state.SetValue(avg);
-                            state.SetText($"{avg:0.0}");
-                            state.Completed = true;
-                            Log($"{state.Title}: 完成，压力={avg:0.###}");
-                        }
-                    }
-
-                    if (states.All(x => x.Completed))
-                        return true;
-                }
-
-                await Task.Delay(10, cancellationToken).ConfigureAwait(false);
-            }
-
-            foreach (var state in states.Where(x => !x.Completed))
-            {
-                state.SetText("超时");
-                state.SetValue(null);
-
-                if (IsManualTestRunning)
-                {
-                    Log($"{state.Title}: 接收超时，未获取到{SamplesPerMeasure}帧有效压力数据");
-                }
-                else if (IsAutoTestRunning)
-                {
-                    Log($"{state.Title}: 接收超时，未获取到{SamplesPerMeasure}帧有效压力数据");
-                }
-            }
-
-            return states.All(x => x.Completed);
-        }
-
         private bool IsExpectedLabel(byte label)
         {
-            return _arinc.ReverseLabel(label) == PressLabelDec;
+            return _arinc.ReverseLabel(label) == TempLabelDec;
         }
 
-        private double DecodePressure(uint data19)
+        /// <summary>
+        /// 解码温度值（BNR：有符号二进制数）
+        /// </summary>
+        private double? DecodeTemp(uint data19)
         {
-            var value = _arinc.DecodeUbnr(data19, bitLength: PressureBitLength, resolution: 1.0, msbPosition: 27);
-            return Math.Round(value, 1, MidpointRounding.AwayFromZero);
+            var value = _arinc.DecodeBnr(data19, bitLength: TempBnrBitLength, resolution: TempResolution, msbPosition: TempMsbPosition);
+            return Math.Round(value, 0, MidpointRounding.AwayFromZero);
         }
 
-        private static bool IsPressureWithinRange(double? value, double min, double max)
-        {
-            return value.HasValue && value.Value >= min && value.Value <= max;
-        }
-
+        /// <summary>
+        /// 当三点都已测量完成时，按阈值范围判定结果，并更新“上次/本次”测试结论。
+        /// </summary>
         private async Task TryFinalizeIfAllMeasuredAsync()
         {
             if (!(_measured1 && _measured2 && _measured3))
                 return;
 
+            var p1a = _temp1 != null && _temp1 >= T1_Min && _temp1 <= T1_Max;
+            var p1b = _temp1B != null && _temp1B >= T1_Min && _temp1B <= T1_Max;
+            var p2a = _temp2 != null && _temp2 >= T2_Min && _temp2 <= T2_Max;
+            var p2b = _temp2B != null && _temp2B >= T2_Min && _temp2B <= T2_Max;
+            var p3a = _temp3 != null && _temp3 >= T3_Min && _temp3 <= T3_Max;
+            var p3b = _temp3B != null && _temp3B >= T3_Min && _temp3B <= T3_Max;
+
+            var p1 = p1a && p1b;
+            var p2 = p2a && p2b;
+            var p3 = p3a && p3b;
+            var pass = p1 && p2 && p3;
+
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-
-            const double P1Min = 0.0;
-            const double P1Max = 85.0;
-            const double P2Min = 3915.0;
-            const double P2Max = 4000.0;
-            const double P3Min = 1414.0;
-            const double P3Max = 1585.0;
-
-            var failures = new List<string>();
-
-            void Check(string name, double? value, double min, double max)
-            {
-                if (!value.HasValue)
-                {
-                    failures.Add($"{name}=--");
-                    return;
-                }
-
-                var v = value.Value;
-                if (v < min || v > max)
-                {
-                    failures.Add($"{name}={v:0.###}psi not in [{min:0.###},{max:0.###}]");
-                }
-            }
-
-            Check("P1-SYS1", _p1Sys1, P1Min, P1Max);
-            Check("P1-SYS2", _p1Sys2, P1Min, P1Max);
-            Check("P1-SYS3", _p1Sys3, P1Min, P1Max);
-
-            Check("P2-SYS1", _p2Sys1, P2Min, P2Max);
-            Check("P2-SYS2", _p2Sys2, P2Min, P2Max);
-            Check("P2-SYS3", _p2Sys3, P2Min, P2Max);
-
-            Check("P3-SYS1", _p3Sys1, P3Min, P3Max);
-            Check("P3-SYS2", _p3Sys2, P3Min, P3Max);
-            Check("P3-SYS3", _p3Sys3, P3Min, P3Max);
-
-            var resultText = failures.Count == 0 ? "合格" : "不合格";
+            var resultText = pass ? "合格" : "不合格";
             CurrentTestResult = resultText;
             PreviousTestTime = now;
             PreviousTestResult = resultText;
             LastTestTime = now;
             LastTestResult = resultText;
 
-            if (failures.Count == 0)
-            {
-                Log("自动判定: 合格 (三档位三路压力均在范围内)");
-            }
-            else
-            {
-                Log("自动判定: 不合格");
-                foreach (var f in failures)
-                {
-                    Log($"判据不满足: {f}");
-                }
-            }
-
             SaveTestResultToProject();
+
+            Log($"判据: 763.3±2.0Ω => [{T1_Min:0.###},{T1_Max:0.###}] => {FormatBool(p1)}");
+            Log($"判据: 1758.6±4.0Ω => [{T2_Min:0.###},{T2_Max:0.###}] => {FormatBool(p2)}");
+            Log($"判据: 1155.4±1.6Ω => [{T3_Min:0.###},{T3_Max:0.###}] => {FormatBool(p3)}");
+            Log($"测试结果: {resultText}");
         }
 
+        /// <summary>
+        /// 中止手动测试（通常用于初始化失败、采集超时、采集异常等）
+        /// </summary>
         private async Task AbortManualTestAsync(string reason)
         {
             _manualAborted = true;
@@ -1047,6 +1131,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await StopAutoTestAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 停止手动测试并释放硬件资源（关闭电源输出、停止 ARINC429 接收、断开电阻箱）
+        /// </summary>
         private async Task StopManualTestAsync()
         {
             if (IsManualTestStopping)
@@ -1081,6 +1168,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        /// <summary>
+        /// 停止自动测试并释放硬件资源
+        /// </summary>
         private async Task StopAutoTestAsync()
         {
             if (IsAutoTestStopping)
@@ -1114,8 +1204,82 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        private string NormalizeResistanceInput(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            var sanitized = value.Replace("Ω", string.Empty).Replace("ω", string.Empty).Trim();
+            sanitized = sanitized.Replace(',', '.');
+
+            var chars = new List<char>(sanitized.Length);
+            var hasDot = false;
+            var decimalCount = 0;
+            foreach (var ch in sanitized)
+            {
+                if (char.IsDigit(ch))
+                {
+                    if (hasDot)
+                    {
+                        if (decimalCount >= 1)
+                            continue;
+
+                        decimalCount++;
+                    }
+
+                    chars.Add(ch);
+                    continue;
+                }
+
+                if (ch == '.' && !hasDot)
+                {
+                    hasDot = true;
+                    chars.Add(ch);
+                }
+            }
+
+            return new string(chars.ToArray());
+        }
+
+        private bool TryGetValidatedCustomResistance(out double resistanceOhm)
+        {
+            resistanceOhm = 0;
+            var text = NormalizeResistanceInput(CustomResistanceInput);
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            if (text.EndsWith(".", StringComparison.Ordinal))
+                text = text.TrimEnd('.');
+
+            if (!double.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out resistanceOhm))
+                return false;
+
+            resistanceOhm = Math.Truncate(resistanceOhm * 10d) / 10d;
+            return resistanceOhm >= 716.1d && resistanceOhm <= 2146.7d;
+        }
+
+        /// <summary>
+        /// 清理硬件资源（ARINC429、电源、程控电阻箱）
+        /// 这里使用大量 try-catch，目的是：即使某个设备清理失败，也尽量继续清理其它设备。
+        /// </summary>
         private async Task CleanupIoAsync()
         {
+            try
+            {
+                if (_res != null)
+                {
+                    try { await SetResistanceOpenCircuitAsync(true, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _res.DisconnectAsync().ConfigureAwait(false); } catch { }
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                _res = null;
+            }
+
             try
             {
                 if (_power != null)
@@ -1130,24 +1294,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             finally
             {
                 _power = null;
-            }
-
-            try
-            {
-                if (_mtx532 != null)
-                {
-                    try { await _mtx532.StopOutputAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _mtx532.ResetAllToZeroAsync(disableAfterReset: true, cancellationToken: CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _mtx532.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _mtx532.DisposeAsync().ConfigureAwait(false); } catch { }
-                }
-            }
-            catch
-            {
-            }
-            finally
-            {
-                _mtx532 = null;
             }
 
             try
@@ -1170,10 +1316,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
+                await EnsureGroundDoAsync(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                await EnsureRelay485Async(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+
+            try
+            {
                 if (_jy7131 != null)
                 {
-                    try { await WriteInitDosAsync(false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _jy7131.SetRelayAsync(Relay485ChannelIndex, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _jy7131.StopAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _jy7131.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _jy7131.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
@@ -1187,148 +1348,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 _isRelay485On = false;
             }
         }
-
-        private void ResetPointDisplays()
-        {
-            _p1Sys1 = null;
-            _p1Sys2 = null;
-            _p1Sys3 = null;
-            _p2Sys1 = null;
-            _p2Sys2 = null;
-            _p2Sys3 = null;
-            _p3Sys1 = null;
-            _p3Sys2 = null;
-            _p3Sys3 = null;
-
-            PressurePoint1Sys1Text = "--";
-            PressurePoint1Sys2Text = "--";
-            PressurePoint1Sys3Text = "--";
-            PressurePoint2Sys1Text = "--";
-            PressurePoint2Sys2Text = "--";
-            PressurePoint2Sys3Text = "--";
-            PressurePoint3Sys1Text = "--";
-            PressurePoint3Sys2Text = "--";
-            PressurePoint3Sys3Text = "--";
-            CustomPressureSys1Text = "--";
-            CustomPressureSys2Text = "--";
-            CustomPressureSys3Text = "--";
-        }
-
-        private string NormalizeVoltageInput(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return string.Empty;
-
-            var sanitized = value.Replace("V", string.Empty).Replace("v", string.Empty).Trim();
-            sanitized = sanitized.Replace(',', '.');
-
-            var chars = new List<char>(sanitized.Length);
-            var hasDot = false;
-            var decimalCount = 0;
-            foreach (var ch in sanitized)
-            {
-                if (char.IsDigit(ch))
-                {
-                    if (hasDot)
-                    {
-                        if (decimalCount >= 2)
-                            continue;
-
-                        decimalCount++;
-                    }
-
-                    chars.Add(ch);
-                    continue;
-                }
-
-                if (ch == '.' && !hasDot)
-                {
-                    hasDot = true;
-                    chars.Add(ch);
-                }
-            }
-
-            return new string(chars.ToArray());
-        }
-
-        private bool TryGetValidatedCustomVoltage(out double voltage)
-        {
-            voltage = 0;
-            var text = NormalizeVoltageInput(CustomVoltageInput);
-            if (string.IsNullOrWhiteSpace(text))
-                return false;
-
-            if (text.EndsWith(".", StringComparison.Ordinal))
-                text = text.TrimEnd('.');
-
-            if (!double.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out voltage))
-                return false;
-
-            voltage = Math.Truncate(voltage * 100d) / 100d;
-            return voltage >= 0d && voltage <= 7.17d;
-        }
-
-        private async Task EnsurePowerAsync(CancellationToken cancellationToken)
-        {
-            if (!_hydraulicPowerService.IsHydraulicPowered)
-            {
-                await _hydraulicPowerService.PowerOnAsync(null, cancellationToken).ConfigureAwait(false);
-            }
-            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
-        }
-
-        private async Task EnsureMtx532Async(CancellationToken cancellationToken)
-        {
-            if (_mtx532 != null && _mtx532.IsConnected)
-                return;
-
-            var device = FindFirstMtx532Device();
-            if (device == null)
-                throw new InvalidOperationException("未找到MTX532(模拟量输出)板卡");
-
-            var slot = device is PxiDeviceBase pxi ? pxi.SlotIndex : 7;
-            async Task ConnectAndStartAsync()
-            {
-                _mtx532 = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 20000.0 }, slotNumber: slot);
-
-                await _mtx532.ConnectAsync(cancellationToken, new[] { "AO0", "AO1", "AO2", "AO3", "AO4", "AO5" }).ConfigureAwait(false);
-                await SetAo012Async(0.0, cancellationToken).ConfigureAwait(false);
-                await Task.Delay(300, cancellationToken).ConfigureAwait(false);
-                await WaitForMtx532ReadyAsync(cancellationToken).ConfigureAwait(false);
-                await _mtx532.StartOutputAsync(cancellationToken).ConfigureAwait(false);
-                await Task.Delay(300, cancellationToken).ConfigureAwait(false);
-            }
-
-            async Task CleanupMtxAfterFailureAsync()
-            {
-                if (_mtx532 == null)
-                {
-                    return;
-                }
-
-                try { await _mtx532.StopOutputAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                try { await _mtx532.ResetAllToZeroAsync(disableAfterReset: true, cancellationToken: CancellationToken.None).ConfigureAwait(false); } catch { }
-                try { await _mtx532.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                try { await _mtx532.DisposeAsync().ConfigureAwait(false); } catch { }
-                _mtx532 = null;
-            }
-
-            try
-            {
-                Log("HC_6_4: 正在初始化MTX532");
-                await ConnectAndStartAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex) when (!(ex is OperationCanceledException))
-            {
-                Log($"HC_6_4: MTX532首次初始化失败，准备重试。原因: {ex.Message}");
-                await CleanupMtxAfterFailureAsync().ConfigureAwait(false);
-                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
-
-                Log("HC_6_4: 正在重试初始化MTX532");
-                await ConnectAndStartAsync().ConfigureAwait(false);
-            }
-        }
-
         private async Task EnsureRelay485Async(bool on, CancellationToken cancellationToken)
         {
             await _relayLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -1429,28 +1448,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task WriteInitDosAsync(bool on, CancellationToken cancellationToken)
         {
             await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
-
         }
 
-        private async Task WaitForMtx532ReadyAsync(CancellationToken cancellationToken)
+        /// <summary>
+        /// 确保程控电源已连接并输出 28V（CH1）
+        /// </summary>
+        private async Task EnsurePowerAsync(CancellationToken cancellationToken)
         {
-            if (_mtx532 == null || !_mtx532.IsConnected)
-                throw new InvalidOperationException("MTX532未连接");
-
-            var deadline = DateTime.UtcNow.AddMilliseconds(Mtx532ReadyTimeoutMs);
-            while (DateTime.UtcNow <= deadline)
+            if (!_hydraulicPowerService.IsHydraulicPowered)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (await _mtx532.CanStartOutputAsync(cancellationToken).ConfigureAwait(false))
-                    return;
-
-                await Task.Delay(Mtx532ReadyPollMs, cancellationToken).ConfigureAwait(false);
+                await _hydraulicPowerService.PowerOnAsync(null, cancellationToken).ConfigureAwait(false);
             }
-
-            throw new InvalidOperationException("MTX532已连接，但在等待超时前仍未准备好输出");
+            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 确保 ARINC429 接收通道已打开并开始接收（Odd parity, 标准 429 格式）
+        /// </summary>
         private async Task EnsureArincRxAsync(CancellationToken cancellationToken)
         {
             if (_arinc == null)
@@ -1480,24 +1494,63 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
-        private async Task SetAo012Async(double voltageV, CancellationToken cancellationToken)
+        /// <summary>
+        /// 确保程控电阻箱已连接，并初始化为 0Ω
+        /// </summary>
+        private async Task EnsureResistanceAsync(CancellationToken cancellationToken)
         {
-            if (_mtx532 == null || !_mtx532.IsConnected)
-                throw new InvalidOperationException("MTX532未连接");
+            if (_res != null && _res.IsConnected)
+                return;
 
-            var halfVoltage = voltageV;
-            await _mtx532.WriteOnceDcAsync(new Dictionary<string, double>
-            {
-                ["AO0"] = halfVoltage,
-                ["AO1"] = 0.0,
-                ["AO2"] = halfVoltage,
-                ["AO3"] = 0.0,
-                ["AO4"] = halfVoltage,
-                ["AO5"] = 0.0,
+            var device = FindFirstActs6010Device();
+            if (device == null)
+                throw new InvalidOperationException("未找到ACTS6010(程控电阻)板卡");
 
-            }, cancellationToken).ConfigureAwait(false);
+            _res = new ACTS6010Driver(device, logicalId: 1);
+            var ok = await _res.ConnectAsync().ConfigureAwait(false);
+            if (!ok)
+                throw new InvalidOperationException("ACTS6010连接失败");
+
+            await SetResistanceOpenCircuitAsync(false, cancellationToken).ConfigureAwait(false);
+            await SetResistanceAsync(0.0, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 设置程控电阻箱阻值（同时设置 RO0 与 RO1）
+        /// </summary>
+        private async Task SetResistanceAsync(double resistanceOhm, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (_res == null || !_res.IsConnected)
+                throw new InvalidOperationException("ACTS6010未连接");
+
+            var ok0 = await _res.WriteChannelAsync("RO0", resistanceOhm).ConfigureAwait(false);
+            var ok1 = await _res.WriteChannelAsync("RO1", resistanceOhm).ConfigureAwait(false);
+            if (!(ok0 && ok1))
+                throw new InvalidOperationException("设置ACTS6010阻值失败");
+        }
+
+        private async Task SetResistanceOpenCircuitAsync(bool openCircuit, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (_res == null || !_res.IsConnected)
+                throw new InvalidOperationException("ACTS6010未连接");
+
+            var pathRelayClosed = !openCircuit;
+            var shortCircuitClosed = false;
+
+            var ok0 = await _res.SetRelayStateAsync("RO0", pathRelayClosed, shortCircuitClosed).ConfigureAwait(false);
+            var ok1 = await _res.SetRelayStateAsync("RO1", pathRelayClosed, shortCircuitClosed).ConfigureAwait(false);
+            if (!(ok0 && ok1))
+                throw new InvalidOperationException(openCircuit ? "恢复ACTS6010断路状态失败" : "取消ACTS6010断路状态失败");
+
+        }
+
+        /// <summary>
+        /// 在 PXI 机箱中查找 ARINC429 板卡（4227/4229）
+        /// </summary>
         private DeviceBase FindFirstArincDevice()
         {
             var chassisList = _pxiChassisService?.GetAllChassis();
@@ -1543,17 +1596,39 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return null;
         }
 
-        private DeviceBase FindFirstMtx532Device()
+        /// <summary>
+        /// 在 PXI 机箱中查找 ACTS6010 程控电阻箱设备
+        /// </summary>
+        private DeviceBase FindFirstActs6010Device()
         {
             var chassisList = _pxiChassisService?.GetAllChassis();
             if (chassisList == null)
                 return null;
 
+            var preferredChassisName = _singleBoardTestContext?.ChassisName;
+
+            foreach (var chassis in chassisList)
+            {
+                if (!string.IsNullOrWhiteSpace(preferredChassisName) &&
+                    !string.Equals(chassis?.Name, preferredChassisName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var typedDevice = chassis?.Devices?.FirstOrDefault(d => d is ProgrammableResistorDevice);
+                if (typedDevice != null)
+                    return typedDevice;
+            }
+
             foreach (var chassis in chassisList)
             {
                 var device = chassis?.Devices?.FirstOrDefault(d =>
-                    (d?.Model?.IndexOf("X532", StringComparison.OrdinalIgnoreCase) >= 0) ||
-                    (d?.Name?.IndexOf("mtx532", StringComparison.OrdinalIgnoreCase) >= 0));
+                    (d is ProgrammableResistorDevice) ||
+                    (d?.Model?.IndexOf("7012", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.Model?.IndexOf("ACTS", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceType?.IndexOf("resistor", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.Name?.IndexOf("6010", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.Name?.IndexOf("ACTS", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.CardName?.IndexOf("6010", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.CardName?.IndexOf("ACTS", StringComparison.OrdinalIgnoreCase) >= 0));
 
                 if (device != null)
                     return device;
@@ -1562,6 +1637,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return null;
         }
 
+        /// <summary>
+        /// 记录日志到界面
+        /// </summary>
         private void Log(string message)
         {
             if (string.IsNullOrWhiteSpace(message))
@@ -1573,11 +1651,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var dispatcher = Application.Current?.Dispatcher;
             if (dispatcher != null && !dispatcher.CheckAccess())
             {
-                dispatcher.BeginInvoke(new Action(() => Logs.Add(line)));
+                dispatcher.Invoke(() => Logs.Add(line));
                 return;
             }
 
             Logs.Add(line);
         }
+
+        private static string FormatBool(bool value) => value ? "合格" : "不合格";
     }
 }

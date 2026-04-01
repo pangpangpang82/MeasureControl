@@ -3,14 +3,15 @@ using Prism.Mvvm;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Globalization;
+using MeasureControl.Drivers;
+using MeasureControl.Events;
 using MeasureControl.Models.Devices;
 using MeasureControl.Models.Devices.DeviceCategories;
-using MeasureControl.Events;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
 using Prism.Events;
@@ -18,64 +19,47 @@ using Prism.Ioc;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
+    /// <summary>
+    /// HC_6_5 测试项：压力信号测试（压力传感器校验）
+    /// 测试目的：通过 MTX532 模拟量输出板卡输出特定电压，模拟压力传感器信号，
+    ///          再从 ARINC429 总线接收压力数据，验证三路压力系统（SDI0/1/2）是否正确。
+    /// 测试方法：
+    /// 1) 给被测板供电 28V。
+    /// 2) MTX532 的 AO1/AO2/AO3 同时输出指定电压（点1: 0.5V, 点2: 7.17V, 点3: 3.0V）。
+    /// 3) 从 ARINC429 接收压力 Label=174(oct)（十进制 124）数据，分别统计 SDI0/1/2（对应 SYS1/2/3）。
+    /// 4) 每路采集 5 帧有效数据取平均值，并与阈值范围比对，给出“合格/不合格”。
+    /// </summary>
     public class HC_6_5ViewModel : BindableBase
     {
+        // 电源配置（给被测板供电）
         private const string PowerSupplyIpAddress = "192.168.1.15";
-        private const string AuxiliaryPowerSupplyIpAddress = "192.168.1.16";
-        private const double AuxiliaryInputVoltageV = 24.0;
-        private const double AuxiliaryInputCurrentA = 1.0;
         private const double InputVoltageV = 28.0;
         private const double InputCurrentA = 1;
 
+        // ARINC429 接收配置
         private const int RxChannelIndex = 2;
         private const double ArincRate = 100000.0;
 
-        private const int Relay485ChannelIndex = 6;
-        private const int RelayAuxDoIndex = 25;
-        //private const int RelayGroundDoIndex = 26;
-        private const int RelayEnableDoIndex = 27;
+        // 压力数据定义（Label=174(oct) 即十进制 124）
+        private const byte PressLabelDec = 124; // 174(oct)
+        private const string TestItemName = "压力信号测试";
+        private const int PressureBitLength = 12;
 
-        private const string PressureUnit = "Psid";
-        private const int SamplesPerMeasure = 1;
-        private const int SampleTimeoutMs = 3000;
-        private const int AoSettleMs = 800;
+        // 协议规定 SSM=0 为正常数据
+        private const byte SsmNormal = 3;
+
+        // 采样参数
+        private const int SamplesPerMeasure = 1;      // 每路采集 3 帧取平均
+        private const int SampleTimeoutMs = 3000;     // 采样超时 5 秒
+        private const int AoSettleMs = 800;            // 模拟量输出稳定等待时间
         private const int Mtx532ReadyTimeoutMs = 6000;
         private const int Mtx532ReadyPollMs = 200;
         private const int PostSwitchRxFlushMs = 120;
 
-        private const double Current4mA = 4.0;
-        private const double Current20mA = 20.0;
-        private const double Current10mA = 10.0;
-        private const double CustomCurrentMinmA = 0.0;
-        private const double CustomCurrentMaxmA = 42.0;
-        private const double Range4mAMin = 0.0;
-        private const double Range4mAMax = 3.4;
-        private const double Range20mAMin = 121.5;
-        private const double Range20mAMax = 128.4;
-        private const double Range10mAMin = 43.44;
-        private const double Range10mAMax = 50.31;
-
-        private const byte LabelDptRfDec = 56;
-        private const byte LabelDptEdpDec = 57;
-        private const byte LabelDptSysDec = 58;
-        private const byte LabelDptEmpDec = 59;
-        private const byte SsmNormal = 1;
-
-        private const int DataBitLength = 9;
-        private const double DataResolution = 1.0;
-        private const int DataMsbPosition = 27;
-
-        private static readonly string[] AoChannels = { "AO6", "AO7", "AO8", "AO9", "AO10", "AO11" };
-
-        private static readonly DptChannelDefinition[] DptChannels =
-        {
-            new DptChannelDefinition("RX", "EDP2", "DPT_EDP2", LabelDptEdpDec, 2),
-            new DptChannelDefinition("RX", "EMP2B", "DPT_EMP2B", LabelDptEmpDec, 2),
-            new DptChannelDefinition("RX", "EMP3B", "DPT_EMP3B", LabelDptEmpDec, 3),
-            new DptChannelDefinition("RX", "RF2", "DPT_RF2", LabelDptRfDec, 2),
-            new DptChannelDefinition("RX", "SYS2", "DPT_SYS2", LabelDptSysDec, 2),
-            new DptChannelDefinition("RX", "SYS3", "DPT_SYS3", LabelDptSysDec, 3),
-        };
+        // 三个测试点对应的模拟电压（由 MTX532 输出到压力传感器模拟通道）
+        private const double Point1VoltageV = 0.5;    // 点1: 0.5V
+        private const double Point2VoltageV = 7.17;   // 点2: 7.17V
+        private const double Point3VoltageV = 3.0;    // 点3: 3.0V
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _relayLock = new SemaphoreSlim(1, 1);
@@ -87,13 +71,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private CancellationTokenSource _autoCts;
 
         private IPowerSupplyApi _power;
-        private IPowerSupplyApi _auxPower;
         private IArt4229Api _arinc;
         private IMtx532Api _mtx532;
-        private IJy7131Api _jy7131;
+        private Jy7131Api _jy7131;
         private bool _isRelay485On;
 
-        private const string TestItemName = "压差传感器信号采集测试";
+        private const int Relay485ChannelIndex = 6;
+        private const int RelayAuxDoIndex = 25;
+        //private const int RelayGroundDoIndex = 26;
+
+        private bool _measured1;
+        private bool _measured2;
+        private bool _measured3;
+        private bool _manualAborted;
+        private bool _historyLoaded;
 
         private bool _isManualTestRunning;
         private bool _isAutoTestRunning;
@@ -103,68 +94,37 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private bool _isAutoTestStopping;
         private bool _canMeasure;
 
-        private bool _measured4mA;
-        private bool _measured20mA;
-        private bool _measured10mA;
-        private bool _passed4mA;
-        private bool _passed20mA;
-        private bool _passed10mA;
-        private bool _manualAborted;
-        private bool _historyLoaded;
-        private int _selectedTabIndex;
-
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
         private string _previousTestTime = "--";
         private string _previousTestResult = "--";
         private string _currentTestResult = "--";
 
-        private string _DptEdp24mAText = "--";
-        private string _dptEmp2B4mAText = "--";
-        private string _dptEmp3B4mAText = "--";
-        private string _dptSys14mAText = "--";
-        private string _dptSys24mAText = "--";
-        private string _dptSys34mAText = "--";
+        private string _p1Sys1Text = "--";
+        private string _p1Sys2Text = "--";
+        private string _p1Sys3Text = "--";
 
-        private string _dptEdp2A20mAText = "--";
-        private string _dptEmp2B20mAText = "--";
-        private string _dptEmp3B20mAText = "--";
-        private string _dptSys120mAText = "--";
-        private string _dptSys220mAText = "--";
-        private string _dptSys320mAText = "--";
+        private string _p2Sys1Text = "--";
+        private string _p2Sys2Text = "--";
+        private string _p2Sys3Text = "--";
 
-        private string _dptEdp2A10mAText = "--";
-        private string _dptEmp2B10mAText = "--";
-        private string _dptEmp3B10mAText = "--";
-        private string _dptSys110mAText = "--";
-        private string _dptSys210mAText = "--";
-        private string _dptSys310mAText = "--";
+        private string _p3Sys1Text = "--";
+        private string _p3Sys2Text = "--";
+        private string _p3Sys3Text = "--";
+        private string _customSys1Text = "--";
+        private string _customSys2Text = "--";
+        private string _customSys3Text = "--";
+        private string _customVoltageInput = "3.0";
 
-        private string _dptEdp2CustommAText = "--";
-        private string _dptEmp2BCustommAText = "--";
-        private string _dptEmp3BCustommAText = "--";
-        private string _dptSys1CustommAText = "--";
-        private string _dptSys2CustommAText = "--";
-        private string _dptSys3CustommAText = "--";
-        private string _customCurrentInput = "10.0";
-
-        private sealed class DptChannelDefinition
-        {
-            public DptChannelDefinition(string group, string slotKey, string channelName, byte label, byte sdi)
-            {
-                Group = group;
-                SlotKey = slotKey;
-                ChannelName = channelName;
-                Label = label;
-                Sdi = sdi;
-            }
-
-            public string Group { get; }
-            public string SlotKey { get; }
-            public string ChannelName { get; }
-            public byte Label { get; }
-            public byte Sdi { get; }
-        }
+        private double? _p1Sys1;
+        private double? _p1Sys2;
+        private double? _p1Sys3;
+        private double? _p2Sys1;
+        private double? _p2Sys2;
+        private double? _p2Sys3;
+        private double? _p3Sys1;
+        private double? _p3Sys2;
+        private double? _p3Sys3;
 
         public HC_6_5ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IHydraulicPowerService hydraulicPowerService)
         {
@@ -174,17 +134,71 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
-            Measure14Command = new DelegateCommand(async () => await OnMeasure14Async(), () => CanMeasure14);
-            MeasureCustomCurrentCommand = new DelegateCommand(async () => await OnMeasureCustomCurrentAsync(), () => CanMeasureCustomCurrent);
+
+            MeasurePoint1Command = new DelegateCommand(async () => await OnMeasurePoint1Async(), () => CanMeasurePoint1);
+            MeasurePoint2Command = new DelegateCommand(async () => await OnMeasurePoint2Async(), () => CanMeasurePoint2);
+            MeasurePoint3Command = new DelegateCommand(async () => await OnMeasurePoint3Async(), () => CanMeasurePoint3);
+            MeasureCustomPointCommand = new DelegateCommand(async () => await OnMeasureCustomPointAsync(), () => CanMeasureCustomPoint);
+
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
             LoadLastTestResultFromProject();
         }
 
+        private void LoadLastTestResultFromProject()
+        {
+            if (_historyLoaded)
+                return;
+
+            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
+            if (testItemNode != null)
+            {
+                if (!string.IsNullOrWhiteSpace(testItemNode.LastTestTime))
+                {
+                    _previousTestTime = testItemNode.LastTestTime;
+                    RaisePropertyChanged(nameof(PreviousTestTime));
+                }
+                if (!string.IsNullOrWhiteSpace(testItemNode.LastTestResult))
+                {
+                    _previousTestResult = testItemNode.LastTestResult;
+                    RaisePropertyChanged(nameof(PreviousTestResult));
+                }
+
+                _historyLoaded = true;
+            }
+        }
+
+        private void SaveTestResultToProject()
+        {
+            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
+            if (testItemNode != null)
+            {
+                testItemNode.LastTestTime = PreviousTestTime;
+                testItemNode.LastTestResult = PreviousTestResult;
+
+                var eventAggregator = ContainerLocator.Container?.Resolve(typeof(IEventAggregator)) as IEventAggregator;
+                eventAggregator?.GetEvent<ProjectModifiedEvent>()?.Publish(new ProjectModifiedEventArgs
+                {
+                    ModificationType = "SingleBoardTestResult",
+                    Description = $"单板测试结果已更新: {TestItemName}"
+                });
+            }
+        }
+
+        public string CurrentTestResult
+        {
+            get => _currentTestResult;
+            private set => SetProperty(ref _currentTestResult, value);
+        }
+
         public DelegateCommand ManualTestCommand { get; }
         public DelegateCommand AutoTestCommand { get; }
-        public DelegateCommand Measure14Command { get; }
-        public DelegateCommand MeasureCustomCurrentCommand { get; }
+
+        public DelegateCommand MeasurePoint1Command { get; }
+        public DelegateCommand MeasurePoint2Command { get; }
+        public DelegateCommand MeasurePoint3Command { get; }
+        public DelegateCommand MeasureCustomPointCommand { get; }
+
         public DelegateCommand ClearLogCommand { get; }
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
@@ -252,16 +266,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public bool IsManualTestRunning
         {
             get => _isManualTestRunning;
-            set
+            private set
             {
                 if (SetProperty(ref _isManualTestRunning, value))
                 {
-                    RaisePropertyChanged(nameof(CanMeasure14));
-                    RaisePropertyChanged(nameof(CanMeasureCustomCurrent));
                     RaisePropertyChanged(nameof(CanStartManualTest));
                     RaisePropertyChanged(nameof(CanStartAutoTest));
-                    Measure14Command?.RaiseCanExecuteChanged();
-                    MeasureCustomCurrentCommand?.RaiseCanExecuteChanged();
+                    RefreshMeasureCommands();
                 }
             }
         }
@@ -269,31 +280,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public bool IsAutoTestRunning
         {
             get => _isAutoTestRunning;
-            set
+            private set
             {
                 if (SetProperty(ref _isAutoTestRunning, value))
                 {
-                    RaisePropertyChanged(nameof(CanMeasure14));
-                    RaisePropertyChanged(nameof(CanMeasureCustomCurrent));
                     RaisePropertyChanged(nameof(CanStartManualTest));
                     RaisePropertyChanged(nameof(CanStartAutoTest));
-                    Measure14Command?.RaiseCanExecuteChanged();
-                    MeasureCustomCurrentCommand?.RaiseCanExecuteChanged();
-                }
-            }
-        }
-
-        public int SelectedTabIndex
-        {
-            get => _selectedTabIndex;
-            set
-            {
-                if (SetProperty(ref _selectedTabIndex, value))
-                {
-                    RaisePropertyChanged(nameof(CanMeasure14));
-                    RaisePropertyChanged(nameof(CanMeasureCustomCurrent));
-                    Measure14Command?.RaiseCanExecuteChanged();
-                    MeasureCustomCurrentCommand?.RaiseCanExecuteChanged();
+                    RefreshMeasureCommands();
                 }
             }
         }
@@ -304,167 +297,45 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set
             {
                 if (SetProperty(ref _canMeasure, value))
-                {
-                    RaisePropertyChanged(nameof(CanMeasure14));
-                    RaisePropertyChanged(nameof(CanMeasureCustomCurrent));
-                    Measure14Command?.RaiseCanExecuteChanged();
-                    MeasureCustomCurrentCommand?.RaiseCanExecuteChanged();
-                }
+                    RefreshMeasureCommands();
             }
         }
 
-        public bool CanMeasure14 => IsManualTestRunning && CanMeasure;
-
-        public bool CanMeasureCustomCurrent => IsManualTestRunning && CanMeasure && TryGetValidatedCustomCurrent(out _);
-
-        private void RefreshMeasureCommand()
-        {
-            RaisePropertyChanged(nameof(CanMeasure14));
-            RaisePropertyChanged(nameof(CanMeasureCustomCurrent));
-            Measure14Command?.RaiseCanExecuteChanged();
-            MeasureCustomCurrentCommand?.RaiseCanExecuteChanged();
-        }
-
+        public bool CanMeasurePoint1 => IsManualTestRunning && CanMeasure;
+        public bool CanMeasurePoint2 => IsManualTestRunning && CanMeasure;
+        public bool CanMeasurePoint3 => IsManualTestRunning && CanMeasure;
+        public bool CanMeasureCustomPoint => IsManualTestRunning && CanMeasure && TryGetValidatedCustomVoltage(out _);
         public bool CanStartManualTest => !IsManualTestBusy && !IsAutoTestBusy && !IsAutoTestRunning;
         public bool CanStartAutoTest => !IsManualTestBusy && !IsAutoTestBusy && !IsManualTestRunning;
 
-        public string CurrentTestResult
+        private void RefreshMeasureCommands()
         {
-            get => _currentTestResult;
-            private set => SetProperty(ref _currentTestResult, value);
+            RaisePropertyChanged(nameof(CanMeasurePoint1));
+            RaisePropertyChanged(nameof(CanMeasurePoint2));
+            RaisePropertyChanged(nameof(CanMeasurePoint3));
+            RaisePropertyChanged(nameof(CanMeasureCustomPoint));
+            MeasurePoint1Command?.RaiseCanExecuteChanged();
+            MeasurePoint2Command?.RaiseCanExecuteChanged();
+            MeasurePoint3Command?.RaiseCanExecuteChanged();
+            MeasureCustomPointCommand?.RaiseCanExecuteChanged();
         }
 
-        public string LastTestTime
-        {
-            get
-            {
-                LoadLastTestResultFromProject();
-                return _lastTestTime;
-            }
-            set => SetProperty(ref _lastTestTime, value);
-        }
-
-        public string LastTestResult
-        {
-            get
-            {
-                LoadLastTestResultFromProject();
-                return _lastTestResult;
-            }
-            set => SetProperty(ref _lastTestResult, value);
-        }
-
-        public string PreviousTestTime
-        {
-            get
-            {
-                LoadLastTestResultFromProject();
-                return _previousTestTime;
-            }
-            set => SetProperty(ref _previousTestTime, value);
-        }
-
-        public string PreviousTestResult
-        {
-            get
-            {
-                LoadLastTestResultFromProject();
-                return _previousTestResult;
-            }
-            set => SetProperty(ref _previousTestResult, value);
-        }
-
-        public string DptEdp24mAText { get => _DptEdp24mAText; private set => SetProperty(ref _DptEdp24mAText, value); }
-        public string DptEmp2B4mAText { get => _dptEmp2B4mAText; private set => SetProperty(ref _dptEmp2B4mAText, value); }
-        public string DptEmp3B4mAText { get => _dptEmp3B4mAText; private set => SetProperty(ref _dptEmp3B4mAText, value); }
-        public string DptSys14mAText { get => _dptSys14mAText; private set => SetProperty(ref _dptSys14mAText, value); }
-        public string DptSys24mAText { get => _dptSys24mAText; private set => SetProperty(ref _dptSys24mAText, value); }
-        public string DptSys34mAText { get => _dptSys34mAText; private set => SetProperty(ref _dptSys34mAText, value); }
-
-        public string DptEdp2A20mAText { get => _dptEdp2A20mAText; private set => SetProperty(ref _dptEdp2A20mAText, value); }
-        public string DptEmp2B20mAText { get => _dptEmp2B20mAText; private set => SetProperty(ref _dptEmp2B20mAText, value); }
-        public string DptEmp3B20mAText { get => _dptEmp3B20mAText; private set => SetProperty(ref _dptEmp3B20mAText, value); }
-        public string DptSys120mAText { get => _dptSys120mAText; private set => SetProperty(ref _dptSys120mAText, value); }
-        public string DptSys220mAText { get => _dptSys220mAText; private set => SetProperty(ref _dptSys220mAText, value); }
-        public string DptSys320mAText { get => _dptSys320mAText; private set => SetProperty(ref _dptSys320mAText, value); }
-
-        public string DptEdp2A10mAText { get => _dptEdp2A10mAText; private set => SetProperty(ref _dptEdp2A10mAText, value); }
-        public string DptEmp2B10mAText { get => _dptEmp2B10mAText; private set => SetProperty(ref _dptEmp2B10mAText, value); }
-        public string DptEmp3B10mAText { get => _dptEmp3B10mAText; private set => SetProperty(ref _dptEmp3B10mAText, value); }
-        public string DptSys110mAText { get => _dptSys110mAText; private set => SetProperty(ref _dptSys110mAText, value); }
-        public string DptSys210mAText { get => _dptSys210mAText; private set => SetProperty(ref _dptSys210mAText, value); }
-        public string DptSys310mAText { get => _dptSys310mAText; private set => SetProperty(ref _dptSys310mAText, value); }
-
-        public string DptEdp2CustommAText { get => _dptEdp2CustommAText; private set => SetProperty(ref _dptEdp2CustommAText, value); }
-        public string DptEmp2BCustommAText { get => _dptEmp2BCustommAText; private set => SetProperty(ref _dptEmp2BCustommAText, value); }
-        public string DptEmp3BCustommAText { get => _dptEmp3BCustommAText; private set => SetProperty(ref _dptEmp3BCustommAText, value); }
-        public string DptSys1CustommAText { get => _dptSys1CustommAText; private set => SetProperty(ref _dptSys1CustommAText, value); }
-        public string DptSys2CustommAText { get => _dptSys2CustommAText; private set => SetProperty(ref _dptSys2CustommAText, value); }
-        public string DptSys3CustommAText { get => _dptSys3CustommAText; private set => SetProperty(ref _dptSys3CustommAText, value); }
-
-        public string CustomCurrentInput
-        {
-            get => _customCurrentInput;
-            set
-            {
-                var normalized = NormalizeCurrentInput(value);
-                if (SetProperty(ref _customCurrentInput, normalized))
-                {
-                    RaisePropertyChanged(nameof(CanMeasureCustomCurrent));
-                    MeasureCustomCurrentCommand?.RaiseCanExecuteChanged();
-                }
-            }
-        }
-
-        public double? DptEdp24mAValue => ParseMeasurementValue(DptEdp24mAText);
-        public double? DptEmp2B4mAValue => ParseMeasurementValue(DptEmp2B4mAText);
-        public double? DptEmp3B4mAValue => ParseMeasurementValue(DptEmp3B4mAText);
-        public double? DptSys14mAValue => ParseMeasurementValue(DptSys14mAText);
-        public double? DptSys24mAValue => ParseMeasurementValue(DptSys24mAText);
-        public double? DptSys34mAValue => ParseMeasurementValue(DptSys34mAText);
-
-        public double? DptEdp2A20mAValue => ParseMeasurementValue(DptEdp2A20mAText);
-        public double? DptEmp2B20mAValue => ParseMeasurementValue(DptEmp2B20mAText);
-        public double? DptEmp3B20mAValue => ParseMeasurementValue(DptEmp3B20mAText);
-        public double? DptSys120mAValue => ParseMeasurementValue(DptSys120mAText);
-        public double? DptSys220mAValue => ParseMeasurementValue(DptSys220mAText);
-        public double? DptSys320mAValue => ParseMeasurementValue(DptSys320mAText);
-
-        public double? DptEdp2A10mAValue => ParseMeasurementValue(DptEdp2A10mAText);
-        public double? DptEmp2B10mAValue => ParseMeasurementValue(DptEmp2B10mAText);
-        public double? DptEmp3B10mAValue => ParseMeasurementValue(DptEmp3B10mAText);
-        public double? DptSys110mAValue => ParseMeasurementValue(DptSys110mAText);
-        public double? DptSys210mAValue => ParseMeasurementValue(DptSys210mAText);
-        public double? DptSys310mAValue => ParseMeasurementValue(DptSys310mAText);
-
-        public bool IsDptEdp24mAPass => IsWithinRange(DptEdp24mAValue ?? double.MinValue, Range4mAMin, Range4mAMax) && DptEdp24mAValue.HasValue;
-        public bool IsDptEmp2B4mAPass => IsWithinRange(DptEmp2B4mAValue ?? double.MinValue, Range4mAMin, Range4mAMax) && DptEmp2B4mAValue.HasValue;
-        public bool IsDptEmp3B4mAPass => IsWithinRange(DptEmp3B4mAValue ?? double.MinValue, Range4mAMin, Range4mAMax) && DptEmp3B4mAValue.HasValue;
-        public bool IsDptSys14mAPass => IsWithinRange(DptSys14mAValue ?? double.MinValue, Range4mAMin, Range4mAMax) && DptSys14mAValue.HasValue;
-        public bool IsDptSys24mAPass => IsWithinRange(DptSys24mAValue ?? double.MinValue, Range4mAMin, Range4mAMax) && DptSys24mAValue.HasValue;
-        public bool IsDptSys34mAPass => IsWithinRange(DptSys34mAValue ?? double.MinValue, Range4mAMin, Range4mAMax) && DptSys34mAValue.HasValue;
-
-        public bool IsDptEdp2A20mAPass => IsWithinRange(DptEdp2A20mAValue ?? double.MinValue, Range20mAMin, Range20mAMax) && DptEdp2A20mAValue.HasValue;
-        public bool IsDptEmp2B20mAPass => IsWithinRange(DptEmp2B20mAValue ?? double.MinValue, Range20mAMin, Range20mAMax) && DptEmp2B20mAValue.HasValue;
-        public bool IsDptEmp3B20mAPass => IsWithinRange(DptEmp3B20mAValue ?? double.MinValue, Range20mAMin, Range20mAMax) && DptEmp3B20mAValue.HasValue;
-        public bool IsDptSys120mAPass => IsWithinRange(DptSys120mAValue ?? double.MinValue, Range20mAMin, Range20mAMax) && DptSys120mAValue.HasValue;
-        public bool IsDptSys220mAPass => IsWithinRange(DptSys220mAValue ?? double.MinValue, Range20mAMin, Range20mAMax) && DptSys220mAValue.HasValue;
-        public bool IsDptSys320mAPass => IsWithinRange(DptSys320mAValue ?? double.MinValue, Range20mAMin, Range20mAMax) && DptSys320mAValue.HasValue;
-
-        public bool IsDptEdp2A10mAPass => IsWithinRange(DptEdp2A10mAValue ?? double.MinValue, Range10mAMin, Range10mAMax) && DptEdp2A10mAValue.HasValue;
-        public bool IsDptEmp2B10mAPass => IsWithinRange(DptEmp2B10mAValue ?? double.MinValue, Range10mAMin, Range10mAMax) && DptEmp2B10mAValue.HasValue;
-        public bool IsDptEmp3B10mAPass => IsWithinRange(DptEmp3B10mAValue ?? double.MinValue, Range10mAMin, Range10mAMax) && DptEmp3B10mAValue.HasValue;
-        public bool IsDptSys110mAPass => IsWithinRange(DptSys110mAValue ?? double.MinValue, Range10mAMin, Range10mAMax) && DptSys110mAValue.HasValue;
-        public bool IsDptSys210mAPass => IsWithinRange(DptSys210mAValue ?? double.MinValue, Range10mAMin, Range10mAMax) && DptSys210mAValue.HasValue;
-        public bool IsDptSys310mAPass => IsWithinRange(DptSys310mAValue ?? double.MinValue, Range10mAMin, Range10mAMax) && DptSys310mAValue.HasValue;
-
+        /// <summary>
+        /// 整板串行自动测试入口。
+        /// 由外部(整板自动测试)调用，支持 await 等待完成，并通过 CancellationToken 实现“立即停止当前测量”。
+        /// 返回值仅为“合格/不合格”。
+        /// </summary>
         public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
         {
             if (IsAutoTestRunning)
+            {
                 await StopAutoTestAsync().ConfigureAwait(false);
+            }
 
             if (IsManualTestRunning)
+            {
                 await StopManualTestAsync().ConfigureAwait(false);
+            }
 
             _autoCts?.Cancel();
             _autoCts?.Dispose();
@@ -476,51 +347,157 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
+                IsAutoTestInitializing = false;
                 _autoCts?.Dispose();
                 _autoCts = null;
             }
         }
 
-        private void LoadLastTestResultFromProject()
+        public string LastTestTime
         {
-            if (_historyLoaded)
-                return;
-
-            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
-            if (testItemNode == null)
-                return;
-
-            if (!string.IsNullOrWhiteSpace(testItemNode.LastTestTime))
-            {
-                _previousTestTime = testItemNode.LastTestTime;
-                RaisePropertyChanged(nameof(PreviousTestTime));
-            }
-
-            if (!string.IsNullOrWhiteSpace(testItemNode.LastTestResult))
-            {
-                _previousTestResult = testItemNode.LastTestResult;
-                RaisePropertyChanged(nameof(PreviousTestResult));
-            }
-
-            _historyLoaded = true;
+            get => _lastTestTime;
+            set => SetProperty(ref _lastTestTime, value);
         }
 
-        private void SaveTestResultToProject()
+        public string LastTestResult
         {
-            var testItemNode = _singleBoardTestContext?.GetCurrentTestItemNode(TestItemName);
-            if (testItemNode == null)
-                return;
-
-            testItemNode.LastTestTime = PreviousTestTime;
-            testItemNode.LastTestResult = PreviousTestResult;
-
-            var eventAggregator = ContainerLocator.Container?.Resolve(typeof(IEventAggregator)) as IEventAggregator;
-            eventAggregator?.GetEvent<ProjectModifiedEvent>()?.Publish(new ProjectModifiedEventArgs
-            {
-                ModificationType = "SingleBoardTestResult",
-                Description = $"单板测试结果已更新: {TestItemName}"
-            });
+            get => _lastTestResult;
+            set => SetProperty(ref _lastTestResult, value);
         }
+
+        public string PreviousTestTime
+        {
+            get => _previousTestTime;
+            set => SetProperty(ref _previousTestTime, value);
+        }
+
+        public string PreviousTestResult
+        {
+            get => _previousTestResult;
+            set => SetProperty(ref _previousTestResult, value);
+        }
+
+        public string PressurePoint1Sys1Text
+        {
+            get => _p1Sys1Text;
+            private set => SetProperty(ref _p1Sys1Text, value);
+        }
+
+        public string PressurePoint1Sys2Text
+        {
+            get => _p1Sys2Text;
+            private set => SetProperty(ref _p1Sys2Text, value);
+        }
+
+        public string PressurePoint1Sys3Text
+        {
+            get => _p1Sys3Text;
+            private set => SetProperty(ref _p1Sys3Text, value);
+        }
+
+        public string PressurePoint2Sys1Text
+        {
+            get => _p2Sys1Text;
+            private set => SetProperty(ref _p2Sys1Text, value);
+        }
+
+        public string PressurePoint2Sys2Text
+        {
+            get => _p2Sys2Text;
+            private set => SetProperty(ref _p2Sys2Text, value);
+        }
+
+        public string PressurePoint2Sys3Text
+        {
+            get => _p2Sys3Text;
+            private set => SetProperty(ref _p2Sys3Text, value);
+        }
+
+        public string PressurePoint3Sys1Text
+        {
+            get => _p3Sys1Text;
+            private set => SetProperty(ref _p3Sys1Text, value);
+        }
+
+        public string PressurePoint3Sys2Text
+        {
+            get => _p3Sys2Text;
+            private set => SetProperty(ref _p3Sys2Text, value);
+        }
+
+        public string PressurePoint3Sys3Text
+        {
+            get => _p3Sys3Text;
+            private set => SetProperty(ref _p3Sys3Text, value);
+        }
+
+        public string CustomPressureSys1Text
+        {
+            get => _customSys1Text;
+            private set => SetProperty(ref _customSys1Text, value);
+        }
+
+        public string CustomPressureSys2Text
+        {
+            get => _customSys2Text;
+            private set => SetProperty(ref _customSys2Text, value);
+        }
+
+        public string CustomPressureSys3Text
+        {
+            get => _customSys3Text;
+            private set => SetProperty(ref _customSys3Text, value);
+        }
+
+        public string CustomVoltageInput
+        {
+            get => _customVoltageInput;
+            set
+            {
+                var normalized = NormalizeVoltageInput(value);
+                if (SetProperty(ref _customVoltageInput, normalized))
+                {
+                    RaisePropertyChanged(nameof(CanMeasureCustomPoint));
+                    MeasureCustomPointCommand?.RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        public double? PressurePoint1Sys1Value => _p1Sys1;
+
+        public double? PressurePoint1Sys2Value => _p1Sys2;
+
+        public double? PressurePoint1Sys3Value => _p1Sys3;
+
+        public double? PressurePoint2Sys1Value => _p2Sys1;
+
+        public double? PressurePoint2Sys2Value => _p2Sys2;
+
+        public double? PressurePoint2Sys3Value => _p2Sys3;
+
+        public double? PressurePoint3Sys1Value => _p3Sys1;
+
+        public double? PressurePoint3Sys2Value => _p3Sys2;
+
+        public double? PressurePoint3Sys3Value => _p3Sys3;
+
+        public bool IsPressurePoint1Sys1Pass => IsPressureWithinRange(_p1Sys1, 0.0, 85.0);
+
+        public bool IsPressurePoint1Sys2Pass => IsPressureWithinRange(_p1Sys2, 0.0, 85.0);
+
+        public bool IsPressurePoint1Sys3Pass => IsPressureWithinRange(_p1Sys3, 0.0, 85.0);
+
+        public bool IsPressurePoint2Sys1Pass => IsPressureWithinRange(_p2Sys1, 3915.0, 4000.0);
+
+        public bool IsPressurePoint2Sys2Pass => IsPressureWithinRange(_p2Sys2, 3915.0, 4000.0);
+
+        public bool IsPressurePoint2Sys3Pass => IsPressureWithinRange(_p2Sys3, 3915.0, 4000.0);
+
+        public bool IsPressurePoint3Sys1Pass => IsPressureWithinRange(_p3Sys1, 1414.0, 1585.0);
+
+        public bool IsPressurePoint3Sys2Pass => IsPressureWithinRange(_p3Sys2, 1414.0, 1585.0);
+
+        public bool IsPressurePoint3Sys3Pass => IsPressureWithinRange(_p3Sys3, 1414.0, 1585.0);
 
         private async Task OnManualTestAsync()
         {
@@ -536,21 +513,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             if (IsAutoTestRunning)
+            {
                 await StopAutoTestAsync().ConfigureAwait(false);
+            }
 
             IsManualTestInitializing = true;
             IsManualTestStopping = false;
             CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
-            _measured4mA = false;
-            _measured20mA = false;
-            _measured10mA = false;
-            _passed4mA = false;
-            _passed20mA = false;
-            _passed10mA = false;
 
-            ResetAllDisplays();
+            _measured1 = false;
+            _measured2 = false;
+            _measured3 = false;
+
+            ResetPointDisplays();
 
             _manualCts?.Cancel();
             _manualCts?.Dispose();
@@ -571,7 +548,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 IsManualTestInitializing = false;
                 IsManualTestRunning = true;
                 CanMeasure = true;
-                Log("手动测试初始化完成，可点击固定电流值或自定义电流值测量");
+                Log("手动测试初始化完成，可点击三档固定电压或输入自定义电压测量压力");
             }
             catch (Exception ex)
             {
@@ -593,61 +570,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             if (IsManualTestRunning)
+            {
                 await StopManualTestAsync().ConfigureAwait(false);
+            }
 
             IsAutoTestInitializing = true;
             IsAutoTestStopping = false;
             CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
-            _measured4mA = false;
-            _measured20mA = false;
-            _measured10mA = false;
-            _passed4mA = false;
-            _passed20mA = false;
-            _passed10mA = false;
 
-            ResetAllDisplays();
+            _measured1 = false;
+            _measured2 = false;
+            _measured3 = false;
+
+            ResetPointDisplays();
 
             _autoCts?.Cancel();
             _autoCts?.Dispose();
             _autoCts = new CancellationTokenSource();
 
-            Log("开始自动测试");
-            Log("正在初始化设备...");
-
-
             try
             {
-                await EnsureRelay485Async(on: true, cancellationToken: _autoCts.Token).ConfigureAwait(false);
-                await EnsureGroundDoAsync(on: true, cancellationToken: _autoCts.Token).ConfigureAwait(false);
-                await EnsureArincRxAsync(_autoCts.Token).ConfigureAwait(false);
-                await EnsureMtx532Async(_autoCts.Token).ConfigureAwait(false);
-                await EnsurePowerAsync(_autoCts.Token).ConfigureAwait(false);
-
-                IsAutoTestInitializing = false;
-                IsAutoTestRunning = true;
-
-                var ok4 = await MeasureGroupAsync("4mA", Current4mA, Set4mA, _autoCts.Token).ConfigureAwait(false);
-                if (!IsAutoTestRunning)
-                    return;
-                _measured4mA = true;
-                _passed4mA = ok4;
-                await Task.Delay(80, _autoCts.Token).ConfigureAwait(false);
-                var ok20 = await MeasureGroupAsync("20mA", Current20mA, Set20mA, _autoCts.Token).ConfigureAwait(false);
-                if (!IsAutoTestRunning)
-                    return;
-                _measured20mA = true;
-                _passed20mA = ok20;
-                await Task.Delay(80, _autoCts.Token).ConfigureAwait(false);
-                var ok10 = await MeasureGroupAsync("10mA", Current10mA, Set10mA, _autoCts.Token).ConfigureAwait(false);
-                if (!IsAutoTestRunning)
-                    return;
-                _measured10mA = true;
-                _passed10mA = ok10;
-
-                await TryFinalizeAsync().ConfigureAwait(false);
-                await StopAutoTestAsync().ConfigureAwait(false);
+                _ = await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -661,7 +606,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
             finally
             {
-                IsAutoTestInitializing = false;
                 _autoCts?.Dispose();
                 _autoCts = null;
             }
@@ -669,185 +613,205 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
         {
-            CurrentTestResult = "--";
             CanMeasure = false;
             _manualAborted = false;
-            _measured4mA = false;
-            _measured20mA = false;
-            _measured10mA = false;
-            _passed4mA = false;
-            _passed20mA = false;
-            _passed10mA = false;
 
-            ResetAllDisplays();
+            _measured1 = false;
+            _measured2 = false;
+            _measured3 = false;
 
-            await EnsureRelay485Async(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-            await EnsureGroundDoAsync(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-            await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
-            await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
-            await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
-            IsAutoTestInitializing = false;
-            IsAutoTestRunning = true;
+            ResetPointDisplays();
 
-            var ok4 = await MeasureGroupAsync("4mA", Current4mA, Set4mA, cancellationToken).ConfigureAwait(false);
-            if (!IsAutoTestRunning)
-                return CurrentTestResult ?? "--";
-            _measured4mA = true;
-            _passed4mA = ok4;
-            await Task.Delay(80, cancellationToken).ConfigureAwait(false);
-            var ok20 = await MeasureGroupAsync("20mA", Current20mA, Set20mA, cancellationToken).ConfigureAwait(false);
-            if (!IsAutoTestRunning)
-                return CurrentTestResult ?? "--";
-            _measured20mA = true;
-            _passed20mA = ok20;
-            await Task.Delay(80, cancellationToken).ConfigureAwait(false);
-            var ok10 = await MeasureGroupAsync("10mA", Current10mA, Set10mA, cancellationToken).ConfigureAwait(false);
-            if (!IsAutoTestRunning)
-                return CurrentTestResult ?? "--";
-            _measured10mA = true;
-            _passed10mA = ok10;
+            Log("开始自动测试");
 
-            await TryFinalizeAsync().ConfigureAwait(false);
-            await StopAutoTestAsync().ConfigureAwait(false);
-            return LastTestResult;
+            try
+            {
+                await EnsureRelay485Async(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await EnsureGroundDoAsync(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+                await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
+                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = true;
+
+                var ok1 = await MeasurePointAllSystemsAsync("0.5V", Point1VoltageV,
+                    setSys1: t => PressurePoint1Sys1Text = t,
+                    setSys2: t => PressurePoint1Sys2Text = t,
+                    setSys3: t => PressurePoint1Sys3Text = t,
+                    setV1: v => _p1Sys1 = v,
+                    setV2: v => _p1Sys2 = v,
+                    setV3: v => _p1Sys3 = v,
+                    cancellationToken).ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
+
+                _measured1 = true;
+
+                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+
+                var ok2 = await MeasurePointAllSystemsAsync("7.17V", Point2VoltageV,
+                    setSys1: t => PressurePoint2Sys1Text = t,
+                    setSys2: t => PressurePoint2Sys2Text = t,
+                    setSys3: t => PressurePoint2Sys3Text = t,
+                    setV1: v => _p2Sys1 = v,
+                    setV2: v => _p2Sys2 = v,
+                    setV3: v => _p2Sys3 = v,
+                    cancellationToken).ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
+
+                _measured2 = true;
+
+                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+
+                var ok3 = await MeasurePointAllSystemsAsync("3.0V", Point3VoltageV,
+                    setSys1: t => PressurePoint3Sys1Text = t,
+                    setSys2: t => PressurePoint3Sys2Text = t,
+                    setSys3: t => PressurePoint3Sys3Text = t,
+                    setV1: v => _p3Sys1 = v,
+                    setV2: v => _p3Sys2 = v,
+                    setV3: v => _p3Sys3 = v,
+                    cancellationToken).ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return CurrentTestResult ?? "--";
+
+                _measured3 = true;
+
+                await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
+                await StopAutoTestAsync().ConfigureAwait(false);
+
+                return LastTestResult;
+            }
+            catch (OperationCanceledException)
+            {
+                Log("自动测试已停止");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"自动测试异常: {ex.Message}");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
         }
 
-        private async Task OnMeasure14Async()
+        private async Task OnMeasurePoint1Async()
         {
-            switch (SelectedTabIndex)
-            {
-                case 0:
-                    foreach (var ch in DptChannels) Set4mA(ch.SlotKey, "--");
-                    break;
-                case 1:
-                    foreach (var ch in DptChannels) Set20mA(ch.SlotKey, "--");
-                    break;
-                case 2:
-                    foreach (var ch in DptChannels) Set10mA(ch.SlotKey, "--");
-                    break;
-                default:
-                    foreach (var ch in DptChannels) Set4mA(ch.SlotKey, "--");
-                    break;
-            }
+            PressurePoint1Sys1Text = "--";
+            PressurePoint1Sys2Text = "--";
+            PressurePoint1Sys3Text = "--";
+            _p1Sys1 = null;
+            _p1Sys2 = null;
+            _p1Sys3 = null;
             CanMeasure = false;
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
-            var token = _manualCts?.Token ?? CancellationToken.None;
-            var ok = false;
-            switch (SelectedTabIndex)
-            {
-                case 0:
-                    ok = await MeasureGroupAsync("4mA", Current4mA, Set4mA, token).ConfigureAwait(false);
-                    break;
-                case 1:
-                    ok = await MeasureGroupAsync("20mA", Current20mA, Set20mA, token).ConfigureAwait(false);
-                    break;
-                case 2:
-                    ok = await MeasureGroupAsync("10mA", Current10mA, Set10mA, token).ConfigureAwait(false);
-                    break;
-                default:
-                    ok = await MeasureGroupAsync("当前档位", Current4mA, Set4mA, token).ConfigureAwait(false);
-                    break;
-            }
+            var ok = await MeasurePointAllSystemsAsync("0.5V", Point1VoltageV,
+                setSys1: t => PressurePoint1Sys1Text = t,
+                setSys2: t => PressurePoint1Sys2Text = t,
+                setSys3: t => PressurePoint1Sys3Text = t,
+                setV1: v => _p1Sys1 = v,
+                setV2: v => _p1Sys2 = v,
+                setV3: v => _p1Sys3 = v,
+                _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
             CanMeasure = IsManualTestRunning;
-            if (!IsManualTestRunning || _manualAborted)
-                return;
-
-            switch (SelectedTabIndex)
-            {
-                case 0:
-                    _measured4mA = true;
-                    _passed4mA = ok;
-                    break;
-                case 1:
-                    _measured20mA = true;
-                    _passed20mA = ok;
-                    break;
-                case 2:
-                    _measured10mA = true;
-                    _passed10mA = ok;
-                    break;
-                default:
-                    _measured4mA = true;
-                    _passed4mA = ok;
-                    break;
-            }
-            RefreshMeasureCommand();
+            if (!IsManualTestRunning || _manualAborted) return;
+            _measured1 = true;
+            RefreshMeasureCommands();
+            await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
         }
 
-        private async Task OnMeasureCustomCurrentAsync()
+        private async Task OnMeasurePoint2Async()
         {
-            if (!TryGetValidatedCustomCurrent(out var currentmA))
+            PressurePoint2Sys1Text = "--";
+            PressurePoint2Sys2Text = "--";
+            PressurePoint2Sys3Text = "--";
+            _p2Sys1 = null;
+            _p2Sys2 = null;
+            _p2Sys3 = null;
+            CanMeasure = false;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
+            var ok = await MeasurePointAllSystemsAsync("7.17V", Point2VoltageV,
+                setSys1: t => PressurePoint2Sys1Text = t,
+                setSys2: t => PressurePoint2Sys2Text = t,
+                setSys3: t => PressurePoint2Sys3Text = t,
+                setV1: v => _p2Sys1 = v,
+                setV2: v => _p2Sys2 = v,
+                setV3: v => _p2Sys3 = v,
+                _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+            CanMeasure = IsManualTestRunning;
+            if (!IsManualTestRunning || _manualAborted) return;
+            _measured2 = true;
+            RefreshMeasureCommands();
+            await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
+        }
+
+        private async Task OnMeasurePoint3Async()
+        {
+            PressurePoint3Sys1Text = "--";
+            PressurePoint3Sys2Text = "--";
+            PressurePoint3Sys3Text = "--";
+            _p3Sys1 = null;
+            _p3Sys2 = null;
+            _p3Sys3 = null;
+            CanMeasure = false;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
+            var ok = await MeasurePointAllSystemsAsync("3.0V", Point3VoltageV,
+                setSys1: t => PressurePoint3Sys1Text = t,
+                setSys2: t => PressurePoint3Sys2Text = t,
+                setSys3: t => PressurePoint3Sys3Text = t,
+                setV1: v => _p3Sys1 = v,
+                setV2: v => _p3Sys2 = v,
+                setV3: v => _p3Sys3 = v,
+                _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+            CanMeasure = IsManualTestRunning;
+            if (!IsManualTestRunning || _manualAborted) return;
+            _measured3 = true;
+            RefreshMeasureCommands();
+            await TryFinalizeIfAllMeasuredAsync().ConfigureAwait(false);
+        }
+
+        private async Task OnMeasureCustomPointAsync()
+        {
+            if (!TryGetValidatedCustomVoltage(out var voltage))
             {
-                Log("自定义电流输入无效，请输入 4~20mA，且最多 1 位小数");
-                RefreshMeasureCommand();
+                Log("自定义电压输入无效，请输入 0~7.17V，最多 2 位小数");
+                RefreshMeasureCommands();
                 return;
             }
 
-            foreach (var ch in DptChannels) SetCustomCurrent(ch.SlotKey, "--");
+            CustomPressureSys1Text = "--";
+            CustomPressureSys2Text = "--";
+            CustomPressureSys3Text = "--";
             CanMeasure = false;
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(delegate { }, System.Windows.Threading.DispatcherPriority.Background);
-            var token = _manualCts?.Token ?? CancellationToken.None;
-            var ok = await MeasureGroupAsync($"自定义点({currentmA:0.0}mA)", currentmA, SetCustomCurrent, token).ConfigureAwait(false);
+            var ok = await MeasurePointAllSystemsAsync($"自定义点({voltage:0.##}V)", voltage,
+                setSys1: t => CustomPressureSys1Text = t,
+                setSys2: t => CustomPressureSys2Text = t,
+                setSys3: t => CustomPressureSys3Text = t,
+                setV1: v => { },
+                setV2: v => { },
+                setV3: v => { },
+                _manualCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
             CanMeasure = IsManualTestRunning;
+
             if (!IsManualTestRunning || _manualAborted || !ok)
                 return;
 
-            Log($"自定义电流测量完成: {currentmA:0.0}mA，可继续测量");
+            Log($"自定义电压测量完成: {voltage:0.##}V，可继续测量");
         }
 
-        private void Set4mA(string name, string text)
-        {
-            switch (name)
-            {
-                case "EDP2": DptEdp24mAText = text; break;
-                case "EMP2B": DptEmp2B4mAText = text; break;
-                case "EMP3B": DptEmp3B4mAText = text; break;
-                case "RF2": DptSys14mAText = text; break;
-                case "SYS2": DptSys24mAText = text; break;
-                case "SYS3": DptSys34mAText = text; break;
-            }
-        }
-
-        private void Set20mA(string name, string text)
-        {
-            switch (name)
-            {
-                case "EDP2": DptEdp2A20mAText = text; break;
-                case "EMP2B": DptEmp2B20mAText = text; break;
-                case "EMP3B": DptEmp3B20mAText = text; break;
-                case "RF2": DptSys120mAText = text; break;
-                case "SYS2": DptSys220mAText = text; break;
-                case "SYS3": DptSys320mAText = text; break;
-            }
-        }
-
-        private void Set10mA(string name, string text)
-        {
-            switch (name)
-            {
-                case "EDP2": DptEdp2A10mAText = text; break;
-                case "EMP2B": DptEmp2B10mAText = text; break;
-                case "EMP3B": DptEmp3B10mAText = text; break;
-                case "RF2": DptSys110mAText = text; break;
-                case "SYS2": DptSys210mAText = text; break;
-                case "SYS3": DptSys310mAText = text; break;
-            }
-        }
-
-        private void SetCustomCurrent(string name, string text)
-        {
-            switch (name)
-            {
-                case "EDP2": DptEdp2CustommAText = text; break;
-                case "EMP2B": DptEmp2BCustommAText = text; break;
-                case "EMP3B": DptEmp3BCustommAText = text; break;
-                case "RF2": DptSys1CustommAText = text; break;
-                case "SYS2": DptSys2CustommAText = text; break;
-                case "SYS3": DptSys3CustommAText = text; break;
-            }
-        }
-
-        private async Task<bool> MeasureGroupAsync(string title, double currentmA, Action<string, string> setTextByName, CancellationToken cancellationToken)
+        private async Task<bool> MeasurePointAllSystemsAsync(
+            string title,
+            double aoVoltage,
+            Action<string> setSys1,
+            Action<string> setSys2,
+            Action<string> setSys3,
+            Action<double?> setV1,
+            Action<double?> setV2,
+            Action<double?> setV3,
+            CancellationToken cancellationToken)
         {
             if (!IsAutoTestRunning && !IsManualTestRunning)
             {
@@ -858,131 +822,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                var voltageV = ConvertCurrentToVoltage(currentmA);
-                await SetAo67891011Async(voltageV, cancellationToken).ConfigureAwait(false);
+                await SetAo012Async(aoVoltage, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(AoSettleMs, cancellationToken).ConfigureAwait(false);
-                await DrainArincBufferAsync(cancellationToken).ConfigureAwait(false);
+                _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
                 await Task.Delay(PostSwitchRxFlushMs, cancellationToken).ConfigureAwait(false);
 
-                var samples = new Dictionary<string, List<double>>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["EDP2"] = new List<double>(SamplesPerMeasure),
-                    ["EMP2B"] = new List<double>(SamplesPerMeasure),
-                    ["EMP3B"] = new List<double>(SamplesPerMeasure),
-                    ["RF2"] = new List<double>(SamplesPerMeasure),
-                    ["SYS2"] = new List<double>(SamplesPerMeasure),
-                    ["SYS3"] = new List<double>(SamplesPerMeasure),
-                };
-
-                var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
-                while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
-                {
-                    var words = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 512, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken)
-                        .ConfigureAwait(false);
-
-                    foreach (var w in words)
-                    {
-
-                        _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out var ssm);
-                        var definition = ResolveChannel(label, wordSdi);
-                        if (definition == null)
-                            continue;
-
-                        if (ssm != SsmNormal)
-                            continue;
-
-                        var value = DecodeValue(data19);
-                        if (!value.HasValue)
-                            continue;
-
-                        var list = samples[definition.SlotKey];
-                        if (list.Count >= SamplesPerMeasure)
-                            continue;
-
-                        list.Add(value.Value);
-                        var avg = list.Average();
-                        setTextByName(definition.SlotKey, $"{value.Value:0.0} {PressureUnit}");
-                    }
-
-                    if (samples.Values.All(l => l.Count >= SamplesPerMeasure))
-                    {
-                        var range = GetExpectedRange(currentmA);
-
-                        if (range == null)
-                        {
-                            foreach (var kv in samples)
-                            {
-                                var average = kv.Value.Average();
-                                setTextByName(kv.Key, $"{average:0.0} {PressureUnit}");
-                            }
-
-                            Log($"{title}: 完成，自定义电流无判据范围，仅显示测量值");
-                            return true;
-                        }
-
-                        var outOfRangeChannels = new List<string>();
-
-                        foreach (var kv in samples)
-                        {
-                            var average = kv.Value.Average();
-                            setTextByName(kv.Key, $"{average:0.0} {PressureUnit}");
-
-                            if (!IsWithinRange(average, range.Value.min, range.Value.max))
-                            {
-                                outOfRangeChannels.Add($"{kv.Key}={average:0.0}");
-                            }
-                        }
-
-                        if (outOfRangeChannels.Count == 0)
-                        {
-                            Log($"{title}: 完成，全部测点满足判据[{range.Value.min:0.##}, {range.Value.max:0.##}]");
-                            return true;
-                        }
-
-                        Log($"{title}: 判定不合格，压差值: {string.Join(", ", outOfRangeChannels)}，判据范围[{range.Value.min:0.##}, {range.Value.max:0.##}]");
-                        return false;
-                    }
-
-                    await Task.Delay(10, cancellationToken).ConfigureAwait(false);
-                }
-
-                foreach (var key in samples.Keys)
-                {
-                    if (samples[key].Count >= SamplesPerMeasure)
-                        setTextByName(key, $"{samples[key].Average():0.0} {PressureUnit}");
-                    else
-                        setTextByName(key, "超时");
-                }
-
-                if (IsManualTestRunning)
-                {
-                    var missing = string.Join(",", samples.Where(kv => kv.Value.Count < SamplesPerMeasure).Select(kv => kv.Key));
-                    Log($"{title}: 接收超时，以下通道未获取到{SamplesPerMeasure}帧有效DPT数据: {missing}");
-                }
-                else if (IsAutoTestRunning)
-                {
-                    var missing = string.Join(",", samples.Where(kv => kv.Value.Count < SamplesPerMeasure).Select(kv => kv.Key));
-                    Log($"{title}: 接收超时，以下通道未获取到{SamplesPerMeasure}帧有效DPT数据: {missing}");
-                }
-
-                return false;
-            }
-            catch (OperationCanceledException)
-            {
-                return false;
-            }
-            catch (Exception ex)
-            {
-                if (IsManualTestRunning)
-                {
-                    await AbortManualTestAsync($"{title}: 采集异常，手动测试中止: {ex.Message}").ConfigureAwait(false);
-                }
-                else if (IsAutoTestRunning)
-                {
-                    await AbortAutoTestAsync($"{title}: 采集异常，自动测试中止: {ex.Message}").ConfigureAwait(false);
-                }
-
-                return false;
+                return await MeasureAllSystemsAsync(
+                    title,
+                    setSys1,
+                    setSys2,
+                    setSys3,
+                    setV1,
+                    setV2,
+                    setV3,
+                    cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -990,98 +843,196 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        private async Task DrainArincBufferAsync(CancellationToken cancellationToken)
+        private sealed class PressureMeasureState
         {
-            for (int i = 0; i < 100; i++)
+            public PressureMeasureState(string title, byte sdi, Action<string> setText, Action<double?> setValue)
             {
-                var batch = await _arinc.ReadRxWordsAsync(
-                    RxChannelIndex, maxCount: 4096,
-                    enableTimeTag: false, enableRateAdaption: false,
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
-                if (batch.Count == 0)
-                    break;
+                Title = title;
+                Sdi = sdi;
+                SetText = setText;
+                SetValue = setValue;
             }
+
+            public string Title { get; }
+            public byte Sdi { get; }
+            public Action<string> SetText { get; }
+            public Action<double?> SetValue { get; }
+            public List<double> Samples { get; } = new List<double>(SamplesPerMeasure);
+            public bool Completed { get; set; }
         }
 
-        private DptChannelDefinition ResolveChannel(byte label, byte sdi)
+        private async Task<bool> MeasureAllSystemsAsync(
+            string title,
+            Action<string> setSys1,
+            Action<string> setSys2,
+            Action<string> setSys3,
+            Action<double?> setV1,
+            Action<double?> setV2,
+            Action<double?> setV3,
+            CancellationToken cancellationToken)
         {
-            return DptChannels.FirstOrDefault(d => IsExpectedLabel(label, d.Label) && d.Sdi == sdi);
+            var states = new[]
+            {
+                new PressureMeasureState($"{title}-SYS1", 1, setSys1, setV1),
+                new PressureMeasureState($"{title}-SYS2", 2, setSys2, setV2),
+                new PressureMeasureState($"{title}-SYS3", 3, setSys3, setV3),
+            };
+
+            foreach (var state in states)
+                Log($"{state.Title}: 开始接收压力数据");
+
+            var stateBySdi = states.ToDictionary(x => x.Sdi);
+            var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
+
+            while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
+            {
+                var words = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 512, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (words.Count > 0)
+                {
+                    foreach (var w in words)
+                    {
+                        _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out var ssm);
+
+                        if (!IsExpectedLabel(label))
+                            continue;
+
+                        if (!stateBySdi.TryGetValue(wordSdi, out var state) || state.Completed)
+                            continue;
+
+                        if (ssm != SsmNormal)
+                            continue;
+
+                        var value = DecodePressure(data19);
+                        state.Samples.Add(value);
+
+                        var avg = state.Samples.Average();
+                        state.SetText($"{value:0.0}");
+
+                        if (state.Samples.Count >= SamplesPerMeasure)
+                        {
+                            state.SetValue(avg);
+                            state.SetText($"{avg:0.0}");
+                            state.Completed = true;
+                            Log($"{state.Title}: 完成，压力={avg:0.###}");
+                        }
+                    }
+
+                    if (states.All(x => x.Completed))
+                        return true;
+                }
+
+                await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+            }
+
+            foreach (var state in states.Where(x => !x.Completed))
+            {
+                state.SetText("超时");
+                state.SetValue(null);
+
+                if (IsManualTestRunning)
+                {
+                    Log($"{state.Title}: 接收超时，未获取到{SamplesPerMeasure}帧有效压力数据");
+                }
+                else if (IsAutoTestRunning)
+                {
+                    Log($"{state.Title}: 接收超时，未获取到{SamplesPerMeasure}帧有效压力数据");
+                }
+            }
+
+            return states.All(x => x.Completed);
         }
 
-        private bool IsExpectedLabel(byte label, byte expected)
+        private bool IsExpectedLabel(byte label)
         {
-            return _arinc.ReverseLabel(label) == expected;
+            return _arinc.ReverseLabel(label) == PressLabelDec;
         }
 
-        private double? DecodeValue(uint data19)
+        private double DecodePressure(uint data19)
         {
-            var value = _arinc.DecodeUbnr(data19, bitLength: DataBitLength, resolution: DataResolution, msbPosition: DataMsbPosition);
-            if (value < 0 || value > 511)
-                return null;
-
+            var value = _arinc.DecodeUbnr(data19, bitLength: PressureBitLength, resolution: 1.0, msbPosition: 27);
             return Math.Round(value, 1, MidpointRounding.AwayFromZero);
         }
 
-        private (double min, double max)? GetExpectedRange(double currentmA)
+        private static bool IsPressureWithinRange(double? value, double min, double max)
         {
-            if (Math.Abs(currentmA - Current4mA) < 0.001)
-                return (Range4mAMin, Range4mAMax);
-
-            if (Math.Abs(currentmA - Current20mA) < 0.001)
-                return (Range20mAMin, Range20mAMax);
-
-            if (Math.Abs(currentmA - Current10mA) < 0.001)
-                return (Range10mAMin, Range10mAMax);
-
-            return null;
+            return value.HasValue && value.Value >= min && value.Value <= max;
         }
 
-        private static bool IsWithinRange(double value, double min, double max)
+        private async Task TryFinalizeIfAllMeasuredAsync()
         {
-            return value >= min && value <= max;
-        }
-
-        private static double? ParseMeasurementValue(string text)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-                return null;
-
-            var trimmed = text.Trim();
-            if (string.Equals(trimmed, "--", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(trimmed, "超时", StringComparison.OrdinalIgnoreCase))
-            {
-                return null;
-            }
-
-            var firstToken = trimmed.Split(' ')[0];
-            if (double.TryParse(firstToken, out var value))
-                return value;
-
-            return null;
-        }
-
-        private async Task TryFinalizeAsync()
-        {
-            if (!(_measured4mA && _measured20mA && _measured10mA))
+            if (!(_measured1 && _measured2 && _measured3))
                 return;
 
-            var resultText = (_passed4mA && _passed20mA && _passed10mA) ? "合格" : "不合格";
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
+            const double P1Min = 0.0;
+            const double P1Max = 85.0;
+            const double P2Min = 3915.0;
+            const double P2Max = 4000.0;
+            const double P3Min = 1414.0;
+            const double P3Max = 1585.0;
+
+            var failures = new List<string>();
+
+            void Check(string name, double? value, double min, double max)
+            {
+                if (!value.HasValue)
+                {
+                    failures.Add($"{name}=--");
+                    return;
+                }
+
+                var v = value.Value;
+                if (v < min || v > max)
+                {
+                    failures.Add($"{name}={v:0.###}psi not in [{min:0.###},{max:0.###}]");
+                }
+            }
+
+            Check("P1-SYS1", _p1Sys1, P1Min, P1Max);
+            Check("P1-SYS2", _p1Sys2, P1Min, P1Max);
+            Check("P1-SYS3", _p1Sys3, P1Min, P1Max);
+
+            Check("P2-SYS1", _p2Sys1, P2Min, P2Max);
+            Check("P2-SYS2", _p2Sys2, P2Min, P2Max);
+            Check("P2-SYS3", _p2Sys3, P2Min, P2Max);
+
+            Check("P3-SYS1", _p3Sys1, P3Min, P3Max);
+            Check("P3-SYS2", _p3Sys2, P3Min, P3Max);
+            Check("P3-SYS3", _p3Sys3, P3Min, P3Max);
+
+            var resultText = failures.Count == 0 ? "合格" : "不合格";
             CurrentTestResult = resultText;
             PreviousTestTime = now;
             PreviousTestResult = resultText;
             LastTestTime = now;
             LastTestResult = resultText;
+
+            if (failures.Count == 0)
+            {
+                Log("自动判定: 合格 (三档位三路压力均在范围内)");
+            }
+            else
+            {
+                Log("自动判定: 不合格");
+                foreach (var f in failures)
+                {
+                    Log($"判据不满足: {f}");
+                }
+            }
+
             SaveTestResultToProject();
-            Log($"测试结果: {resultText}");
         }
 
         private async Task AbortManualTestAsync(string reason)
         {
             _manualAborted = true;
             if (!string.IsNullOrWhiteSpace(reason))
+            {
                 Log(reason);
+            }
 
             await StopManualTestAsync().ConfigureAwait(false);
         }
@@ -1089,7 +1040,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task AbortAutoTestAsync(string reason)
         {
             if (!string.IsNullOrWhiteSpace(reason))
+            {
                 Log(reason);
+            }
 
             await StopAutoTestAsync().ConfigureAwait(false);
         }
@@ -1112,15 +1065,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log($"手动测试停止/结束，正在断开设备...");
+            Log("手动测试停止/结束，正在断开设备...");
             try
             {
-                await CleanupPowerAsync().ConfigureAwait(false);
-                await CleanupMtxAsync().ConfigureAwait(false);
-                await CleanupArincAsync().ConfigureAwait(false);
-                await EnsureGroundDoAsync(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
-                await EnsureRelay485Async(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
-                await CleanupJy7131Async().ConfigureAwait(false);
+                await CleanupIoAsync().ConfigureAwait(false);
             }
             finally
             {
@@ -1150,15 +1098,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log($"自动测试停止/结束，正在断开设备...");
+            Log("自动测试停止/结束，正在断开设备...");
             try
             {
-                await CleanupPowerAsync().ConfigureAwait(false);
-                await CleanupMtxAsync().ConfigureAwait(false);
-                await CleanupArincAsync().ConfigureAwait(false);
-                await EnsureGroundDoAsync(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
-                await EnsureRelay485Async(on: false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
-                await CleanupJy7131Async().ConfigureAwait(false);
+                await CleanupIoAsync().ConfigureAwait(false);
             }
             finally
             {
@@ -1171,21 +1114,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        private async Task EnsurePowerAsync(CancellationToken cancellationToken)
-        {
-            _auxPower ??= new PowerSupplySocketApi();
-            await _auxPower.ConnectAsync(AuxiliaryPowerSupplyIpAddress, cancellationToken).ConfigureAwait(false);
-            await _auxPower.ApplyAsync(PowerSupplyChannel.CH1, AuxiliaryInputVoltageV, AuxiliaryInputCurrentA, cancellationToken).ConfigureAwait(false);
-            await _auxPower.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-
-            if (!_hydraulicPowerService.IsHydraulicPowered)
-            {
-                await _hydraulicPowerService.PowerOnAsync(null, cancellationToken).ConfigureAwait(false);
-            }
-            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
-        }
-
-        private async Task CleanupPowerAsync()
+        private async Task CleanupIoAsync()
         {
             try
             {
@@ -1194,19 +1123,158 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     try { await _power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try { await _power.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
-
-                if (_auxPower != null)
-                {
-                    try { await _auxPower.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _auxPower.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _auxPower.DisposeAsync().ConfigureAwait(false); } catch { }
-                }
+            }
+            catch
+            {
             }
             finally
             {
                 _power = null;
-                _auxPower = null;
             }
+
+            try
+            {
+                if (_mtx532 != null)
+                {
+                    try { await _mtx532.StopOutputAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.ResetAllToZeroAsync(disableAfterReset: true, cancellationToken: CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _mtx532.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                _mtx532 = null;
+            }
+
+            try
+            {
+                if (_arinc != null)
+                {
+                    try { await _arinc.StopRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _arinc.CloseRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _arinc.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _arinc.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                _arinc = null;
+            }
+
+            try
+            {
+                if (_jy7131 != null)
+                {
+                    try { await WriteInitDosAsync(false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _jy7131.SetRelayAsync(Relay485ChannelIndex, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _jy7131.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await _jy7131.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                _jy7131 = null;
+                _isRelay485On = false;
+            }
+        }
+
+        private void ResetPointDisplays()
+        {
+            _p1Sys1 = null;
+            _p1Sys2 = null;
+            _p1Sys3 = null;
+            _p2Sys1 = null;
+            _p2Sys2 = null;
+            _p2Sys3 = null;
+            _p3Sys1 = null;
+            _p3Sys2 = null;
+            _p3Sys3 = null;
+
+            PressurePoint1Sys1Text = "--";
+            PressurePoint1Sys2Text = "--";
+            PressurePoint1Sys3Text = "--";
+            PressurePoint2Sys1Text = "--";
+            PressurePoint2Sys2Text = "--";
+            PressurePoint2Sys3Text = "--";
+            PressurePoint3Sys1Text = "--";
+            PressurePoint3Sys2Text = "--";
+            PressurePoint3Sys3Text = "--";
+            CustomPressureSys1Text = "--";
+            CustomPressureSys2Text = "--";
+            CustomPressureSys3Text = "--";
+        }
+
+        private string NormalizeVoltageInput(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            var sanitized = value.Replace("V", string.Empty).Replace("v", string.Empty).Trim();
+            sanitized = sanitized.Replace(',', '.');
+
+            var chars = new List<char>(sanitized.Length);
+            var hasDot = false;
+            var decimalCount = 0;
+            foreach (var ch in sanitized)
+            {
+                if (char.IsDigit(ch))
+                {
+                    if (hasDot)
+                    {
+                        if (decimalCount >= 2)
+                            continue;
+
+                        decimalCount++;
+                    }
+
+                    chars.Add(ch);
+                    continue;
+                }
+
+                if (ch == '.' && !hasDot)
+                {
+                    hasDot = true;
+                    chars.Add(ch);
+                }
+            }
+
+            return new string(chars.ToArray());
+        }
+
+        private bool TryGetValidatedCustomVoltage(out double voltage)
+        {
+            voltage = 0;
+            var text = NormalizeVoltageInput(CustomVoltageInput);
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            if (text.EndsWith(".", StringComparison.Ordinal))
+                text = text.TrimEnd('.');
+
+            if (!double.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out voltage))
+                return false;
+
+            voltage = Math.Truncate(voltage * 100d) / 100d;
+            return voltage >= 0d && voltage <= 7.17d;
+        }
+
+        private async Task EnsurePowerAsync(CancellationToken cancellationToken)
+        {
+            if (!_hydraulicPowerService.IsHydraulicPowered)
+            {
+                await _hydraulicPowerService.PowerOnAsync(null, cancellationToken).ConfigureAwait(false);
+            }
+            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task EnsureMtx532Async(CancellationToken cancellationToken)
@@ -1216,16 +1284,120 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             var device = FindFirstMtx532Device();
             if (device == null)
-                throw new InvalidOperationException("未找到 MTX532 模拟量输出设备");
+                throw new InvalidOperationException("未找到MTX532(模拟量输出)板卡");
 
             var slot = device is PxiDeviceBase pxi ? pxi.SlotIndex : 7;
             _mtx532 = new Mtx532Api(device, options: new Mtx532Options { SampleRateHz = 20000.0 }, slotNumber: slot);
-            await _mtx532.ConnectAsync(cancellationToken, AoChannels).ConfigureAwait(false);
-            await SetAo67891011Async(0.0, cancellationToken).ConfigureAwait(false);
+
+            await _mtx532.ConnectAsync(cancellationToken, new[] { "AO0", "AO1", "AO2", "AO3", "AO4", "AO5" }).ConfigureAwait(false);
+            await SetAo012Async(0.0, cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
             await WaitForMtx532ReadyAsync(cancellationToken).ConfigureAwait(false);
             await _mtx532.StartOutputAsync(cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task EnsureRelay485Async(bool on, CancellationToken cancellationToken)
+        {
+            await _relayLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (on)
+                {
+                    if (_isRelay485On)
+                    {
+                        return;
+                    }
+
+                    var device = FindFirstJy7131Device();
+                    if (device == null)
+                    {
+                        throw new InvalidOperationException("未找到PXIe-7131(JY7131)板卡，无法开启485继电器第7路");
+                    }
+
+                    if (_jy7131 == null)
+                    {
+                        var slot = device is DigitalIODevice dio ? dio.SlotIndex : 0;
+                        _jy7131 = new Jy7131Api(device, slot);
+                    }
+
+                    if (!_jy7131.IsConnected)
+                    {
+                        await _jy7131.ConnectAsync(cancellationToken).ConfigureAwait(false);
+                    }
+
+                    if (!_jy7131.IsRunning)
+                    {
+                        await _jy7131.SetOutputModeAsync(Jy7131OutputMode.Sinking, cancellationToken).ConfigureAwait(false);
+                        await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
+                    }
+
+                    await _jy7131.SetRelayAsync(Relay485ChannelIndex, true, cancellationToken).ConfigureAwait(false);
+
+                    await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+
+                    _isRelay485On = true;
+                }
+                else
+                {
+                    if (!_isRelay485On)
+                    {
+                        return;
+                    }
+
+                    if (_jy7131 != null)
+                    {
+                        try
+                        {
+                            await _jy7131.SetRelayAsync(Relay485ChannelIndex, false, cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"关闭485继电器板 第{Relay485ChannelIndex + 1}路失败: {ex.Message}");
+                        }
+                    }
+
+                    _isRelay485On = false;
+                }
+            }
+            finally
+            {
+                _relayLock.Release();
+            }
+        }
+
+        private async Task EnsureGroundDoAsync(bool on, CancellationToken cancellationToken)
+        {
+            var device = FindFirstJy7131Device();
+            if (device == null)
+            {
+                throw new InvalidOperationException("未找到PXIe-7131(JY7131)板卡，无法控制DO27");
+            }
+
+            if (_jy7131 == null)
+            {
+                var slot = device is DigitalIODevice dio ? dio.SlotIndex : 0;
+                _jy7131 = new Jy7131Api(device, slot);
+            }
+
+            if (!_jy7131.IsConnected)
+            {
+                await _jy7131.ConnectAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!_jy7131.IsRunning)
+            {
+                await _jy7131.SetOutputModeAsync(Jy7131OutputMode.Sinking, cancellationToken).ConfigureAwait(false);
+                await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            await WriteInitDosAsync(on, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task WriteInitDosAsync(bool on, CancellationToken cancellationToken)
+        {
+            await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
+
         }
 
         private async Task WaitForMtx532ReadyAsync(CancellationToken cancellationToken)
@@ -1247,38 +1419,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             throw new InvalidOperationException("MTX532已连接，但在等待超时前仍未准备好输出");
         }
 
-        private async Task CleanupMtxAsync()
-        {
-            try
-            {
-                if (_mtx532 != null)
-                {
-                    try { await _mtx532.StopOutputAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _mtx532.ResetAllToZeroAsync(disableAfterReset: true, cancellationToken: CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _mtx532.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _mtx532.DisposeAsync().ConfigureAwait(false); } catch { }
-                }
-            }
-            finally
-            {
-                _mtx532 = null;
-            }
-        }
-
-        private async Task SetAo67891011Async(double voltageV, CancellationToken cancellationToken)
-        {
-            if (_mtx532 == null || !_mtx532.IsConnected)
-                throw new InvalidOperationException("MTX532未连接");
-
-            var outputs = AoChannels.ToDictionary(ch => ch, _ => voltageV, StringComparer.OrdinalIgnoreCase);
-            await _mtx532.WriteOnceDcAsync(outputs, cancellationToken).ConfigureAwait(false);
-        }
-
-        private double ConvertCurrentToVoltage(double currentmA)
-        {
-            return currentmA * 10.0 / 42.0;
-        }
-
         private async Task EnsureArincRxAsync(CancellationToken cancellationToken)
         {
             if (_arinc == null)
@@ -1290,145 +1430,40 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             if (!_arinc.IsConnected)
+            {
                 await _arinc.ConnectAsync(cancellationToken).ConfigureAwait(false);
+            }
 
             await _arinc.OpenRxAsync(RxChannelIndex, cancellationToken).ConfigureAwait(false);
-            await _arinc.ConfigureRxAsync(RxChannelIndex, ArincRate, Art4229Parity.Odd, Art4229WordFormat.Standard429, false, 512, false, cancellationToken).ConfigureAwait(false);
+            await _arinc.ConfigureRxAsync(
+                RxChannelIndex,
+                rate: ArincRate,
+                parity: Art4229Parity.Odd,
+                wordFormat: Art4229WordFormat.Standard429,
+                enableInterrupt: false,
+                interruptDepth: 512,
+                enableTimeTag: false,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
             await _arinc.StartRxAsync(RxChannelIndex, cancellationToken).ConfigureAwait(false);
-            _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, 4096, false, false, cancellationToken).ConfigureAwait(false);
+            _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
-        private async Task CleanupArincAsync()
+        private async Task SetAo012Async(double voltageV, CancellationToken cancellationToken)
         {
-            try
+            if (_mtx532 == null || !_mtx532.IsConnected)
+                throw new InvalidOperationException("MTX532未连接");
+
+            var halfVoltage = voltageV;
+            await _mtx532.WriteOnceDcAsync(new Dictionary<string, double>
             {
-                if (_arinc != null)
-                {
-                    try { await _arinc.StopRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _arinc.CloseRxAsync(RxChannelIndex, CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _arinc.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _arinc.DisposeAsync().ConfigureAwait(false); } catch { }
-                }
-            }
-            finally
-            {
-                _arinc = null;
-            }
-        }
+                ["AO0"] = halfVoltage,
+                ["AO1"] = 0.0,
+                ["AO2"] = halfVoltage,
+                ["AO3"] = 0.0,
+                ["AO4"] = halfVoltage,
+                ["AO5"] = 0.0,
 
-        private async Task EnsureRelay485Async(bool on, CancellationToken cancellationToken)
-        {
-            await _relayLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                if (on)
-                {
-                    if (_isRelay485On)
-                        return;
-
-                    var device = FindFirstJy7131Device();
-                    if (device == null)
-                        throw new InvalidOperationException("未找到PXIe-7131(JY7131)板卡，无法开启485继电器");
-
-                    if (_jy7131 == null)
-                    {
-                        var slot = device is DigitalIODevice dio ? dio.SlotIndex : 0;
-                        _jy7131 = new Jy7131Api(device, slot);
-                    }
-
-                    if (!_jy7131.IsConnected)
-                        await _jy7131.ConnectAsync(cancellationToken).ConfigureAwait(false);
-
-                    if (!_jy7131.IsRunning)
-                    {
-                        await _jy7131.SetOutputModeAsync(Jy7131OutputMode.Sinking, cancellationToken).ConfigureAwait(false);
-                        await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
-                    }
-
-                    await _jy7131.SetRelayAsync(Relay485ChannelIndex, true, cancellationToken).ConfigureAwait(false);
-                    _isRelay485On = true;
-                }
-                else
-                {
-                    if (!_isRelay485On)
-                        return;
-
-                    if (_jy7131 != null)
-                    {
-                        try
-                        {
-                            await _jy7131.SetRelayAsync(Relay485ChannelIndex, false, cancellationToken).ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            Log($"关闭继电器板 第{Relay485ChannelIndex + 1}路失败: {ex.Message}");
-                        }
-                    }
-
-                    _isRelay485On = false;
-                }
-            }
-            finally
-            {
-                _relayLock.Release();
-            }
-        }
-
-        private async Task EnsureGroundDoAsync(bool on, CancellationToken cancellationToken)
-        {
-            await _relayLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                if (_jy7131 == null)
-                {
-                    var device = FindFirstJy7131Device();
-                    if (device == null)
-                        throw new InvalidOperationException("未找到PXIe-7131(JY7131)板卡，无法设置DO");
-
-                    var slot = device is DigitalIODevice dio ? dio.SlotIndex : 0;
-                    _jy7131 = new Jy7131Api(device, slot);
-                }
-
-                if (!_jy7131.IsConnected)
-                    await _jy7131.ConnectAsync(cancellationToken).ConfigureAwait(false);
-
-                if (!_jy7131.IsRunning)
-                {
-                    await _jy7131.SetOutputModeAsync(Jy7131OutputMode.Sinking, cancellationToken).ConfigureAwait(false);
-                    await _jy7131.StartAsync(cancellationToken).ConfigureAwait(false);
-                }
-
-                await WriteInitDosAsync(on, cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                _relayLock.Release();
-            }
-        }
-
-        private async Task WriteInitDosAsync(bool on, CancellationToken cancellationToken)
-        {
-            await _jy7131.WriteDoAsync($"DO{RelayAuxDoIndex}", on, cancellationToken).ConfigureAwait(false);
-
-            await _jy7131.WriteDoAsync($"DO{RelayEnableDoIndex}", on, cancellationToken).ConfigureAwait(false);
-        }
-
-        private async Task CleanupJy7131Async()
-        {
-            try
-            {
-                if (_jy7131 != null)
-                {
-                    try { await _jy7131.StopAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _jy7131.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    try { await _jy7131.DisposeAsync().ConfigureAwait(false); } catch { }
-                }
-            }
-            finally
-            {
-                _jy7131 = null;
-                _isRelay485On = false;
-            }
+            }, cancellationToken).ConfigureAwait(false);
         }
 
         private DeviceBase FindFirstArincDevice()
@@ -1495,95 +1530,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return null;
         }
 
-        private void ResetAllDisplays()
-        {
-            DptEdp24mAText = "--";
-            DptEmp2B4mAText = "--";
-            DptEmp3B4mAText = "--";
-            DptSys14mAText = "--";
-            DptSys24mAText = "--";
-            DptSys34mAText = "--";
-
-            DptEdp2A20mAText = "--";
-            DptEmp2B20mAText = "--";
-            DptEmp3B20mAText = "--";
-            DptSys120mAText = "--";
-            DptSys220mAText = "--";
-            DptSys320mAText = "--";
-
-            DptEdp2A10mAText = "--";
-            DptEmp2B10mAText = "--";
-            DptEmp3B10mAText = "--";
-            DptSys110mAText = "--";
-            DptSys210mAText = "--";
-            DptSys310mAText = "--";
-
-            DptEdp2CustommAText = "--";
-            DptEmp2BCustommAText = "--";
-            DptEmp3BCustommAText = "--";
-            DptSys1CustommAText = "--";
-            DptSys2CustommAText = "--";
-            DptSys3CustommAText = "--";
-        }
-
-        private string NormalizeCurrentInput(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return string.Empty;
-
-            var sanitized = value.Replace("mA", string.Empty).Replace("MA", string.Empty).Replace("ma", string.Empty).Trim();
-            sanitized = sanitized.Replace(',', '.');
-
-            var chars = new List<char>(sanitized.Length);
-            var hasDot = false;
-            var decimalCount = 0;
-            foreach (var ch in sanitized)
-            {
-                if (char.IsDigit(ch))
-                {
-                    if (hasDot)
-                    {
-                        if (decimalCount >= 1)
-                            continue;
-
-                        decimalCount++;
-                    }
-
-                    chars.Add(ch);
-                    continue;
-                }
-
-                if (ch == '.' && !hasDot)
-                {
-                    hasDot = true;
-                    chars.Add(ch);
-                }
-            }
-
-            return new string(chars.ToArray());
-        }
-
-        private bool TryGetValidatedCustomCurrent(out double currentmA)
-        {
-            currentmA = 0;
-            var text = NormalizeCurrentInput(CustomCurrentInput);
-            if (string.IsNullOrWhiteSpace(text))
-                return false;
-
-            if (text.EndsWith(".", StringComparison.Ordinal))
-                text = text.TrimEnd('.');
-
-            if (!double.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out currentmA))
-                return false;
-
-            currentmA = Math.Truncate(currentmA * 10d) / 10d;
-            return currentmA >= 4d && currentmA <= 20d;
-        }
-
         private void Log(string message)
         {
             if (string.IsNullOrWhiteSpace(message))
+            {
                 return;
+            }
 
             var line = $"[{DateTime.Now:HH:mm:ss}] {message}";
             var dispatcher = Application.Current?.Dispatcher;
