@@ -115,13 +115,14 @@ namespace MeasureControl.Views.Common
         private bool _inertSimLatchSelected;
         private bool _inertSimLatchExecuted;
         private HC_6_1ViewModel _hydraulicAutoTestVm61;
-        private HC_6_2ViewModel _hydraulicAutoTestVm62;
-        private HC_6_3ViewModel _hydraulicAutoTestVm63;
-        private HC_6_4ViewModel _hydraulicAutoTestVm64;
-        private HC_6_5ViewModel _hydraulicAutoTestVm65;
-        private HC_6_6ViewModel _hydraulicAutoTestVm66;
-        private HC_6_7ViewModel _hydraulicAutoTestVm67;
-        private HC_6_8ViewModel _hydraulicAutoTestVm68;
+        private HC_6_2ViewModel _hydraulicAutoTestVm62ChannelId;
+        private HC_6_3ViewModel _hydraulicAutoTestVm62;
+        private HC_6_4ViewModel _hydraulicAutoTestVm63;
+        private HC_6_5ViewModel _hydraulicAutoTestVm64;
+        private HC_6_6ViewModel _hydraulicAutoTestVm65;
+        private HC_6_7ViewModel _hydraulicAutoTestVm66;
+        private HC_6_8ViewModel _hydraulicAutoTestVm67;
+        private HC_6_9ViewModel _hydraulicAutoTestVm68;
 
         private PowerImpedanceTestViewModel _fuelAutoTestVm1;
         private SecondaryPowerTestViewModel _fuelAutoTestVm2;
@@ -1403,6 +1404,7 @@ namespace MeasureControl.Views.Common
                 _selectedSingleBoardAutoTestItems = null;
                 _singleBoardAutoStepResults = null;
                 _hydraulicAutoTestVm61 = null;
+                _hydraulicAutoTestVm62ChannelId = null;
                 _hydraulicAutoTestVm62 = null;
                 _hydraulicAutoTestVm63 = null;
                 _hydraulicAutoTestVm64 = null;
@@ -1461,15 +1463,17 @@ namespace MeasureControl.Views.Common
         private (string Name, Func<CancellationToken, Task<string>> Run)[] BuildHydraulicSteps()
         {
             _hydraulicAutoTestVm61 = ContainerLocator.Container.Resolve<HC_6_1ViewModel>();
-            _hydraulicAutoTestVm62 = ContainerLocator.Container.Resolve<HC_6_2ViewModel>();
-            _hydraulicAutoTestVm63 = ContainerLocator.Container.Resolve<HC_6_3ViewModel>();
-            _hydraulicAutoTestVm64 = ContainerLocator.Container.Resolve<HC_6_4ViewModel>();
-            _hydraulicAutoTestVm65 = ContainerLocator.Container.Resolve<HC_6_5ViewModel>();
-            _hydraulicAutoTestVm66 = ContainerLocator.Container.Resolve<HC_6_6ViewModel>();
-            _hydraulicAutoTestVm67 = ContainerLocator.Container.Resolve<HC_6_7ViewModel>();
-            _hydraulicAutoTestVm68 = ContainerLocator.Container.Resolve<HC_6_8ViewModel>();
+            _hydraulicAutoTestVm62ChannelId = ContainerLocator.Container.Resolve<HC_6_2ViewModel>();
+            _hydraulicAutoTestVm62 = ContainerLocator.Container.Resolve<HC_6_3ViewModel>();
+            _hydraulicAutoTestVm63 = ContainerLocator.Container.Resolve<HC_6_4ViewModel>();
+            _hydraulicAutoTestVm64 = ContainerLocator.Container.Resolve<HC_6_5ViewModel>();
+            _hydraulicAutoTestVm65 = ContainerLocator.Container.Resolve<HC_6_6ViewModel>();
+            _hydraulicAutoTestVm66 = ContainerLocator.Container.Resolve<HC_6_7ViewModel>();
+            _hydraulicAutoTestVm67 = ContainerLocator.Container.Resolve<HC_6_8ViewModel>();
+            _hydraulicAutoTestVm68 = ContainerLocator.Container.Resolve<HC_6_9ViewModel>();
 
             var vm61 = _hydraulicAutoTestVm61;
+            var vm62ChannelId = _hydraulicAutoTestVm62ChannelId;
             var vm62 = _hydraulicAutoTestVm62;
             var vm63 = _hydraulicAutoTestVm63;
             var vm64 = _hydraulicAutoTestVm64;
@@ -1481,6 +1485,7 @@ namespace MeasureControl.Views.Common
             return new (string Name, Func<CancellationToken, Task<string>> Run)[]
             {
                 ("电源阻抗测试", ct => vm61.RunOnceAsync(ct)),
+                ("通道ID测试", ct => vm62ChannelId.RunOnceAsync(ct)),
                 ("二次电源测试", ct => vm62.RunOnceAsync(ct)),
                 ("温度采集测试", ct => vm63.RunOnceAsync(ct)),
                 ("压力传感器信号采集测试", ct => vm64.RunOnceAsync(ct)),
@@ -2148,13 +2153,13 @@ namespace MeasureControl.Views.Common
         private void FillHydraulicBoardExcelReportStable(string reportPath)
         {
             var vm61 = _hydraulicAutoTestVm61 ?? ContainerLocator.Container.Resolve<HC_6_1ViewModel>();
-            var vm62 = _hydraulicAutoTestVm62 ?? ContainerLocator.Container.Resolve<HC_6_2ViewModel>();
-            var vm63 = _hydraulicAutoTestVm63 ?? ContainerLocator.Container.Resolve<HC_6_3ViewModel>();
-            var vm64 = _hydraulicAutoTestVm64 ?? ContainerLocator.Container.Resolve<HC_6_4ViewModel>();
-            var vm65 = _hydraulicAutoTestVm65 ?? ContainerLocator.Container.Resolve<HC_6_5ViewModel>();
-            var vm66 = _hydraulicAutoTestVm66 ?? ContainerLocator.Container.Resolve<HC_6_6ViewModel>();
-            var vm67 = _hydraulicAutoTestVm67 ?? ContainerLocator.Container.Resolve<HC_6_7ViewModel>();
-            var vm68 = _hydraulicAutoTestVm68 ?? ContainerLocator.Container.Resolve<HC_6_8ViewModel>();
+            var vm62 = _hydraulicAutoTestVm62 ?? ContainerLocator.Container.Resolve<HC_6_3ViewModel>();
+            var vm63 = _hydraulicAutoTestVm63 ?? ContainerLocator.Container.Resolve<HC_6_4ViewModel>();
+            var vm64 = _hydraulicAutoTestVm64 ?? ContainerLocator.Container.Resolve<HC_6_5ViewModel>();
+            var vm65 = _hydraulicAutoTestVm65 ?? ContainerLocator.Container.Resolve<HC_6_6ViewModel>();
+            var vm66 = _hydraulicAutoTestVm66 ?? ContainerLocator.Container.Resolve<HC_6_7ViewModel>();
+            var vm67 = _hydraulicAutoTestVm67 ?? ContainerLocator.Container.Resolve<HC_6_8ViewModel>();
+            var vm68 = _hydraulicAutoTestVm68 ?? ContainerLocator.Container.Resolve<HC_6_9ViewModel>();
             if (vm61 == null && vm62 == null && vm63 == null && vm64 == null && vm65 == null && vm66 == null && vm67 == null && vm68 == null)
             {
                 return;

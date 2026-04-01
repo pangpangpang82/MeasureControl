@@ -477,7 +477,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             try
             {
-                await Task.Delay(50, token).ConfigureAwait(false);
+                await Task.Delay(1000, token).ConfigureAwait(false);
                 var reading = await _dmm.ReadOnceAsync(DmmMeasureMode.DCV, new DmmReadOptions { TimeoutMilliseconds = 2000 }, token).ConfigureAwait(false);
                 if (reading?.Value == null)
                     return "--";

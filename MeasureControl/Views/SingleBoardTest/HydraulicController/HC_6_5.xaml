@@ -5,90 +5,9 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="clr-namespace:MeasureControl.Views.SingleBoardTest.HydraulicController"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:prism="http://prismlibrary.com/"
     d:DesignHeight="550"
     d:DesignWidth="970"
-    prism:ViewModelLocator.AutoWireViewModel="True"
     mc:Ignorable="d">
-    <UserControl.Resources>
-        <Style x:Key="TheTabControlTabItemStyle" TargetType="{x:Type TabItem}">
-            <Setter Property="Background" Value="#F5F5F5" />
-            <Setter Property="BorderBrush" Value="#D9D9D9" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="6,4" />
-            <Setter Property="FontSize" Value="15" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type TabItem}">
-                        <Border
-                            x:Name="Bd"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="4,4,0,0">
-                            <ContentPresenter
-                                x:Name="Content"
-                                Margin="{TemplateBinding Padding}"
-                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                ContentSource="Header"
-                                RecognizesAccessKey="True" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#FFFFFFFF" />
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#686868" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Bd" Property="Opacity" Value="0.6" />
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#FFF1F5F9" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="TheTabControlStyle" TargetType="{x:Type TabControl}">
-            <Setter Property="BorderBrush" Value="#D9D9D9" />
-            <Setter Property="BorderThickness" Value="1.5" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type TabControl}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-
-                            <TabPanel
-                                Grid.Row="0"
-                                Panel.ZIndex="1"
-                                IsItemsHost="True"
-                                KeyboardNavigation.TabIndex="1" />
-
-                            <Border
-                                Grid.Row="1"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                ClipToBounds="True"
-                                CornerRadius="4">
-                                <ContentPresenter
-                                    x:Name="PART_SelectedContentHost"
-                                    Margin="10"
-                                    ContentSource="SelectedContent" />
-                            </Border>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </UserControl.Resources>
     <Grid
         x:Name="RootGrid"
         Background="White"
@@ -116,7 +35,7 @@
                         VerticalAlignment="Center"
                         FontSize="24"
                         FontWeight="Bold"
-                        Text="压差传感器信号采集测试" />
+                        Text="压力传感器信号采集测试" />
                     <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                         <Button
                             Width="100"
@@ -321,914 +240,486 @@
                 CornerRadius="8">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="1.6*" />
+                        <ColumnDefinition Width="1.8*" />
                         <ColumnDefinition Width="1*" />
                     </Grid.ColumnDefinitions>
-                    <TabControl
-                        BorderBrush="#D9D9D9"
-                        SelectedIndex="{Binding SelectedTabIndex}"
-                        Style="{StaticResource TheTabControlStyle}">
-                        <!--  第一页  -->
-                        <TabItem Header="4mA电流测试" Style="{StaticResource TheTabControlTabItemStyle}">
-                            <Grid Width="570" Height="350">
-                                <StackPanel Grid.Row="0" Orientation="Vertical">
+                    <Grid Grid.Column="0" VerticalAlignment="Center">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <StackPanel
+                            Grid.Row="0"
+                            Height="80"
+                            Margin="10"
+                            VerticalAlignment="Center"
+                            Orientation="Vertical">
+                            <TextBlock
+                                Height="28"
+                                FontSize="22"
+                                FontWeight="Bold"
+                                Text="0.5V电压测试" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock
+                                    Margin="5,20,0,20"
+                                    FontSize="16"
+                                    Text="SYS1压力：" />
+                                <Border
+                                    Width="80"
+                                    Height="28"
+                                    Margin="0,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
                                     <TextBlock
-                                        FontSize="20"
-                                        FontWeight="Bold"
-                                        Text="4mA电流压差采集" />
-                                    <Grid Height="330" Margin="0,10,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="4*" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Grid Grid.Column="0">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="*" />
-                                                <RowDefinition Height="*" />
-                                                <RowDefinition Height="*" />
-                                            </Grid.RowDefinitions>
-                                            <Grid Grid.Row="0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_EDP2压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptEdp24mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_EMP2B压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptEmp2B4mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-
-                                            </Grid>
-                                            <Grid Grid.Row="1">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_EMP3B压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptEmp3B4mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_RF2压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptSys14mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                            </Grid>
-                                            <Grid Grid.Row="2">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_SYS2压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptSys24mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_SYS3压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptSys34mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                            </Grid>
-
-                                        </Grid>
-                                        <Border
-                                            Grid.Column="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center">
-                                            <Button
-                                                Width="50"
-                                                Height="28"
-                                                VerticalAlignment="Center"
-                                                BorderThickness="0"
-                                                Command="{Binding Measure14Command}"
-                                                IsEnabled="{Binding CanMeasure14, FallbackValue=False}">
-                                                <Button.Template>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border
-                                                            x:Name="border"
-                                                            Background="#3b82f6"
-                                                            CornerRadius="4">
-                                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                                <TextBlock
-                                                                    x:Name="DeviceAction"
-                                                                    HorizontalAlignment="Center"
-                                                                    VerticalAlignment="Center"
-                                                                    FontSize="14"
-                                                                    Foreground="White"
-                                                                    Text="测量" />
-                                                            </StackPanel>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                            </Trigger>
-                                                            <Trigger Property="IsPressed" Value="True">
-                                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                            </Trigger>
-                                                            <Trigger Property="IsEnabled" Value="False">
-                                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                                <Setter Property="Cursor" Value="Arrow" />
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Button.Template>
-                                            </Button>
-                                        </Border>
-                                    </Grid>
-
-                                </StackPanel>
-
-                            </Grid>
-                        </TabItem>
-
-                        <!--  第二页  -->
-                        <TabItem Header="20mA电流测试" Style="{StaticResource TheTabControlTabItemStyle}">
-                            <Grid Width="570" Height="350">
-                                <StackPanel Grid.Row="0" Orientation="Vertical">
+                                        Margin="5,0,1,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        Text="{Binding PressurePoint1Sys1Text, TargetNullValue=---, FallbackValue=---}" />
+                                </Border>
+                                <TextBlock
+                                    Margin="5,20,0,20"
+                                    FontSize="16"
+                                    Text="SYS2压力：" />
+                                <Border
+                                    Width="80"
+                                    Height="28"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
                                     <TextBlock
-                                        FontSize="20"
-                                        FontWeight="Bold"
-                                        Text="20mA电流压差采集" />
-                                    <Grid Height="330" Margin="0,10,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="4*" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Grid Grid.Column="0">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="*" />
-                                                <RowDefinition Height="*" />
-                                                <RowDefinition Height="*" />
-                                            </Grid.RowDefinitions>
-                                            <Grid Grid.Row="0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_EDP2压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptEdp2A20mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_EMP2B压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptEmp2B20mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-
-                                            </Grid>
-                                            <Grid Grid.Row="1">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_EMP3B压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptEmp3B20mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_RF2压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptSys120mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                            </Grid>
-                                            <Grid Grid.Row="2">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_SYS2压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptSys220mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_SYS3压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptSys320mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                            </Grid>
-
-                                        </Grid>
-                                        <Border
-                                            Grid.Column="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center">
-                                            <Button
-                                                Width="50"
-                                                Height="28"
-                                                VerticalAlignment="Center"
-                                                BorderThickness="0"
-                                                Command="{Binding Measure14Command}"
-                                                IsEnabled="{Binding CanMeasure14, FallbackValue=False}">
-                                                <Button.Template>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border
-                                                            x:Name="border"
-                                                            Background="#3b82f6"
-                                                            CornerRadius="4">
-                                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                                <TextBlock
-                                                                    x:Name="DeviceAction"
-                                                                    HorizontalAlignment="Center"
-                                                                    VerticalAlignment="Center"
-                                                                    FontSize="14"
-                                                                    Foreground="White"
-                                                                    Text="测量" />
-                                                            </StackPanel>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                            </Trigger>
-                                                            <Trigger Property="IsPressed" Value="True">
-                                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                            </Trigger>
-                                                            <Trigger Property="IsEnabled" Value="False">
-                                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                                <Setter Property="Cursor" Value="Arrow" />
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Button.Template>
-                                            </Button>
-                                        </Border>
-                                    </Grid>
-
-                                </StackPanel>
-
-                            </Grid>
-                        </TabItem>
-
-                        <!--  第三页  -->
-                        <TabItem Header="10mA电流测试" Style="{StaticResource TheTabControlTabItemStyle}">
-                            <Grid Width="570" Height="350">
-                                <StackPanel Grid.Row="0" Orientation="Vertical">
+                                        Margin="5,0,1,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        Text="{Binding PressurePoint1Sys2Text, TargetNullValue=---, FallbackValue=---}" />
+                                </Border>
+                                <TextBlock
+                                    Margin="5,20,0,20"
+                                    FontSize="16"
+                                    Text="SYS3压力：" />
+                                <Border
+                                    Width="80"
+                                    Height="28"
+                                    Margin="0,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
                                     <TextBlock
-                                        FontSize="20"
-                                        FontWeight="Bold"
-                                        Text="10mA电流压差采集" />
-                                    <Grid Height="330" Margin="0,10,0,0">
+                                        Margin="5,0,1,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        Text="{Binding PressurePoint1Sys3Text, TargetNullValue=---, FallbackValue=---}" />
+                                </Border>
+                                <Button
+                                    Width="50"
+                                    Height="28"
+                                    Margin="15,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding MeasurePoint1Command}"
+                                    IsEnabled="{Binding CanMeasurePoint1, FallbackValue=False}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="4">
+                                                <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                    <TextBlock
+                                                        x:Name="DeviceAction"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="14"
+                                                        Foreground="White"
+                                                        Text="测量" />
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel
+                            Grid.Row="1"
+                            Height="80"
+                            Margin="10"
+                            VerticalAlignment="Center"
+                            Orientation="Vertical">
+                            <TextBlock
+                                Height="28"
+                                FontSize="22"
+                                FontWeight="Bold"
+                                Text="7.17V电压测试" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock
+                                    Margin="5,20,0,20"
+                                    FontSize="16"
+                                    Text="SYS1压力：" />
+                                <Border
+                                    Width="80"
+                                    Height="28"
+                                    Margin="0,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="5,0,1,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        Text="{Binding PressurePoint2Sys1Text, TargetNullValue=---, FallbackValue=---}" />
+                                </Border>
+                                <TextBlock
+                                    Margin="5,20,0,20"
+                                    FontSize="16"
+                                    Text="SYS2压力：" />
+                                <Border
+                                    Width="80"
+                                    Height="28"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="5,0,1,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        Text="{Binding PressurePoint2Sys2Text, TargetNullValue=---, FallbackValue=---}" />
+                                </Border>
+                                <TextBlock
+                                    Margin="5,20,0,0"
+                                    FontSize="16"
+                                    Text="SYS3压力：" />
+                                <Border
+                                    Width="80"
+                                    Height="28"
+                                    Margin="0,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="5,0,1,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        Text="{Binding PressurePoint2Sys3Text, TargetNullValue=---, FallbackValue=---}" />
+                                </Border>
+                                <Button
+                                    Width="50"
+                                    Height="28"
+                                    Margin="15,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding MeasurePoint2Command}"
+                                    IsEnabled="{Binding CanMeasurePoint2, FallbackValue=False}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="4">
+                                                <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                    <TextBlock
+                                                        x:Name="DeviceAction"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="14"
+                                                        Foreground="White"
+                                                        Text="测量" />
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel
+                            Grid.Row="2"
+                            Height="80"
+                            Margin="10"
+                            VerticalAlignment="Center"
+                            Orientation="Vertical">
+                            <TextBlock
+                                Height="28"
+                                FontSize="22"
+                                FontWeight="Bold"
+                                Text="3.0V电压测试" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock
+                                    Margin="5,20,0,20"
+                                    FontSize="16"
+                                    Text="SYS1压力：" />
+                                <Border
+                                    Width="80"
+                                    Height="28"
+                                    Margin="0,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="5,0,1,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        Text="{Binding PressurePoint3Sys1Text, TargetNullValue=---, FallbackValue=---}" />
+                                </Border>
+                                <TextBlock
+                                    Margin="5,20,0,20"
+                                    FontSize="16"
+                                    Text="SYS2压力：" />
+                                <Border
+                                    Width="80"
+                                    Height="28"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="5,0,1,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        Text="{Binding PressurePoint3Sys2Text, TargetNullValue=---, FallbackValue=---}" />
+                                </Border>
+                                <TextBlock
+                                    Margin="5,20,0,0"
+                                    FontSize="16"
+                                    Text="SYS3压力：" />
+                                <Border
+                                    Width="80"
+                                    Height="28"
+                                    Margin="0,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="5,0,1,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        Text="{Binding PressurePoint3Sys3Text, TargetNullValue=---, FallbackValue=---}" />
+                                </Border>
+                                <Button
+                                    Width="50"
+                                    Height="28"
+                                    Margin="15,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding MeasurePoint3Command}"
+                                    IsEnabled="{Binding CanMeasurePoint3, FallbackValue=False}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="4">
+                                                <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                    <TextBlock
+                                                        x:Name="DeviceAction"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="14"
+                                                        Foreground="White"
+                                                        Text="测量" />
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+
+
+                        <StackPanel
+                            Grid.Row="3"
+                            Height="80"
+                            Margin="10"
+                            VerticalAlignment="Center"
+                            Orientation="Vertical">
+                            <StackPanel Height="28" Orientation="Horizontal">
+                                <Border
+                                    Width="80"
+                                    Height="24"
+                                    Margin="0,4,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="black"
+                                    BorderThickness="2"
+                                    CornerRadius="3">
+                                    <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="4*" />
                                             <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="18" />
                                         </Grid.ColumnDefinitions>
-                                        <Grid Grid.Column="0">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="*" />
-                                                <RowDefinition Height="*" />
-                                                <RowDefinition Height="*" />
-                                            </Grid.RowDefinitions>
-                                            <Grid Grid.Row="0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_EDP2压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptEdp2A10mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_EMP2B压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptEmp2B10mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-
-                                            </Grid>
-                                            <Grid Grid.Row="1">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_EMP3B压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptEmp3B10mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_RF2压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptSys110mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                            </Grid>
-                                            <Grid Grid.Row="2">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_SYS2压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptSys210mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_SYS3压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptSys310mAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                            </Grid>
-
-                                        </Grid>
-                                        <Border
-                                            Grid.Column="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center">
-                                            <Button
-                                                Width="50"
-                                                Height="28"
-                                                VerticalAlignment="Center"
-                                                BorderThickness="0"
-                                                Command="{Binding Measure14Command}"
-                                                IsEnabled="{Binding CanMeasure14, FallbackValue=False}">
-                                                <Button.Template>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border
-                                                            x:Name="border"
-                                                            Background="#3b82f6"
-                                                            CornerRadius="4">
-                                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                                <TextBlock
-                                                                    x:Name="DeviceAction"
-                                                                    HorizontalAlignment="Center"
-                                                                    VerticalAlignment="Center"
-                                                                    FontSize="14"
-                                                                    Foreground="White"
-                                                                    Text="测量" />
-                                                            </StackPanel>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                            </Trigger>
-                                                            <Trigger Property="IsPressed" Value="True">
-                                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                            </Trigger>
-                                                            <Trigger Property="IsEnabled" Value="False">
-                                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                                <Setter Property="Cursor" Value="Arrow" />
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Button.Template>
-                                            </Button>
-                                        </Border>
-                                    </Grid>
-
-                                </StackPanel>
-
-                            </Grid>
-                        </TabItem>
-                        <TabItem Header="手动电流测试" Style="{StaticResource TheTabControlTabItemStyle}">
-                            <Grid Width="570" Height="350">
-                                <StackPanel Grid.Row="0" Orientation="Vertical">
-                                    <StackPanel Height="28" Orientation="Horizontal">
-                                        <Border
-                                            Width="90"
-                                            Height="24"
-                                            Margin="0,3,0,0"
+                                        <TextBox
+                                            Grid.Column="0"
+                                            Width="58"
+                                            Height="28"
+                                            Padding="2,0,0,0"
+                                            HorizontalAlignment="Left"
                                             VerticalAlignment="Center"
-                                            BorderBrush="black"
-                                            BorderThickness="2"
-                                            CornerRadius="3">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="36" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBox
-                                                    Grid.Column="0"
-                                                    Height="28"
-                                                    Padding="2,0,0,0"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    VerticalContentAlignment="Center"
-                                                    BorderThickness="0"
-                                                    FontSize="20"
-                                                    FontWeight="Bold"
-                                                    LostFocus="TextBox_LostFocus"
-                                                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                                    ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                                                    Text="{Binding CustomCurrentInput, UpdateSourceTrigger=PropertyChanged}"
-                                                    TextChanged="TextBox_TextChanged" />
-                                                <TextBlock
-                                                    Grid.Column="1"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    FontSize="20"
-                                                    FontWeight="Bold"
-                                                    Text="mA" />
-                                            </Grid>
-                                        </Border>
-                                        <TextBlock
-                                            Height="25"
-                                            VerticalAlignment="Center"
-                                            FontSize="20"
+                                            VerticalContentAlignment="Center"
+                                            BorderThickness="0"
+                                            FontSize="22"
                                             FontWeight="Bold"
-                                            Text="电流测试" />
-                                    </StackPanel>
-                                    <Grid Height="330" Margin="0,10,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="4*" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Grid Grid.Column="0">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="*" />
-                                                <RowDefinition Height="*" />
-                                                <RowDefinition Height="*" />
-                                            </Grid.RowDefinitions>
-                                            <Grid Grid.Row="0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_EDP2压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptEdp2CustommAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_EMP2B压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptEmp2BCustommAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                            </Grid>
-                                            <Grid Grid.Row="1">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_EMP3B压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptEmp3BCustommAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_RF2压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptSys1CustommAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                            </Grid>
-                                            <Grid Grid.Row="2">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_SYS2压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptSys2CustommAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Orientation="Vertical">
-                                                    <TextBlock
-                                                        Margin="0,10,0,10"
-                                                        HorizontalAlignment="Center"
-                                                        FontSize="16"
-                                                        Text="DPT_SYS3压差：" />
-                                                    <Border
-                                                        Width="120"
-                                                        Height="28"
-                                                        Margin="0,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        BorderBrush="#D9D9D9"
-                                                        BorderThickness="1"
-                                                        CornerRadius="3">
-                                                        <TextBlock
-                                                            Margin="5,0,1,0"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="15"
-                                                            Text="{Binding DptSys3CustommAText, TargetNullValue=---, FallbackValue=---}" />
-                                                    </Border>
-                                                </StackPanel>
-                                            </Grid>
-                                        </Grid>
-                                        <Border
+                                            LostFocus="TextBox_LostFocus"
+                                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                            ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                            Text="{Binding CustomVoltageInput, UpdateSourceTrigger=PropertyChanged}"
+                                            TextChanged="TextBox_TextChanged" />
+                                        <TextBlock
                                             Grid.Column="1"
                                             HorizontalAlignment="Center"
-                                            VerticalAlignment="Center">
-                                            <Button
-                                                Width="50"
-                                                Height="28"
-                                                VerticalAlignment="Center"
-                                                BorderThickness="0"
-                                                Command="{Binding MeasureCustomCurrentCommand}"
-                                                IsEnabled="{Binding CanMeasureCustomCurrent, FallbackValue=False}">
-                                                <Button.Template>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border
-                                                            x:Name="border"
-                                                            Background="#3b82f6"
-                                                            CornerRadius="4">
-                                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                                <TextBlock
-                                                                    x:Name="DeviceAction"
-                                                                    HorizontalAlignment="Center"
-                                                                    VerticalAlignment="Center"
-                                                                    FontSize="14"
-                                                                    Foreground="White"
-                                                                    Text="测量" />
-                                                            </StackPanel>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                            </Trigger>
-                                                            <Trigger Property="IsPressed" Value="True">
-                                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                            </Trigger>
-                                                            <Trigger Property="IsEnabled" Value="False">
-                                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                                <Setter Property="Cursor" Value="Arrow" />
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Button.Template>
-                                            </Button>
-                                        </Border>
+                                            VerticalAlignment="Center"
+                                            FontSize="22"
+                                            FontWeight="Bold"
+                                            Text="V" />
                                     </Grid>
-
-                                </StackPanel>
-
-                            </Grid>
-                        </TabItem>
-                    </TabControl>
+                                </Border>
+                                <TextBlock
+                                    Height="25"
+                                    VerticalAlignment="Center"
+                                    FontSize="22"
+                                    FontWeight="Bold"
+                                    Text="电压测试" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock
+                                    Margin="5,20,0,20"
+                                    FontSize="16"
+                                    Text="SYS1压力：" />
+                                <Border
+                                    Width="80"
+                                    Height="28"
+                                    Margin="0,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="5,0,1,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        Text="{Binding CustomPressureSys1Text, TargetNullValue=---, FallbackValue=---}" />
+                                </Border>
+                                <TextBlock
+                                    Margin="5,20,0,20"
+                                    FontSize="16"
+                                    Text="SYS2压力：" />
+                                <Border
+                                    Width="80"
+                                    Height="28"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="5,0,1,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        Text="{Binding CustomPressureSys2Text, TargetNullValue=---, FallbackValue=---}" />
+                                </Border>
+                                <TextBlock
+                                    Margin="5,20,0,20"
+                                    FontSize="16"
+                                    Text="SYS3压力：" />
+                                <Border
+                                    Width="80"
+                                    Height="28"
+                                    Margin="0,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="5,0,1,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        Text="{Binding CustomPressureSys3Text, TargetNullValue=---, FallbackValue=---}" />
+                                </Border>
+                                <Button
+                                    Width="50"
+                                    Height="28"
+                                    Margin="15,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding MeasureCustomPointCommand}"
+                                    IsEnabled="{Binding CanMeasureCustomPoint, FallbackValue=False}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="4">
+                                                <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                    <TextBlock
+                                                        x:Name="DeviceAction"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="14"
+                                                        Foreground="White"
+                                                        Text="测量" />
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
                     <Grid Grid.Column="1" VerticalAlignment="Center">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="auto" />
@@ -1247,7 +738,7 @@
                             <Button
                                 Width="80"
                                 Height="32"
-                                Margin="180,5,0,0"
+                                Margin="150,5,0,0"
                                 VerticalAlignment="Center"
                                 BorderThickness="0"
                                 Command="{Binding ClearLogCommand}">
@@ -1287,7 +778,7 @@
                             Grid.Row="1"
                             Grid.RowSpan="5"
                             Grid.Column="1"
-                            Width="350"
+                            Width="320"
                             Height="360"
                             Margin="0,0,5,0"
                             HorizontalAlignment="Center"
@@ -1326,7 +817,7 @@
                 BorderBrush="#D9D9D9"
                 BorderThickness="1.5"
                 CornerRadius="8">
-                <Grid>
+                <Grid Grid.Row="2">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="1.5*" />
                         <RowDefinition Height="*" />
@@ -1377,3 +868,5 @@
         </Grid>
     </Grid>
 </UserControl>
+
+

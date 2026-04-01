@@ -291,10 +291,26 @@ namespace MeasureControl.Drivers
             // ACTS6010 可编程电阻设备（对应程控电阻板卡）
             if (device is ProgrammableResistorDevice resistorDevice)
             {
+                UInt32 logicalId;
                 // 硬编码槽位到logicalID的映射，避免因打开顺序不同导致ID错乱
                 // 槽位5 → logicalID 1
                 // 槽位6 → logicalID 0
-                UInt32 logicalId;
+                //// 记录该板卡的SlotIndex
+                //lock (_lock)
+                //{
+                //    _resistorSlotIndices.Add(resistorDevice.SlotIndex);
+                //}
+
+                //// 根据SlotIndex在所有电阻板卡中的排序位置分配logicalID
+                //// 槽位号最小的 → logicalID = 0，次小的 → logicalID = 1
+                //
+                //lock (_lock)
+                //{
+                //    var sortedSlots = _resistorSlotIndices.ToList();
+                //    int index = sortedSlots.IndexOf(resistorDevice.SlotIndex);
+                //    logicalId = (UInt32)(index == 0 ? 1 : 0);
+                //}
+
                 switch (resistorDevice.SlotIndex)
                 {
                     case 5:
@@ -304,9 +320,16 @@ namespace MeasureControl.Drivers
                         logicalId = 0;
                         break;
                     default:
-                        logicalId = 0;
+                        lock (_lock)
+                        {
+                            _resistorSlotIndices.Add(resistorDevice.SlotIndex);
+                            var sortedSlots = _resistorSlotIndices.ToList();
+                            int index = sortedSlots.IndexOf(resistorDevice.SlotIndex);
+                            logicalId = (UInt32)(index == 0 ? 1 : 0);
+                        }
                         break;
                 }
+            
 
                 System.Diagnostics.Debug.WriteLine(
                     $"[DriverFactory] 创建 ACTS6010Driver, DeviceId={device.Id}, SlotIndex={resistorDevice.SlotIndex}, LogicalId={logicalId}");

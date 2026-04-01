@@ -8,6 +8,82 @@
     d:DesignHeight="550"
     d:DesignWidth="970"
     mc:Ignorable="d">
+    <UserControl.Resources>
+        <Style x:Key="TheTabControlTabItemStyle" TargetType="{x:Type TabItem}">
+            <Setter Property="Background" Value="#F5F5F5" />
+            <Setter Property="BorderBrush" Value="#D9D9D9" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TabItem}">
+                        <Border
+                            x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4,4,0,0">
+                            <ContentPresenter
+                                x:Name="Content"
+                                Margin="{TemplateBinding Padding}"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                ContentSource="Header"
+                                RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFFFFFFF" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#686868" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.6" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFF1F5F9" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="TheTabControlStyle" TargetType="{x:Type TabControl}">
+            <Setter Property="BorderBrush" Value="#D9D9D9" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TabControl}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <TabPanel
+                                Grid.Row="0"
+                                Panel.ZIndex="1"
+                                IsItemsHost="True"
+                                KeyboardNavigation.TabIndex="1" />
+                            <Border
+                                Grid.Row="1"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                ClipToBounds="True"
+                                CornerRadius="4">
+                                <ContentPresenter
+                                    x:Name="PART_SelectedContentHost"
+                                    Margin="10"
+                                    ContentSource="SelectedContent" />
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
     <Grid
         x:Name="RootGrid"
         Background="White"
@@ -35,17 +111,16 @@
                         VerticalAlignment="Center"
                         FontSize="24"
                         FontWeight="Bold"
-                        Text="离散量输出测试" />
+                        Text="离散量采集测试" />
                     <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                         <Button
                             Width="100"
                             Height="32"
                             Margin="0,0,20,0"
                             VerticalAlignment="Center"
-                            Visibility="Collapsed"
                             BorderThickness="0"
-                            IsEnabled="{Binding CanStartManualTest, FallbackValue=True}"
-                            Command="{Binding ManualTestCommand}">
+                            Command="{Binding ManualTestCommand}"
+                            IsEnabled="{Binding CanStartManualTest, FallbackValue=True}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border
@@ -139,8 +214,8 @@
                             Margin="0,0,30,0"
                             VerticalAlignment="Center"
                             BorderThickness="0"
-                            IsEnabled="{Binding CanStartAutoTest, FallbackValue=True}"
-                            Command="{Binding AutoTestCommand}">
+                            Command="{Binding AutoTestCommand}"
+                            IsEnabled="{Binding CanStartAutoTest, FallbackValue=True}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border
@@ -244,441 +319,1208 @@
                         <ColumnDefinition Width="1.8*" />
                         <ColumnDefinition Width="1*" />
                     </Grid.ColumnDefinitions>
-                    <Grid Grid.Column="0" VerticalAlignment="Center">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <StackPanel
-                            Grid.Row="0"
-                            Height="180"
-                            Margin="10"
-                            VerticalAlignment="Center"
-                            Orientation="Vertical">
-                            <TextBlock
-                                FontSize="20"
-                                FontWeight="Bold"
-                                Text="开路对地阻抗" />
-                            <Grid>
+                    <TabControl
+                        Grid.Column="0"
+                        BorderBrush="#D9D9D9"
+                        SelectedIndex="{Binding SelectedTabIndex}"
+                        Style="{StaticResource TheTabControlStyle}">
+                        <TabItem Header="接地测试" Style="{StaticResource TheTabControlTabItemStyle}">
+                            <Grid Height="390" Margin="10,0,0,0">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="2.5*" />
-                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="6*" />
+                                    <ColumnDefinition Width="1*" />
                                 </Grid.ColumnDefinitions>
-                                <Grid Grid.ColumnSpan="2">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="*" />
-                                        <RowDefinition Height="*" />
-                                        <RowDefinition Height="*" />
-                                    </Grid.RowDefinitions>
-                                    <StackPanel
-                                        Grid.Row="0"
-                                        Margin="0,13,0,13"
-                                        Orientation="Horizontal">
-                                        <TextBlock
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Text="针脚9阻抗：" />
-                                        <Border
-                                            Width="80"
-                                            Height="28"
-                                            VerticalAlignment="Top"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="5,0,1,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Text="{Binding OpenPin9Text, TargetNullValue=---, FallbackValue=---}" />
-                                        </Border>
-                                        <TextBlock
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Text="针脚10阻抗：" />
-                                        <Border
-                                            Width="80"
-                                            Height="28"
-                                            VerticalAlignment="Center"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="5,0,1,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Text="{Binding OpenPin10Text, TargetNullValue=---, FallbackValue=---}" />
-                                        </Border>
-                                        <TextBlock
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Text="针脚11阻抗：" />
-                                        <Border
-                                            Width="80"
-                                            Height="28"
-                                            VerticalAlignment="Center"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="5,0,1,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Text="{Binding OpenPin11Text, TargetNullValue=---, FallbackValue=---}" />
-                                        </Border>
-                                    </StackPanel>
-                                    <StackPanel
-                                        Grid.Row="1"
-                                        Margin="0,13,0,13"
-                                        Orientation="Horizontal">
-                                        <TextBlock
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Text="针脚12阻抗：" />
-                                        <Border
-                                            Width="80"
-                                            Height="28"
-                                            VerticalAlignment="Top"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="5,0,1,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Text="{Binding OpenPin12Text, TargetNullValue=---, FallbackValue=---}" />
-                                        </Border>
-                                        <TextBlock
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Text="针脚13阻抗：" />
-                                        <Border
-                                            Width="80"
-                                            Height="28"
-                                            VerticalAlignment="Center"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="5,0,1,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Text="{Binding OpenPin13Text, TargetNullValue=---, FallbackValue=---}" />
-                                        </Border>
-                                    </StackPanel>
-                                    <StackPanel
-                                        Grid.Row="2"
-                                        Margin="0,13,0,13"
-                                        Orientation="Horizontal">
-                                        <TextBlock
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Text="针脚14阻抗：" />
-                                        <Border
-                                            Width="80"
-                                            Height="28"
-                                            VerticalAlignment="Top"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="5,0,1,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Text="{Binding OpenPin14Text, TargetNullValue=---, FallbackValue=---}" />
-                                        </Border>
-                                        <TextBlock
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Text="针脚15阻抗：" />
-                                        <Border
-                                            Width="80"
-                                            Height="28"
-                                            VerticalAlignment="Center"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="5,0,1,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Text="{Binding OpenPin15Text, TargetNullValue=---, FallbackValue=---}" />
-                                        </Border>
-                                    </StackPanel>
-                                </Grid>
-                                <Border
-                                    Grid.Column="2"
-                                    Margin="20,0,0,0"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Center">
-                                    <Button
-                                        Width="50"
-                                        Visibility="Collapsed"
-                                        Height="28"
-                                        Margin="30,20,0,0"
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <StackPanel
+                                    Grid.Row="0"
+                                    Margin="0,10,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
                                         VerticalAlignment="Center"
-                                        BorderThickness="0"
-                                        Command="{Binding MeasureOpenCommand}"
-                                        IsEnabled="{Binding CanMeasureOpen, FallbackValue=False}">
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border
-                                                    x:Name="border"
-                                                    Background="#3b82f6"
-                                                    CornerRadius="4">
-                                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                        <TextBlock
-                                                            x:Name="DeviceAction"
-                                                            HorizontalAlignment="Center"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="14"
-                                                            Foreground="White"
-                                                            Text="测量" />
-                                                    </StackPanel>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                    </Trigger>
-                                                    <Trigger Property="IsPressed" Value="True">
-                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                    </Trigger>
-                                                    <Trigger Property="IsEnabled" Value="False">
-                                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                        <Setter Property="Cursor" Value="Arrow" />
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Button.Template>
-                                    </Button>
-                                </Border>
-                            </Grid>
-                        </StackPanel>
-                        <StackPanel
-                            Grid.Row="1"
-                            Height="180"
-                            Margin="10"
-                            VerticalAlignment="Center"
-                            Orientation="Vertical">
-                            <TextBlock
-                                FontSize="20"
-                                FontWeight="Bold"
-                                Text="通路对地阻抗" />
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="2.5*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Grid Grid.ColumnSpan="2">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="*" />
-                                        <RowDefinition Height="*" />
-                                        <RowDefinition Height="*" />
-                                    </Grid.RowDefinitions>
-                                    <StackPanel
-                                        Grid.Row="0"
-                                        Margin="0,13,0,13"
-                                        Orientation="Horizontal">
-                                        <TextBlock
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Text="针脚9阻抗：" />
-                                        <Border
-                                            Width="80"
-                                            Height="28"
-                                            VerticalAlignment="Top"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="5,0,1,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Text="{Binding ClosePin9Text, TargetNullValue=---, FallbackValue=---}" />
-                                        </Border>
-                                        <TextBlock
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Text="针脚10阻抗：" />
-                                        <Border
-                                            Width="80"
-                                            Height="28"
-                                            VerticalAlignment="Center"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="5,0,1,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Text="{Binding ClosePin10Text, TargetNullValue=---, FallbackValue=---}" />
-                                        </Border>
-                                        <TextBlock
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Text="针脚11阻抗：" />
-                                        <Border
-                                            Width="80"
-                                            Height="28"
-                                            VerticalAlignment="Center"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="5,0,1,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Text="{Binding ClosePin11Text, TargetNullValue=---, FallbackValue=---}" />
-                                        </Border>
-                                    </StackPanel>
-                                    <StackPanel
-                                        Grid.Row="1"
-                                        Margin="0,13,0,13"
-                                        Orientation="Horizontal">
-                                        <TextBlock
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Text="针脚12阻抗：" />
-                                        <Border
-                                            Width="80"
-                                            Height="28"
-                                            VerticalAlignment="Top"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="5,0,1,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Text="{Binding ClosePin12Text, TargetNullValue=---, FallbackValue=---}" />
-                                        </Border>
-                                        <TextBlock
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Text="针脚13阻抗：" />
-                                        <Border
-                                            Width="80"
-                                            Height="28"
-                                            VerticalAlignment="Center"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="5,0,1,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Text="{Binding ClosePin13Text, TargetNullValue=---, FallbackValue=---}" />
-                                        </Border>
-                                    </StackPanel>
-                                    <StackPanel
-                                        Grid.Row="2"
-                                        Margin="0,13,0,13"
-                                        Orientation="Horizontal">
-                                        <TextBlock
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Text="针脚14阻抗：" />
-                                        <Border
-                                            Width="80"
-                                            Height="28"
-                                            VerticalAlignment="Top"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="5,0,1,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Text="{Binding ClosePin14Text, TargetNullValue=---, FallbackValue=---}" />
-                                        </Border>
-                                        <TextBlock
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Text="针脚15阻抗：" />
-                                        <Border
-                                            Width="80"
-                                            Height="28"
-                                            VerticalAlignment="Center"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="5,0,1,0"
-                                                VerticalAlignment="Center"
-                                                FontSize="15"
-                                                Text="{Binding ClosePin15Text, TargetNullValue=---, FallbackValue=---}" />
-                                        </Border>
-                                    </StackPanel>
-                                </Grid>
-                                <Border
-                                    Grid.Column="2"
-                                    Margin="20,0,0,0"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Center">
-                                    <Button
-                                        Width="50"
+                                        FontSize="16"
+                                        Text="针脚49：" />
+                                    <Border
+                                        Width="80"
                                         Height="28"
-                                        Margin="30,20,0,0"
-                                        Visibility="Collapsed"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin49Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
                                         VerticalAlignment="Center"
-                                        BorderThickness="0"
-                                        Command="{Binding MeasureCloseCommand}"
-                                        IsEnabled="{Binding CanMeasureClose, FallbackValue=False}">
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border
-                                                    x:Name="border"
-                                                    Background="#3b82f6"
-                                                    CornerRadius="4">
-                                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                        <TextBlock
-                                                            x:Name="DeviceAction"
-                                                            HorizontalAlignment="Center"
-                                                            VerticalAlignment="Center"
-                                                            FontSize="14"
-                                                            Foreground="White"
-                                                            Text="测量" />
-                                                    </StackPanel>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                    </Trigger>
-                                                    <Trigger Property="IsPressed" Value="True">
-                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                                    </Trigger>
-                                                    <Trigger Property="IsEnabled" Value="False">
-                                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                        <Setter Property="Cursor" Value="Arrow" />
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Button.Template>
-                                    </Button>
-                                </Border>
-                            </Grid>
-                        </StackPanel>
+                                        FontSize="16"
+                                        Text="针脚50：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin50Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚51：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin51Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="1"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚52：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin52Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚53：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin53Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚54：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin54Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="2"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚55：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin55Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚56：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin56Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚57：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin57Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="3"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚58：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin58Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚59：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin59Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚60：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin60Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="4"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚61：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin61Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚62：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin62Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚63：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin63Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="5"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚89：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin89Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚90：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin90Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚91：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin91Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
 
-                    </Grid>
+                                <StackPanel
+                                    Grid.Row="6"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚92：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin92Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚93：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin93Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚94：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin94Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="7"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚95：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin95Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚96：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin96Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚97：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin97Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="8"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚98：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin98Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚99：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin99Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚100：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding GroundPin100Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+
+                                <Border
+                                    Grid.RowSpan="9"
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                                    <Button
+                                        Width="50"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderThickness="0"
+                                        Command="{Binding Measure14Command}"
+                                        IsEnabled="{Binding CanMeasure14, FallbackValue=False}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Background="#3b82f6"
+                                                    CornerRadius="4">
+                                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                        <TextBlock
+                                                            x:Name="DeviceAction"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            FontSize="14"
+                                                            Foreground="White"
+                                                            Text="测量" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                        <Setter Property="Cursor" Value="Arrow" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                            </Grid>
+                        </TabItem>
+                        <!--  接开测试  -->
+                        <TabItem Header="接开测试" Style="{StaticResource TheTabControlTabItemStyle}">
+                            <Grid Height="390" Margin="10,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="6*" />
+                                    <ColumnDefinition Width="1*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <StackPanel
+                                    Grid.Row="0"
+                                    Margin="0,10,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚49：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin49Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚50：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin50Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚51：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin51Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="1"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚52：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin52Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚53：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin53Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚54：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin54Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="2"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚55：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin55Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚56：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin56Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚57：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin57Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="3"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚58：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin58Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚59：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin59Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚60：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin60Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="4"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚61：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin61Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚62：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin62Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚63：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin63Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="5"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚89：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin89Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚90：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin90Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚91：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin91Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="6"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚92：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin92Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚93：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin93Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚94：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin94Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="7"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚95：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin95Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚96：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin96Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚97：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin97Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="8"
+                                    Margin="0,6,0,6"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚98：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin98Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚99：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin99Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="16"
+                                        Text="针脚100：" />
+                                    <Border
+                                        Width="80"
+                                        Height="28"
+                                        VerticalAlignment="Top"
+                                        BorderBrush="#D9D9D9"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+                                        <TextBlock
+                                            Margin="5,0,1,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="15"
+                                            Text="{Binding OpenPin100Text, TargetNullValue=---, FallbackValue=---}" />
+                                    </Border>
+                                </StackPanel>
+                                <Border
+                                    Grid.RowSpan="9"
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                                    <Button
+                                        Width="50"
+                                        Height="28"
+                                        VerticalAlignment="Center"
+                                        BorderThickness="0"
+                                        Command="{Binding Measure14Command}"
+                                        IsEnabled="{Binding CanMeasure14, FallbackValue=False}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="border"
+                                                    Background="#3b82f6"
+                                                    CornerRadius="4">
+                                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                        <TextBlock
+                                                            x:Name="DeviceAction"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            FontSize="14"
+                                                            Foreground="White"
+                                                            Text="测量" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                        <Setter Property="Cursor" Value="Arrow" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Border>
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
                     <Grid Grid.Column="1" VerticalAlignment="Center">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="auto" />
                             <RowDefinition Height="auto" />
                         </Grid.RowDefinitions>
-
 
                         <StackPanel
                             Grid.Column="1"
@@ -692,7 +1534,7 @@
                             <Button
                                 Width="80"
                                 Height="32"
-                                Margin="150,5,0,0"
+                                Margin="140,5,0,0"
                                 VerticalAlignment="Center"
                                 BorderThickness="0"
                                 Command="{Binding ClearLogCommand}">

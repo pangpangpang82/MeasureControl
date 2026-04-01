@@ -212,13 +212,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
                     {
                         { "电源阻抗测试", () => new HC_6_1() },
-                        { "二次电源测试", () => new HC_6_2() },
-                        { "温度采集测试", () => new HC_6_3() },
-                        { "压力传感器信号采集测试", () => new HC_6_4() },
-                        { "压差传感器信号采集测试", () => new HC_6_5() },
-                        { "油量传感器信号采集测试", () => new HC_6_6() },
-                        { "离散量采集测试", () => new HC_6_7() },
-                        { "离散量输出测试", () => new HC_6_8() },
+                        { "通道ID测试", () => new HC_6_2() },
+                        { "二次电源测试", () => new HC_6_3() },
+                        { "温度采集测试", () => new HC_6_4() },
+                        { "压力传感器信号采集测试", () => new HC_6_5() },
+                        { "压差传感器信号采集测试", () => new HC_6_6() },
+                        { "油量传感器信号采集测试", () => new HC_6_7() },
+                        { "离散量采集测试", () => new HC_6_8() },
+                        { "离散量输出测试", () => new HC_6_9() },
                     }
                 },
                 {
@@ -308,6 +309,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
                         { "电源阻抗测试", "\t a) 针脚1和4之间阻抗值大于500Ω；\r\n \t b) 针脚1和82之间阻抗值大于500Ω。" },
+                        { "通道ID测试", "\t a) 控制通道A识别结果应为0x01；\r\n \t b) 控制通道B识别结果应为0x02。" },
                         { "二次电源测试", "\t a) 5V隔离二次电源输出电压范围在[4.82，5.18]V；\r\n \t b) 15V隔离二次电源输出电压范围在[14.47，15.53]V；\r\n \t c) -15V隔离二次电源输出电压范围在[-15.53，-14.47]V。" },
                         { "温度采集测试", "\t a) 阻值为763.3±2.0Ω时，温度值在[-66.6,-53.4]°C;\r\n \t b) 阻值为1758.6±2.0Ω时，温度值在[193.4,206.6]°C;\r\n \t c) 阻值为1155.4±2.0Ω时，温度值在[32.4,46.6]°C。" },
                         { "压力传感器信号采集测试", "\t a) 电压供电0.5±0.0717时，压力值在[0,85]Psi;\r\n \t b) 电压供电7.17±0.0717V时，压力值在[3915,4000]Psi;\r\n \t c) 电压供电3.0±0.0717V时，压差力在[1414,1585]Psi。" },
@@ -315,6 +317,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "油量传感器信号采集测试", "\t a) 31-32/33-34针脚采集信号频率3200±32Hz，电压有效值6±1Vrms;\r\n \t b) 2/3号系统油量处于范围内。\r\n \t " },
                         { "离散量采集测试", "\t 针脚89/90采集为0，其余针脚采集结果为1。" },
                         { "离散量输出测试", "\t a) 置为开路时，针脚9~15对地阻抗均大于100kΩ;\r\n \t b) 置为通路时，针脚9~15对地阻抗均小于10Ω。" },
+                        { "通讯模块测试", "" },
                     }
                 },
                 {
@@ -355,6 +358,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "TCV电机驱动测试", "\t 控制板供电28V；试验台使用电阻6Ω（功率不小于150W）和电感12mH模拟负载；分别设置步进频率500Hz/1000Hz，设置正转/反转并给出电机使能信号；上位机读取TCV电机A相(J9/J10)、B相(J7/J8)电流值；A、B每相电流读数不持续为0则合格。" },
                     }
                 },
+                {
+                    "空气单板",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "6.1电源对地阻抗检查", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "8.1电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "7.1功率板电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试", "\t a) 接入50±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS；\r\n\t b) 接入12±1Ω负载，发送测试指令后，输出电压绝对值在[17，32]V范围内为PASS。" },
+                        { "6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试", "\t 控制器输出\"28V\"：离散输入接收\"28V\"信号，且离散输出电压在[25，28]V内；\r\n\t 控制器输出\"OC\"：离散输入接收\"OC\"信号。" },
+                        { "6.13.1控制通道压力传感器采集测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1095.21,1104.79]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1496.21,1504.79]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1995.21,2004.79]mbar。" },
+                        { "6.13.2 S安全通道压力传感器测试", "\t a) 测试点1：输入1100±1mbar，采集压力在[1082,1118]mbar；\r\n\t b) 测试点2：输入1500±1mbar，采集压力在[1482,1518]mbar；\r\n\t c) 测试点3：输入2000±1mbar，采集压力在[1982,2018]mbar。" },
+                        { "6.5.1.1控制通道ARINC429发送通道1测试", "\t 上位机显示\"7F00AA55\"则检查通过。" },
+                        { "8.5.1安全通道CAN发送测试", "\t 上位机显示\"01010101\"（对应CAN帧后4字节为01 01 01 01）则检查通过。" },
+                        { "8.5.2安全通道CAN接收测试", "\t 上位机显示\"01010101\"则检查通过。" },
+                        { "8.6.1 S安全通道WAITS1传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电阻：351.65Ω、550.0Ω、693.53Ω；\r\n\t b) 发送测试指令（15 01 01 01 00 00 00 00）；\r\n\t c) 1挡温度范围[-77.05, -72.95]℃(10~50℃环境)或[-79.05, -70.95]℃；\r\n\t   2挡温度范围[23.63, 27.73]℃(10~50℃环境)或[21.63, 29.73]℃；\r\n\t   3挡温度范围[97.95, 102.05]℃(10~50℃环境)或[95.95, 104.05]℃。" },
+                        { "8.6.2 S安全通道WAITS2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电阻：351.65Ω、550.0Ω、693.53Ω；\r\n\t b) 发送测试指令（15 01 02 01 00 00 00 00）；\r\n\t c) 1挡温度范围[-77.05, -72.95]℃(10~50℃环境)或[-79.05, -70.95]℃；\r\n\t   2挡温度范围[23.63, 27.73]℃(10~50℃环境)或[21.63, 29.73]℃；\r\n\t   3挡温度范围[97.95, 102.05]℃(10~50℃环境)或[95.95, 104.05]℃。" },
+                        { "8.7.1S安全通道FWD_AVENTS1传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t b) 每挡发送S_FWDAVENTS_MEA01(15 02 01 01 00 00 00 00)，接收温度遥测(15 02 01 02 .. .. .. ..)；\r\n\t c) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                        { "8.7.2S安全通道FWD_AVENTS2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t b) 每挡发送S_FWDAVENTS_MEA02(15 02 02 01 00 00 00 00)，接收温度遥测(15 02 02 02 .. .. .. ..)；\r\n\t c) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                        { "8.7.3S安全通道AFT_AVENTS传感器测试", "\t a) 测试J55、J56；\r\n\t b) 进入ATP后，按1/2/3挡依次接入电压：2.08±0.001V、3.00±0.001V、4.08±0.001V；\r\n\t c) 每挡发送S_AFTAVENTS_MEA(15 02 03 01 00 00 00 00)，接收温度遥测(15 02 03 02 .. .. .. ..)；\r\n\t d) 1挡温度范围[-65.98, -64.02]℃，2挡[25.12, 28.88]℃，3挡[134.02, 137.98]℃。" },
+                        { "6.10.4控制通道WAIPSI2传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电压：0.25V、5.00V、9.75V；\r\n\t b) 每挡发送压力测试指令(07 03 04 01 00 00 00 00)，接收压力遥测(07 03 04 02 .. .. .. ..)；\r\n\t c) 1挡压力范围[-3.7473, -1.5305]psia，2挡[46.3916, 48.6084]psia，3挡[96.5305, 98.7473]psia。" },
+                    }
+                },
             };
 
         private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> NotesByBoardType =
@@ -366,6 +395,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     {
                         {
                             "电源阻抗测试",
+                            ""
+                        },
+                        {
+                            "通道ID测试",
                             ""
                         },
                         {
@@ -396,7 +429,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                             "离散量输出测试",
                             ""
                         },
-
+                        {
+                            "通讯模块测试",
+                            ""
+                        },
                     }
                 },
             };
@@ -603,97 +639,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         {
             get => _rightPanelContent;
             set => SetProperty(ref _rightPanelContent, value);
-        }
-
-        public void OnNavigatedTo(NavigationContext navigationContext)
-        {
-            var parameters = navigationContext?.Parameters;
-            TestTaskName = parameters?.GetValue<string>("TestTaskName") ?? string.Empty;
-            BoardType = parameters?.GetValue<string>("BoardType") ?? string.Empty;
-            ParentChassisName = parameters?.GetValue<string>("ParentChassisName")
-                             ?? parameters?.GetValue<string>("ChassisName")
-                             ?? string.Empty;
-
-            var instanceId = string.IsNullOrWhiteSpace(ParentChassisName) ? TestTaskName : $"{ParentChassisName}-{TestTaskName}";
-            PageKey = string.IsNullOrWhiteSpace(instanceId) ? "BoardTest" : $"BoardTest_{instanceId}";
-
-            _singleBoardTestContext.Update(ParentChassisName, TestTaskName, BoardType);
-
-            LoadFixedTestItems(BoardType);
-            RaisePropertyChanged(nameof(IsBoardAccessible));
-
-            // ── FIX：直接赋值触发 setter，setter 内部会同时更新判据与操作步骤 ──
-            // 原代码末尾多余的 SelectedTestNotesText = ResolveNotesText(BoardType, value.Name)
-            // 已删除（value 在此方法中未定义，是编译错误的根源）
-            SelectedTestItem = TestSequenceItems.FirstOrDefault();
-        }
-
-        public bool IsNavigationTarget(NavigationContext navigationContext)
-        {
-            return false;
-        }
-
-        public void OnNavigatedFrom(NavigationContext navigationContext)
-        {
-        }
-
-        public void ConfirmNavigationRequest(NavigationContext navigationContext, Action<bool> continuationCallback)
-        {
-            if (continuationCallback == null)
-            {
-                return;
-            }
-
-            var currentTestState = GetCurrentTestState();
-
-            if (currentTestState == CurrentTestState.Stopping)
-            {
-                ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                continuationCallback(false);
-                return;
-            }
-
-            if (currentTestState == CurrentTestState.Running)
-            {
-                var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
-                if (result != System.Windows.MessageBoxResult.Yes)
-                {
-                    continuationCallback(false);
-                    return;
-                }
-
-                _ = StopCurrentTestAndContinueAsync(
-                    onCompleted: () => continuationCallback(true),
-                    onFailed: () => continuationCallback(false));
-                return;
-            }
-
-            continuationCallback(true);
-        }
-
-        public bool CanClose()
-        {
-            var currentTestState = GetCurrentTestState();
-
-            if (currentTestState == CurrentTestState.Stopping)
-            {
-                ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                return false;
-            }
-
-            if (currentTestState == CurrentTestState.Running)
-            {
-                var result = ReMessageBox.Show("存在正在测试的任务，是否停止测试？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
-                if (result != System.Windows.MessageBoxResult.Yes)
-                {
-                    return false;
-                }
-
-                _ = StopCurrentTestAndContinueAsync(onCompleted: null, onFailed: null);
-                return false;
-            }
-
-            return true;
         }
 
         private bool IsCurrentTestRunning()
@@ -1088,6 +1033,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
             {
                 TestSequenceItems.Add(new TestSequenceItem("电源阻抗测试"));
+                TestSequenceItems.Add(new TestSequenceItem("通道ID测试"));
                 TestSequenceItems.Add(new TestSequenceItem("二次电源测试"));
                 TestSequenceItems.Add(new TestSequenceItem("温度采集测试"));
                 TestSequenceItems.Add(new TestSequenceItem("压力传感器信号采集测试"));
@@ -1095,6 +1041,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("油量传感器信号采集测试"));
                 TestSequenceItems.Add(new TestSequenceItem("离散量采集测试"));
                 TestSequenceItems.Add(new TestSequenceItem("离散量输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("通讯模块测试"));
             }
 
             if (string.Equals(boardType, "惰化模拟板", StringComparison.OrdinalIgnoreCase))
@@ -1131,6 +1078,116 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("RS422通信自检测功能测试"));
                 return;
             }
+        }
+
+        public void OnNavigatedTo(NavigationContext navigationContext)
+        {
+            var parameters = navigationContext?.Parameters;
+
+            if (parameters != null)
+            {
+                if (parameters.ContainsKey("TestTaskName"))
+                {
+                    TestTaskName = parameters["TestTaskName"] as string;
+                }
+
+                if (parameters.ContainsKey("BoardType"))
+                {
+                    BoardType = parameters["BoardType"] as string;
+                }
+
+                if (parameters.ContainsKey("ParentChassisName"))
+                {
+                    ParentChassisName = parameters["ParentChassisName"] as string;
+                }
+
+                if (parameters.ContainsKey("PageKey"))
+                {
+                    PageKey = parameters["PageKey"] as string;
+                }
+                else if (string.IsNullOrWhiteSpace(PageKey) && !string.IsNullOrWhiteSpace(TestTaskName))
+                {
+                    PageKey = $"BoardTest_{TestTaskName}";
+                }
+            }
+
+            LoadFixedTestItems(BoardType);
+
+            if (SelectedTestItem == null && TestSequenceItems.Count > 0)
+            {
+                SelectedTestItem = TestSequenceItems[0];
+            }
+            else if (SelectedTestItem != null)
+            {
+                var matchedItem = TestSequenceItems.FirstOrDefault(x => string.Equals(x.Name, SelectedTestItem.Name, StringComparison.OrdinalIgnoreCase));
+                if (matchedItem != null && !ReferenceEquals(matchedItem, SelectedTestItem))
+                {
+                    SelectedTestItem = matchedItem;
+                }
+                else if (matchedItem == null && TestSequenceItems.Count > 0)
+                {
+                    SelectedTestItem = TestSequenceItems[0];
+                }
+            }
+            else
+            {
+                RightPanelContent = null;
+                SelectedTestCriteriaText = string.Empty;
+                SelectedTestNotesText = string.Empty;
+            }
+        }
+
+        public bool IsNavigationTarget(NavigationContext navigationContext)
+        {
+            var parameters = navigationContext?.Parameters;
+            var nextTaskName = parameters != null && parameters.ContainsKey("TestTaskName") ? parameters["TestTaskName"] as string : null;
+            var nextBoardType = parameters != null && parameters.ContainsKey("BoardType") ? parameters["BoardType"] as string : null;
+
+            if (!string.IsNullOrWhiteSpace(TestTaskName) && !string.IsNullOrWhiteSpace(nextTaskName)
+                && !string.Equals(TestTaskName, nextTaskName, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(BoardType) && !string.IsNullOrWhiteSpace(nextBoardType)
+                && !string.Equals(BoardType, nextBoardType, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        public void OnNavigatedFrom(NavigationContext navigationContext)
+        {
+        }
+
+        public void ConfirmNavigationRequest(NavigationContext navigationContext, Action<bool> continuationCallback)
+        {
+            continuationCallback?.Invoke(CanClose());
+        }
+
+        public bool CanClose()
+        {
+            if (_isStoppingCurrentTest)
+            {
+                ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return false;
+            }
+
+            if (GetCurrentTestState() == CurrentTestState.Running)
+            {
+                ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return false;
+            }
+
+            if (GetCurrentTestState() == CurrentTestState.Stopping)
+            {
+                ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return false;
+            }
+
+            return true;
         }
 
         private void OnCloseInRegion()

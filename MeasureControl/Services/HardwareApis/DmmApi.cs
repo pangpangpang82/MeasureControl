@@ -123,6 +123,7 @@ namespace MeasureControl.Services.HardwareApis
                 await SendAsync(":SYST:REM", cancellationToken).ConfigureAwait(false);
                 // 查询设备标识（验证连接）
                 _ = await QueryAsync("*IDN?", cancellationToken).ConfigureAwait(false);
+                Console.WriteLine("万用表初始化正常！！！");
             }
             catch
             {
@@ -219,16 +220,26 @@ namespace MeasureControl.Services.HardwareApis
                     var aperture = options?.FrequencyApertureSeconds ?? 0.1;
                     var apertureStr = aperture.ToString("0.######", CultureInfo.InvariantCulture);
 
-                    await SendAsync($":CONF:FREQ {voltRange}", cancellationToken);
-                    await Task.Delay(150, cancellationToken);
+                    // 先切换万用表功能到频率模式
+                    //await TrySendFrequencyModeAsync(cancellationToken);
 
-                    await SendAsync($":SENS:FREQ:APER {apertureStr}", cancellationToken);
-                    await Task.Delay(150, cancellationToken);
+                    //await SendAsync($":CONF:FREQ {voltRange}", cancellationToken);
+                    //await Task.Delay(200, cancellationToken);
 
-                    await SendAsync("*CLS", cancellationToken);
-                    await Task.Delay(50, cancellationToken);
+                    //await SendAsync($":SENS:FREQ:APER {apertureStr}", cancellationToken);
+                    //await Task.Delay(200, cancellationToken);
 
-                    var freqRaw = await QueryAsync(":READ?", cancellationToken);
+                    //await SendAsync("*CLS", cancellationToken);
+                    //await Task.Delay(200, cancellationToken);
+                    await SendAsync($"FREQ", cancellationToken);
+                    //await Task.Delay(80).ConfigureAwait(true);
+                    await SendAsync($":MEASure:FREQuency 2", cancellationToken);
+                    //await Task.Delay(80).ConfigureAwait(true);
+
+                    Console.WriteLine("开始读频率！！！");
+                    //var freqRaw = await QueryAsync(":READ?", cancellationToken);
+                    var freqRaw = await QueryAsync(":MEASure:FREQuency?", cancellationToken);
+                    Console.WriteLine("原始频率："+freqRaw);
                     return ParseReading(freqRaw?.Trim(), "Hz");  
                 }
 
@@ -255,7 +266,7 @@ namespace MeasureControl.Services.HardwareApis
             try
             {
                 await SendAsync("FREQ", cancellationToken).ConfigureAwait(false);
-                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(150, cancellationToken).ConfigureAwait(false);
                 return;
             }
             catch
@@ -265,7 +276,7 @@ namespace MeasureControl.Services.HardwareApis
             try
             {
                 await SendAsync("FUNC FREQ", cancellationToken).ConfigureAwait(false);
-                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(150, cancellationToken).ConfigureAwait(false);
             }
             catch
             {
@@ -309,10 +320,15 @@ namespace MeasureControl.Services.HardwareApis
             try
             {
                 var cmd = scpi.EndsWith("\n", StringComparison.Ordinal) ? scpi : scpi + "\n";
+                Console.WriteLine("发送命令："+cmd);
                 _session.RawIO.Write(cmd);
+                await Task.Delay(200);
                 if (!expectResponse)
                     return null;
-                return _session.RawIO.ReadString();
+                var res= _session.RawIO.ReadString();
+                Console.WriteLine(cmd+"  内容："+res);
+                return res;
+                //return _session.RawIO.ReadString();
             }
             finally
             {
