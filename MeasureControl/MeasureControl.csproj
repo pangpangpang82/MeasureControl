@@ -1470,6 +1470,7 @@
     <Compile Include="ViewModels\SingleBoardTest\FuelController\SecondaryPowerTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\TemperatureAcquisitionTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_10ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_3ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\HydraulicController\HC_6_4ViewModel.cs" />

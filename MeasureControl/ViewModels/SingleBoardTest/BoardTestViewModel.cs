@@ -220,6 +220,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "油量传感器信号采集测试", () => new HC_6_7() },
                         { "离散量采集测试", () => new HC_6_8() },
                         { "离散量输出测试", () => new HC_6_9() },
+                        { "通讯模块测试", () => new HC_6_10() },
                     }
                 },
                 {

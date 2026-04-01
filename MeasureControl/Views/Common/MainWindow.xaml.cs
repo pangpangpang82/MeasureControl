@@ -123,6 +123,7 @@ namespace MeasureControl.Views.Common
         private HC_6_7ViewModel _hydraulicAutoTestVm66;
         private HC_6_8ViewModel _hydraulicAutoTestVm67;
         private HC_6_9ViewModel _hydraulicAutoTestVm68;
+        private HC_6_10ViewModel _hydraulicAutoTestVm69;
 
         private PowerImpedanceTestViewModel _fuelAutoTestVm1;
         private SecondaryPowerTestViewModel _fuelAutoTestVm2;
@@ -1412,6 +1413,7 @@ namespace MeasureControl.Views.Common
                 _hydraulicAutoTestVm66 = null;
                 _hydraulicAutoTestVm67 = null;
                 _hydraulicAutoTestVm68 = null;
+                _hydraulicAutoTestVm69 = null;
                 _fuelAutoTestVm1 = null;
                 _fuelAutoTestVm2 = null;
                 _fuelAutoTestVm3 = null;
@@ -1471,6 +1473,7 @@ namespace MeasureControl.Views.Common
             _hydraulicAutoTestVm66 = ContainerLocator.Container.Resolve<HC_6_7ViewModel>();
             _hydraulicAutoTestVm67 = ContainerLocator.Container.Resolve<HC_6_8ViewModel>();
             _hydraulicAutoTestVm68 = ContainerLocator.Container.Resolve<HC_6_9ViewModel>();
+            _hydraulicAutoTestVm69 = ContainerLocator.Container.Resolve<HC_6_10ViewModel>();
 
             var vm61 = _hydraulicAutoTestVm61;
             var vm62ChannelId = _hydraulicAutoTestVm62ChannelId;
@@ -1481,6 +1484,7 @@ namespace MeasureControl.Views.Common
             var vm66 = _hydraulicAutoTestVm66;
             var vm67 = _hydraulicAutoTestVm67;
             var vm68 = _hydraulicAutoTestVm68;
+            var vm69 = _hydraulicAutoTestVm69;
 
             return new (string Name, Func<CancellationToken, Task<string>> Run)[]
             {
@@ -1493,6 +1497,7 @@ namespace MeasureControl.Views.Common
                 ("油量传感器信号采集测试", ct => vm66.RunOnceAsync(ct)),
                 ("离散量采集测试", ct => vm67.RunOnceAsync(ct)),
                 ("离散量输出测试", ct => vm68.RunOnceAsync(ct)),
+                ("通讯模块测试", ct => vm69.RunOnceAsync(ct)),
             };
         }
 

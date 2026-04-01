@@ -113,6 +113,7 @@ namespace MeasureControl
             containerRegistry.Register<FloatingWindowViewModel>();
             containerRegistry.Register<DataCalibrationViewModel>();
             containerRegistry.RegisterSingleton<HC_6_1ViewModel>();
+            containerRegistry.RegisterSingleton<HC_6_10ViewModel>();
             containerRegistry.RegisterSingleton<HC_6_3ViewModel>();
             containerRegistry.RegisterSingleton<HC_6_4ViewModel>();
             containerRegistry.RegisterSingleton<HC_6_5ViewModel>();
