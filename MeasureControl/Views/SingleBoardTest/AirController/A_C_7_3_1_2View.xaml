@@ -197,53 +197,6 @@
                     HorizontalScrollBarVisibility="Disabled"
                     VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <Border Margin="0,0,0,10" Background="#fffbeb" BorderBrush="#fcd34d" BorderThickness="1" CornerRadius="6" Padding="8">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="112" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock FontSize="14" Text="前置条件：输出28V和3.3V供电" />
-                                    <TextBlock FontSize="14" Text="  供电: " />
-                                    <TextBlock FontSize="14" Text="{Binding PowerStatus, Mode=OneWay}" />
-                                </StackPanel>
-
-                                <ToggleButton
-                                    Grid.Column="1"
-                                    Width="100"
-                                    Height="26"
-                                    VerticalAlignment="Center"
-                                    BorderThickness="0"
-                                    Command="{Binding TogglePowerCommand}"
-                                    IsChecked="{Binding IsPowerOn, Mode=OneWay}">
-                                    <ToggleButton.Template>
-                                        <ControlTemplate TargetType="ToggleButton">
-                                            <Border x:Name="border" Background="#f59e0b" CornerRadius="4">
-                                                <TextBlock x:Name="text" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="上电" />
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsChecked" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#ef4444" />
-                                                    <Setter TargetName="text" Property="Text" Value="下电" />
-                                                </Trigger>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#d97706" />
-                                                </Trigger>
-                                                <Trigger Property="IsPressed" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#d97706" />
-                                                </Trigger>
-                                                <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                    <Setter Property="Cursor" Value="Arrow" />
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </ToggleButton.Template>
-                                </ToggleButton>
-                            </Grid>
-                        </Border>
-
                         <TextBlock Margin="0,0,0,8" FontSize="20" FontWeight="Bold" Text="测试步骤" />
 
                         <Border
@@ -441,11 +394,64 @@
                             </Grid>
                         </Border>
 
-                        <TextBlock
-                            Margin="0,10,0,8"
-                            FontSize="20"
-                            FontWeight="Bold"
-                            Text="测试条件配置" />
+                        <Grid Margin="0,10,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="112" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock
+                                Grid.Column="0"
+                                FontSize="20"
+                                FontWeight="Bold"
+                                Text="测试条件配置" />
+
+                            <ToggleButton
+                                Grid.Column="1"
+                                Width="100"
+                                Height="26"
+                                VerticalAlignment="Center"
+                                BorderThickness="0"
+                                Command="{Binding TogglePowerCommand}"
+                                IsChecked="{Binding IsPowerOn, Mode=OneWay}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="border" Background="#f59e0b" CornerRadius="4">
+                                            <TextBlock x:Name="text" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="上电" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                                <Setter TargetName="text" Property="Text" Value="下电" />
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#d97706" />
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#d97706" />
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                <Setter Property="Cursor" Value="Arrow" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                        </Grid>
+
+                        <Border Margin="0,0,0,10" Background="#fffbeb" BorderBrush="#fcd34d" BorderThickness="1" CornerRadius="6" Padding="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock FontSize="14" Text="前置条件：输出28V和3.3V供电" />
+                                    <TextBlock FontSize="14" Text="  供电: " />
+                                    <TextBlock FontSize="14" Text="{Binding PowerStatus, Mode=OneWay}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
 
                         <Grid Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
@@ -500,7 +506,7 @@
                                     HorizontalAlignment="Center"
                                     BorderThickness="0"
                                     Command="{Binding SendPwmCustomCommand}"
-                                    IsEnabled="{Binding IsPowerOn}">
+                                    IsEnabled="{Binding IsManualTestRunning}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
@@ -529,7 +535,7 @@
                                     HorizontalAlignment="Center"
                                     BorderThickness="0"
                                     Command="{Binding MeasurePwmCustomCommand}"
-                                    IsEnabled="{Binding IsPowerOn}">
+                                    IsEnabled="{Binding IsManualTestRunning}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border x:Name="border" Background="#22c55e" CornerRadius="6">

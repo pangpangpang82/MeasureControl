@@ -44,6 +44,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
         private static readonly byte[] PhHighCommandFrame = { 0xAA, 0x55, 0x06, 0x03, 0x03, 0xE8, 0x03, 0x00, 0x00 };
         private static readonly byte[] PhLowCommandFrame = { 0xAA, 0x55, 0x06, 0x03,0x02, 0xE8, 0x03, 0x00, 0x00 };
+        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x06, 0x03, 0x00, 0xE8, 0x03, 0xE8, 0x03 };
 
         private const double VoltageMin = 17.0;
         private const double VoltageMax = 32.0;
@@ -692,17 +693,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             AddLog("FPGA连接成功");
         }
 
-        private Task DisconnectFpgaAsync(CancellationToken token)
+        private async Task DisconnectFpgaAsync(CancellationToken token)
         {
-            _ = token;
+            try { await TryResetFpgaToInitialAsync(token).ConfigureAwait(false); } catch { }
+
+            try { _fpga?.Disconnect(); } catch { }
+            try { _fpga?.Dispose(); } catch { }
+            _fpga = null;
+        }
+
+        private async Task TryResetFpgaToInitialAsync(CancellationToken token)
+        {
             try
             {
-                _fpga?.Dispose();
-            }
-            catch { }
+                if (_fpga == null || !_fpga.IsConnected)
+                    return;
 
-            _fpga = null;
-            return Task.CompletedTask;
+                AddLog($"FPGA复位指令(恢复初始状态): {FormatData(ResetToInitialCommandFrame)}");
+                await _fpga.WriteAsync(ResetToInitialCommandFrame, 0, ResetToInitialCommandFrame.Length, token).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"FPGA复位失败: {ex.Message}");
+            }
         }
 
         private async Task<bool> SendTestCommandAsync(bool isPhHigh, CancellationToken token)

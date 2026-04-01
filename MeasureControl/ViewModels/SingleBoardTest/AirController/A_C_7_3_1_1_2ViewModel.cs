@@ -49,6 +49,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
         private static readonly byte[] MotorControlCommandFrame = { 0xAA, 0x55, 0x06, 0x03, 0x03, 0xE8, 0x03, 0x00, 0x00 };
+        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x06, 0x03, 0x00, 0xE8, 0x03, 0xE8, 0x03 };
 
         private const double Load50Ohm = 50.0;
         private const double Load12Ohm = 12.0;
@@ -748,8 +749,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _fpga?.Dispose();
             }
             catch { }
+
             _fpga = null;
             return Task.CompletedTask;
+        }
+
+        private async Task TryResetFpgaToInitialAsync(CancellationToken token)
+        {
+            try
+            {
+                if (_fpga == null || !_fpga.IsConnected)
+                    return;
+
+                AddLog($"FPGA复位指令(恢复初始状态): {FormatData(ResetToInitialCommandFrame)}");
+                await _fpga.WriteAsync(ResetToInitialCommandFrame, 0, ResetToInitialCommandFrame.Length, token).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"FPGA复位失败: {ex.Message}");
+            }
         }
 
         private async Task<bool> SendTestCommandAsync(bool isStep2, CancellationToken token)
@@ -1022,6 +1040,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             catch { }
 
             try { await DisconnectElectronicLoadAsync(token).ConfigureAwait(false); } catch { }
+            try { await TryResetFpgaToInitialAsync(token).ConfigureAwait(false); } catch { }
             try { await DisconnectFpgaAsync(token).ConfigureAwait(false); } catch { }
         }
 
