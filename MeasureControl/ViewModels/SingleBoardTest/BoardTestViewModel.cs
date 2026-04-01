@@ -212,6 +212,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     new Dictionary<string, Func<UserControl>>(StringComparer.OrdinalIgnoreCase)
                     {
                         { "电源阻抗测试", () => new HC_6_1() },
+                        { "通道ID测试", () => new HC_6_2() },
                         { "二次电源测试", () => new HC_6_3() },
                         { "温度采集测试", () => new HC_6_4() },
                         { "压力传感器信号采集测试", () => new HC_6_5() },
@@ -308,6 +309,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
                         { "电源阻抗测试", "\t a) 针脚1和4之间阻抗值大于500Ω；\r\n \t b) 针脚1和82之间阻抗值大于500Ω。" },
+                        { "通道ID测试", "\t a) 控制通道A识别结果应为0x01；\r\n \t b) 控制通道B识别结果应为0x02。" },
                         { "二次电源测试", "\t a) 5V隔离二次电源输出电压范围在[4.82，5.18]V；\r\n \t b) 15V隔离二次电源输出电压范围在[14.47，15.53]V；\r\n \t c) -15V隔离二次电源输出电压范围在[-15.53，-14.47]V。" },
                         { "温度采集测试", "\t a) 阻值为763.3±2.0Ω时，温度值在[-66.6,-53.4]°C;\r\n \t b) 阻值为1758.6±2.0Ω时，温度值在[193.4,206.6]°C;\r\n \t c) 阻值为1155.4±2.0Ω时，温度值在[32.4,46.6]°C。" },
                         { "压力传感器信号采集测试", "\t a) 电压供电0.5±0.0717时，压力值在[0,85]Psi;\r\n \t b) 电压供电7.17±0.0717V时，压力值在[3915,4000]Psi;\r\n \t c) 电压供电3.0±0.0717V时，压差力在[1414,1585]Psi。" },
@@ -315,6 +317,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                         { "油量传感器信号采集测试", "\t a) 31-32/33-34针脚采集信号频率3200±32Hz，电压有效值6±1Vrms;\r\n \t b) 2/3号系统油量处于范围内。\r\n \t " },
                         { "离散量采集测试", "\t 针脚89/90采集为0，其余针脚采集结果为1。" },
                         { "离散量输出测试", "\t a) 置为开路时，针脚9~15对地阻抗均大于100kΩ;\r\n \t b) 置为通路时，针脚9~15对地阻抗均小于10Ω。" },
+                        { "通讯模块测试", "" },
                     }
                 },
                 {
@@ -395,6 +398,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                             ""
                         },
                         {
+                            "通道ID测试",
+                            ""
+                        },
+                        {
                             "二次电源测试",
                             "控制器上电后20s内才能进入ATP，发送二次电源数据供试验台接收"
                         },
@@ -422,7 +429,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                             "离散量输出测试",
                             ""
                         },
-
+                        {
+                            "通讯模块测试",
+                            ""
+                        },
                     }
                 },
             };
@@ -629,97 +639,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         {
             get => _rightPanelContent;
             set => SetProperty(ref _rightPanelContent, value);
-        }
-
-        public void OnNavigatedTo(NavigationContext navigationContext)
-        {
-            var parameters = navigationContext?.Parameters;
-            TestTaskName = parameters?.GetValue<string>("TestTaskName") ?? string.Empty;
-            BoardType = parameters?.GetValue<string>("BoardType") ?? string.Empty;
-            ParentChassisName = parameters?.GetValue<string>("ParentChassisName")
-                             ?? parameters?.GetValue<string>("ChassisName")
-                             ?? string.Empty;
-
-            var instanceId = string.IsNullOrWhiteSpace(ParentChassisName) ? TestTaskName : $"{ParentChassisName}-{TestTaskName}";
-            PageKey = string.IsNullOrWhiteSpace(instanceId) ? "BoardTest" : $"BoardTest_{instanceId}";
-
-            _singleBoardTestContext.Update(ParentChassisName, TestTaskName, BoardType);
-
-            LoadFixedTestItems(BoardType);
-            RaisePropertyChanged(nameof(IsBoardAccessible));
-
-            // ── FIX：直接赋值触发 setter，setter 内部会同时更新判据与操作步骤 ──
-            // 原代码末尾多余的 SelectedTestNotesText = ResolveNotesText(BoardType, value.Name)
-            // 已删除（value 在此方法中未定义，是编译错误的根源）
-            SelectedTestItem = TestSequenceItems.FirstOrDefault();
-        }
-
-        public bool IsNavigationTarget(NavigationContext navigationContext)
-        {
-            return false;
-        }
-
-        public void OnNavigatedFrom(NavigationContext navigationContext)
-        {
-        }
-
-        public void ConfirmNavigationRequest(NavigationContext navigationContext, Action<bool> continuationCallback)
-        {
-            if (continuationCallback == null)
-            {
-                return;
-            }
-
-            var currentTestState = GetCurrentTestState();
-
-            if (currentTestState == CurrentTestState.Stopping)
-            {
-                ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                continuationCallback(false);
-                return;
-            }
-
-            if (currentTestState == CurrentTestState.Running)
-            {
-                var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
-                if (result != System.Windows.MessageBoxResult.Yes)
-                {
-                    continuationCallback(false);
-                    return;
-                }
-
-                _ = StopCurrentTestAndContinueAsync(
-                    onCompleted: () => continuationCallback(true),
-                    onFailed: () => continuationCallback(false));
-                return;
-            }
-
-            continuationCallback(true);
-        }
-
-        public bool CanClose()
-        {
-            var currentTestState = GetCurrentTestState();
-
-            if (currentTestState == CurrentTestState.Stopping)
-            {
-                ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                return false;
-            }
-
-            if (currentTestState == CurrentTestState.Running)
-            {
-                var result = ReMessageBox.Show("存在正在测试的任务，是否停止测试？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
-                if (result != System.Windows.MessageBoxResult.Yes)
-                {
-                    return false;
-                }
-
-                _ = StopCurrentTestAndContinueAsync(onCompleted: null, onFailed: null);
-                return false;
-            }
-
-            return true;
         }
 
         private bool IsCurrentTestRunning()
@@ -1149,6 +1068,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
             {
                 TestSequenceItems.Add(new TestSequenceItem("电源阻抗测试"));
+                TestSequenceItems.Add(new TestSequenceItem("通道ID测试"));
                 TestSequenceItems.Add(new TestSequenceItem("二次电源测试"));
                 TestSequenceItems.Add(new TestSequenceItem("温度采集测试"));
                 TestSequenceItems.Add(new TestSequenceItem("压力传感器信号采集测试"));
@@ -1156,6 +1076,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("油量传感器信号采集测试"));
                 TestSequenceItems.Add(new TestSequenceItem("离散量采集测试"));
                 TestSequenceItems.Add(new TestSequenceItem("离散量输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("通讯模块测试"));
             }
 
             if (string.Equals(boardType, "惰化模拟板", StringComparison.OrdinalIgnoreCase))
@@ -1192,6 +1113,116 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("RS422通信自检测功能测试"));
                 return;
             }
+        }
+
+        public void OnNavigatedTo(NavigationContext navigationContext)
+        {
+            var parameters = navigationContext?.Parameters;
+
+            if (parameters != null)
+            {
+                if (parameters.ContainsKey("TestTaskName"))
+                {
+                    TestTaskName = parameters["TestTaskName"] as string;
+                }
+
+                if (parameters.ContainsKey("BoardType"))
+                {
+                    BoardType = parameters["BoardType"] as string;
+                }
+
+                if (parameters.ContainsKey("ParentChassisName"))
+                {
+                    ParentChassisName = parameters["ParentChassisName"] as string;
+                }
+
+                if (parameters.ContainsKey("PageKey"))
+                {
+                    PageKey = parameters["PageKey"] as string;
+                }
+                else if (string.IsNullOrWhiteSpace(PageKey) && !string.IsNullOrWhiteSpace(TestTaskName))
+                {
+                    PageKey = $"BoardTest_{TestTaskName}";
+                }
+            }
+
+            LoadFixedTestItems(BoardType);
+
+            if (SelectedTestItem == null && TestSequenceItems.Count > 0)
+            {
+                SelectedTestItem = TestSequenceItems[0];
+            }
+            else if (SelectedTestItem != null)
+            {
+                var matchedItem = TestSequenceItems.FirstOrDefault(x => string.Equals(x.Name, SelectedTestItem.Name, StringComparison.OrdinalIgnoreCase));
+                if (matchedItem != null && !ReferenceEquals(matchedItem, SelectedTestItem))
+                {
+                    SelectedTestItem = matchedItem;
+                }
+                else if (matchedItem == null && TestSequenceItems.Count > 0)
+                {
+                    SelectedTestItem = TestSequenceItems[0];
+                }
+            }
+            else
+            {
+                RightPanelContent = null;
+                SelectedTestCriteriaText = string.Empty;
+                SelectedTestNotesText = string.Empty;
+            }
+        }
+
+        public bool IsNavigationTarget(NavigationContext navigationContext)
+        {
+            var parameters = navigationContext?.Parameters;
+            var nextTaskName = parameters != null && parameters.ContainsKey("TestTaskName") ? parameters["TestTaskName"] as string : null;
+            var nextBoardType = parameters != null && parameters.ContainsKey("BoardType") ? parameters["BoardType"] as string : null;
+
+            if (!string.IsNullOrWhiteSpace(TestTaskName) && !string.IsNullOrWhiteSpace(nextTaskName)
+                && !string.Equals(TestTaskName, nextTaskName, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(BoardType) && !string.IsNullOrWhiteSpace(nextBoardType)
+                && !string.Equals(BoardType, nextBoardType, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        public void OnNavigatedFrom(NavigationContext navigationContext)
+        {
+        }
+
+        public void ConfirmNavigationRequest(NavigationContext navigationContext, Action<bool> continuationCallback)
+        {
+            continuationCallback?.Invoke(CanClose());
+        }
+
+        public bool CanClose()
+        {
+            if (_isStoppingCurrentTest)
+            {
+                ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return false;
+            }
+
+            if (GetCurrentTestState() == CurrentTestState.Running)
+            {
+                ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return false;
+            }
+
+            if (GetCurrentTestState() == CurrentTestState.Stopping)
+            {
+                ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return false;
+            }
+
+            return true;
         }
 
         private void OnCloseInRegion()
