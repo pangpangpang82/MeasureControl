@@ -23,8 +23,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private const int MatrixSlotSig = 6;
         private const int MatrixSlotDmm = 4;
-        private static readonly (string In, string Out, int Slot) MatrixPointJ82J83 = ("I1", "O16", MatrixSlotSig);
+        private const string DefaultMatrixSigOut = "O0";
+        private static readonly (string Name, string In, string Out, int Slot) MatrixPointDcmV1Gnd = ("DCM_V1对地", "I1", "O15", MatrixSlotSig);
+        private static readonly (string Name, string In, string Out, int Slot) MatrixPointDcmV2Gnd = ("DCM_V2对地", "I1", "O14", MatrixSlotSig);
+        private static readonly (string Name, string In, string Out, int Slot) MatrixPointDcmV1V1 = ("DCM_V1对DCM_V2", "I1", "O16", MatrixSlotSig);
         private static readonly (string In, string Out, int Slot) MatrixDmmH = ("I4", "O2", MatrixSlotDmm);
+
+        private static string NormalizeSigOut(string node)
+        {
+            return string.IsNullOrWhiteSpace(node) ? DefaultMatrixSigOut : node;
+        }
 
         private const string DmmIpAddress = "192.168.1.13";
         private const int DmmTimeoutMs = 8000;
@@ -249,14 +257,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private void UpdateOverallIfComplete()
         {
-            var allDone = new[] { Step1Result, Step2Result, Step3Result, Step4Result }.All(v => v == "PASS" || v == "FAIL");
+            var allDone = new[] { Step1Result, Step2Result, Step3Result, Step4Result }.All(IsResultDone);
             if (!allDone)
                 return;
 
             var pass = new[] { Step1Result, Step2Result, Step3Result, Step4Result }.All(v => v == "PASS");
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                OverallResult = pass ? "PASS" : "FAIL";
+                var failPoint = ExtractOverallFailPoint();
+                OverallResult = pass ? "PASS" : (string.IsNullOrWhiteSpace(failPoint) ? "FAIL" : $"FAIL({failPoint})");
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
             });
         }
@@ -266,7 +275,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (!IsManualTestRunning)
                 return;
 
-            var allDone = new[] { Step1Result, Step2Result, Step3Result, Step4Result }.All(v => v == "PASS" || v == "FAIL");
+            var allDone = new[] { Step1Result, Step2Result, Step3Result, Step4Result }.All(IsResultDone);
             if (!allDone)
                 return;
 
@@ -281,7 +290,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (!IsManualTestRunning)
                     return;
 
-                var allDone = new[] { Step1Result, Step2Result, Step3Result, Step4Result }.All(v => v == "PASS" || v == "FAIL");
+                var allDone = new[] { Step1Result, Step2Result, Step3Result, Step4Result }.All(IsResultDone);
                 if (!allDone)
                     return;
 
@@ -443,15 +452,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     Step1Result = ok1 ? "PASS" : "FAIL";
 
                     await Task.Delay(500, token).ConfigureAwait(false);
-                    var (ok2, v1) = await MeasureVoltageAsync(keepRouted: true, token).ConfigureAwait(false);
-                    UpdateVoltageStep(isFirst: true, ok2, v1);
+                    var (pass2, failPoint2, voltageText2) = await MeasureThreePointsAsync(expectPositive: true, token).ConfigureAwait(false);
+                    UpdateVoltageStep(isFirst: true, pass2, failPoint2, voltageText2);
 
                     var ok3 = await SendTestCommandAsync(isPhHigh: false, token).ConfigureAwait(false);
                     Step3Result = ok3 ? "PASS" : "FAIL";
 
                     await Task.Delay(500, token).ConfigureAwait(false);
-                    var (ok4, v2) = await MeasureVoltageAsync(keepRouted: true, token).ConfigureAwait(false);
-                    UpdateVoltageStep(isFirst: false, ok4, v2);
+                    var (pass4, failPoint4, voltageText4) = await MeasureThreePointsAsync(expectPositive: false, token).ConfigureAwait(false);
+                    UpdateVoltageStep(isFirst: false, pass4, failPoint4, voltageText4);
 
                     UpdateOverallIfComplete();
 
@@ -542,8 +551,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     IsBusy = true;
                     try
                     {
-                        var (ok, v) = await MeasureVoltageAsync(keepRouted: true, CancellationToken.None).ConfigureAwait(false);
-                        UpdateVoltageStep(isFirst, ok, v);
+                        var (pass, failPoint, voltageText) = await MeasureThreePointsAsync(expectPositive: isFirst, CancellationToken.None).ConfigureAwait(false);
+                        UpdateVoltageStep(isFirst, pass, failPoint, voltageText);
                         UpdateOverallIfComplete();
                         TryFinalizeManualTestIfComplete();
                     }
@@ -563,29 +572,179 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private void UpdateVoltageStep(bool isFirst, bool ok, double? voltage)
+        private void UpdateVoltageStep(bool isFirst, bool pass, string failPoint, string voltageText)
         {
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                var absV = voltage.HasValue ? (double?)Math.Abs(voltage.Value) : null;
-                var vText = voltage.HasValue ? $"{voltage.Value:F3} V" : "--";
-
-                var polarityOk = voltage.HasValue && (isFirst ? voltage.Value > 0 : voltage.Value < 0);
-                var magnitudeOk = absV.HasValue && absV.Value >= VoltageMin && absV.Value <= VoltageMax;
-                var pass = ok && polarityOk && magnitudeOk;
-                var r = pass ? "PASS" : "FAIL";
+                var r = pass ? "PASS" : $"FAIL({failPoint})";
 
                 if (isFirst)
                 {
-                    Step2Voltage = vText;
+                    Step2Voltage = voltageText;
                     Step2Result = r;
                 }
                 else
                 {
-                    Step4Voltage = vText;
+                    Step4Voltage = voltageText;
                     Step4Result = r;
                 }
             });
+        }
+
+        private static bool IsResultDone(string v)
+        {
+            if (string.IsNullOrWhiteSpace(v))
+                return false;
+            return v == "PASS" || v.StartsWith("FAIL", StringComparison.Ordinal);
+        }
+
+        private string ExtractOverallFailPoint()
+        {
+            if (TryExtractFailPoint(Step2Result, out var p2))
+                return p2;
+            if (TryExtractFailPoint(Step4Result, out var p4))
+                return p4;
+
+            if (Step1Result == "FAIL")
+                return "步骤1";
+            if (Step3Result == "FAIL")
+                return "步骤3";
+
+            return string.Empty;
+        }
+
+        private static bool TryExtractFailPoint(string result, out string failPoint)
+        {
+            failPoint = string.Empty;
+            if (string.IsNullOrWhiteSpace(result))
+                return false;
+
+            var prefix = "FAIL(";
+            var idx = result.IndexOf(prefix, StringComparison.Ordinal);
+            if (idx < 0)
+                return false;
+
+            var start = idx + prefix.Length;
+            var end = result.IndexOf(')', start);
+            if (end <= start)
+                return false;
+
+            failPoint = result.Substring(start, end - start);
+            return !string.IsNullOrWhiteSpace(failPoint);
+        }
+
+        private async Task<(bool Pass, string FailPoint, string VoltageText)> MeasureThreePointsAsync(bool expectPositive, CancellationToken token)
+        {
+            await _instrumentLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                var r1 = await MeasureVoltageAtPointCoreAsync(MatrixPointDcmV1Gnd, token).ConfigureAwait(false);
+                if (!IsPointPass(r1.Ok, r1.Voltage, expectPositive, out var reason1))
+                {
+                    AddLog($"{MatrixPointDcmV1Gnd.Name} FAIL: {reason1}");
+                    return (false, MatrixPointDcmV1Gnd.Name, BuildVoltageText(r1.Voltage, null, null));
+                }
+
+                var r2 = await MeasureVoltageAtPointCoreAsync(MatrixPointDcmV2Gnd, token).ConfigureAwait(false);
+                if (!IsPointPass(r2.Ok, r2.Voltage, expectPositive, out var reason2))
+                {
+                    AddLog($"{MatrixPointDcmV2Gnd.Name} FAIL: {reason2}");
+                    return (false, MatrixPointDcmV2Gnd.Name, BuildVoltageText(r1.Voltage, r2.Voltage, null));
+                }
+
+                var r3 = await MeasureVoltageAtPointCoreAsync(MatrixPointDcmV1V1, token).ConfigureAwait(false);
+                if (!IsPointPass(r3.Ok, r3.Voltage, expectPositive, out var reason3))
+                {
+                    AddLog($"{MatrixPointDcmV1V1.Name} FAIL: {reason3}");
+                    return (false, MatrixPointDcmV1V1.Name, BuildVoltageText(r1.Voltage, r2.Voltage, r3.Voltage));
+                }
+
+                return (true, string.Empty, BuildVoltageText(r1.Voltage, r2.Voltage, r3.Voltage));
+            }
+            finally
+            {
+                _instrumentLock.Release();
+            }
+        }
+
+        private static string BuildVoltageText(double? v1, double? v2, double? v12)
+        {
+            string F(double? v) => v.HasValue ? $"{v.Value:F3}" : "--";
+            return $"V1={F(v1)} V, V2={F(v2)} V, V1V1={F(v12)} V";
+        }
+
+        private static bool IsPointPass(bool ok, double? voltage, bool expectPositive, out string reason)
+        {
+            if (!ok)
+            {
+                reason = "测量失败";
+                return false;
+            }
+            if (!voltage.HasValue)
+            {
+                reason = "电压无有效值";
+                return false;
+            }
+
+            var v = voltage.Value;
+            var polarityOk = expectPositive ? v > 0 : v < 0;
+            if (!polarityOk)
+            {
+                reason = expectPositive ? $"极性错误(应为正): {v:F3}V" : $"极性错误(应为负): {v:F3}V";
+                return false;
+            }
+
+            var absV = Math.Abs(v);
+            if (absV < VoltageMin || absV > VoltageMax)
+            {
+                reason = $"幅值不在[{VoltageMin},{VoltageMax}]V: {absV:F3}V";
+                return false;
+            }
+
+            reason = null;
+            return true;
+        }
+
+        private async Task<(bool Ok, double? Voltage)> MeasureVoltageAtPointCoreAsync((string Name, string In, string Out, int Slot) sigPoint, CancellationToken token)
+        {
+            var matrix = MatrixControlService.Instance;
+            bool okDmm = false;
+            bool okSig = false;
+            var sigOut = NormalizeSigOut(sigPoint.Out);
+            try
+            {
+                AddLog($"矩阵路由: slot{MatrixSlotDmm} {MatrixDmmH.In}-{MatrixDmmH.Out} + slot{sigPoint.Slot} {sigPoint.In}-{sigOut} ({sigPoint.Name})");
+                okDmm = await matrix.ConnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                okSig = await matrix.ConnectNodesAsync(sigPoint.In, sigOut, sigPoint.Slot, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                if (!okDmm || !okSig)
+                    return (false, null);
+
+                await Task.Delay(200, token).ConfigureAwait(false);
+                var reading = await DmmReadVoltageAsync(token).ConfigureAwait(false);
+                if (reading?.Value == null)
+                    return (false, null);
+                return (true, reading.Value.Value);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"电压测量异常({sigPoint.Name}): {ex.Message}");
+                return (false, null);
+            }
+            finally
+            {
+                try
+                {
+                    if (okSig)
+                        _ = await matrix.DisconnectNodesAsync(sigPoint.In, sigOut, sigPoint.Slot, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                }
+                catch { }
+                try
+                {
+                    if (okDmm)
+                        _ = await matrix.DisconnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                }
+                catch { }
+            }
         }
 
         private async Task PowerOnAsync(CancellationToken token)
@@ -759,11 +918,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return true;
 
             var matrix = MatrixControlService.Instance;
+            var sigOut = NormalizeSigOut(MatrixPointDcmV1Gnd.Out);
 
-            AddLog($"矩阵路由: slot{MatrixSlotDmm} {MatrixDmmH.In}-{MatrixDmmH.Out} + slot{MatrixSlotSig} {MatrixPointJ82J83.In}-{MatrixPointJ82J83.Out}");
+            AddLog($"矩阵路由: slot{MatrixSlotDmm} {MatrixDmmH.In}-{MatrixDmmH.Out} + slot{MatrixPointDcmV1Gnd.Slot} {MatrixPointDcmV1Gnd.In}-{sigOut} ({MatrixPointDcmV1Gnd.Name})");
 
             _matrixRoutedDmm = await matrix.ConnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-            _matrixRoutedSig = await matrix.ConnectNodesAsync(MatrixPointJ82J83.In, MatrixPointJ82J83.Out, MatrixPointJ82J83.Slot, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+            _matrixRoutedSig = await matrix.ConnectNodesAsync(MatrixPointDcmV1Gnd.In, sigOut, MatrixPointDcmV1Gnd.Slot, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
             _isMatrixRouted = _matrixRoutedDmm && _matrixRoutedSig;
 
             AddLog($"矩阵路由结果: DMM={(_matrixRoutedDmm ? "OK" : "FAIL")}, SIG={(_matrixRoutedSig ? "OK" : "FAIL")}");
@@ -792,7 +952,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 if (_matrixRoutedSig)
-                    _ = await matrix.DisconnectNodesAsync(MatrixPointJ82J83.In, MatrixPointJ82J83.Out, MatrixPointJ82J83.Slot, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                {
+                    try
+                    {
+                        _ = await matrix.DisconnectNodesAsync(MatrixPointDcmV1Gnd.In, NormalizeSigOut(MatrixPointDcmV1Gnd.Out), MatrixPointDcmV1Gnd.Slot, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                    }
+                    catch { }
+                }
             }
             catch { }
 
