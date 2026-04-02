@@ -51,8 +51,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         // 临时复用 7.4.1.2 的 FPGA 指令（后续可再调整）
         private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
-        private static readonly byte[] DirHighCommand = { 0xAA, 0x55, 0x06, 0x04, 0x06, 0xE8, 0x03, 0x00, 0x00 };
-        private static readonly byte[] DirLowCommand = { 0xAA, 0x55, 0x06, 0x04, 0x02, 0xE8, 0x03, 0x00, 0x00 };
+        private static readonly byte[] DirHighCommand = { 0xAA, 0x55, 0x0A, 0x04, 0x06, 0xE8, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] DirLowCommand = { 0xAA, 0x55, 0x0A, 0x04, 0x02, 0xE8, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x04, 0x00, 0xE8, 0x03, 0x00, 0x00, 0xE8, 0x03, 0x00, 0x00 };
 
         private const double ExpectedPhaseHighDeg = 90.0;
         private const double ExpectedPhaseLowDeg = 270.0;
@@ -899,6 +900,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        private async Task TryResetFpgaToInitialAsync(CancellationToken token)
+        {
+            try
+            {
+                if (_fpga == null || !_fpga.IsConnected)
+                    return;
+
+                AddLog($"FPGA复位指令(恢复初始状态): {FormatData(ResetToInitialCommandFrame)}");
+                await _fpga.WriteAsync(ResetToInitialCommandFrame, 0, ResetToInitialCommandFrame.Length, token).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"FPGA复位失败: {ex.Message}");
+            }
+        }
+
         private async Task CleanupAsync(CancellationToken token)
         {
             try { await UnrouteMatrixAsync(token).ConfigureAwait(false); } catch { }
@@ -909,6 +926,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try { _scopeTcpClient?.Dispose(); } catch { }
             _scopeTcpClient = null;
 
+            try { await TryResetFpgaToInitialAsync(token).ConfigureAwait(false); } catch { }
             try { _fpga?.Dispose(); } catch { }
             _fpga = null;
         }

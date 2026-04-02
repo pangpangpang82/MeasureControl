@@ -1,5 +1,5 @@
 <UserControl
-    x:Class="MeasureControl.Views.SingleBoardTest.AirController.A_C_7_3_1_2View"
+    x:Class="MeasureControl.Views.SingleBoardTest.AirController.S_C_8_9_1View"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -23,7 +23,7 @@
         Focusable="True"
         PreviewMouseDown="RootGrid_PreviewMouseDown">
         <Grid.RowDefinitions>
-            <RowDefinition Height="0.9*" />
+            <RowDefinition Height="0.8*" />
             <RowDefinition Height="6*" />
             <RowDefinition Height="1.2*" />
         </Grid.RowDefinitions>
@@ -37,33 +37,41 @@
             CornerRadius="8">
             <Grid>
                 <TextBlock
-                    Width="630"
+                    Width="700"
                     Margin="10,0,0,0"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center"
                     FontSize="24"
                     FontWeight="Bold"
-                    Text="7.3.1.2 A控制通道功率板RATA直流电机驱动模块速度控制测试" />
-
+                    Text="8.9.1 S通道J82/J83直流电机驱动模块速度控制测试" />
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-
                     <Button
                         Width="100"
                         Height="32"
-                        Margin="0,0,12,0"
+                        Margin="0,0,20,0"
                         VerticalAlignment="Center"
                         BorderThickness="0"
                         Command="{Binding ManualTestCommand}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
-                                    <TextBlock
-                                        x:Name="DeviceAction"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="16"
-                                        Foreground="White"
-                                        Text="手动测试" />
+                                <Border
+                                    x:Name="border"
+                                    Background="#3b82f6"
+                                    CornerRadius="6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image
+                                            Width="15"
+                                            Height="15"
+                                            Margin="5,0,5,0"
+                                            Source="/Resources/Logo/hand_w.png" />
+                                        <TextBlock
+                                            x:Name="DeviceAction"
+                                            Margin="0,0,5,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Foreground="White"
+                                            Text="手动测试" />
+                                    </StackPanel>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <DataTrigger Binding="{Binding IsManualTestRunning}" Value="True">
@@ -114,20 +122,30 @@
                     <Button
                         Width="100"
                         Height="32"
-                        Margin="0,0,20,0"
+                        Margin="0,0,30,0"
                         VerticalAlignment="Center"
                         BorderThickness="0"
                         Command="{Binding AutoTestCommand}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border x:Name="border" Background="#22c55e" CornerRadius="6">
-                                    <TextBlock
-                                        x:Name="DeviceAction"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="16"
-                                        Foreground="White"
-                                        Text="自动测试" />
+                                <Border
+                                    x:Name="border"
+                                    Background="#22c55e"
+                                    CornerRadius="6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image
+                                            Width="15"
+                                            Height="15"
+                                            Margin="5,0,5,0"
+                                            Source="/Resources/Logo/auto.png" />
+                                        <TextBlock
+                                            x:Name="DeviceAction"
+                                            Margin="0,0,5,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="16"
+                                            Foreground="White"
+                                            Text="自动测试" />
+                                    </StackPanel>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="True">
@@ -563,6 +581,36 @@
                             </StackPanel>
                         </Grid>
 
+                        <Border
+                            Margin="0,0,0,10"
+                            Padding="8"
+                            Background="#f0fdf4"
+                            BorderBrush="#22c55e"
+                            BorderThickness="1"
+                            CornerRadius="6">
+                            <StackPanel>
+                                <TextBlock
+                                    FontWeight="Bold"
+                                    Foreground="#166534"
+                                    Text="测试判据：" />
+                                <TextBlock
+                                    Margin="0,6,0,0"
+                                    Foreground="#166534"
+                                    Text="a) 100%PWM：J82/J83/J82-J83 的 VMAX ∈ [17,32]V 为 PASS" />
+                                <TextBlock
+                                    Margin="0,2,0,0"
+                                    Foreground="#166534"
+                                    Text="b) 50%PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (50±1)% 为 PASS" />
+                                <TextBlock
+                                    Margin="0,2,0,0"
+                                    Foreground="#166534"
+                                    Text="c) 0%PWM：VMAX ≤ 1V 且 VMIN ≥ -1V 为 PASS" />
+                                <TextBlock
+                                    Margin="0,2,0,0"
+                                    Foreground="#166534"
+                                    Text="d) 自定义PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (设定值±1)% 为 PASS" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
 
@@ -590,7 +638,10 @@
                             Command="{Binding ClearLogCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="4">
                                         <TextBlock
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"

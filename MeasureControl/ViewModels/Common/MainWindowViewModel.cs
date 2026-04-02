@@ -57,6 +57,7 @@ namespace MeasureControl.ViewModels.Common
         private readonly DeviceConfigurationService _deviceConfigurationService;
         private readonly SignalValueUpdateService _signalValueUpdateService;
         private readonly IHydraulicPowerService _hydraulicPowerService;
+        private readonly MeasureControl.Services.MatrixSwitchTcpServerAutoStartService _matrixSwitchTcpServerAutoStartService;
 
         private bool _isProjectMenuOpen;
         private bool _isBottomBarVisible = true;
@@ -835,6 +836,15 @@ namespace MeasureControl.ViewModels.Common
             // 加载机箱数据到服务
             _pxiChassisService.LoadChassisData(project.PxiChassisData);
 
+            // 机箱2本机（192.168.1.3）开机自启动矩阵开关 TCP 服务端：不依赖打开机箱页面/面板
+            try
+            {
+                _matrixSwitchTcpServerAutoStartService.StartForLocalChassis("PXI机箱2");
+            }
+            catch
+            {
+            }
+
             // 存储连接数据，等待HardwareConfig页面导航时再加载
             if (project.ChassisConnections != null && project.ChassisConnections.Count > 0)
             {
@@ -1177,6 +1187,7 @@ namespace MeasureControl.ViewModels.Common
             IChassisConnectionService chassisConnectionService, IChannelBindingService channelBindingService,
             ProjectService projectService, INavigationStateService navigationState, INavigationService navigationService,
             Prism.Services.Dialogs.IDialogService dialogService, SignalValueUpdateService signalValueUpdateService,
+            MeasureControl.Services.MatrixSwitchTcpServerAutoStartService matrixSwitchTcpServerAutoStartService,
             IHydraulicPowerService hydraulicPowerService)
         {
             // 依赖注入
@@ -1194,6 +1205,7 @@ namespace MeasureControl.ViewModels.Common
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             _deviceConfigurationService = new DeviceConfigurationService();
             _signalValueUpdateService = signalValueUpdateService ?? throw new ArgumentNullException(nameof(signalValueUpdateService));
+            _matrixSwitchTcpServerAutoStartService = matrixSwitchTcpServerAutoStartService ?? throw new ArgumentNullException(nameof(matrixSwitchTcpServerAutoStartService));
             _hydraulicPowerService = hydraulicPowerService ?? throw new ArgumentNullException(nameof(hydraulicPowerService));
             _hydraulicPowerService.IsHydraulicPoweredChanged += (s, e) => RaisePropertyChanged(nameof(IsHydraulicPowered));
 

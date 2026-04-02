@@ -3683,6 +3683,13 @@ namespace MeasureControl.ViewModels
         {
             try
             {
+                // 如果已启动则不要重复 Start（TcpServerManager 会追加 handler，导致同一连接被多个线程读取）
+                if (TcpServerManager.Instance.IsRunning(boardIdentifier))
+                {
+                    Debug.WriteLine($"[StartTcpServerForPort] TCP server already running, skip Start: {boardIdentifier}");
+                    return;
+                }
+
                 // 使用共享管理器启动/复用 TCP Server，并把客户端处理委托交给当前 ViewModel 的 HandleClientAsync
                 bool ok = TcpServerManager.Instance.Start(port, boardIdentifier, async (client, serverInfo, token) =>
                 {

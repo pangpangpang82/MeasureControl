@@ -48,6 +48,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const double Power3V3CurrentLimit = 1.0;
 
         private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
+        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x03, 0x00, 0xE8, 0x03,0x00, 0x00, 0xE8, 0x03,0x00, 0x00 };
 
         private const int FixedGearFrequencyHz = 20;
 
@@ -68,6 +69,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private bool _isPowerOn;
         private string _powerStatus = "未上电";
+
+        private bool _isTestPowerOn;
 
         private bool _isMatrixRouted;
         private bool _matrixRoutedSlot6;
@@ -120,23 +123,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             for (int i = 0; i <= 100; i += 5)
                 PwmDutyOptions.Add(i);
 
-            TogglePowerCommand = new DelegateCommand(async () => await TogglePowerAsync(), () => !IsBusy && !IsAutoTestRunning);
+            TogglePowerCommand = new DelegateCommand(async () => await TogglePowerAsync(), () => !IsBusy && !IsManualTestRunning && !IsAutoTestRunning);
 
-            ManualTestCommand = new DelegateCommand(OnManualTest, () => !IsBusy && (IsPowerOn || IsManualTestRunning));
-            AutoTestCommand = new DelegateCommand(OnAutoTest, () => !IsBusy);
+            ManualTestCommand = new DelegateCommand(OnManualTest, () => !IsBusy && !IsAutoTestRunning);
+            AutoTestCommand = new DelegateCommand(OnAutoTest, () => !IsBusy && !IsManualTestRunning);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
-            SendPwmCustomCommand = new DelegateCommand(async () => await SendCustomAsync(), () => !IsBusy && IsPowerOn);
-            MeasurePwmCustomCommand = new DelegateCommand(async () => await MeasureCustomAsync(), () => !IsBusy && IsPowerOn);
+            SendPwmCustomCommand = new DelegateCommand(async () => await SendCustomAsync(), () => IsConfigSendMeasureEnabled);
+            MeasurePwmCustomCommand = new DelegateCommand(async () => await MeasureCustomAsync(), () => IsConfigSendMeasureEnabled);
 
-            SendPwm100Command = new DelegateCommand(async () => await SendFixedGearAsync(100), () => !IsBusy && IsManualTestRunning && IsPowerOn);
-            MeasurePwm100Command = new DelegateCommand(async () => await MeasureFixedGearAsync(100), () => !IsBusy && IsManualTestRunning && IsPowerOn);
+            SendPwm100Command = new DelegateCommand(async () => await SendFixedGearAsync(100), () => !IsBusy && IsManualTestRunning);
+            MeasurePwm100Command = new DelegateCommand(async () => await MeasureFixedGearAsync(100), () => !IsBusy && IsManualTestRunning);
 
-            SendPwm50Command = new DelegateCommand(async () => await SendFixedGearAsync(50), () => !IsBusy && IsManualTestRunning && IsPowerOn);
-            MeasurePwm50Command = new DelegateCommand(async () => await MeasureFixedGearAsync(50), () => !IsBusy && IsManualTestRunning && IsPowerOn);
+            SendPwm50Command = new DelegateCommand(async () => await SendFixedGearAsync(50), () => !IsBusy && IsManualTestRunning);
+            MeasurePwm50Command = new DelegateCommand(async () => await MeasureFixedGearAsync(50), () => !IsBusy && IsManualTestRunning);
 
-            SendPwm0Command = new DelegateCommand(async () => await SendFixedGearAsync(0), () => !IsBusy && IsManualTestRunning && IsPowerOn);
-            MeasurePwm0Command = new DelegateCommand(async () => await MeasureFixedGearAsync(0), () => !IsBusy && IsManualTestRunning && IsPowerOn);
+            SendPwm0Command = new DelegateCommand(async () => await SendFixedGearAsync(0), () => !IsBusy && IsManualTestRunning);
+            MeasurePwm0Command = new DelegateCommand(async () => await MeasureFixedGearAsync(0), () => !IsBusy && IsManualTestRunning);
 
             // Power is controlled by programmable power supplies in PowerOnAsync/PowerOffAsync.
         }
@@ -207,6 +210,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (SetProperty(ref _isPowerOn, value))
                 {
+                    RaisePropertyChanged(nameof(IsConfigSendMeasureEnabled));
                     RaiseAllCanExecuteChanged();
                 }
             }
@@ -227,6 +231,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     if (value)
                         IsAutoTestRunning = false;
+                    RaisePropertyChanged(nameof(IsConfigSendMeasureEnabled));
                     RaiseAllCanExecuteChanged();
                 }
             }
@@ -241,6 +246,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     if (value)
                         IsManualTestRunning = false;
+                    RaisePropertyChanged(nameof(IsConfigSendMeasureEnabled));
                     RaiseAllCanExecuteChanged();
                 }
             }
@@ -253,10 +259,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (SetProperty(ref _isBusy, value))
                 {
+                    RaisePropertyChanged(nameof(IsConfigSendMeasureEnabled));
                     RaiseAllCanExecuteChanged();
                 }
             }
         }
+
+        public bool IsConfigSendMeasureEnabled => IsPowerOn && !IsBusy && !IsManualTestRunning && !IsAutoTestRunning;
 
         public int PwmFrequencyHz
         {
@@ -380,11 +389,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsPowerOn)
                 {
-                    await PowerOffAsync(CancellationToken.None);
+                    await DisconnectFpgaAsync(CancellationToken.None).ConfigureAwait(false);
+                    await PowerOffAsync(CancellationToken.None).ConfigureAwait(false);
                     return;
                 }
 
-                await PowerOnAsync(CancellationToken.None);
+                await PowerOnAsync(CancellationToken.None).ConfigureAwait(false);
             }
             finally
             {
@@ -393,6 +403,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         }
 
         private async Task PowerOnAsync(CancellationToken token)
+        {
+            await PowerOnHardwareAsync(token).ConfigureAwait(false);
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsPowerOn = true;
+                PowerStatus = "已上电";
+            });
+        }
+
+        private async Task PowerOffAsync(CancellationToken token)
+        {
+            await PowerOffHardwareAsync(token).ConfigureAwait(false);
+            _isTestPowerOn = false;
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsPowerOn = false;
+                PowerStatus = "未上电";
+            });
+        }
+
+        private async Task PowerOnHardwareAsync(CancellationToken token)
         {
             AddLog("组件供电：上电中...");
 
@@ -423,15 +454,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 AddLog($"组件供电：3.3V 上电失败(程控电源2): {ex.Message}");
             }
-
-            Application.Current?.Dispatcher?.Invoke(() =>
-            {
-                IsPowerOn = true;
-                PowerStatus = "已上电";
-            });
         }
 
-        private async Task PowerOffAsync(CancellationToken token)
+        private async Task PowerOffHardwareAsync(CancellationToken token)
         {
             AddLog("组件供电：下电中...");
 
@@ -457,12 +482,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
             }
             catch { }
-
-            Application.Current?.Dispatcher?.Invoke(() =>
-            {
-                IsPowerOn = false;
-                PowerStatus = "未上电";
-            });
         }
 
         private async Task EnsurePowerSupply28VConnectedAsync(CancellationToken token)
@@ -503,8 +522,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
 
                 ClearResults();
-                IsManualTestRunning = true;
-                AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
+                IsBusy = true;
+                try
+                {
+                    if (!IsPowerOn && !_isTestPowerOn)
+                    {
+                        await PowerOnHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+                        _isTestPowerOn = true;
+                    }
+
+                    IsManualTestRunning = true;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
+                }
+                finally
+                {
+                    IsBusy = false;
+                }
             }
             finally
             {
@@ -524,6 +557,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 try
                 {
                     await DisconnectFpgaAsync(CancellationToken.None).ConfigureAwait(false);
+                    if (_isTestPowerOn)
+                    {
+                        await PowerOffHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+                        _isTestPowerOn = false;
+                    }
                     IsManualTestRunning = false;
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试已停止 ==========");
                 }
@@ -569,7 +607,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         IsBusy = true;
                         try
                         {
-                            await PowerOnAsync(token).ConfigureAwait(false);
+                            if (!_isTestPowerOn)
+                            {
+                                await PowerOnHardwareAsync(token).ConfigureAwait(false);
+                                _isTestPowerOn = true;
+                            }
                         }
                         finally
                         {
@@ -602,12 +644,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     try
                     {
-                        if (IsPowerOn)
+                        if (_isTestPowerOn)
                         {
                             IsBusy = true;
                             try
                             {
-                                await PowerOffAsync(CancellationToken.None).ConfigureAwait(false);
+                                await PowerOffHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+                                _isTestPowerOn = false;
                             }
                             finally
                             {
@@ -652,7 +695,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task SendCustomAsync()
         {
-            if (!IsPowerOn || IsBusy)
+            if (!IsConfigSendMeasureEnabled)
                 return;
 
             IsBusy = true;
@@ -669,7 +712,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task MeasureCustomAsync()
         {
-            if (!IsPowerOn || IsBusy)
+            if (!IsConfigSendMeasureEnabled)
                 return;
 
             IsMeasuringPwmCustom = true;
@@ -692,7 +735,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task SendFixedGearAsync(int dutyPct)
         {
-            if (!IsPowerOn || IsBusy || !IsManualTestRunning)
+            if (IsBusy || !IsManualTestRunning)
                 return;
 
             IsBusy = true;
@@ -709,7 +752,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task MeasureFixedGearAsync(int dutyPct)
         {
-            if (!IsPowerOn || IsBusy || !IsManualTestRunning)
+            if (IsBusy || !IsManualTestRunning)
                 return;
 
             await SetMeasuringAsync(dutyPct, true);
@@ -952,6 +995,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _opLock.WaitAsync(token).ConfigureAwait(false);
             try
             {
+                if (_fpga != null && _fpga.IsConnected)
+                {
+                    try
+                    {
+                        AddLog($"FPGA复位: 发送 {FormatData(ResetToInitialCommandFrame)}");
+                        await _fpga.WriteAsync(ResetToInitialCommandFrame, 0, ResetToInitialCommandFrame.Length, token).ConfigureAwait(false);
+                    }
+                    catch { }
+                }
+
                 try { _fpga?.Disconnect(); } catch { }
                 try { _fpga?.Dispose(); } catch { }
                 _fpga = null;
@@ -1107,35 +1160,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             dutyPct = ClampDuty(dutyPct);
             freqHz = ClampFreq(freqHz);
 
-            var periodUs = (int)Math.Round(1_000_000.0 / freqHz);
+            var periodUs = (long)Math.Round(1_000_000.0 / freqHz);
             if (periodUs < 1)
                 periodUs = 1;
-            if (periodUs > ushort.MaxValue)
-                periodUs = ushort.MaxValue;
 
-            int lowUs;
+            long onUs;
             if (dutyPct >= 100)
-                lowUs = 0;
+                onUs = 0;
             else if (dutyPct <= 0)
-                lowUs = periodUs;
+                onUs = periodUs;
             else
-                lowUs = (int)Math.Round(periodUs * (100.0 - dutyPct) / 100.0);
+                onUs = (long)Math.Round(periodUs * dutyPct / 100.0);
 
-            if (lowUs < 0)
-                lowUs = 0;
-            if (lowUs > ushort.MaxValue)
-                lowUs = ushort.MaxValue;
+            if (onUs < 0)
+                onUs = 0;
+            if (onUs > periodUs)
+                onUs = periodUs;
 
-            ushort p = (ushort)periodUs;
-            ushort low = (ushort)lowUs;
+            ulong pScaled = (ulong)periodUs * 10UL;
+            ulong dutyScaled = (ulong)onUs * 10UL;
+            if (dutyScaled > pScaled)
+                dutyScaled = pScaled;
+
+            uint p = pScaled > uint.MaxValue ? uint.MaxValue : (uint)pScaled;
+            uint on = dutyScaled > p ? p : (uint)dutyScaled;
 
             return new byte[]
             {
                 0xAA, 0x55,
-                0x06,0x03,
-                0xC0,
-                (byte)(p & 0xFF), (byte)(p >> 8),
-                (byte)(low & 0xFF), (byte)(low >> 8)
+                0x0A,0x03,
+                0x03,
+                (byte)(p & 0xFF), (byte)((p >> 8) & 0xFF), (byte)((p >> 16) & 0xFF), (byte)((p >> 24) & 0xFF),
+                (byte)(on & 0xFF), (byte)((on >> 8) & 0xFF), (byte)((on >> 16) & 0xFF), (byte)((on >> 24) & 0xFF)
             };
         }
 

@@ -57,10 +57,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const double Current400mAMinA = 0.37;
         private const double Current400mAMaxA = 0.43;
 
-        private const int DefaultFpgaReplyBytes = 8;
+        private const int DefaultFpgaReplyBytes = 68;
         private const int DefaultFpgaReplyTimeoutMs = 2000;
 
-        private static readonly byte[] CurrentTelemetryQueryFrame = { 0x0A, 0x55, 0x02, 0x0B, 0x07 };
+        private static readonly byte[] CurrentSet0mAFrame = { 0xAA, 0x55, 0x12, 0x05, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] CurrentSet250mAFrame = { 0xAA, 0x55, 0x12, 0x05, 0x01, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80 };
+        private static readonly byte[] CurrentSet400mAFrame = { 0xAA, 0x55, 0x12, 0x05, 0x01, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC };
+        private static readonly byte[] CurrentStopFrame = { 0xAA, 0x55, 0x12, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+        private static readonly byte[] CurrentTelemetryQueryFrame = { 0xAA, 0x55, 0x02, 0x06, 0x01 };
 
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
@@ -681,12 +686,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             AddLog("FPGA连接成功");
         }
 
-        private Task DisconnectFpgaAsync(CancellationToken token)
+        private async Task DisconnectFpgaAsync(CancellationToken token)
         {
-            _ = token;
+            try
+            {
+                if (_fpga != null && _fpga.IsConnected)
+                {
+                    AddLog($"FPGA停止输出: 发送 {FormatData(CurrentStopFrame)}");
+                    await _fpga.WriteAsync(CurrentStopFrame, 0, CurrentStopFrame.Length, token).ConfigureAwait(false);
+                }
+            }
+            catch { }
+
             try { _fpga?.Dispose(); } catch { }
             _fpga = null;
-            return Task.CompletedTask;
         }
 
         private async Task<bool> SendSetCurrentAsync(int currentmA, CancellationToken token)
@@ -845,19 +858,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private static byte[] BuildCurrentSetCommand(int currentmA)
         {
-            if (currentmA < 0) currentmA = 0;
-            if (currentmA > 5000) currentmA = 5000;
-
-            ushort mA = (ushort)currentmA;
-
-            return new byte[]
-            {
-                0x0A, 0x55,
-                0x04,
-                0x0C,
-                (byte)(mA >> 8), (byte)(mA & 0xFF),
-                0x00
-            };
+            if (currentmA <= 0)
+                return CurrentSet0mAFrame;
+            if (currentmA == 250)
+                return CurrentSet250mAFrame;
+            if (currentmA == 400)
+                return CurrentSet400mAFrame;
+            return CurrentSet0mAFrame;
         }
 
         private static double? TryParseCurrentAFromReply(byte[] reply)

@@ -3701,6 +3701,13 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
         {
             try
             {
+                // 如果已启动则不要重复 Start（TcpServerManager 会追加 handler，导致同一连接被多个线程读取）
+                if (TcpServerManager.Instance.IsRunning(boardIdentifier))
+                {
+                    Debug.WriteLine($"[StartTcpServerForPort] TCP server already running, skip Start: {boardIdentifier}");
+                    return;
+                }
+
                 bool ok = TcpServerManager.Instance.Start(port, boardIdentifier, (client, serverInfo, token) =>
                 {
                     return HandleClientAsync(client, serverInfo, token);

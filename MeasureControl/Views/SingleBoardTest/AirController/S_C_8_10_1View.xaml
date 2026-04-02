@@ -43,7 +43,7 @@
                     VerticalAlignment="Center"
                     FontSize="24"
                     FontWeight="Bold"
-                    Text="8.10.1 S通道OFV/TRV直流电机驱动模块速度控制测试" />
+                    Text="8.10.1 S通道J99/J100直流电机驱动模块速度控制测试" />
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                     <Button
                         Width="100"
@@ -215,123 +215,10 @@
                     HorizontalScrollBarVisibility="Disabled"
                     VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <TextBlock
-                            Margin="0,0,0,8"
-                            FontSize="20"
-                            FontWeight="Bold"
-                            Text="测试条件配置" />
-
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="140" />
-                                <ColumnDefinition Width="220" />
-                                <ColumnDefinition Width="100" />
-                                <ColumnDefinition Width="120" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock
-                                Grid.Column="0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="PWM频率(Hz)：" />
-                            <TextBox
-                                Grid.Column="1"
-                                Height="28"
-                                VerticalContentAlignment="Center"
-                                Text="{Binding PwmFrequencyHz, UpdateSourceTrigger=PropertyChanged}" />
-                        </Grid>
-
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="140" />
-                                <ColumnDefinition Width="220" />
-                                <ColumnDefinition Width="100" />
-                                <ColumnDefinition Width="120" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock
-                                Grid.Column="0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="占空比(%)：" />
-                            <TextBox
-                                Grid.Column="1"
-                                Height="28"
-                                VerticalContentAlignment="Center"
-                                Text="{Binding PwmDutyPct, UpdateSourceTrigger=PropertyChanged}" />
-
-                            <Border
-                                Grid.Column="2"
-                                Width="70"
-                                Height="28"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Background="#f3f4f6"
-                                CornerRadius="4">
-                                <TextBlock
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    Text="{Binding PwmCustomResult, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                            </Border>
-
-                            <Button
-                                Grid.Column="3"
-                                Width="80"
-                                Height="30"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                BorderThickness="0"
-                                Command="{Binding SendPwmCustomCommand}"
-                                IsEnabled="{Binding IsManualTestRunning}">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border
-                                            x:Name="border"
-                                            Background="#3b82f6"
-                                            CornerRadius="6">
-                                            <TextBlock
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                FontSize="14"
-                                                Foreground="White"
-                                                Text="测量" />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <DataTrigger Binding="{Binding IsMeasuringPwmCustom}" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#ef4444" />
-                                            </DataTrigger>
-                                            <MultiDataTrigger>
-                                                <MultiDataTrigger.Conditions>
-                                                    <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource TemplatedParent}}" Value="True" />
-                                                    <Condition Binding="{Binding IsMeasuringPwmCustom}" Value="False" />
-                                                </MultiDataTrigger.Conditions>
-                                                <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                                            </MultiDataTrigger>
-                                            <MultiDataTrigger>
-                                                <MultiDataTrigger.Conditions>
-                                                    <Condition Binding="{Binding IsPressed, RelativeSource={RelativeSource TemplatedParent}}" Value="True" />
-                                                    <Condition Binding="{Binding IsMeasuringPwmCustom}" Value="False" />
-                                                </MultiDataTrigger.Conditions>
-                                                <Setter TargetName="border" Property="Background" Value="#ef4444" />
-                                            </MultiDataTrigger>
-                                            <Trigger Property="IsEnabled" Value="False">
-                                                <Setter TargetName="border" Property="Background" Value="#d1d5db" />
-                                                <Setter Property="Cursor" Value="Arrow" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </Grid>
-
-                        <TextBlock
-                            Margin="0,10,0,8"
-                            FontSize="20"
-                            FontWeight="Bold"
-                            Text="测试步骤" />
+                        <TextBlock Margin="0,0,0,8" FontSize="20" FontWeight="Bold" Text="测试步骤" />
 
                         <Border
+                            x:Name="StepsPanel"
                             Margin="0,0,0,10"
                             Background="White"
                             BorderBrush="#D9D9D9"
@@ -340,8 +227,9 @@
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="60" />
-                                    <ColumnDefinition Width="200" />
+                                    <ColumnDefinition Width="100" />
                                     <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="90" />
                                     <ColumnDefinition Width="90" />
                                     <ColumnDefinition Width="90" />
                                 </Grid.ColumnDefinitions>
@@ -352,114 +240,47 @@
                                     <RowDefinition Height="40" />
                                 </Grid.RowDefinitions>
 
-                                <Border
-                                    Grid.Row="0"
-                                    Grid.ColumnSpan="5"
-                                    Background="#f3f4f6"
-                                    CornerRadius="8,8,0,0" />
-                                <TextBlock
-                                    Grid.Row="0"
-                                    Grid.Column="0"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    FontWeight="Bold"
-                                    Text="序号" />
-                                <TextBlock
-                                    Grid.Row="0"
-                                    Grid.Column="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    FontWeight="Bold"
-                                    Text="测试项目" />
-                                <TextBlock
-                                    Grid.Row="0"
-                                    Grid.Column="2"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    FontWeight="Bold"
-                                    Text="设置值" />
-                                <TextBlock
-                                    Grid.Row="0"
-                                    Grid.Column="3"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    FontWeight="Bold"
-                                    Text="结果" />
-                                <TextBlock
-                                    Grid.Row="0"
-                                    Grid.Column="4"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    FontWeight="Bold"
-                                    Text="操作" />
+                                <Border Grid.Row="0" Grid.ColumnSpan="6" Background="#f3f4f6" CornerRadius="8,8,0,0" />
+                                <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="序号" />
+                                <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="测试项目" />
+                                <TextBlock Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="设置值" />
+                                <TextBlock Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="结果" />
+                                <TextBlock Grid.Row="0" Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="发送" />
+                                <TextBlock Grid.Row="0" Grid.Column="5" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" FontWeight="Bold" Text="测量" />
 
-                                <Border
-                                    Grid.Row="1"
-                                    Grid.ColumnSpan="5"
-                                    Background="White" />
-                                <TextBlock
-                                    Grid.Row="1"
-                                    Grid.Column="0"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    Text="a)" />
-                                <TextBlock
-                                    Grid.Row="1"
-                                    Grid.Column="1"
-                                    Margin="10,0,0,0"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    Text="100%PWM" />
-                                <TextBlock
-                                    Grid.Row="1"
-                                    Grid.Column="2"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    Text="100%" />
-                                <Border
-                                    Grid.Row="1"
-                                    Grid.Column="3"
-                                    Width="70"
-                                    Height="28"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Background="#f3f4f6"
-                                    CornerRadius="4">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="14"
-                                        Text="{Binding Pwm100Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <Border Grid.Row="1" Grid.ColumnSpan="6" Background="White" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="a)" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="1,0,0,0" FontSize="14" Text="100%PWM" />
+                                <TextBlock Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="100%" />
+                                <Border Grid.Row="1" Grid.Column="3" Width="70" Height="28" VerticalAlignment="Center" HorizontalAlignment="Center" Background="#f3f4f6" CornerRadius="4">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Pwm100Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
                                 </Border>
-                                <Button
-                                    Grid.Row="1"
-                                    Grid.Column="4"
-                                    Width="80"
-                                    Height="30"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    BorderThickness="0"
-                                    Command="{Binding SendPwm100Command}"
-                                    IsEnabled="{Binding IsManualTestRunning}">
+                                <Button Grid.Row="1" Grid.Column="4" Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Center" BorderThickness="0" Command="{Binding SendPwm100Command}" IsEnabled="{Binding IsManualTestRunning}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Border
-                                                x:Name="border"
-                                                Background="#3b82f6"
-                                                CornerRadius="6">
-                                                <TextBlock
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    FontSize="14"
-                                                    Foreground="White"
-                                                    Text="测量" />
+                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
+                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#d1d5db" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Grid.Row="1" Grid.Column="5" Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Center" BorderThickness="0" Command="{Binding MeasurePwm100Command}" IsEnabled="{Binding IsManualTestRunning}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="#22c55e" CornerRadius="6">
+                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="测量" />
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <DataTrigger Binding="{Binding IsMeasuringPwm100}" Value="True">
@@ -470,14 +291,7 @@
                                                         <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource TemplatedParent}}" Value="True" />
                                                         <Condition Binding="{Binding IsMeasuringPwm100}" Value="False" />
                                                     </MultiDataTrigger.Conditions>
-                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                                                </MultiDataTrigger>
-                                                <MultiDataTrigger>
-                                                    <MultiDataTrigger.Conditions>
-                                                        <Condition Binding="{Binding IsPressed, RelativeSource={RelativeSource TemplatedParent}}" Value="True" />
-                                                        <Condition Binding="{Binding IsMeasuringPwm100}" Value="False" />
-                                                    </MultiDataTrigger.Conditions>
-                                                    <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                                    <Setter TargetName="border" Property="Background" Value="#15803d" />
                                                 </MultiDataTrigger>
                                                 <Trigger Property="IsEnabled" Value="False">
                                                     <Setter TargetName="border" Property="Background" Value="#d1d5db" />
@@ -488,68 +302,39 @@
                                     </Button.Template>
                                 </Button>
 
-                                <Border
-                                    Grid.Row="2"
-                                    Grid.ColumnSpan="5"
-                                    Background="#f9fafb" />
-                                <TextBlock
-                                    Grid.Row="2"
-                                    Grid.Column="0"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    Text="b)" />
-                                <TextBlock
-                                    Grid.Row="2"
-                                    Grid.Column="1"
-                                    Margin="10,0,0,0"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    Text="50%PWM" />
-                                <TextBlock
-                                    Grid.Row="2"
-                                    Grid.Column="2"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    Text="50%" />
-                                <Border
-                                    Grid.Row="2"
-                                    Grid.Column="3"
-                                    Width="70"
-                                    Height="28"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Background="#f3f4f6"
-                                    CornerRadius="4">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="14"
-                                        Text="{Binding Pwm50Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <Border Grid.Row="2" Grid.ColumnSpan="6" Background="#f9fafb" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="b)" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="14" Text="50%PWM" />
+                                <TextBlock Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="50%" />
+                                <Border Grid.Row="2" Grid.Column="3" Width="70" Height="28" VerticalAlignment="Center" HorizontalAlignment="Center" Background="#f3f4f6" CornerRadius="4">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Pwm50Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
                                 </Border>
-                                <Button
-                                    Grid.Row="2"
-                                    Grid.Column="4"
-                                    Width="80"
-                                    Height="30"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    BorderThickness="0"
-                                    Command="{Binding SendPwm50Command}"
-                                    IsEnabled="{Binding IsManualTestRunning}">
+                                <Button Grid.Row="2" Grid.Column="4" Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Center" BorderThickness="0" Command="{Binding SendPwm50Command}" IsEnabled="{Binding IsManualTestRunning}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Border
-                                                x:Name="border"
-                                                Background="#3b82f6"
-                                                CornerRadius="6">
-                                                <TextBlock
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    FontSize="14"
-                                                    Foreground="White"
-                                                    Text="测量" />
+                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
+                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#d1d5db" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Grid.Row="2" Grid.Column="5" Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Center" BorderThickness="0" Command="{Binding MeasurePwm50Command}" IsEnabled="{Binding IsManualTestRunning}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="#22c55e" CornerRadius="6">
+                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="测量" />
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <DataTrigger Binding="{Binding IsMeasuringPwm50}" Value="True">
@@ -560,14 +345,7 @@
                                                         <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource TemplatedParent}}" Value="True" />
                                                         <Condition Binding="{Binding IsMeasuringPwm50}" Value="False" />
                                                     </MultiDataTrigger.Conditions>
-                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                                                </MultiDataTrigger>
-                                                <MultiDataTrigger>
-                                                    <MultiDataTrigger.Conditions>
-                                                        <Condition Binding="{Binding IsPressed, RelativeSource={RelativeSource TemplatedParent}}" Value="True" />
-                                                        <Condition Binding="{Binding IsMeasuringPwm50}" Value="False" />
-                                                    </MultiDataTrigger.Conditions>
-                                                    <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                                    <Setter TargetName="border" Property="Background" Value="#15803d" />
                                                 </MultiDataTrigger>
                                                 <Trigger Property="IsEnabled" Value="False">
                                                     <Setter TargetName="border" Property="Background" Value="#d1d5db" />
@@ -578,69 +356,39 @@
                                     </Button.Template>
                                 </Button>
 
-                                <Border
-                                    Grid.Row="3"
-                                    Grid.ColumnSpan="5"
-                                    Background="White"
-                                    CornerRadius="0,0,8,8" />
-                                <TextBlock
-                                    Grid.Row="3"
-                                    Grid.Column="0"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    Text="c)" />
-                                <TextBlock
-                                    Grid.Row="3"
-                                    Grid.Column="1"
-                                    Margin="10,0,0,0"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    Text="0%PWM" />
-                                <TextBlock
-                                    Grid.Row="3"
-                                    Grid.Column="2"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    Text="0%" />
-                                <Border
-                                    Grid.Row="3"
-                                    Grid.Column="3"
-                                    Width="70"
-                                    Height="28"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Background="#f3f4f6"
-                                    CornerRadius="4">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="14"
-                                        Text="{Binding Pwm0Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <Border Grid.Row="3" Grid.ColumnSpan="6" Background="White" CornerRadius="0,0,8,8" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="c)" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="14" Text="0%PWM" />
+                                <TextBlock Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" Text="0%" />
+                                <Border Grid.Row="3" Grid.Column="3" Width="70" Height="28" VerticalAlignment="Center" HorizontalAlignment="Center" Background="#f3f4f6" CornerRadius="4">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Pwm0Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
                                 </Border>
-                                <Button
-                                    Grid.Row="3"
-                                    Grid.Column="4"
-                                    Width="80"
-                                    Height="30"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    BorderThickness="0"
-                                    Command="{Binding SendPwm0Command}"
-                                    IsEnabled="{Binding IsManualTestRunning}">
+                                <Button Grid.Row="3" Grid.Column="4" Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Center" BorderThickness="0" Command="{Binding SendPwm0Command}" IsEnabled="{Binding IsManualTestRunning}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Border
-                                                x:Name="border"
-                                                Background="#3b82f6"
-                                                CornerRadius="6">
-                                                <TextBlock
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    FontSize="14"
-                                                    Foreground="White"
-                                                    Text="测量" />
+                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
+                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#d1d5db" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Grid.Row="3" Grid.Column="5" Width="70" Height="30" VerticalAlignment="Center" HorizontalAlignment="Center" BorderThickness="0" Command="{Binding MeasurePwm0Command}" IsEnabled="{Binding IsManualTestRunning}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="#22c55e" CornerRadius="6">
+                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="测量" />
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <DataTrigger Binding="{Binding IsMeasuringPwm0}" Value="True">
@@ -651,14 +399,7 @@
                                                         <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource TemplatedParent}}" Value="True" />
                                                         <Condition Binding="{Binding IsMeasuringPwm0}" Value="False" />
                                                     </MultiDataTrigger.Conditions>
-                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                                                </MultiDataTrigger>
-                                                <MultiDataTrigger>
-                                                    <MultiDataTrigger.Conditions>
-                                                        <Condition Binding="{Binding IsPressed, RelativeSource={RelativeSource TemplatedParent}}" Value="True" />
-                                                        <Condition Binding="{Binding IsMeasuringPwm0}" Value="False" />
-                                                    </MultiDataTrigger.Conditions>
-                                                    <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                                    <Setter TargetName="border" Property="Background" Value="#15803d" />
                                                 </MultiDataTrigger>
                                                 <Trigger Property="IsEnabled" Value="False">
                                                     <Setter TargetName="border" Property="Background" Value="#d1d5db" />
@@ -671,195 +412,174 @@
                             </Grid>
                         </Border>
 
-                        <Border
-                            Margin="0,0,0,10"
-                            Background="White"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1.5"
-                            CornerRadius="8">
+                        <Grid Margin="0,10,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="112" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock
+                                Grid.Column="0"
+                                FontSize="20"
+                                FontWeight="Bold"
+                                Text="测试条件配置" />
+
+                            <ToggleButton
+                                Grid.Column="1"
+                                Width="100"
+                                Height="26"
+                                VerticalAlignment="Center"
+                                BorderThickness="0"
+                                Command="{Binding TogglePowerCommand}"
+                                IsChecked="{Binding IsPowerOn, Mode=OneWay}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="border" Background="#f59e0b" CornerRadius="4">
+                                            <TextBlock x:Name="text" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="上电" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                                <Setter TargetName="text" Property="Text" Value="下电" />
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#d97706" />
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#d97706" />
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                <Setter Property="Cursor" Value="Arrow" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                        </Grid>
+
+                        <Border Margin="0,0,0,10" Background="#fffbeb" BorderBrush="#fcd34d" BorderThickness="1" CornerRadius="6" Padding="8">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="100" />
-                                    <ColumnDefinition Width="90" />
-                                    <ColumnDefinition Width="90" />
-                                    <ColumnDefinition Width="100" />
-                                    <ColumnDefinition Width="130" />
+                                    <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="44" />
-                                    <RowDefinition Height="44" />
-                                    <RowDefinition Height="44" />
-                                    <RowDefinition Height="44" />
-                                </Grid.RowDefinitions>
-
-                                <Border
-                                    Grid.Row="0"
-                                    Grid.ColumnSpan="5"
-                                    Background="#f3f4f6"
-                                    CornerRadius="8,8,0,0" />
-                                <TextBlock
-                                    Grid.Row="0"
-                                    Grid.Column="0"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    FontWeight="Bold"
-                                    Text="测点" />
-                                <TextBlock
-                                    Grid.Row="0"
-                                    Grid.Column="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    FontWeight="Bold"
-                                    Text="VMAX" />
-                                <TextBlock
-                                    Grid.Row="0"
-                                    Grid.Column="2"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    FontWeight="Bold"
-                                    Text="VMIN" />
-                                <TextBlock
-                                    Grid.Row="0"
-                                    Grid.Column="3"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    FontWeight="Bold"
-                                    Text="VPP" />
-                                <TextBlock
-                                    Grid.Row="0"
-                                    Grid.Column="4"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    FontWeight="Bold"
-                                    Text="DUTY(%)" />
-
-                                <Border
-                                    Grid.Row="1"
-                                    Grid.ColumnSpan="5"
-                                    Background="White" />
-                                <TextBlock
-                                    Grid.Row="1"
-                                    Grid.Column="0"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    Text="J8" />
-                                <TextBlock
-                                    Grid.Row="1"
-                                    Grid.Column="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding J8VmaxText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock
-                                    Grid.Row="1"
-                                    Grid.Column="2"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding J8VminText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock
-                                    Grid.Row="1"
-                                    Grid.Column="3"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding J8VppText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock
-                                    Grid.Row="1"
-                                    Grid.Column="4"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding J8DutyPctText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-
-                                <Border
-                                    Grid.Row="2"
-                                    Grid.ColumnSpan="5"
-                                    Background="#f9fafb" />
-                                <TextBlock
-                                    Grid.Row="2"
-                                    Grid.Column="0"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    Text="J9" />
-                                <TextBlock
-                                    Grid.Row="2"
-                                    Grid.Column="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding J9VmaxText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock
-                                    Grid.Row="2"
-                                    Grid.Column="2"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding J9VminText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock
-                                    Grid.Row="2"
-                                    Grid.Column="3"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding J9VppText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock
-                                    Grid.Row="2"
-                                    Grid.Column="4"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding J9DutyPctText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-
-                                <Border
-                                    Grid.Row="3"
-                                    Grid.ColumnSpan="5"
-                                    Background="White"
-                                    CornerRadius="0,0,8,8" />
-                                <TextBlock
-                                    Grid.Row="3"
-                                    Grid.Column="0"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="14"
-                                    Text="J8-J9" />
-                                <TextBlock
-                                    Grid.Row="3"
-                                    Grid.Column="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding J8J9VmaxText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock
-                                    Grid.Row="3"
-                                    Grid.Column="2"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding J8J9VminText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock
-                                    Grid.Row="3"
-                                    Grid.Column="3"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding J8J9VppText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                <TextBlock
-                                    Grid.Row="3"
-                                    Grid.Column="4"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding J8J9DutyPctText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock FontSize="14" Text="前置条件：输出28V和3.3V供电" />
+                                    <TextBlock FontSize="14" Text="  供电: " />
+                                    <TextBlock FontSize="14" Text="{Binding PowerStatus, Mode=OneWay}" />
+                                </StackPanel>
                             </Grid>
                         </Border>
+
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock
+                                Grid.Column="0"
+                                VerticalAlignment="Center"
+                                FontSize="14"
+                                Text="PWM频率(Hz)：" />
+                            <ComboBox
+                                Grid.Column="1"
+                                Width="100"
+                                Height="28"
+                                FontSize="12"
+                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                                ItemsSource="{Binding PwmFrequencyOptions}"
+                                SelectedItem="{Binding PwmFrequencyHz, Mode=TwoWay}" />
+                        </Grid>
+
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock
+                                Grid.Column="0"
+                                VerticalAlignment="Center"
+                                FontSize="14"
+                                Text="占空比(%)：" />
+                            <ComboBox
+                                Grid.Column="1"
+                                Width="100"
+                                Height="28"
+                                FontSize="12"
+                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                                ItemsSource="{Binding PwmDutyOptions}"
+                                SelectedItem="{Binding PwmDutyPct, Mode=TwoWay}" />
+
+                            <StackPanel Grid.Column="2" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Left">
+                                <Button
+                                    Width="70"
+                                    Height="30"
+                                    Margin="0,0,8,0"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding SendPwmCustomCommand}"
+                                    IsEnabled="{Binding IsConfigSendMeasureEnabled}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
+                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#d1d5db" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+
+                                <Button
+                                    Width="60"
+                                    Height="30"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding MeasurePwmCustomCommand}"
+                                    IsEnabled="{Binding IsConfigSendMeasureEnabled}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="#22c55e" CornerRadius="6">
+                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="测量" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsMeasuringPwmCustom}" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                                </DataTrigger>
+                                                <MultiDataTrigger>
+                                                    <MultiDataTrigger.Conditions>
+                                                        <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource TemplatedParent}}" Value="True" />
+                                                        <Condition Binding="{Binding IsMeasuringPwmCustom}" Value="False" />
+                                                    </MultiDataTrigger.Conditions>
+                                                    <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                                </MultiDataTrigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#d1d5db" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
 
                         <Border
                             Margin="0,0,0,10"
@@ -876,7 +596,7 @@
                                 <TextBlock
                                     Margin="0,6,0,0"
                                     Foreground="#166534"
-                                    Text="a) 100%PWM：J8/J9/J8-J9 的 VMAX ∈ [17,32]V 为 PASS" />
+                                    Text="a) 100%PWM：J99/J100/J99-J100 的 VMAX ∈ [17,32]V 为 PASS" />
                                 <TextBlock
                                     Margin="0,2,0,0"
                                     Foreground="#166534"
@@ -891,7 +611,6 @@
                                     Text="d) 自定义PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (设定值±1)% 为 PASS" />
                             </StackPanel>
                         </Border>
-
                     </StackPanel>
                 </ScrollViewer>
 
@@ -976,12 +695,7 @@
             BorderThickness="1.5"
             CornerRadius="8">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="1.5*" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
                 <TextBlock
-                    Grid.Row="0"
                     Margin="10,0,0,0"
                     VerticalAlignment="Center"
                     FontSize="18"
