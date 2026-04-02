@@ -72,7 +72,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
                 { "8.3.2 S安全通道ARINC429接收通道1测试", () => new S_C_8_3_2View() },
                 { "8.3.3 S安全通道ARINC429接收通道2测试", () => new S_C_8_3_3View() },
-                { "8.10.1 S通道OFV/TRV直流电机驱动模块速度控制测试", () => new S_C_8_10_1View() },
+                { "8.9.1 S通道J82/J83直流电机驱动模块速度控制测试", () => new S_C_8_9_1View() },
+                { "8.9.2 S通道J82/J83直流电机驱动模块方向控制测试", () => new S_C_8_9_2View() },
+                { "8.10.1 S通道J99/J100直流电机驱动模块速度控制测试", () => new S_C_8_10_1View() },
+                { "8.10.2 S通道J99/J100直流电机驱动模块方向控制测试", () => new S_C_8_10_2View() },
                 { "7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试", () => new A_C_7_3_1_1_2View() },
                 { "7.3.1.2 A控制通道功率板RATA直流电机驱动模块速度控制测试", () => new A_C_7_3_1_2View() },
                 { "7.3.1.3 A控制通道功率板RATA直流电机驱动模块方向控制测试", () => new A_C_7_3_1_3View() },
@@ -295,6 +298,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
                         { "8.1电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "8.9.1 S通道J82/J83直流电机驱动模块速度控制测试", "\t a) 100%PWM：J82/J83/J82-J83 的 VMAX ∈ [17,32]V 为 PASS；\r\n\t b) 50%PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (50±1)% 为 PASS；\r\n\t c) 0%PWM：VMAX ≤ 1V 且 VMIN ≥ -1V 为 PASS；\r\n\t d) 自定义PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (设定值±1)% 为 PASS。" },
+                        { "8.9.2 S通道J82/J83直流电机驱动模块方向控制测试", "\t a) PH高电平：J82-J83 电压极性为正，且电压绝对值在[17,32]V范围内为PASS；\r\n\t b) PH低电平：J82-J83 电压极性为负，且电压绝对值在[17,32]V范围内为PASS。" },
+                        { "8.10.1 S通道J99/J100直流电机驱动模块速度控制测试", "\t a) 100%PWM：J99/J100/J99-J100 的 VMAX ∈ [17,32]V 为 PASS；\r\n\t b) 50%PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (50±1)% 为 PASS；\r\n\t c) 0%PWM：VMAX ≤ 1V 且 VMIN ≥ -1V 为 PASS；\r\n\t d) 自定义PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (设定值±1)% 为 PASS。" },
+                        { "8.10.2 S通道J99/J100直流电机驱动模块方向控制测试", "\t a) PH高电平：J99-J100 电压极性为正，且电压绝对值在[17,32]V范围内为PASS；\r\n\t b) PH低电平：J99-J100 电压极性为负，且电压绝对值在[17,32]V范围内为PASS。" },
                         { "8.5.1安全通道CAN发送测试", "\t 上位机显示\"01010101\"（对应CAN帧后4字节为01 01 01 01）则检查通过。" },
                         { "8.5.2安全通道CAN接收测试", "\t 上位机显示\"01010101\"则检查通过。" },
                         { "8.6.1 S安全通道WAITS1传感器测试", "\t a) 进入ATP后，按1/2/3挡依次接入电阻：351.65Ω、550.0Ω、693.53Ω；\r\n\t b) 发送测试指令（15 01 01 01 00 00 00 00）；\r\n\t c) 1挡温度范围[-77.05, -72.95]℃(10~50℃环境)或[-79.05, -70.95]℃；\r\n\t   2挡温度范围[23.63, 27.73]℃(10~50℃环境)或[21.63, 29.73]℃；\r\n\t   3挡温度范围[97.95, 102.05]℃(10~50℃环境)或[95.95, 104.05]℃。" },
@@ -967,10 +974,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("RS422通信测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道422发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("控制通道422接收测试"));
-                return;
             }
-
-            if (string.Equals(boardType, "空气功率板", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(boardType, "空气功率板", StringComparison.OrdinalIgnoreCase))
             {
                 TestSequenceItems.Add(new TestSequenceItem("7.1功率板电源对地阻抗测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.2.1A控制通道功率板供电测试"));
@@ -1010,16 +1015,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("7.5.6.1 B控制通道功率板PRSOV力矩电机驱动测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.5.7.1 B控制通道功率板FCV力矩电机驱动测试"));
                 TestSequenceItems.Add(new TestSequenceItem("7.5.8.1 B控制通道功率板WAIV力矩电机驱动测试"));
-                return;
             }
-
-            if (string.Equals(boardType, "空气安全板", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(boardType, "空气安全板", StringComparison.OrdinalIgnoreCase))
             {
                 TestSequenceItems.Add(new TestSequenceItem("8.1电源对地阻抗测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.1 S安全通道ARINC429发送通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.2 S安全通道ARINC429接收通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.3 S安全通道ARINC429接收通道2测试"));
-                TestSequenceItems.Add(new TestSequenceItem("8.10.1 S通道OFV/TRV直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.9.1 S通道J82/J83直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.9.2 S通道J82/J83直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.10.1 S通道J99/J100直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.10.2 S通道J99/J100直流电机驱动模块方向控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.5.1安全通道CAN发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.5.2安全通道CAN接收测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.6.1 S安全通道WAITS1传感器测试"));
@@ -1027,10 +1033,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("8.7.1S安全通道FWD_AVENTS1传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.7.2S安全通道FWD_AVENTS2传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.7.3S安全通道AFT_AVENTS传感器测试"));
-                return;
             }
-
-            if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
             {
                 TestSequenceItems.Add(new TestSequenceItem("电源阻抗测试"));
                 TestSequenceItems.Add(new TestSequenceItem("通道ID测试"));

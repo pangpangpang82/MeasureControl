@@ -48,7 +48,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const double Power3V3CurrentLimit = 1.0;
 
         private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
-        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x06, 0x03, 0x00, 0xE8, 0x03, 0xE8, 0x03 };
+        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x03, 0x00, 0xE8, 0x03, 0x00, 0x00, 0xE8, 0x03, 0x00, 0x00 };
 
         private const int FixedGearFrequencyHz = 20;
 
@@ -129,8 +129,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             AutoTestCommand = new DelegateCommand(OnAutoTest, () => !IsBusy && !IsManualTestRunning);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
-            SendPwmCustomCommand = new DelegateCommand(async () => await SendCustomAsync(), () => !IsBusy && IsManualTestRunning);
-            MeasurePwmCustomCommand = new DelegateCommand(async () => await MeasureCustomAsync(), () => !IsBusy && IsManualTestRunning);
+            SendPwmCustomCommand = new DelegateCommand(async () => await SendCustomAsync(), () => IsConfigSendMeasureEnabled);
+            MeasurePwmCustomCommand = new DelegateCommand(async () => await MeasureCustomAsync(), () => IsConfigSendMeasureEnabled);
 
             SendPwm100Command = new DelegateCommand(async () => await SendFixedGearAsync(100), () => !IsBusy && IsManualTestRunning);
             MeasurePwm100Command = new DelegateCommand(async () => await MeasureFixedGearAsync(100), () => !IsBusy && IsManualTestRunning);
@@ -210,6 +210,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (SetProperty(ref _isPowerOn, value))
                 {
+                    RaisePropertyChanged(nameof(IsConfigSendMeasureEnabled));
                     RaiseAllCanExecuteChanged();
                 }
             }
@@ -230,6 +231,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     if (value)
                         IsAutoTestRunning = false;
+                    RaisePropertyChanged(nameof(IsConfigSendMeasureEnabled));
                     RaiseAllCanExecuteChanged();
                 }
             }
@@ -244,6 +246,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     if (value)
                         IsManualTestRunning = false;
+                    RaisePropertyChanged(nameof(IsConfigSendMeasureEnabled));
                     RaiseAllCanExecuteChanged();
                 }
             }
@@ -256,10 +259,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (SetProperty(ref _isBusy, value))
                 {
+                    RaisePropertyChanged(nameof(IsConfigSendMeasureEnabled));
                     RaiseAllCanExecuteChanged();
                 }
             }
         }
+
+        public bool IsConfigSendMeasureEnabled => IsPowerOn && !IsBusy && !IsManualTestRunning && !IsAutoTestRunning;
 
         public int PwmFrequencyHz
         {
@@ -689,7 +695,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task SendCustomAsync()
         {
-            if (!IsManualTestRunning || IsBusy)
+            if (!IsConfigSendMeasureEnabled)
                 return;
 
             IsBusy = true;
@@ -706,7 +712,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task MeasureCustomAsync()
         {
-            if (!IsManualTestRunning || IsBusy)
+            if (!IsConfigSendMeasureEnabled)
                 return;
 
             IsMeasuringPwmCustom = true;
@@ -1154,35 +1160,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             dutyPct = ClampDuty(dutyPct);
             freqHz = ClampFreq(freqHz);
 
-            var periodUs = (int)Math.Round(1_000_000.0 / freqHz);
+            var periodUs = (long)Math.Round(1_000_000.0 / freqHz);
             if (periodUs < 1)
                 periodUs = 1;
-            if (periodUs > ushort.MaxValue)
-                periodUs = ushort.MaxValue;
 
-            int lowUs;
+            long onUs;
             if (dutyPct >= 100)
-                lowUs = 0;
+                onUs = 0;
             else if (dutyPct <= 0)
-                lowUs = periodUs;
+                onUs = periodUs;
             else
-                lowUs = (int)Math.Round(periodUs * (100.0 - dutyPct) / 100.0);
+                onUs = (long)Math.Round(periodUs * dutyPct / 100.0);
 
-            if (lowUs < 0)
-                lowUs = 0;
-            if (lowUs > ushort.MaxValue)
-                lowUs = ushort.MaxValue;
+            if (onUs < 0)
+                onUs = 0;
+            if (onUs > periodUs)
+                onUs = periodUs;
 
-            ushort p = (ushort)periodUs;
-            ushort low = (ushort)lowUs;
+            ulong pScaled = (ulong)periodUs * 10UL;
+            ulong dutyScaled = (ulong)onUs * 10UL;
+            if (dutyScaled > pScaled)
+                dutyScaled = pScaled;
+
+            uint p = pScaled > uint.MaxValue ? uint.MaxValue : (uint)pScaled;
+            uint on = dutyScaled > p ? p : (uint)dutyScaled;
 
             return new byte[]
             {
                 0xAA, 0x55,
-                0x06,0x03,
+                0x0A,0x03,
                 0x03,
-                (byte)(p & 0xFF), (byte)(p >> 8),
-                (byte)(low & 0xFF), (byte)(low >> 8)
+                (byte)(p & 0xFF), (byte)((p >> 8) & 0xFF), (byte)((p >> 16) & 0xFF), (byte)((p >> 24) & 0xFF),
+                (byte)(on & 0xFF), (byte)((on >> 8) & 0xFF), (byte)((on >> 16) & 0xFF), (byte)((on >> 24) & 0xFF)
             };
         }
 

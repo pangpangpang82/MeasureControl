@@ -1,9 +1,8 @@
-﻿using Prism.Commands;
+using Prism.Commands;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
-using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -15,7 +14,7 @@ using MeasureControl.Services.HardwareApis;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
-    public sealed class S_C_8_10_1ViewModel : BindableBase, IDisposable
+    public sealed class S_C_8_9_1ViewModel : BindableBase, IDisposable
     {
         private const string DefaultFpgaIpAddress = "192.168.1.10";
         private const int DefaultFpgaPort = 5001;
@@ -27,10 +26,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const int Chassis2Slot4 = 4;
 
         private const string Slot6Row = "I1";
-        private const string Slot6ToScope = "O9";
-
-        private const string Slot4Row = "I4";
+        private const string Slot4Row = "I0";
         private const string Slot4ToScope = "O2";
+
+        private const string J82ToScope = "O14";
+        private const string J83ToScope = "O15";
+        private const string J82J83ToScope = "O16";
 
         private const int DefaultScopePort = 5555;
         private const string DefaultScopeIpAddress = "192.168.1.18";
@@ -42,7 +43,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const double Power28VCurrentLimit = 3.0;
 
         private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
-        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x04, 0x00, 0xE8, 0x03, 0x00, 0x00, 0xE8, 0x03, 0x00, 0x00 };
+        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x05, 0x00, 0xE8, 0x03, 0x00, 0x00, 0xE8, 0x03, 0x00, 0x00 };
 
         private const int FixedGearFrequencyHz = 2000;
 
@@ -89,6 +90,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool _isMeasuringPwm50;
         private bool _isMeasuringPwm0;
 
+        private string _j8VmaxText = "--";
+        private string _j8VminText = "--";
+        private string _j8VppText = "--";
+        private string _j8DutyPctText = "--";
+
+        private string _j9VmaxText = "--";
+        private string _j9VminText = "--";
+        private string _j9VppText = "--";
+        private string _j9DutyPctText = "--";
+
+        private string _j8j9VmaxText = "--";
+        private string _j8j9VminText = "--";
+        private string _j8j9VppText = "--";
+        private string _j8j9DutyPctText = "--";
+
         private string _fpgaIpAddress = DefaultFpgaIpAddress;
         private int _fpgaPort = DefaultFpgaPort;
 
@@ -98,7 +114,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _matrixIpAddress = DefaultMatrixIpAddress;
         private int _matrixTcpBasePort = DefaultMatrixTcpBasePort;
 
-        public S_C_8_10_1ViewModel()
+        public S_C_8_9_1ViewModel()
         {
             PwmFrequencyHz = 2000;
             PwmDutyPct = 50;
@@ -285,6 +301,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string PwmFrequencyText => $"{PwmFrequencyHz} Hz";
         public string PwmDutyText => $"{PwmDutyPct}%";
 
+        public string LastTestTime
+        {
+            get => _lastTestTime;
+            private set => SetProperty(ref _lastTestTime, value);
+        }
+
+        public string LastTestResult
+        {
+            get => _lastTestResult;
+            private set => SetProperty(ref _lastTestResult, value);
+        }
+
         public string PwmCustomResult
         {
             get => _pwmCustomResult;
@@ -333,16 +361,76 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _isMeasuringPwm0, value);
         }
 
-        public string LastTestTime
+        public string J8VmaxText
         {
-            get => _lastTestTime;
-            private set => SetProperty(ref _lastTestTime, value);
+            get => _j8VmaxText;
+            private set => SetProperty(ref _j8VmaxText, value);
         }
 
-        public string LastTestResult
+        public string J8VminText
         {
-            get => _lastTestResult;
-            private set => SetProperty(ref _lastTestResult, value);
+            get => _j8VminText;
+            private set => SetProperty(ref _j8VminText, value);
+        }
+
+        public string J8VppText
+        {
+            get => _j8VppText;
+            private set => SetProperty(ref _j8VppText, value);
+        }
+
+        public string J8DutyPctText
+        {
+            get => _j8DutyPctText;
+            private set => SetProperty(ref _j8DutyPctText, value);
+        }
+
+        public string J9VmaxText
+        {
+            get => _j9VmaxText;
+            private set => SetProperty(ref _j9VmaxText, value);
+        }
+
+        public string J9VminText
+        {
+            get => _j9VminText;
+            private set => SetProperty(ref _j9VminText, value);
+        }
+
+        public string J9VppText
+        {
+            get => _j9VppText;
+            private set => SetProperty(ref _j9VppText, value);
+        }
+
+        public string J9DutyPctText
+        {
+            get => _j9DutyPctText;
+            private set => SetProperty(ref _j9DutyPctText, value);
+        }
+
+        public string J8J9VmaxText
+        {
+            get => _j8j9VmaxText;
+            private set => SetProperty(ref _j8j9VmaxText, value);
+        }
+
+        public string J8J9VminText
+        {
+            get => _j8j9VminText;
+            private set => SetProperty(ref _j8j9VminText, value);
+        }
+
+        public string J8J9VppText
+        {
+            get => _j8j9VppText;
+            private set => SetProperty(ref _j8j9VppText, value);
+        }
+
+        public string J8J9DutyPctText
+        {
+            get => _j8j9DutyPctText;
+            private set => SetProperty(ref _j8j9DutyPctText, value);
         }
 
         private void AddLog(string msg)
@@ -635,6 +723,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 Pwm0Result = "--";
                 LastTestResult = "--";
                 LastTestTime = "--";
+
+                J8VmaxText = "--";
+                J8VminText = "--";
+                J8VppText = "--";
+                J8DutyPctText = "--";
+
+                J9VmaxText = "--";
+                J9VminText = "--";
+                J9VppText = "--";
+                J9DutyPctText = "--";
+
+                J8J9VmaxText = "--";
+                J8J9VminText = "--";
+                J8J9VppText = "--";
+                J8J9DutyPctText = "--";
             });
         }
 
@@ -663,14 +766,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             IsMeasuringPwmCustom = true;
             try
             {
-                var m = await MeasureOnceWithMatrixAsync("自定义PWM", CancellationToken.None).ConfigureAwait(false);
-                if (m == null)
-                {
-                    PwmCustomResult = "FAIL";
-                    return;
-                }
-
-                PwmCustomResult = IsMeasurementPass(m, expectedDutyPct: PwmDutyPct, out _) ? "PASS" : "FAIL";
+                var pass = await MeasureAllRoutesAsync(PwmDutyPct, CancellationToken.None).ConfigureAwait(false);
+                PwmCustomResult = pass ? "PASS" : "FAIL";
             }
             finally
             {
@@ -703,73 +800,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await SetMeasuringAsync(dutyPct, true);
             try
             {
-                var m = await MeasureOnceWithMatrixAsync($"PWM={dutyPct}%", CancellationToken.None).ConfigureAwait(false);
-                var pass = m != null && IsMeasurementPass(m, dutyPct, out _);
+                var pass = await MeasureAllRoutesAsync(dutyPct, CancellationToken.None).ConfigureAwait(false);
                 SetFixedResult(dutyPct, pass ? "PASS" : "FAIL");
             }
             finally
             {
                 await SetMeasuringAsync(dutyPct, false);
             }
-        }
-
-        private async Task RouteMatrixToScopeAsync(string title, CancellationToken token)
-        {
-            await _instrumentLock.WaitAsync(token).ConfigureAwait(false);
-            try
-            {
-                var matrix = MatrixControlService.Instance;
-
-                if (_isMatrixRouted)
-                {
-                    await UnrouteMatrixAsync(token).ConfigureAwait(false);
-                }
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 预览路由{title}：slot6 {Slot6Row}-{Slot6ToScope} + slot4 {Slot4Row}-{Slot4ToScope}");
-
-                _matrixRoutedSlot6 = await matrix.ConnectNodesAsync(Slot6Row, Slot6ToScope, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-                _matrixRoutedSlot4 = await matrix.ConnectNodesAsync(Slot4Row, Slot4ToScope, Chassis2Slot4, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-
-                _isMatrixRouted = _matrixRoutedSlot6 && _matrixRoutedSlot4;
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 预览路由{title}：slot6 {(_matrixRoutedSlot6 ? "OK" : "FAIL")}, slot4 {(_matrixRoutedSlot4 ? "OK" : "FAIL")}");
-                if (!_isMatrixRouted)
-                {
-                    await UnrouteMatrixAsync(token).ConfigureAwait(false);
-                    return;
-                }
-
-                await EnsureScopeConnectedAsync(token).ConfigureAwait(false);
-            }
-            finally
-            {
-                _instrumentLock.Release();
-            }
-        }
-
-        private async Task UnrouteMatrixAsync(CancellationToken token)
-        {
-            if (!_isMatrixRouted && !_matrixRoutedSlot6 && !_matrixRoutedSlot4)
-                return;
-
-            var matrix = MatrixControlService.Instance;
-            try
-            {
-                if (_matrixRoutedSlot4)
-                    _ = await matrix.DisconnectNodesAsync(Slot4Row, Slot4ToScope, Chassis2Slot4, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-            }
-            catch { }
-
-            try
-            {
-                if (_matrixRoutedSlot6)
-                    _ = await matrix.DisconnectNodesAsync(Slot6Row, Slot6ToScope, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-            }
-            catch { }
-
-            _isMatrixRouted = false;
-            _matrixRoutedSlot6 = false;
-            _matrixRoutedSlot4 = false;
         }
 
         private async Task<bool> SendAndMeasureFixedAsync(int dutyPct, int delayBeforeMeasureMs, CancellationToken token)
@@ -784,12 +821,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     if (delayBeforeMeasureMs > 0)
                         await Task.Delay(delayBeforeMeasureMs, token).ConfigureAwait(false);
 
-                    var m = await MeasureOnceWithMatrixAsync($"PWM={dutyPct}%", token).ConfigureAwait(false);
-                    string reason = null;
-                    var pass = m != null && IsMeasurementPass(m, dutyPct, out reason);
-                    if (!pass && !string.IsNullOrWhiteSpace(reason))
-                        AddLog($"PWM={dutyPct}% 判据失败: {reason}");
-
+                    var pass = await MeasureAllRoutesAsync(dutyPct, token).ConfigureAwait(false);
                     SetFixedResult(dutyPct, pass ? "PASS" : "FAIL");
                     return pass;
                 }
@@ -840,15 +872,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         break;
                 }
             });
-        }
-
-        private sealed class MeasurementResult
-        {
-            public string Title { get; set; }
-            public double? Vmax { get; set; }
-            public double? Vmin { get; set; }
-            public double? Vpp { get; set; }
-            public double? DutyPct { get; set; }
         }
 
         private static bool IsMeasurementPass(MeasurementResult m, int expectedDutyPct, out string reason)
@@ -903,6 +926,65 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             reason = null;
             return true;
+        }
+
+        private async Task RouteMatrixToScopeAsync(string title, CancellationToken token)
+        {
+            await _instrumentLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                var matrix = MatrixControlService.Instance;
+
+                if (_isMatrixRouted)
+                {
+                    await UnrouteMatrixAsync(token).ConfigureAwait(false);
+                }
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 预览路由{title}：slot6 {Slot6Row}-{J82ToScope} + slot4 {Slot4Row}-{Slot4ToScope}");
+
+                _matrixRoutedSlot6 = await matrix.ConnectNodesAsync(Slot6Row, J82ToScope, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                _matrixRoutedSlot4 = await matrix.ConnectNodesAsync(Slot4Row, Slot4ToScope, Chassis2Slot4, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+
+                _isMatrixRouted = _matrixRoutedSlot6 && _matrixRoutedSlot4;
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 预览路由{title}：slot6 {(_matrixRoutedSlot6 ? "OK" : "FAIL")}, slot4 {(_matrixRoutedSlot4 ? "OK" : "FAIL")}");
+                if (!_isMatrixRouted)
+                {
+                    await UnrouteMatrixAsync(token).ConfigureAwait(false);
+                    return;
+                }
+
+                await EnsureScopeConnectedAsync(token).ConfigureAwait(false);
+            }
+            finally
+            {
+                _instrumentLock.Release();
+            }
+        }
+
+        private async Task UnrouteMatrixAsync(CancellationToken token)
+        {
+            if (!_isMatrixRouted && !_matrixRoutedSlot6 && !_matrixRoutedSlot4)
+                return;
+
+            var matrix = MatrixControlService.Instance;
+            try
+            {
+                if (_matrixRoutedSlot4)
+                    _ = await matrix.DisconnectNodesAsync(Slot4Row, Slot4ToScope, Chassis2Slot4, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+            }
+            catch { }
+
+            try
+            {
+                if (_matrixRoutedSlot6)
+                    _ = await matrix.DisconnectNodesAsync(Slot6Row, J82ToScope, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+            }
+            catch { }
+
+            _isMatrixRouted = false;
+            _matrixRoutedSlot6 = false;
+            _matrixRoutedSlot4 = false;
         }
 
         private async Task SendPwmFrameAsync(int dutyPct, int freqHz, bool sendInit, CancellationToken token)
@@ -972,9 +1054,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 try
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 路由{title}：slot6 {Slot6Row}-{Slot6ToScope} + slot4 {Slot4Row}-{Slot4ToScope}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 路由{title}：slot6 {Slot6Row}-{J82ToScope} + slot4 {Slot4Row}-{Slot4ToScope}");
 
-                    ok1 = await matrix.ConnectNodesAsync(Slot6Row, Slot6ToScope, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                    ok1 = await matrix.ConnectNodesAsync(Slot6Row, J82ToScope, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
                     ok2 = await matrix.ConnectNodesAsync(Slot4Row, Slot4ToScope, Chassis2Slot4, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 路由{title}：slot6 {(ok1 ? "OK" : "FAIL")}, slot4 {(ok2 ? "OK" : "FAIL")}");
@@ -1010,7 +1092,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     try
                     {
                         if (ok1)
-                            _ = await matrix.DisconnectNodesAsync(Slot6Row, Slot6ToScope, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                            _ = await matrix.DisconnectNodesAsync(Slot6Row, J82ToScope, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
                     }
                     catch { }
                 }
@@ -1019,6 +1101,119 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 _instrumentLock.Release();
             }
+        }
+
+        private async Task<MeasurementResult> MeasureOnceWithMatrixAsync(string slot6Output, string title, CancellationToken token)
+        {
+            await _instrumentLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                var matrix = MatrixControlService.Instance;
+
+                bool ok1 = false;
+                bool ok2 = false;
+
+                try
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 路由{title}：slot6 {Slot6Row}-{slot6Output} + slot4 {Slot4Row}-{Slot4ToScope}");
+
+                    ok1 = await matrix.ConnectNodesAsync(Slot6Row, slot6Output, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                    ok2 = await matrix.ConnectNodesAsync(Slot4Row, Slot4ToScope, Chassis2Slot4, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 路由{title}：slot6 {(ok1 ? "OK" : "FAIL")}, slot4 {(ok2 ? "OK" : "FAIL")}");
+                    if (!ok1 || !ok2)
+                        return null;
+
+                    await EnsureScopeConnectedAsync(token).ConfigureAwait(false);
+                    await Task.Delay(200, token).ConfigureAwait(false);
+
+                    var vmax = await QueryScopeDoubleAsync(":MEASure:ITEM? VMAX", token).ConfigureAwait(false);
+                    var vmin = await QueryScopeDoubleAsync(":MEASure:ITEM? VMIN", token).ConfigureAwait(false);
+                    var vpp = await QueryScopeDoubleAsync(":MEASure:ITEM? VPP", token).ConfigureAwait(false);
+                    var duty = await QueryScopeDoubleAsync(":MEASure:ITEM? DUTY", token).ConfigureAwait(false);
+
+                    return new MeasurementResult
+                    {
+                        Title = title,
+                        Vmax = vmax,
+                        Vmin = vmin,
+                        Vpp = vpp,
+                        DutyPct = duty
+                    };
+                }
+                finally
+                {
+                    try
+                    {
+                        if (ok2)
+                            _ = await matrix.DisconnectNodesAsync(Slot4Row, Slot4ToScope, Chassis2Slot4, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                    }
+                    catch { }
+
+                    try
+                    {
+                        if (ok1)
+                            _ = await matrix.DisconnectNodesAsync(Slot6Row, slot6Output, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                    }
+                    catch { }
+                }
+            }
+            finally
+            {
+                _instrumentLock.Release();
+            }
+        }
+
+        private async Task<bool> MeasureAllRoutesAsync(int expectedDutyPct, CancellationToken token)
+        {
+            var m82 = await MeasureOnceWithMatrixAsync(J82ToScope, "J82", token).ConfigureAwait(false);
+            var m83 = await MeasureOnceWithMatrixAsync(J83ToScope, "J83", token).ConfigureAwait(false);
+            var m8283 = await MeasureOnceWithMatrixAsync(J82J83ToScope, "J82-J83", token).ConfigureAwait(false);
+
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                if (m82 != null)
+                {
+                    J8VmaxText = FormatNum(m82.Vmax);
+                    J8VminText = FormatNum(m82.Vmin);
+                    J8VppText = FormatNum(m82.Vpp);
+                    J8DutyPctText = FormatNum(m82.DutyPct);
+                }
+                if (m83 != null)
+                {
+                    J9VmaxText = FormatNum(m83.Vmax);
+                    J9VminText = FormatNum(m83.Vmin);
+                    J9VppText = FormatNum(m83.Vpp);
+                    J9DutyPctText = FormatNum(m83.DutyPct);
+                }
+                if (m8283 != null)
+                {
+                    J8J9VmaxText = FormatNum(m8283.Vmax);
+                    J8J9VminText = FormatNum(m8283.Vmin);
+                    J8J9VppText = FormatNum(m8283.Vpp);
+                    J8J9DutyPctText = FormatNum(m8283.DutyPct);
+                }
+            });
+
+            var ok82 = IsMeasurementPass(m82, expectedDutyPct, out var r82);
+            var ok83 = IsMeasurementPass(m83, expectedDutyPct, out var r83);
+            var ok8283 = IsMeasurementPass(m8283, expectedDutyPct, out var r8283);
+
+            if (!ok82)
+                AddLog($"{m82?.Title ?? "J82"} 判据FAIL: {r82}");
+            if (!ok83)
+                AddLog($"{m83?.Title ?? "J83"} 判据FAIL: {r83}");
+            if (!ok8283)
+                AddLog($"{m8283?.Title ?? "J82-J83"} 判据FAIL: {r8283}");
+
+            return ok82 && ok83 && ok8283;
+        }
+
+        private static string FormatNum(double? v)
+        {
+            if (!v.HasValue || double.IsNaN(v.Value) || double.IsInfinity(v.Value))
+                return "--";
+            return v.Value.ToString("F6", CultureInfo.InvariantCulture);
         }
 
         private async Task EnsureScopeConnectedAsync(CancellationToken token)
@@ -1133,7 +1328,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return new byte[]
             {
                 0xAA, 0x55,
-                0x0A,0x04,
+                0x0A,0x05,
                 0x01,
                 (byte)(p & 0xFF), (byte)((p >> 8) & 0xFF), (byte)((p >> 16) & 0xFF), (byte)((p >> 24) & 0xFF),
                 (byte)(on & 0xFF), (byte)((on >> 8) & 0xFF), (byte)((on >> 16) & 0xFF), (byte)((on >> 24) & 0xFF)
@@ -1185,6 +1380,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try { _autoTestLock?.Dispose(); } catch { }
             try { _opLock?.Dispose(); } catch { }
             try { _instrumentLock?.Dispose(); } catch { }
+        }
+
+        private sealed class MeasurementResult
+        {
+            public string Title { get; set; }
+            public double? Vmax { get; set; }
+            public double? Vmin { get; set; }
+            public double? Vpp { get; set; }
+            public double? DutyPct { get; set; }
         }
     }
 }

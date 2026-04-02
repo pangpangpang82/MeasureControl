@@ -91,6 +91,7 @@ namespace MeasureControl
             containerRegistry.RegisterSingleton<SignalValueUpdateService>();
             containerRegistry.RegisterSingleton<ISingleBoardTestContextService, SingleBoardTestContextService>();
             containerRegistry.RegisterSingleton<IHydraulicPowerService, HydraulicPowerService>();
+            containerRegistry.RegisterSingleton<MatrixSwitchTcpServerAutoStartService>();
             // 注册硬件API（可选，用于单板测试）
             containerRegistry.Register<IDmmApi, DmmSocketApi>();
             containerRegistry.RegisterSingleton<IComponentPowerStateApi, ComponentPowerStateApi>();

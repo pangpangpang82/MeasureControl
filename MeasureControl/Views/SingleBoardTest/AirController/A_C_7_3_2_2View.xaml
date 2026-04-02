@@ -506,7 +506,7 @@
                                     HorizontalAlignment="Center"
                                     BorderThickness="0"
                                     Command="{Binding SendPwmCustomCommand}"
-                                    IsEnabled="{Binding IsManualTestRunning}">
+                                    IsEnabled="{Binding IsConfigSendMeasureEnabled}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
@@ -535,7 +535,7 @@
                                     HorizontalAlignment="Center"
                                     BorderThickness="0"
                                     Command="{Binding MeasurePwmCustomCommand}"
-                                    IsEnabled="{Binding IsManualTestRunning}">
+                                    IsEnabled="{Binding IsConfigSendMeasureEnabled}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border x:Name="border" Background="#22c55e" CornerRadius="6">
