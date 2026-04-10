@@ -1,4 +1,4 @@
-using Prism.Commands;
+﻿using Prism.Commands;
 
 using Prism.Mvvm;
 
@@ -89,7 +89,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private bool _isPowerOn;
 
-        private string _powerStatus = "未供电";
+        private string _powerStatus = "鏈緵鐢?;
 
 
 
@@ -119,12 +119,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private readonly Dictionary<string, (double value, DateTime timestampUtc)> _lastTemperatureCBySensor = new Dictionary<string, (double value, DateTime timestampUtc)>(StringComparer.OrdinalIgnoreCase);
 
-        // 保存每个点位每个传感器的测试结果，用于报表生成
-        // Key: pointIndex (1-4), Value: Dictionary<sensorName, (measuredTemp, result)>
+        // 淇濆瓨姣忎釜鐐逛綅姣忎釜浼犳劅鍣ㄧ殑娴嬭瘯缁撴灉锛岀敤浜庢姤琛ㄧ敓鎴?        // Key: pointIndex (1-4), Value: Dictionary<sensorName, (measuredTemp, result)>
         private readonly Dictionary<int, Dictionary<string, (string measuredTemp, string result)>> _pointTestResults = new Dictionary<int, Dictionary<string, (string measuredTemp, string result)>>();
 
         /// <summary>
-        /// 获取指定点位指定传感器的测试结果（用于报表生成）
+        /// 鑾峰彇鎸囧畾鐐逛綅鎸囧畾浼犳劅鍣ㄧ殑娴嬭瘯缁撴灉锛堢敤浜庢姤琛ㄧ敓鎴愶級
         /// </summary>
         public (string measuredTemp, string result) GetPointTestResult(int pointIndex, string sensorName)
         {
@@ -139,8 +138,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         }
 
         /// <summary>
-        /// 保存当前点位的测试结果
-        /// </summary>
+        /// 淇濆瓨褰撳墠鐐逛綅鐨勬祴璇曠粨鏋?        /// </summary>
         private void SaveCurrentPointTestResults(int pointIndex)
         {
             var sensorResults = new Dictionary<string, (string measuredTemp, string result)>(StringComparer.OrdinalIgnoreCase);
@@ -152,7 +150,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         }
 
         /// <summary>
-        /// 清除所有点位的测试结果
+        /// 娓呴櫎鎵€鏈夌偣浣嶇殑娴嬭瘯缁撴灉
         /// </summary>
         private void ClearAllPointTestResults()
         {
@@ -196,13 +194,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
 
 
-            SensorItems.Add(new SensorItemViewModel("PT500A", "J52、J53、J56", aoChannel: "AO5-AO6", roChannel: "--"));
+            SensorItems.Add(new SensorItemViewModel("PT500A", "J52銆丣53銆丣56", aoChannel: "AO5-AO6", roChannel: "--"));
 
-            SensorItems.Add(new SensorItemViewModel("PT500B", "J61、J62、J63", aoChannel: "--", roChannel: "RO2"));
+            SensorItems.Add(new SensorItemViewModel("PT500B", "J61銆丣62銆丣63", aoChannel: "--", roChannel: "RO2"));
 
-            SensorItems.Add(new SensorItemViewModel("PT1000A", "J54、J55、J57", aoChannel: "AO3-AO4", roChannel: "--"));
+            SensorItems.Add(new SensorItemViewModel("PT1000A", "J54銆丣55銆丣57", aoChannel: "AO3-AO4", roChannel: "--"));
 
-            SensorItems.Add(new SensorItemViewModel("PT1000B", "J28、J29、J97", aoChannel: "--", roChannel: "RO1"));
+            SensorItems.Add(new SensorItemViewModel("PT1000B", "J28銆丣29銆丣97", aoChannel: "--", roChannel: "RO1"));
 
 
 
@@ -472,8 +470,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             var failItems = new List<string>();
 
-            // 用于保存当前点位的测试结果（用于报表生成）
-            var pointResultsForReport = new Dictionary<string, (string measuredTemp, string result)>(StringComparer.OrdinalIgnoreCase);
+            // 鐢ㄤ簬淇濆瓨褰撳墠鐐逛綅鐨勬祴璇曠粨鏋滐紙鐢ㄤ簬鎶ヨ〃鐢熸垚锛?            var pointResultsForReport = new Dictionary<string, (string measuredTemp, string result)>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var item in SensorItems)
 
@@ -495,11 +492,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                     });
 
-                    failItems.Add($"{sensorItem.SensorName}(未采集到数据)");
+                    failItems.Add($"{sensorItem.SensorName}(鏈噰闆嗗埌鏁版嵁)");
 
-                    Log($"判定：{sensorItem.SensorName} 未采集到数据 => FAIL");
+                    Log($"鍒ゅ畾锛歿sensorItem.SensorName} 鏈噰闆嗗埌鏁版嵁 => FAIL");
 
-                    // 保存失败结果用于报表
+                    // 淇濆瓨澶辫触缁撴灉鐢ㄤ簬鎶ヨ〃
                     pointResultsForReport[sensorItem.SensorName] = ("--", "FAIL");
 
                     continue;
@@ -510,7 +507,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 var t = measured.temperatureC.ToString("F3", CultureInfo.InvariantCulture);
 
-                Log($"回采：{sensorItem.SensorName} 温度={t}℃");
+                Log($"鍥為噰锛歿sensorItem.SensorName} 娓╁害={t}鈩?);
 
                 var tempTarget = sensorItem.TargetTemperatureC;
 
@@ -526,22 +523,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 PostToUi(() => itemForTemp.TemperatureResultText = tempResult);
 
-                // 保存测试结果用于报表
+                // 淇濆瓨娴嬭瘯缁撴灉鐢ㄤ簬鎶ヨ〃
                 pointResultsForReport[sensorItem.SensorName] = (t, tempResult);
 
                 if (!tempPass)
 
                 {
 
-                    failItems.Add($"{sensorItem.SensorName}(目标温度{tempTarget:F3}℃,回采{tempActual:F3}℃,差值{tempDiff:F3}℃,容差±{TemperatureToleranceC:F1}℃)");
+                    failItems.Add($"{sensorItem.SensorName}(鐩爣娓╁害{tempTarget:F3}鈩?鍥為噰{tempActual:F3}鈩?宸€納tempDiff:F3}鈩?瀹瑰樊卤{TemperatureToleranceC:F1}鈩?");
 
                 }
 
-                Log($"温度判定：{sensorItem.SensorName} 目标={tempTarget:F3}℃ 实际={tempActual:F3}℃ 差值={tempDiff:F3}℃ 容差=±{TemperatureToleranceC:F1}℃ => {tempResult}");
+                Log($"娓╁害鍒ゅ畾锛歿sensorItem.SensorName} 鐩爣={tempTarget:F3}鈩?瀹為檯={tempActual:F3}鈩?宸€?{tempDiff:F3}鈩?瀹瑰樊=卤{TemperatureToleranceC:F1}鈩?=> {tempResult}");
 
             }
 
-            // 如果指定了点位索引，保存测试结果用于报表生成
+            // 濡傛灉鎸囧畾浜嗙偣浣嶇储寮曪紝淇濆瓨娴嬭瘯缁撴灉鐢ㄤ簬鎶ヨ〃鐢熸垚
             if (pointIndexForReport.HasValue)
             {
                 _pointTestResults[pointIndexForReport.Value] = pointResultsForReport;
@@ -555,7 +552,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 LastTestResult = "PASS";
 
-                Log("采集判定：PASS");
+                Log("閲囬泦鍒ゅ畾锛歅ASS");
 
             }
 
@@ -565,7 +562,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 LastTestResult = "FAIL";
 
-                Log($"采集判定：FAIL，超差：{string.Join("; ", failItems)}，电阻容差=±{ResistanceToleranceOhm:F2}Ω，温度容差=±{TemperatureToleranceC:F1}℃");
+                Log($"閲囬泦鍒ゅ畾锛欶AIL锛岃秴宸細{string.Join("; ", failItems)}锛岀數闃诲宸?卤{ResistanceToleranceOhm:F2}惟锛屾俯搴﹀宸?卤{TemperatureToleranceC:F1}鈩?);
 
             }
 
@@ -579,7 +576,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             {
 
-                Log("请先启动手动测试，再进行采集判定。");
+                Log("璇峰厛鍚姩鎵嬪姩娴嬭瘯锛屽啀杩涜閲囬泦鍒ゅ畾銆?);
 
                 return;
 
@@ -599,7 +596,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 ClearMeasuredTelemetryOnUi();
 
-                Log("手动采集：等待3秒后采集最新数据...");
+                Log("鎵嬪姩閲囬泦锛氱瓑寰?绉掑悗閲囬泦鏈€鏂版暟鎹?..");
 
                 await Task.Delay(3000, token).ConfigureAwait(false);
 
@@ -621,7 +618,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 LastTestResult = "FAIL";
 
-                Log($"采集判定异常：{ex.Message}");
+                Log($"閲囬泦鍒ゅ畾寮傚父锛歿ex.Message}");
 
             }
 
@@ -849,7 +846,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         }
 
-        private string _connectionText = "532: 未连接 | 7012: 未连接";
+        private string _connectionText = "532: 鏈繛鎺?| 7012: 鏈繛鎺?;
 
         public string ConnectionText
 
@@ -867,19 +864,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             var mtx = _mtx532 != null && _mtx532.IsConnected
 
-                ? $"532: 已连接(SLOT={_connectedSlot})"
+                ? $"532: 宸茶繛鎺?SLOT={_connectedSlot})"
 
-                : "532: 未连接";
+                : "532: 鏈繛鎺?;
 
             var r = _resistor != null && _resistor.IsConnected
 
-                ? $"7012: 已连接(逻辑ID={_connectedLogicalId})"
+                ? $"7012: 宸茶繛鎺?閫昏緫ID={_connectedLogicalId})"
 
-                : "7012: 未连接";
+                : "7012: 鏈繛鎺?;
 
-            var p = IsPowerOn ? PowerStatus : "未供电";
+            var p = IsPowerOn ? PowerStatus : "鏈緵鐢?;
 
-            ConnectionText = $"电源:{p} | {mtx} | {r}";
+            ConnectionText = $"鐢垫簮:{p} | {mtx} | {r}";
 
         }
 
@@ -897,11 +894,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             }
 
-            // 检查是否已总上电
-            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            // 妫€鏌ユ槸鍚﹀凡鎬讳笂鐢?            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
             if (_hps == null || !_hps.IsHydraulicPowered)
             {
-                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("璇峰厛鐐瑰嚮宸︿笂瑙掔粍浠朵笂鐢垫寜閽繘琛屾€讳笂鐢碉紝鍐嶈繘琛屾祴璇曘€?, "鎻愮ず", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -939,7 +935,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 LastTestResult = "--";
 
-                Log("开始手动测试（温度传感器信号采集）：准备连接532模拟量输出板卡 + 7012电阻输出板卡");
+                Log("寮€濮嬫墜鍔ㄦ祴璇曪紙娓╁害浼犳劅鍣ㄤ俊鍙烽噰闆嗭級锛氬噯澶囪繛鎺?32妯℃嫙閲忚緭鍑烘澘鍗?+ 7012鐢甸樆杈撳嚭鏉垮崱");
 
                 await EnsurePowerAsync(_cts.Token).ConfigureAwait(false);
 
@@ -953,7 +949,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 {
 
-                    Log("532连接失败：请检查板卡/驱动/机箱配置");
+                    Log("532杩炴帴澶辫触锛氳妫€鏌ユ澘鍗?椹卞姩/鏈虹閰嶇疆");
 
                 }
 
@@ -961,7 +957,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 {
 
-                    Log("7012连接失败：请检查板卡/驱动/逻辑ID");
+                    Log("7012杩炴帴澶辫触锛氳妫€鏌ユ澘鍗?椹卞姩/閫昏緫ID");
 
                 }
 
@@ -977,7 +973,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 UpdatePreviewResistances();
 
-                Log("已就绪：PT500A/PT1000A 由532输出电压(V=R*0.001A)，PT1000B/PT500B 由7012输出电阻(resout1/resout2)；通讯采集已接入(ART4229/100kbps/奇校验/10ms轮询)");
+                Log("宸插氨缁細PT500A/PT1000A 鐢?32杈撳嚭鐢靛帇(V=R*0.001A)锛孭T1000B/PT500B 鐢?012杈撳嚭鐢甸樆(resout1/resout2)锛涢€氳閲囬泦宸叉帴鍏?ART4229/100kbps/濂囨牎楠?10ms杞)");
 
                 await EnsureArincRxReadyAsync(_cts.Token).ConfigureAwait(false);
 
@@ -995,7 +991,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             {
 
-                Log($"手动测试初始化异常：{ex.Message}");
+                Log($"鎵嬪姩娴嬭瘯鍒濆鍖栧紓甯革細{ex.Message}");
 
                 await StopAsync().ConfigureAwait(false);
 
@@ -1057,7 +1053,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 LastTestResult = "--";
 
-                Log("开始自动测试：依次测试点位1~4（每个点位下发+回采+判定）");
+                Log("寮€濮嬭嚜鍔ㄦ祴璇曪細渚濇娴嬭瘯鐐逛綅1~4锛堟瘡涓偣浣嶄笅鍙?鍥為噰+鍒ゅ畾锛?);
 
                 ClearAllPointTestResults();
 
@@ -1073,7 +1069,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 {
 
-                    Log("板卡连接失败：自动测试终止");
+                    Log("鏉垮崱杩炴帴澶辫触锛氳嚜鍔ㄦ祴璇曠粓姝?);
 
                     LastTestResult = "FAIL";
 
@@ -1095,7 +1091,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                     PostToUi(() => { SelectedPointIndex = pointIndex; });
 
-                    Log($"自动测试-开始点位{pointIndex}");
+                    Log($"鑷姩娴嬭瘯-寮€濮嬬偣浣峽pointIndex}");
 
                     ClearMeasuredTelemetryOnUi();
 
@@ -1109,7 +1105,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                         allPointsPass = false;
 
-                    Log($"自动测试-结束点位{pointIndex}：{(pointPass ? "PASS" : "FAIL")}");
+                    Log($"鑷姩娴嬭瘯-缁撴潫鐐逛綅{pointIndex}锛歿(pointPass ? "PASS" : "FAIL")}");
 
                     await Task.Delay(200, _cts.Token).ConfigureAwait(false);
 
@@ -1119,7 +1115,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 LastTestResult = allPointsPass ? "PASS" : "FAIL";
 
-                Log($"自动测试结束：点位1~4完成，总体={(allPointsPass ? "PASS" : "FAIL")}");
+                Log($"鑷姩娴嬭瘯缁撴潫锛氱偣浣?~4瀹屾垚锛屾€讳綋={(allPointsPass ? "PASS" : "FAIL")}");
 
                 return LastTestResult;
 
@@ -1141,7 +1137,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
-                Log($"自动测试异常：{ex.Message}");
+                Log($"鑷姩娴嬭瘯寮傚父锛歿ex.Message}");
 
                 return "FAIL";
 
@@ -1181,11 +1177,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             }
 
-            // 检查是否已总上电
-            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            // 妫€鏌ユ槸鍚﹀凡鎬讳笂鐢?            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
             if (_hps == null || !_hps.IsHydraulicPowered)
             {
-                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("璇峰厛鐐瑰嚮宸︿笂瑙掔粍浠朵笂鐢垫寜閽繘琛屾€讳笂鐢碉紝鍐嶈繘琛屾祴璇曘€?, "鎻愮ず", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -1223,7 +1218,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 LastTestResult = "--";
 
-                Log("开始自动测试：依次测试点位1~4（每个点位下发+回采+判定）");
+                Log("寮€濮嬭嚜鍔ㄦ祴璇曪細渚濇娴嬭瘯鐐逛綅1~4锛堟瘡涓偣浣嶄笅鍙?鍥為噰+鍒ゅ畾锛?);
 
                 ClearAllPointTestResults();
 
@@ -1239,7 +1234,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 {
 
-                    Log("板卡连接失败：自动测试终止");
+                    Log("鏉垮崱杩炴帴澶辫触锛氳嚜鍔ㄦ祴璇曠粓姝?);
 
                     LastTestResult = "FAIL";
 
@@ -1261,7 +1256,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                     PostToUi(() => { SelectedPointIndex = pointIndex; });
 
-                    Log($"自动测试-开始点位{pointIndex}");
+                    Log($"鑷姩娴嬭瘯-寮€濮嬬偣浣峽pointIndex}");
 
                     ClearMeasuredTelemetryOnUi();
 
@@ -1275,7 +1270,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                         allPointsPass = false;
 
-                    Log($"自动测试-结束点位{pointIndex}：{(pointPass ? "PASS" : "FAIL")}");
+                    Log($"鑷姩娴嬭瘯-缁撴潫鐐逛綅{pointIndex}锛歿(pointPass ? "PASS" : "FAIL")}");
 
                     await Task.Delay(200, _cts.Token).ConfigureAwait(false);
 
@@ -1285,7 +1280,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 LastTestResult = allPointsPass ? "PASS" : "FAIL";
 
-                Log($"自动测试结束：点位1~4完成，总体={(allPointsPass ? "PASS" : "FAIL")}");
+                Log($"鑷姩娴嬭瘯缁撴潫锛氱偣浣?~4瀹屾垚锛屾€讳綋={(allPointsPass ? "PASS" : "FAIL")}");
 
             }
 
@@ -1303,7 +1298,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
-                Log($"自动测试异常：{ex.Message}");
+                Log($"鑷姩娴嬭瘯寮傚父锛歿ex.Message}");
 
             }
 
@@ -1437,7 +1432,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         {
 
-            // 192.168.1.15 CH1 不再由本测试控制上电，由总上电统一管理
+            // 192.168.1.15 CH1 涓嶅啀鐢辨湰娴嬭瘯鎺у埗涓婄數锛岀敱鎬讳笂鐢电粺涓€绠＄悊
 
             await Task.Delay(100, token).ConfigureAwait(false);
 
@@ -1447,7 +1442,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 IsPowerOn = true;
 
-                PowerStatus = $"已供电(CH1 {InputVoltageV:0.###}V)";
+                PowerStatus = $"宸蹭緵鐢?CH1 {InputVoltageV:0.###}V)";
 
                 UpdateConnectionText();
 
@@ -1471,7 +1466,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                     await _power.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
 
-                // 192.168.1.15 CH1 不再由本测试控制下电
+                // 192.168.1.15 CH1 涓嶅啀鐢辨湰娴嬭瘯鎺у埗涓嬬數
                 foreach (var ch in Enum.GetValues(typeof(PowerSupplyChannel)).Cast<PowerSupplyChannel>())
 
                 {
@@ -1505,7 +1500,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                     {
                         IsPowerOn = false;
 
-                        PowerStatus = "未供电";
+                        PowerStatus = "鏈緵鐢?;
                     }
 
                     UpdateConnectionText();
@@ -1528,7 +1523,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             {
 
-                Log("请先启动手动测试，以连接532板卡。");
+                Log("璇峰厛鍚姩鎵嬪姩娴嬭瘯锛屼互杩炴帴532鏉垮崱銆?);
 
                 return;
 
@@ -1554,7 +1549,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 {
 
-                    Log("532未就绪：无法下发AO电压");
+                    Log("532鏈氨缁細鏃犳硶涓嬪彂AO鐢靛帇");
 
                     return;
 
@@ -1564,7 +1559,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 {
 
-                    Log("7012未就绪：无法下发电阻值");
+                    Log("7012鏈氨缁細鏃犳硶涓嬪彂鐢甸樆鍊?);
 
                     return;
 
@@ -1582,7 +1577,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             {
 
-                Log($"设置点位{pointIndex}异常：{ex.Message}");
+                Log($"璁剧疆鐐逛綅{pointIndex}寮傚父锛歿ex.Message}");
 
             }
 
@@ -1664,7 +1659,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             };
 
-            Log($"下发点位{pointIndex}：532(AO3-AO4={ao2V.ToString("F4", CultureInfo.InvariantCulture)}V, AO5-AO6={ao1V.ToString("F4", CultureInfo.InvariantCulture)}V) + 7012(RO1={targets["PT1000B"].ToString("F1", CultureInfo.InvariantCulture)}Ω, RO2={targets["PT500B"].ToString("F2", CultureInfo.InvariantCulture)}Ω)");
+            Log($"涓嬪彂鐐逛綅{pointIndex}锛?32(AO3-AO4={ao2V.ToString("F4", CultureInfo.InvariantCulture)}V, AO5-AO6={ao1V.ToString("F4", CultureInfo.InvariantCulture)}V) + 7012(RO1={targets["PT1000B"].ToString("F1", CultureInfo.InvariantCulture)}惟, RO2={targets["PT500B"].ToString("F2", CultureInfo.InvariantCulture)}惟)");
 
             await _mtx532.WriteOnceDcAsync(new Dictionary<string, double>
 
@@ -1696,7 +1691,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 var v6 = await _mtx532.GetLastOutputVoltageAsync("AO6", token).ConfigureAwait(false);
 
-                Log($"532回读(缓存)：AO3={v3.ToString("F4", CultureInfo.InvariantCulture)}V AO4={v4.ToString("F4", CultureInfo.InvariantCulture)}V AO5={v5.ToString("F4", CultureInfo.InvariantCulture)}V AO6={v6.ToString("F4", CultureInfo.InvariantCulture)}V");
+                Log($"532鍥炶(缂撳瓨)锛欰O3={v3.ToString("F4", CultureInfo.InvariantCulture)}V AO4={v4.ToString("F4", CultureInfo.InvariantCulture)}V AO5={v5.ToString("F4", CultureInfo.InvariantCulture)}V AO6={v6.ToString("F4", CultureInfo.InvariantCulture)}V");
 
             }
 
@@ -1704,7 +1699,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             {
 
-                Log($"532回读失败(不影响输出)：{ex.Message}");
+                Log($"532鍥炶澶辫触(涓嶅奖鍝嶈緭鍑?锛歿ex.Message}");
 
             }
 
@@ -1722,7 +1717,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             StartArincRxLoopIfNeeded(token);
 
-            Log($"点位{pointIndex}设置完成：532电压 + 7012电阻已输出（矩阵开关映射未接入）");
+            Log($"鐐逛綅{pointIndex}璁剧疆瀹屾垚锛?32鐢靛帇 + 7012鐢甸樆宸茶緭鍑猴紙鐭╅樀寮€鍏虫槧灏勬湭鎺ュ叆锛?);
 
         }
 
@@ -1854,7 +1849,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             {
 
-                Log("未找到ART4229(ARINC429)板卡，无法采集温度电阻回读");
+                Log("鏈壘鍒癆RT4229(ARINC429)鏉垮崱锛屾棤娉曢噰闆嗘俯搴︾數闃诲洖璇?);
 
                 return;
 
@@ -1989,7 +1984,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             var word = BuildAtpEnterWord(out var txLabel);
 
-            Log($"测试信息-ATP发送准备: TX通道{ArincTxChannelIndex}, SSM/Data/SDI=0x{AtpSsmDataSdi:X6}, Label(oct174)=0x{AtpLabelOctal174Dec:X2}, Label反转后=0x{txLabel:X2}, Word=0x{word:X8}");
+            Log($"娴嬭瘯淇℃伅-ATP鍙戦€佸噯澶? TX閫氶亾{ArincTxChannelIndex}, SSM/Data/SDI=0x{AtpSsmDataSdi:X6}, Label(oct174)=0x{AtpLabelOctal174Dec:X2}, Label鍙嶈浆鍚?0x{txLabel:X2}, Word=0x{word:X8}");
 
             try
             {
@@ -1997,11 +1992,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             }
             catch (Exception ex)
             {
-                Log($"测试信息-ATP发送失败: TX通道{ArincTxChannelIndex}, Word=0x{word:X8}, 异常={ex.Message}");
+                Log($"娴嬭瘯淇℃伅-ATP鍙戦€佸け璐? TX閫氶亾{ArincTxChannelIndex}, Word=0x{word:X8}, 寮傚父={ex.Message}");
                 throw;
             }
 
-            Log($"测试信息-ATP发送完成: TX通道{ArincTxChannelIndex}, Word=0x{word:X8}");
+            Log($"娴嬭瘯淇℃伅-ATP鍙戦€佸畬鎴? TX閫氶亾{ArincTxChannelIndex}, Word=0x{word:X8}");
 
             _atpModeEntered = true;
 
@@ -2272,8 +2267,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                         }
                         catch (Exception ex2)
                         {
-                            Log($"ART4229发送失败：tx={ArincTxChannelIndex},count=1,wordIndex={i}，{ex2.Message}");
-                            throw new InvalidOperationException($"ART4229发送失败(tx={ArincTxChannelIndex},count=1)", ex2);
+                            Log($"ART4229鍙戦€佸け璐ワ細tx={ArincTxChannelIndex},count=1,wordIndex={i}锛寋ex2.Message}");
+                            throw new InvalidOperationException($"ART4229鍙戦€佸け璐?tx={ArincTxChannelIndex},count=1)", ex2);
                         }
                     }
 
@@ -2283,9 +2278,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
 
 
-            // 兼容无物理回环/未接入测试件的场景：模拟发送后直接喂给解析更新界面
+            // 鍏煎鏃犵墿鐞嗗洖鐜?鏈帴鍏ユ祴璇曚欢鐨勫満鏅細妯℃嫙鍙戦€佸悗鐩存帴鍠傜粰瑙ｆ瀽鏇存柊鐣岄潰
 
-            // 后续测试件到位后，可通过关闭 EnableArinc429TxSimulation 停止模拟
+            // 鍚庣画娴嬭瘯浠跺埌浣嶅悗锛屽彲閫氳繃鍏抽棴 EnableArinc429TxSimulation 鍋滄妯℃嫙
 
             if (EnableArinc429RxSelfFeedSimulation)
 
@@ -2540,11 +2535,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                     {
 
-                        Name = "电阻输出",
+                        Name = "鐢甸樆杈撳嚭",
 
                         Model = "PXI-7012",
 
-                        CardName = $"电阻输出(自动探测-{logicalId})",
+                        CardName = $"鐢甸樆杈撳嚭(鑷姩鎺㈡祴-{logicalId})",
 
                         SlotIndex = (int)logicalId
 
@@ -2564,7 +2559,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                     UpdateConnectionText();
 
-                    Log($"7012连接成功：逻辑ID={logicalId}");
+                    Log($"7012杩炴帴鎴愬姛锛氶€昏緫ID={logicalId}");
 
                     return true;
 
@@ -2728,7 +2723,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             {
 
-                ConnectionText = "532: 未连接";
+                ConnectionText = "532: 鏈繛鎺?;
 
                 return false;
 
@@ -2778,7 +2773,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
 
 
-                // 槽位探测：很多项目文件的 SlotIndex 可能未写入，但板卡面板能连上；此处通过 override 探测
+                // 妲戒綅鎺㈡祴锛氬緢澶氶」鐩枃浠剁殑 SlotIndex 鍙兘鏈啓鍏ワ紝浣嗘澘鍗￠潰鏉胯兘杩炰笂锛涙澶勯€氳繃 override 鎺㈡祴
 
                 var slotCandidates = new List<int>();
 
@@ -2788,8 +2783,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
 
 
-                // 常见槽位范围（避免尝试过多导致启动慢）
-
+                // 甯歌妲戒綅鑼冨洿锛堥伩鍏嶅皾璇曡繃澶氬鑷村惎鍔ㄦ參锛?
                 for (int s = 2; s <= 18; s++)
 
                 {
@@ -2802,7 +2796,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
 
 
-                // 兜底：老逻辑默认 7
+                // 鍏滃簳锛氳€侀€昏緫榛樿 7
 
                 if (!slotCandidates.Contains(7))
 
@@ -2830,10 +2824,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                         await api.ConnectAsync(token).ConfigureAwait(false);
 
-                        // 注意：MTX532Driver.StartAcquisitionAsync 要求至少有一个 Enabled 通道。
-
-                        // 这里我们只需要单次写入 DC 电压，因此不启动连续输出，避免“无启用通道”导致 StartOutput 失败被误判为连接失败。
-
+                        // 娉ㄦ剰锛歁TX532Driver.StartAcquisitionAsync 瑕佹眰鑷冲皯鏈変竴涓?Enabled 閫氶亾銆?
+                        // 杩欓噷鎴戜滑鍙渶瑕佸崟娆″啓鍏?DC 鐢靛帇锛屽洜姝や笉鍚姩杩炵画杈撳嚭锛岄伩鍏嶁€滄棤鍚敤閫氶亾鈥濆鑷?StartOutput 澶辫触琚鍒や负杩炴帴澶辫触銆?
                         await api.WriteOnceDcAsync(new Dictionary<string, double>
 
                         {
@@ -2856,7 +2848,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                         UpdateConnectionText();
 
-                        Log($"532连接成功：SLOT={slot}");
+                        Log($"532杩炴帴鎴愬姛锛歋LOT={slot}");
 
                         return true;
 
@@ -2892,7 +2884,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 UpdateConnectionText();
 
-                Log($"532连接失败：已尝试槽位 {string.Join(",", slotCandidates)}，最后错误：{lastEx?.Message}");
+                Log($"532杩炴帴澶辫触锛氬凡灏濊瘯妲戒綅 {string.Join(",", slotCandidates)}锛屾渶鍚庨敊璇細{lastEx?.Message}");
 
                 return false;
 
@@ -3207,7 +3199,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             Interlocked.Exchange(ref lastTicks, nowTicks);
 
-            Log($"采集时间={DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} Label={labelRaw.ToString(CultureInfo.InvariantCulture)}({sensorName}) 电阻回采={valueOhm.ToString("F2", CultureInfo.InvariantCulture)}Ω");
+            Log($"閲囬泦鏃堕棿={DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} Label={labelRaw.ToString(CultureInfo.InvariantCulture)}({sensorName}) 鐢甸樆鍥為噰={valueOhm.ToString("F2", CultureInfo.InvariantCulture)}惟");
 
         }
 

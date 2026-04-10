@@ -731,8 +731,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     await _dmm.DisconnectAsync().ConfigureAwait(false);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Log($"手动测试结束时断开万用表失败: {ex.Message}");
             }
 
             try
@@ -799,8 +800,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     await _dmm.DisconnectAsync().ConfigureAwait(false);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Log($"自动测试结束时断开万用表失败: {ex.Message}");
             }
 
             try

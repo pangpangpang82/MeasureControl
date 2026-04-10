@@ -220,27 +220,18 @@ namespace MeasureControl.Services.HardwareApis
                     var aperture = options?.FrequencyApertureSeconds ?? 0.1;
                     var apertureStr = aperture.ToString("0.######", CultureInfo.InvariantCulture);
 
-                    // 先切换万用表功能到频率模式
-                    //await TrySendFrequencyModeAsync(cancellationToken);
-
-                    //await SendAsync($":CONF:FREQ {voltRange}", cancellationToken);
-                    //await Task.Delay(200, cancellationToken);
-
-                    //await SendAsync($":SENS:FREQ:APER {apertureStr}", cancellationToken);
-                    //await Task.Delay(200, cancellationToken);
-
-                    //await SendAsync("*CLS", cancellationToken);
-                    //await Task.Delay(200, cancellationToken);
-                    await SendAsync($"FREQ", cancellationToken);
-                    //await Task.Delay(80).ConfigureAwait(true);
-                    await SendAsync($":MEASure:FREQuency 2", cancellationToken);
-                    //await Task.Delay(80).ConfigureAwait(true);
+                    await TryConfigureFrequencyModeAsync(voltRange, apertureStr, cancellationToken).ConfigureAwait(false);
 
                     Console.WriteLine("开始读频率！！！");
                     //var freqRaw = await QueryAsync(":READ?", cancellationToken);
                     var freqRaw = await QueryAsync(":MEASure:FREQuency?", cancellationToken);
                     Console.WriteLine("原始频率："+freqRaw);
                     return ParseReading(freqRaw?.Trim(), "Hz");  
+                }
+
+                if (mode == DmmMeasureMode.ACV)
+                {
+                    await TryConfigureAcVoltageModeAsync(cancellationToken).ConfigureAwait(false);
                 }
 
                 var (query, unit) = GetQuery(mode);
@@ -276,6 +267,54 @@ namespace MeasureControl.Services.HardwareApis
             try
             {
                 await SendAsync("FUNC FREQ", cancellationToken).ConfigureAwait(false);
+                await Task.Delay(150, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
+        private async Task TryConfigureFrequencyModeAsync(int voltRange, string apertureStr, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await SendAsync($":CONF:FREQ {voltRange}", cancellationToken).ConfigureAwait(false);
+                await Task.Delay(150, cancellationToken).ConfigureAwait(false);
+                await SendAsync($":SENS:FREQ:APER {apertureStr}", cancellationToken).ConfigureAwait(false);
+                await Task.Delay(150, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            catch
+            {
+            }
+
+            await TrySendFrequencyModeAsync(cancellationToken).ConfigureAwait(false);
+            await Task.Delay(150, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await SendAsync($":MEASure:FREQuency {voltRange}", cancellationToken).ConfigureAwait(false);
+                await Task.Delay(150, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
+        private async Task TryConfigureAcVoltageModeAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await SendAsync(":CONF:VOLT:AC", cancellationToken).ConfigureAwait(false);
+                await Task.Delay(150, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                await SendAsync("FUNC VOLT:AC", cancellationToken).ConfigureAwait(false);
                 await Task.Delay(150, cancellationToken).ConfigureAwait(false);
             }
             catch
