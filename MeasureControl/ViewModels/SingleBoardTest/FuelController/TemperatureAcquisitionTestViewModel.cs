@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Net.Sockets;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using MeasureControl.Events;
@@ -33,8 +31,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
     /// 【测试流程概述】
     /// ┌─────────────────────────────────────────────────────────────────┐
     /// │  步骤1: 初始化硬件                                               │
-    /// │    ├── 配置矩阵开关通路                                          │
-    /// │    └── 通过J3和J4提供28V供电                                     │
+    /// │    └── 检测单板上电状态并建立温度采集通信                         │
     /// ├─────────────────────────────────────────────────────────────────┤
     /// │  步骤2: 采集温度                                                 │
     /// │    └── 解析CRM_PIN7(POWER_TEMP)的DS18B20温度传感器信号           │
@@ -43,7 +40,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
     /// │    └── 温度值处于[15℃, 45℃]区间内为PASS                         │
     /// ├─────────────────────────────────────────────────────────────────┤
     /// │  步骤4: 复位硬件                                                 │
-    /// │    └── 断开矩阵开关通路                                          │
+    /// │    └── 断开温度采集通信连接                                      │
     /// └─────────────────────────────────────────────────────────────────┘
     /// 
     /// 【测量点说明】
@@ -51,8 +48,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
     /// - 信号通过IO57连接到INT_IO57（D35, 2槽179通道）
     /// 
     /// 【硬件依赖】
-    /// - 矩阵开关：配置信号通路
-    /// - 电源：提供28V供电
+    /// - 加放油单板上电
     /// - DS18B20温度传感器解析
     /// 
     /// 【超时保护】
@@ -77,30 +73,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// <summary>温度采集超时时间（毫秒）</summary>
         private const int TemperatureReadTimeoutMs = 5000;
 
-        /// <summary>组件供电电源IP地址</summary>
-        private const string PowerSupplyIpAddress = "192.168.1.15";
-
-        /// <summary>供电电压（V）</summary>
-        private const double InputVoltageV = 28.0;
-
-        /// <summary>供电电流限制（A）</summary>
-        private const double InputCurrentA = 3.0;
-
-        /// <summary>矩阵开关IP地址</summary>
-        private const string MatrixIpAddress = "192.168.1.3";
-
-        /// <summary>PXI-3022(1) slotindex=2，使用50300端口</summary>
-        private const int MatrixSlot = 2;
-        private const int MatrixTcpPort = 50300;
-
-        /// <summary>
-        /// IO57 → INT_IO57 → FPGA D35（2槽 pin179）
-        /// CRM_PIN7(POWER_TEMP) 经 J44 连接到 FPGA，FPGA 负责 DS18B20 采集
-        /// I7 = FPGA IO输入行, O179 = 2槽 pin179
-        /// </summary>
-        private const string MatrixInNode  = "I7";
-        private const string MatrixOutNode = "O179";
-
         #endregion
 
         #region 依赖服务
@@ -119,7 +91,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         #region 状态字段
 
         private bool _hardwareInitialized;                                         // 硬件是否已初始化
-        private bool _matrixConnected;                                             // 矩阵开关是否已连接
         private bool _fpgaConnected;                                               // FPGA TCP是否已连接
         private CancellationTokenSource _opCts;                                    // 操作取消令牌源
         private SubscriptionToken _projectSavingToken;                             // 项目保存事件订阅令牌
@@ -128,8 +99,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isAutoTestRunning;                                           // 自动测试是否正在运行
         private bool _isBusy;                                                      // 是否正在执行操作
         private bool _isPowerOn;                                                   // 28V供电是否已开启
-
-        private bool _useSimulation = true;                                        // 是否使用仿真模式（硬件不可用时）
 
         #endregion
 
@@ -320,7 +289,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 try
                 {
-                    // 步骤1: 初始化硬件（供电+配置通路）
+                    // 步骤1: 初始化硬件
                     AddLog("步骤1: 初始化硬件设备（28V供电）...");
                     await InitializeHardwareWithTimeoutAsync(token);
                     if (token.IsCancellationRequested) return;
@@ -504,7 +473,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         }
 
         /// <summary>
-        /// 初始化硬件：28V供电 → 配置矩阵开关通路
+        /// 初始化硬件：检测供电状态并连接FPGA
         /// </summary>
         private async Task InitializeHardwareAsync(CancellationToken token)
         {
@@ -519,26 +488,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 throw new InvalidOperationException("请先给加放油单板上电后再进行测试。");
             AddLog("已检测到加放油单板处于上电状态");
 
-            // ========== 步骤2：配置矩阵开关通路 ==========
-            // IO57(CRM_PIN7/POWER_TEMP) → INT_IO57 → FPGA D35
-            // 2槽 pin179 = IO57，slot=2 (PXI-3022(1)), tcpPort=50300
-            AddLog($"正在配置矩阵开关通路（{MatrixInNode}→{MatrixOutNode} slot={MatrixSlot}）...");
-            try
-            {
-                var ok = await MatrixControlService.Instance.ConnectNodesAsync(
-                    MatrixInNode, MatrixOutNode, MatrixSlot, MatrixIpAddress, MatrixTcpPort);
-                _matrixConnected = ok;
-               // AddLog($"矩阵开关通路: {(ok ? "OK" : "FAIL")} ({MatrixInNode}→{MatrixOutNode} slot={MatrixSlot})");
-                if (!ok)
-                    AddLog("矩阵通路配置失败，温度读取将使用仿真");
-            }
-            catch (Exception ex)
-            {
-                //AddLog($"矩阵开关异常: {ex.Message}，温度读取将使用仿真");
-                _matrixConnected = false;
-            }
-
-            // ========== 步骤3：连接FPGA TCP服务器 ==========
+            // ========== 步骤2：连接FPGA TCP服务器 ==========
             AddLog($"正在连接FPGA TCP服务器 {FpgaIoClient.DefaultIpAddress}:{FpgaIoClient.DefaultPort} ...");
             try
             {
@@ -573,27 +523,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         }
 
         /// <summary>
-        /// 复位硬件：断开矩阵开关 → 关闭供电
+        /// 复位硬件：断开FPGA连接
         /// </summary>
         private async Task ResetHardwareAsync(CancellationToken token)
         {
             AddLog("正在复位硬件...");
-
-            // 断开矩阵开关
-            if (_matrixConnected)
-            {
-                try
-                {
-                    await MatrixControlService.Instance.DisconnectNodesAsync(
-                        MatrixInNode, MatrixOutNode, MatrixSlot, MatrixIpAddress, MatrixTcpPort);
-                    _matrixConnected = false;
-                    AddLog("矩阵开关通路已断开");
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"断开矩阵开关异常: {ex.Message}");
-                }
-            }
 
             // 断开FPGA
             if (_fpga != null)
@@ -718,21 +652,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// 读取DS18B20温度值。
         /// 硬件路径：FPGA通过IO57(CRM_PIN7/POWER_TEMP)采集DS18B20信号，
         /// 上位机发送温度请求指令，FPGA回传温度数据。
-        /// 矩阵开关通路：IO57(2槽pin179) I7→O179 已在InitializeHardwareAsync中建立。
         /// </summary>
         private async Task<double> ReadTemperatureAsync(CancellationToken token)
         {
-            // 矩阵通路未就绪或硬件不可用，降级到仿真
-            if (_useSimulation || !_matrixConnected)
+            if (_fpga == null || !_fpgaConnected)
             {
                 var sim = await _simulation.SimulateReadTemperatureAsync(token);
                 AddLog($"温度来源: 仿真  {sim:F2}℃");
                 return sim;
             }
 
-            // 硬件路径：通过FPGA IO57采集DS18B20温度
-            // FPGA已通过矩阵开关的IO57通路(I7→O179, slot=2)连接DS18B20
-            // 按DS18B20U+T&R规格书：发送Convert T命令后读取温度寄存器
             try
             {
                 var temp = await ReadDs18B20ViaMioAsync(token);
@@ -746,17 +675,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog($"温度来源: 仿真  {sim:F2}℃");
                 return sim;
             }
-        }
-
-        /// <summary>
-        /// 程控电源连接方法隔离层。[NoInlining] 防止 NI-VISA JIT 加载崩溃逃逸 try-catch。
-        /// </summary>
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private async Task ConnectPowerSupplyAsync(string ipAddress, CancellationToken token)
-        {
-            _power ??= new PowerSupplySocketApi();
-            if (!_power.IsConnected)
-                await _power.ConnectAsync(ipAddress, token);
         }
 
         /// <summary>
@@ -924,17 +842,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             _opCts?.Cancel();
             _opCts?.Dispose();
-
-            try
-            {
-                if (_matrixConnected)
-                {
-                    MatrixControlService.Instance.DisconnectNodesAsync(
-                        MatrixInNode, MatrixOutNode, MatrixSlot, MatrixIpAddress, MatrixTcpPort)
-                        .GetAwaiter().GetResult();
-                }
-            }
-            catch { }
 
             try { _fpga?.Disconnect(); } catch { }
             _fpga = null;

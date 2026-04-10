@@ -16,8 +16,20 @@ namespace MeasureControl.Services.HardwareApis
     {
         ComponentPowerState CurrentState { get; }
 
+        /// <summary>
+        /// 当前组件供电电压（V）
+        /// </summary>
+        double CurrentVoltage { get; }
+
         Task ApplyComponentDownStateAsync(CancellationToken cancellationToken = default);
         Task ApplyComponent28VStateAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 设置组件供电电压（用于低电压告警测试等需要调节电压的场景）
+        /// </summary>
+        /// <param name="voltage">目标电压（V），范围 0-32V</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        Task SetComponentVoltageAsync(double voltage, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// 开启继电器供电（24V）
@@ -63,8 +75,10 @@ namespace MeasureControl.Services.HardwareApis
         private ComponentPowerState _currentState = ComponentPowerState.ComponentDown;
         private IPowerSupplyApi _power1;
         private bool _relayPowerOn;
+        private double _currentVoltage;
 
         public ComponentPowerState CurrentState => _currentState;
+        public double CurrentVoltage => _currentVoltage;
 
         public async Task ApplyComponentDownStateAsync(CancellationToken cancellationToken = default)
         {
@@ -82,6 +96,7 @@ namespace MeasureControl.Services.HardwareApis
                 _relayPowerOn = false;
             }
 
+            _currentVoltage = 0;
             _currentState = ComponentPowerState.ComponentDown;
         }
 
@@ -96,6 +111,7 @@ namespace MeasureControl.Services.HardwareApis
             await _power1.SetOutputEnabledAsync(ComponentChannel, true, cancellationToken).ConfigureAwait(false);
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
 
+            _currentVoltage = ComponentVoltage;
             _currentState = _relayPowerOn ? ComponentPowerState.FullPowerOn : ComponentPowerState.Component28VOn;
         }
 
@@ -132,6 +148,29 @@ namespace MeasureControl.Services.HardwareApis
                 _currentState = ComponentPowerState.Component28VOn;
             else if (_currentState == ComponentPowerState.RelayPowerOn)
                 _currentState = ComponentPowerState.ComponentDown;
+        }
+
+        public async Task SetComponentVoltageAsync(double voltage, CancellationToken cancellationToken = default)
+        {
+            EnsureNotDisposed();
+
+            if (voltage < 0 || voltage > 32)
+                throw new ArgumentOutOfRangeException(nameof(voltage), "电压范围必须在 0-32V 之间");
+
+            await EnsurePower1ConnectedAsync(cancellationToken).ConfigureAwait(false);
+
+            // 设置组件供电电压
+            await _power1.ApplyAsync(ComponentChannel, voltage, ComponentCurrentLimit, cancellationToken).ConfigureAwait(false);
+            
+            // 如果电源输出未开启，则开启
+            if (_currentState == ComponentPowerState.ComponentDown || _currentState == ComponentPowerState.RelayPowerOn)
+            {
+                await _power1.SetOutputEnabledAsync(ComponentChannel, true, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+            }
+
+            _currentVoltage = voltage;
+            _currentState = _relayPowerOn ? ComponentPowerState.FullPowerOn : ComponentPowerState.Component28VOn;
         }
 
         public async ValueTask DisposeAsync()

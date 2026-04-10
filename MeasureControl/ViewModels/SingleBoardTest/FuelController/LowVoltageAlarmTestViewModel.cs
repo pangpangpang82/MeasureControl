@@ -219,15 +219,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
 
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
-
         private readonly ProjectService _projectService;
-
         private readonly IEventAggregator _eventAggregator;
-
         private readonly IComponentPowerStateApi _componentPowerStateApi;
-
         private readonly IPxiChassisService _pxiChassisService;
-
+        private readonly IHydraulicPowerService _hydraulicPowerService;
         private readonly LowVoltageAlarmSimulation _simulation;
 
 
@@ -293,12 +289,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
 
         private bool _isManualTestRunning;
-
         private bool _isAutoTestRunning;
-
         private bool _isBusy;
-
         private bool _isPowerOn;
+        
+        /// <summary>测试前保存的原始上电电压，用于测试结束后恢复</summary>
+        private double _originalVoltage;
+        /// <summary>测试前组件是否已上电</summary>
+        private bool _wasOriginallyPowered;
 
 
 
@@ -357,29 +355,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
 
         public LowVoltageAlarmTestViewModel(
-
             ISingleBoardTestContextService singleBoardTestContext,
-
             ProjectService projectService,
-
             IEventAggregator eventAggregator,
-
             IComponentPowerStateApi componentPowerStateApi,
-
-            IPxiChassisService pxiChassisService)
-
+            IPxiChassisService pxiChassisService,
+            IHydraulicPowerService hydraulicPowerService)
         {
-
             _singleBoardTestContext = singleBoardTestContext;
-
             _projectService = projectService;
-
             _eventAggregator = eventAggregator;
-
             _componentPowerStateApi = componentPowerStateApi;
-
             _pxiChassisService = pxiChassisService;
-
+            _hydraulicPowerService = hydraulicPowerService;
             _simulation = new LowVoltageAlarmSimulation();
 
 
@@ -1128,97 +1116,60 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
 
 
+                // 步骤0：保存原始上电状态，然后下电
+                _wasOriginallyPowered = _hydraulicPowerService?.IsHydraulicPowered ?? false;
+                _originalVoltage = _hydraulicPowerService?.PoweredVoltage ?? 28.0;
+                if (_originalVoltage <= 0) _originalVoltage = 28.0; // 默认28V
+                
+                AddLog($"保存原始上电状态: {(_wasOriginallyPowered ? $"已上电({_originalVoltage:F1}V)" : "未上电")}");
+                
+                // 先将组件下电
+                if (_wasOriginallyPowered)
+                {
+                    AddLog("正在关闭组件原有供电...");
+                    try
+                    {
+                        if (_componentPowerStateApi != null)
+                        {
+                            await _componentPowerStateApi.ApplyComponentDownStateAsync(timeoutCts.Token);
+                        }
+                        await Task.Delay(200, timeoutCts.Token);
+                        AddLog("组件已下电");
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"下电异常: {ex.Message}");
+                    }
+                }
+
                 // 步骤1：配置矩阵开关通路
-
                 AddLog("正在配置矩阵开关通路...");
-
                 bool matrixOk = false;
-
                 try
-
                 {
-
                     matrixOk = await _simulation.ConnectMatrixAsync(msg => AddLog(msg), timeoutCts.Token);
-
                 }
-
                 catch (Exception ex)
-
                 {
-
                     AddLog($"矩阵开关配置异常: {ex.Message}");
-
                 }
-
                 if (!matrixOk)
-
                 {
-
                     AddLog("矩阵开关配置失败，继续使用仿真模式");
-
                 }
-
-
 
                 // 步骤2：初始化9774板卡（用于AD采集）
-
                 await Initialize9774AiAsync(timeoutCts.Token);
 
-
-
-                // 步骤3：初始化电源连接
-
-                await InitializePowerSupplyAsync(timeoutCts.Token);
-
-
-
-                // 步骤4：设置组件供电状态（28V供电状态）
-
-                AddLog("正在设置组件供电状态: 28V供电状态...");
-
-                try
-
-                {
-
-                    if (_componentPowerStateApi != null)
-
-                    {
-
-                        await _componentPowerStateApi.ApplyComponent28VStateAsync(timeoutCts.Token);
-
-                    }
-
-                    await _simulation.ApplyComponent28VStateAsync(msg => AddLog(msg), timeoutCts.Token);
-
-                    Application.Current?.Dispatcher?.Invoke(() =>
-
-                    {
-
-                        IsPowerOn = true;
-
-                        PowerStatus = "已上电";
-
-                    });
-
-                    AddLog("组件28V供电状态已设置");
-
-                }
-
-                catch (Exception ex)
-
-                {
-
-                    AddLog($"上电异常: {ex.Message}");
-
-                    throw;
-
-                }
-
-
-
-                // 步骤5：设置运放供电和DI上拉信号（+15V）
-
+                // 步骤3：设置运放供电和DI上拉信号（+15V）
                 await InitializeOpAmpAndDiPullUpPowerAsync(timeoutCts.Token);
+
+                // 标记上电状态（实际电压将在 SetInitialVoltageAsync 中设置为17V）
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsPowerOn = true;
+                    PowerStatus = "初始化中...";
+                });
 
 
 
@@ -1493,21 +1444,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
 
         private async Task SetInitialVoltageAsync(CancellationToken token)
-
         {
-
-            // 使用真实电源API设置初始电压
-
+            // 使用组件电源API设置初始电压17V
             await SetPowerSupplyVoltageAsync(StartVoltage, token);
-
+            
             Application.Current?.Dispatcher?.Invoke(() =>
-
             {
-
                 CurrentVoltage = StartVoltage;
-
+                PowerStatus = $"测试中({StartVoltage:F1}V)";
                 TestProgress = 0;
-
             });
 
 
@@ -1773,49 +1718,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
 
         /// <summary>
-
-        /// 设置电源输出电压（使用真实电源API，失败时回退到仿真）
-
+        /// 设置组件供电电压（使用组件电源API，失败时回退到仿真）
         /// </summary>
-
         private async Task SetPowerSupplyVoltageAsync(double voltage, CancellationToken token)
-
         {
-
-            // 优先使用真实电源API
-
-            if (_powerSupplyApi != null && _powerSupplyApi.IsConnected)
-
+            // 优先使用组件电源API（192.168.1.15 CH1）
+            if (_componentPowerStateApi != null)
             {
-
                 try
-
                 {
-
-                    await _powerSupplyApi.SetVoltageAsync(PowerSupplyChannel.CH1, voltage, token);
-
-                    AddLog($"[电源] CH1电压已设置为 {voltage:F1}V");
-
+                    await _componentPowerStateApi.SetComponentVoltageAsync(voltage, token);
+                    AddLog($"[组件电源] 电压已设置为 {voltage:F1}V");
                     return;
-
                 }
-
                 catch (Exception ex)
-
                 {
-
-                    AddLog($"[电源] 设置电压失败: {ex.Message}，使用仿真");
-
+                    AddLog($"[组件电源] 设置电压失败: {ex.Message}，使用仿真");
                 }
-
             }
 
-
-
             // 回退到仿真
-
             await _simulation.SetSupplyVoltageAsync(voltage, msg => AddLog(msg), token);
-
         }
 
 
@@ -1977,83 +1900,52 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
 
         private async Task ResetHardwareAsync(CancellationToken token)
-
         {
-
             AddLog("正在复位硬件...");
 
-
-
-            // 设置组件下电状态
-
+            // 恢复组件原始上电状态
             try
-
             {
-
-                if (_componentPowerStateApi != null)
-
+                if (_wasOriginallyPowered && _originalVoltage > 0)
                 {
-
-                    await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
-
+                    // 恢复原始电压
+                    AddLog($"正在恢复组件原始供电电压: {_originalVoltage:F1}V...");
+                    if (_componentPowerStateApi != null)
+                    {
+                        await _componentPowerStateApi.SetComponentVoltageAsync(_originalVoltage, token);
+                    }
+                    // 更新 HydraulicPowerService 状态
+                    _hydraulicPowerService?.SetPoweredState(true);
+                    
+                    Application.Current?.Dispatcher?.Invoke(() =>
+                    {
+                        IsPowerOn = true;
+                        PowerStatus = $"已上电({_originalVoltage:F1}V)";
+                        CurrentVoltage = _originalVoltage;
+                    });
+                    AddLog($"组件供电已恢复为 {_originalVoltage:F1}V");
                 }
-
-                await _simulation.ApplyComponentDownStateAsync(msg => AddLog(msg), token);
-
-                Application.Current?.Dispatcher?.Invoke(() =>
-
+                else
                 {
-
-                    IsPowerOn = false;
-
-                    PowerStatus = "未上电";
-
-                    CurrentVoltage = 0;
-
-                });
-
+                    // 原本未上电，保持下电状态
+                    AddLog("原本未上电，保持下电状态");
+                    if (_componentPowerStateApi != null)
+                    {
+                        await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
+                    }
+                    _hydraulicPowerService?.SetPoweredState(false);
+                    
+                    Application.Current?.Dispatcher?.Invoke(() =>
+                    {
+                        IsPowerOn = false;
+                        PowerStatus = "未上电";
+                        CurrentVoltage = 0;
+                    });
+                }
             }
-
             catch (Exception ex)
-
             {
-
-                AddLog($"关闭供电异常: {ex.Message}");
-
-            }
-
-
-
-            // 关闭电源输出（不调用DisposeAsync，避免发送SYST:LOC导致电源切换到本地模式）
-
-            if (_powerSupplyApi != null)
-
-            {
-
-                try
-
-                {
-
-                    // 只关闭CH1输出，不断开连接，保持远程模式
-
-                    await _powerSupplyApi.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, token);
-
-                    AddLog("电源CH1输出已关闭");
-
-                }
-
-                catch (Exception ex)
-
-                {
-
-                    AddLog($"关闭电源输出异常: {ex.Message}");
-
-                }
-
-                // 注意：不调用DisposeAsync()，保持电源处于远程模式，避免影响其他测试
-
-                // _powerSupplyApi实例保留，下次测试可以复用
-
+                AddLog($"恢复供电异常: {ex.Message}");
             }
 
 
