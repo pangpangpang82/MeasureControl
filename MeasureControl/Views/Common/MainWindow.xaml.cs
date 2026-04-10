@@ -1536,7 +1536,7 @@ namespace MeasureControl.Views.Common
                     var hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
                     if (hps != null && !hps.IsHydraulicPowered)
                     {
-                        await hps.PowerOnAsync("惰化模拟板", ct).ConfigureAwait(false);
+                        await hps.PowerOnAsync("惰化模拟板", cancellationToken: ct).ConfigureAwait(false);
                     }
                 }
                 catch
@@ -1617,7 +1617,7 @@ namespace MeasureControl.Views.Common
                     var hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
                     if (hps != null && !hps.IsHydraulicPowered)
                     {
-                        await hps.PowerOnAsync("惰化控制板", ct).ConfigureAwait(false);
+                        await hps.PowerOnAsync("惰化控制板", cancellationToken: ct).ConfigureAwait(false);
                     }
                 }
                 catch

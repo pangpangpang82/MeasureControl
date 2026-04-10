@@ -569,7 +569,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
 
             Log($"准备重新上电: 上电后等待稳定 {PowerStabilizeDelayMs}ms");
-            await _hydraulicPowerService.PowerOnAsync(null, cancellationToken).ConfigureAwait(false);
+            await _hydraulicPowerService.PowerOnAsync(null, cancellationToken: cancellationToken).ConfigureAwait(false);
             await Task.Delay(PowerStabilizeDelayMs, cancellationToken).ConfigureAwait(false);
         }
 

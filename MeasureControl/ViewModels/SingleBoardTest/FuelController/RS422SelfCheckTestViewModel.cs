@@ -13,6 +13,7 @@ using MeasureControl.Services.HardwareApis;
 using MeasureControl.Simulations.FuelController;
 using Prism.Commands;
 using Prism.Events;
+using Prism.Ioc;
 using Prism.Mvvm;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
@@ -246,6 +247,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 return;
             }
 
+            if (!EnsureFuelBoardPowered())
+                return;
+
             IsManualTestRunning = true;
             _opCts = new CancellationTokenSource();
 
@@ -306,6 +310,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 return;
             }
 
+            if (!EnsureFuelBoardPowered())
+                return;
+
             _opCts = new CancellationTokenSource();
             try
             {
@@ -360,6 +367,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token)
         {
+            if (!EnsureFuelBoardPowered())
+                return "不合格";
+
             Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = true);
             AddLog("========== 自动测试开始 ==========");
 
@@ -428,7 +438,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
-                await ApplyPower28VAsync(token);
+                AddLog("检测组件供电状态...");
+                if (!EnsureFuelBoardPowered())
+                    throw new InvalidOperationException("请先给加放油单板上电后再进行测试。");
+                AddLog("已检测到加放油单板处于上电状态");
 
                 // 连接FPGA
                 AddLog("正在连接FPGA...");
@@ -461,10 +474,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     //关闭422回环模式
                     await EnsureRs422LoopModeAsync(false, token);
                     AddLog("[FPGA] GPIO输出已置低（MUX1=0, MUX2=0, CRM_PIN2=0, CRM_PIN12=0）");
-                    AddLog("[FPGA] RS422内部自检回环模式已启用");
-
-                    // 启动异步接收功能
-                    _fpga.StartAsyncReceive(AddLog);
+                    AddLog("[FPGA] RS422内部自检回环模式已配置");
                 }
                 catch (Exception ex)
                 {
@@ -496,14 +506,50 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     _rs422LoopModeInitialized = false;
                 }
 
-                try { await _componentPowerStateApi.ApplyComponentDownStateAsync(token); } catch { }
                 _hardwareInitialized = false;
-                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
+                RefreshPowerStateDisplay();
             }
             finally
             {
                 IsBusy = false;
             }
+        }
+
+        private bool EnsureFuelBoardPowered()
+        {
+            var powerService = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (powerService == null || !powerService.IsHydraulicPowered)
+            {
+                AddLog("未检测到加放油单板上电，请先通过左上角组件上电按钮上电。");
+                Application.Current?.Dispatcher?.Invoke(() =>
+                    MessageBox.Show("请先点击左上角组件上电按钮，并选择“加放油单板”上电后再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning));
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
+                return false;
+            }
+
+            if (!string.Equals(powerService.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase))
+            {
+                AddLog($"当前上电单板为{powerService.PoweredBoardType ?? "未知"}，请切换为加放油单板。");
+                Application.Current?.Dispatcher?.Invoke(() =>
+                    MessageBox.Show($"当前已上电单板为“{powerService.PoweredBoardType ?? "未知"}”，请先下电并选择“加放油单板”上电。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning));
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
+                return false;
+            }
+
+            Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
+            return true;
+        }
+
+        private void RefreshPowerStateDisplay()
+        {
+            var powerService = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            var isFuelPowered = powerService != null && powerService.IsHydraulicPowered &&
+                                string.Equals(powerService.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase);
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsPowerOn = isFuelPowered;
+                PowerStatus = isFuelPowered ? "已上电" : "未上电";
+            });
         }
 
         private async Task SafeResetHardwareAsync()

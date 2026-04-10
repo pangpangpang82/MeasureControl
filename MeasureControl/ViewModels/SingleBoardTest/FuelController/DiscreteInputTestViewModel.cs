@@ -7,6 +7,7 @@ using MeasureControl.Simulations.FuelController;
 using Newtonsoft.Json.Linq;
 using Prism.Commands;
 using Prism.Events;
+using Prism.Ioc;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -316,6 +317,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 return;
             }
 
+            if (!EnsureFuelBoardPowered())
+                return;
+
             IsManualTestRunning = true;
             _testCts = new CancellationTokenSource();
 
@@ -353,6 +357,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog("自动测试已停止");
                 return;
             }
+
+            if (!EnsureFuelBoardPowered())
+                return;
 
             _testCts = new CancellationTokenSource();
             try
@@ -408,6 +415,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token)
         {
+            if (!EnsureFuelBoardPowered())
+                return "不合格";
+
             Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = true);
             AddLog("========== 自动测试开始 ==========");
 
@@ -748,35 +758,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
         private async Task InitializeHardwareAsync(CancellationToken token)
         {
-            // 1. 设置组件28V供电状态
-            AddLog("正在设置组件28V供电状态...");
-
-            if (_componentPowerStateApi != null)
-            {
-                try
-                {
-                    await _componentPowerStateApi.ApplyComponent28VStateAsync(token);
-                    AddLog("组件28V供电状态已设置");
-                    _useSimulation = false;
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"供电API异常: {ex.Message}，使用仿真模式");
-                    await _simulation.ApplyComponent28VStateAsync(AddLog, token);
-                    _useSimulation = true;
-                }
-            }
-            else
-            {
-                await _simulation.ApplyComponent28VStateAsync(AddLog, token);
-                _useSimulation = true;
-            }
-
-            Application.Current?.Dispatcher?.Invoke(() =>
-            {
-                IsPowerOn = true;
-                PowerStatus = "已上电";
-            });
+            AddLog("检测组件供电状态...");
+            if (!EnsureFuelBoardPowered())
+                throw new InvalidOperationException("请先给加放油单板上电后再进行测试。");
+            AddLog("已检测到加放油单板处于上电状态");
 
             // 2. 连接7131板卡（用于提供地/开信号）
             AddLog("正在连接7131板卡...");
@@ -942,32 +927,58 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 _fpgaConnected = false;
             }
 
-            // 下电
-            if (_componentPowerStateApi != null && !_useSimulation)
+            _hardwareInitialized = false;
+            AddLog("硬件复位完成");
+            RefreshPowerStateDisplay();
+        }
+
+        private bool EnsureFuelBoardPowered()
+        {
+            var powerService = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (powerService == null || !powerService.IsHydraulicPowered)
             {
-                try
+                AddLog("未检测到加放油单板上电，请先通过左上角组件上电按钮上电。");
+                Application.Current?.Dispatcher?.Invoke(() =>
+                    MessageBox.Show("请先点击左上角组件上电按钮，并选择“加放油单板”上电后再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning));
+                Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
-                    AddLog("组件已下电");
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"下电异常: {ex.Message}");
-                }
+                    IsPowerOn = false;
+                    PowerStatus = "未上电";
+                });
+                return false;
             }
-            else
+
+            if (!string.Equals(powerService.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase))
             {
-                await _simulation.ApplyComponentDownStateAsync(AddLog, token);
+                AddLog($"当前上电单板为{powerService.PoweredBoardType ?? "未知"}，请切换为加放油单板。");
+                Application.Current?.Dispatcher?.Invoke(() =>
+                    MessageBox.Show($"当前已上电单板为“{powerService.PoweredBoardType ?? "未知"}”，请先下电并选择“加放油单板”上电。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning));
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsPowerOn = false;
+                    PowerStatus = "未上电";
+                });
+                return false;
             }
 
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                IsPowerOn = false;
-                PowerStatus = "未上电";
+                IsPowerOn = true;
+                PowerStatus = "已上电";
             });
+            return true;
+        }
 
-            _hardwareInitialized = false;
-            AddLog("硬件复位完成");
+        private void RefreshPowerStateDisplay()
+        {
+            var powerService = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            var isFuelPowered = powerService != null && powerService.IsHydraulicPowered &&
+                                string.Equals(powerService.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase);
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsPowerOn = isFuelPowered;
+                PowerStatus = isFuelPowered ? "已上电" : "未上电";
+            });
         }
 
         /// <summary>

@@ -566,7 +566,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 await RunStepCAsync().ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
 
-                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+                await ResetHardwareAsync(CancellationToken.None, preserveComponentPower: true).ConfigureAwait(false);
 
                 bool overallPass =
                     string.Equals(StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) &&
@@ -738,7 +738,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
-        private async Task ResetHardwareAsync(CancellationToken token)
+        private async Task ResetHardwareAsync(CancellationToken token, bool preserveComponentPower = false)
         {
             IsBusy = true;
             try
@@ -826,9 +826,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     }
                 }
 
-                //下电
-                await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
-                AddLog($"组件下电");
+                if (!preserveComponentPower)
+                {
+                    await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
+                    AddLog($"组件下电");
+                    Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
+                }
+                else
+                {
+                    AddLog("保留组件当前供电状态，不执行自动下电");
+                }
 
                 _hardwareInitialized = false;
             }
