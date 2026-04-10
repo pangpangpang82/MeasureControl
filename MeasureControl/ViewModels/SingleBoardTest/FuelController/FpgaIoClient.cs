@@ -63,43 +63,61 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             if (IsConnected) return;
 
-            try { _client?.Dispose(); } catch { }
-            _client = null;
-            _stream = null;
-
-            var client = new TcpClient { NoDelay = true };
-            try
+            Exception lastException = null;
+            for (int attempt = 1; attempt <= 3; attempt++)
             {
-                using var timeoutCts = new System.Threading.CancellationTokenSource(2000);
-                using var linkedCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
+                try { _client?.Dispose(); } catch { }
+                _client = null;
+                _stream = null;
 
-                var connectTask = client.ConnectAsync(_ip, _port);
-                var cancelTask = Task.Delay(Timeout.Infinite, linkedCts.Token);
-
-                var completed = await Task.WhenAny(connectTask, cancelTask);
-                if (completed != connectTask)
+                var client = new TcpClient { NoDelay = true };
+                try
                 {
-                    try { client.Close(); } catch { }
-                    token.ThrowIfCancellationRequested();
-                    throw new TimeoutException($"FPGA连接超时（2s），IP={_ip}:{_port}");
+                    using var timeoutCts = new System.Threading.CancellationTokenSource(2000);
+                    using var linkedCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
+
+                    var connectTask = client.ConnectAsync(_ip, _port);
+                    var cancelTask = Task.Delay(Timeout.Infinite, linkedCts.Token);
+
+                    var completed = await Task.WhenAny(connectTask, cancelTask);
+                    if (completed != connectTask)
+                    {
+                        try { client.Close(); } catch { }
+                        token.ThrowIfCancellationRequested();
+                        throw new TimeoutException($"FPGA连接超时（2s，第{attempt}次），IP={_ip}:{_port}");
+                    }
+
+                    await connectTask;
+
+                    _client = client;
+                    _stream = _client.GetStream();
+                    return;
                 }
-
-                await connectTask;
-
-                _client = client;
-                _stream = _client.GetStream();
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    try { client?.Close(); } catch { }
+                    if (attempt >= 3 || token.IsCancellationRequested)
+                        break;
+                    await Task.Delay(300, token);
+                }
             }
-            catch
-            {
-                try { client?.Close(); } catch { }
-                throw;
-            }
+
+            throw lastException ?? new InvalidOperationException($"FPGA连接失败，IP={_ip}:{_port}");
         }
 
         public void Disconnect()
         {
             try { _stream?.Close(); } catch { }
+            try { _stream?.Dispose(); } catch { }
+            try
+            {
+                if (_client?.Client != null)
+                    _client.Client.Shutdown(SocketShutdown.Both);
+            }
+            catch { }
             try { _client?.Close(); } catch { }
+            try { _client?.Dispose(); } catch { }
             _stream = null;
             _client = null;
         }
@@ -292,23 +310,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 // 先清空接收缓冲区，防止残留帧干扰
                 await FlushReceiveBufferAsync();
                 
-                var frame = BuildFrame(0x04, new byte[] { 0x00 });
-                await _stream.WriteAsync(frame, 0, frame.Length, token);
+                var cmdFrame = BuildFrame(0x04, new byte[] { 0x00 });
+                await _stream.WriteAsync(cmdFrame, 0, cmdFrame.Length, token);
                 await _stream.FlushAsync(token);
-                System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] 发送FPGA-HI8435初始化命令: {BitConverter.ToString(frame).Replace("-", " ")}");
+                System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] 发送FPGA-HI8435初始化命令: {BitConverter.ToString(cmdFrame).Replace("-", " ")}");
 
                 // 消费FPGA应答帧（若有），防止后续帧错位
-                // 缩短超时时间到100ms，避免初始化过慢
+                // 使用真正的超时机制，因为 NetworkStream.ReadAsync 不响应 CancellationToken
                 try
                 {
-                    using var ackCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                    ackCts.CancelAfter(100);
-                    //var (cmd, _) = await ReadFrameAsync(ackCts.Token);
-                    //System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] InitHi8435 应答: cmd=0x{cmd:X2}");
-                }
-                catch (OperationCanceledException) 
-                { 
-                    System.Diagnostics.Debug.WriteLine("[FpgaIoClient] InitHi8435 无应答帧（超时）");
+                    var ackFrame = await TryReadFrameWithTimeoutAsync(200);
+                    if (ackFrame.HasValue)
+                        System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] InitHi8435 应答: cmd=0x{ackFrame.Value.cmd:X2}");
+                    else
+                        System.Diagnostics.Debug.WriteLine("[FpgaIoClient] InitHi8435 无应答帧（超时）");
                 }
                 catch (Exception ex)
                 { 
@@ -387,10 +402,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 await _stream.FlushAsync(token);
 
                 byte expectedCmd = (byte)(0x01 + uartIndex);
-                var (cmd, payload) = await ReadFrameAsync(token);
-                if (cmd != expectedCmd)
-                    throw new InvalidOperationException($"UART{uartIndex} TX/RX：应答命令错误 0x{cmd:X2}，期望 0x{expectedCmd:X2}");
-                return payload;
+                const int maxRetries = 4;
+                for (int i = 0; i < maxRetries; i++)
+                {
+                    var (cmd, payload) = await ReadFrameAsync(token);
+                    if (cmd == expectedCmd)
+                        return payload;
+
+                    System.Diagnostics.Debug.WriteLine($"[FpgaIoClient] UART{uartIndex} TX/RX 跳过非预期帧: cmd=0x{cmd:X2}, 期望=0x{expectedCmd:X2}");
+                }
+
+                throw new InvalidOperationException($"UART{uartIndex} TX/RX：连续{maxRetries}帧均非期望命令 0x{expectedCmd:X2}");
             }
             finally
             {
@@ -449,6 +471,72 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             if (!IsConnected)
                 await ConnectAsync(token);
+        }
+
+        /// <summary>
+        /// 尝试在指定超时内读取一帧，超时返回 null（不会阻塞）
+        /// </summary>
+        private async Task<(byte cmd, byte[] payload)?> TryReadFrameWithTimeoutAsync(int timeoutMs)
+        {
+            if (_stream == null || !_client.Connected)
+                return null;
+
+            try
+            {
+                // 先检查是否有数据可读
+                var startTime = DateTime.UtcNow;
+                while (!_stream.DataAvailable)
+                {
+                    if ((DateTime.UtcNow - startTime).TotalMilliseconds > timeoutMs)
+                        return null;
+                    await Task.Delay(10);
+                }
+
+                // 有数据可读，设置短超时读取
+                _client.ReceiveTimeout = timeoutMs;
+                try
+                {
+                    var header = new byte[2];
+                    int headerRead = 0;
+                    while (headerRead < 2)
+                    {
+                        int n = await _stream.ReadAsync(header, headerRead, 2 - headerRead);
+                        if (n == 0) return null;
+                        headerRead += n;
+                    }
+
+                    if (header[0] != 0xAA || header[1] != 0x55)
+                        return null;
+
+                    var lenBuf = new byte[1];
+                    if (await _stream.ReadAsync(lenBuf, 0, 1) == 0) return null;
+                    int totalLen = lenBuf[0];
+
+                    var body = new byte[totalLen];
+                    int bodyRead = 0;
+                    while (bodyRead < totalLen)
+                    {
+                        int n = await _stream.ReadAsync(body, bodyRead, totalLen - bodyRead);
+                        if (n == 0) return null;
+                        bodyRead += n;
+                    }
+
+                    byte cmd = body[0];
+                    byte[] payload = new byte[totalLen - 1];
+                    if (payload.Length > 0)
+                        Buffer.BlockCopy(body, 1, payload, 0, payload.Length);
+
+                    return (cmd, payload);
+                }
+                finally
+                {
+                    _client.ReceiveTimeout = 0;
+                }
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>

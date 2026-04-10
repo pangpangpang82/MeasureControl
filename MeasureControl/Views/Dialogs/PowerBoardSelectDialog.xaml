@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="选择上电单板"
     Width="340"
-    Height="120"
+    Height="160"
     BorderBrush="#1c1c1c"
     BorderThickness="1"
     ResizeMode="NoResize"
@@ -251,17 +251,37 @@
         </Border>
 
         <Grid Grid.Row="1" Margin="20,10,20,5">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="10" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <TextBlock
+                Grid.Row="0"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 FontSize="14"
                 Text="单板类型：" />
             <ComboBox
                 x:Name="BoardTypeComboBox"
+                Grid.Row="0"
+                Grid.Column="1"
+                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                Style="{StaticResource CustomComboBoxStyle}" />
+
+            <TextBlock
+                Grid.Row="2"
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                FontSize="14"
+                Text="上电电压：" />
+            <ComboBox
+                x:Name="VoltageComboBox"
+                Grid.Row="2"
                 Grid.Column="1"
                 ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                 Style="{StaticResource CustomComboBoxStyle}" />

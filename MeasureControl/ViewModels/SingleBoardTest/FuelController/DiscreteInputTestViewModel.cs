@@ -7,6 +7,7 @@ using MeasureControl.Simulations.FuelController;
 using Newtonsoft.Json.Linq;
 using Prism.Commands;
 using Prism.Events;
+using Prism.Ioc;
 using Prism.Mvvm;
 using System;
 using System.Collections.ObjectModel;
@@ -41,6 +42,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
         private const string RelayControlChannel = "DO14";
 
+        /// <summary>
+        /// 7131板卡DI输入阈值电压（3V）
+        /// DI1-4、DI5-8、DI9-12的阈值设置为3V
+        /// </summary>
+        private const double Jy7131DiThresholdV = 3.0;
+
         #endregion
 
         #region 依赖服务
@@ -62,6 +69,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _useSimulation = true;
         private FpgaIoClient _fpga;
         private bool _fpgaConnected;
+        private bool _jy7131DiThresholdApplied;
 
         // DO0-DO13通道名称（物理DO1-DO14映射到API的DO0-DO13）
         private static readonly string[] DoChannels = new[]
@@ -316,6 +324,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 return;
             }
 
+            if (!EnsureFuelBoardPowered())
+                return;
+
             IsManualTestRunning = true;
             _testCts = new CancellationTokenSource();
 
@@ -353,6 +364,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog("自动测试已停止");
                 return;
             }
+
+            if (!EnsureFuelBoardPowered())
+                return;
 
             _testCts = new CancellationTokenSource();
             try
@@ -408,6 +422,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token)
         {
+            if (!EnsureFuelBoardPowered())
+                return "不合格";
+
             Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = true);
             AddLog("========== 自动测试开始 ==========");
 
@@ -536,47 +553,57 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         /// <summary>
         /// 执行接地测试
-        /// 根据通讯协议，发送命令0x06读取HI8435 BANK3-0，并检测异步接收中的响应
+        /// 使用7131板卡DI值作为判断接地的基准（阈值3V）
         /// </summary>
         private async Task<bool> PerformGroundedTestAsync(CancellationToken token)
         {
-            // 1. 读取离散量采集结果（通过FPGA命令0x06）
-            int[] results;
+            // 1. 读取7131板卡DI值作为判断基准
+            int[] diResults = await Read7131DiResultsAsync(token);
+            AddLog($"[7131] DI读取结果: {string.Join(" ", diResults.Select(v => v.ToString()))}");
+
+            // 2. 读取HI8435离散量采集结果（通过FPGA命令0x06）
+            int[] hi8435Results;
             if (_fpgaConnected && _fpga != null)
             {
                 try
                 {
-                    results = await ReadHi8435WithAsyncReceiveAsync(token);
+                    hi8435Results = await ReadHi8435WithAsyncReceiveAsync(token);
                 }
                 catch (Exception ex)
                 {
                     AddLog($"[FPGA] HI8435读取失败: {ex.Message}，降级仿真");
-                    results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
+                    hi8435Results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
                 }
             }
             else
             {
-                results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
+                hi8435Results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
             }
 
-            // 2. 保存结果
-            Array.Copy(results, _groundedTestResults, results.Length);
+            // 3. 保存结果
+            Array.Copy(hi8435Results, _groundedTestResults, hi8435Results.Length);
 
-            // 3. 更新UI显示
+            // 4. 更新UI显示
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                Bank0GroundedResults = FormatBankResults(results, 0, DiscreteInputSimulation.Bank0ChannelCount);
-                Bank1GroundedResults = FormatBankResults(results, DiscreteInputSimulation.Bank0ChannelCount, DiscreteInputSimulation.Bank1ChannelCount);
+                Bank0GroundedResults = FormatBankResults(hi8435Results, 0, DiscreteInputSimulation.Bank0ChannelCount);
+                Bank1GroundedResults = FormatBankResults(hi8435Results, DiscreteInputSimulation.Bank0ChannelCount, DiscreteInputSimulation.Bank1ChannelCount);
             });
 
-            // 4. 判定结果：所有通道结果均为1
+            // 5. 判定结果：使用7131板卡DI值作为基准，接地时DI应为高电平(1)
             bool pass = true;
-            for (int i = 0; i < results.Length; i++)
+            for (int i = 0; i < diResults.Length && i < hi8435Results.Length; i++)
             {
-                if (results[i] != 1)
+                // 接地测试：7131 DI应为高电平(1)，HI8435也应为1
+                if (diResults[i] != 1)
                 {
                     pass = false;
-                    AddLog($"  通道{i}: 期望1, 实际{results[i]} - FAIL");
+                    AddLog($"  通道{i}: 7131 DI期望1, 实际{diResults[i]} - FAIL");
+                }
+                if (hi8435Results[i] != 1)
+                {
+                    pass = false;
+                    AddLog($"  通道{i}: HI8435期望1, 实际{hi8435Results[i]} - FAIL");
                 }
             }
 
@@ -591,47 +618,57 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         /// <summary>
         /// 执行开路测试
-        /// 根据通讯协议，发送命令0x06读取HI8435 BANK3-0，并检测异步接收中的响应
+        /// 使用7131板卡DI值作为判断开路的基准（阈值3V）
         /// </summary>
         private async Task<bool> PerformOpenTestAsync(CancellationToken token)
         {
-            // 1. 读取离散量采集结果（通过FPGA命令0x06）
-            int[] results;
+            // 1. 读取7131板卡DI值作为判断基准
+            int[] diResults = await Read7131DiResultsAsync(token);
+            AddLog($"[7131] DI读取结果: {string.Join(" ", diResults.Select(v => v.ToString()))}");
+
+            // 2. 读取HI8435离散量采集结果（通过FPGA命令0x06）
+            int[] hi8435Results;
             if (_fpgaConnected && _fpga != null)
             {
                 try
                 {
-                    results = await ReadHi8435WithAsyncReceiveAsync(token);
+                    hi8435Results = await ReadHi8435WithAsyncReceiveAsync(token);
                 }
                 catch (Exception ex)
                 {
                     AddLog($"[FPGA] HI8435读取失败: {ex.Message}，降级仿真");
-                    results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
+                    hi8435Results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
                 }
             }
             else
             {
-                results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
+                hi8435Results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
             }
 
-            // 2. 保存结果
-            Array.Copy(results, _openTestResults, results.Length);
+            // 3. 保存结果
+            Array.Copy(hi8435Results, _openTestResults, hi8435Results.Length);
 
-            // 3. 更新UI显示
+            // 4. 更新UI显示
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                Bank0OpenResults = FormatBankResults(results, 0, DiscreteInputSimulation.Bank0ChannelCount);
-                Bank1OpenResults = FormatBankResults(results, DiscreteInputSimulation.Bank0ChannelCount, DiscreteInputSimulation.Bank1ChannelCount);
+                Bank0OpenResults = FormatBankResults(hi8435Results, 0, DiscreteInputSimulation.Bank0ChannelCount);
+                Bank1OpenResults = FormatBankResults(hi8435Results, DiscreteInputSimulation.Bank0ChannelCount, DiscreteInputSimulation.Bank1ChannelCount);
             });
 
-            // 4. 判定结果：所有通道结果均为0
+            // 5. 判定结果：使用7131板卡DI值作为基准，开路时DI应为低电平(0)
             bool pass = true;
-            for (int i = 0; i < results.Length; i++)
+            for (int i = 0; i < diResults.Length && i < hi8435Results.Length; i++)
             {
-                if (results[i] != 0)
+                // 开路测试：7131 DI应为低电平(0)，HI8435也应为0
+                if (diResults[i] != 0)
                 {
                     pass = false;
-                    AddLog($"  通道{i}: 期望0, 实际{results[i]} - FAIL");
+                    AddLog($"  通道{i}: 7131 DI期望0, 实际{diResults[i]} - FAIL");
+                }
+                if (hi8435Results[i] != 0)
+                {
+                    pass = false;
+                    AddLog($"  通道{i}: HI8435期望0, 实际{hi8435Results[i]} - FAIL");
                 }
             }
 
@@ -739,6 +776,46 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             return string.Join(" ", parts);
         }
 
+        /// <summary>
+        /// 读取7131板卡DI值（DI0-DI13，共14通道）
+        /// 作为判断接地/开路的基准
+        /// </summary>
+        private async Task<int[]> Read7131DiResultsAsync(CancellationToken token)
+        {
+            int[] results = new int[DiscreteInputSimulation.TotalChannelCount];
+
+            if (_jy7131Api != null && _jy7131Api.IsConnected)
+            {
+                try
+                {
+                    // 读取DI0-DI13（对应14个通道）
+                    for (int i = 0; i < DiscreteInputSimulation.TotalChannelCount; i++)
+                    {
+                        string diChannel = $"DI{i}";
+                        bool value = await _jy7131Api.ReadDiAsync(diChannel, token);
+                        results[i] = value ? 1 : 0;
+                    }
+                    AddLog($"[7131] 成功读取DI0-DI13");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[7131] DI读取失败: {ex.Message}，使用仿真值");
+                    // 仿真模式：返回全0
+                    for (int i = 0; i < results.Length; i++)
+                        results[i] = 0;
+                }
+            }
+            else
+            {
+                AddLog("[7131] 板卡不可用，使用仿真DI值");
+                // 仿真模式：返回全0
+                for (int i = 0; i < results.Length; i++)
+                    results[i] = 0;
+            }
+
+            return results;
+        }
+
         #endregion
 
         #region 硬件操作
@@ -748,35 +825,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
         private async Task InitializeHardwareAsync(CancellationToken token)
         {
-            // 1. 设置组件28V供电状态
-            AddLog("正在设置组件28V供电状态...");
-
-            if (_componentPowerStateApi != null)
-            {
-                try
-                {
-                    await _componentPowerStateApi.ApplyComponent28VStateAsync(token);
-                    AddLog("组件28V供电状态已设置");
-                    _useSimulation = false;
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"供电API异常: {ex.Message}，使用仿真模式");
-                    await _simulation.ApplyComponent28VStateAsync(AddLog, token);
-                    _useSimulation = true;
-                }
-            }
-            else
-            {
-                await _simulation.ApplyComponent28VStateAsync(AddLog, token);
-                _useSimulation = true;
-            }
-
-            Application.Current?.Dispatcher?.Invoke(() =>
-            {
-                IsPowerOn = true;
-                PowerStatus = "已上电";
-            });
+            AddLog("检测组件供电状态...");
+            if (!EnsureFuelBoardPowered())
+                throw new InvalidOperationException("请先给加放油单板上电后再进行测试。");
+            AddLog("已检测到加放油单板处于上电状态");
 
             // 2. 连接7131板卡（用于提供地/开信号）
             AddLog("正在连接7131板卡...");
@@ -805,6 +857,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
                         await _jy7131Api.StartAsync(token);
                         AddLog("7131板卡已启动");
+                    }
+
+                    // 设置DI输入阈值为3V（DI1-4、DI5-8、DI9-12）
+                    if (!_jy7131DiThresholdApplied)
+                    {
+                        AddLog("正在设置7131板卡DI输入阈值为3V...");
+                        await _jy7131Api.ApplyDiThresholdsAsync(new Jy7131DiThresholds
+                        {
+                            Group1 = Jy7131DiThresholdV,  // DI1-4
+                            Group2 = Jy7131DiThresholdV,  // DI5-8
+                            Group3 = Jy7131DiThresholdV,  // DI9-12
+                            Group4 = Jy7131DiThresholdV,
+                            Group5 = Jy7131DiThresholdV,
+                            Group6 = Jy7131DiThresholdV,
+                            Group7 = Jy7131DiThresholdV,
+                            Group8 = Jy7131DiThresholdV,
+                        }, token);
+                        _jy7131DiThresholdApplied = true;
+                        AddLog("7131板卡DI输入阈值设置完成（3V）");
                     }
                 }
                 catch (Exception ex)
@@ -931,6 +1002,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch { }
                 _jy7131Api = null;
+                _jy7131DiThresholdApplied = false;
             }
 
             // 断开FPGA
@@ -942,32 +1014,58 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 _fpgaConnected = false;
             }
 
-            // 下电
-            if (_componentPowerStateApi != null && !_useSimulation)
+            _hardwareInitialized = false;
+            AddLog("硬件复位完成");
+            RefreshPowerStateDisplay();
+        }
+
+        private bool EnsureFuelBoardPowered()
+        {
+            var powerService = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (powerService == null || !powerService.IsHydraulicPowered)
             {
-                try
+                AddLog("未检测到加放油单板上电，请先通过左上角组件上电按钮上电。");
+                Application.Current?.Dispatcher?.Invoke(() =>
+                    MessageBox.Show("请先点击左上角组件上电按钮，并选择“加放油单板”上电后再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning));
+                Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
-                    AddLog("组件已下电");
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"下电异常: {ex.Message}");
-                }
+                    IsPowerOn = false;
+                    PowerStatus = "未上电";
+                });
+                return false;
             }
-            else
+
+            if (!string.Equals(powerService.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase))
             {
-                await _simulation.ApplyComponentDownStateAsync(AddLog, token);
+                AddLog($"当前上电单板为{powerService.PoweredBoardType ?? "未知"}，请切换为加放油单板。");
+                Application.Current?.Dispatcher?.Invoke(() =>
+                    MessageBox.Show($"当前已上电单板为“{powerService.PoweredBoardType ?? "未知"}”，请先下电并选择“加放油单板”上电。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning));
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsPowerOn = false;
+                    PowerStatus = "未上电";
+                });
+                return false;
             }
 
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                IsPowerOn = false;
-                PowerStatus = "未上电";
+                IsPowerOn = true;
+                PowerStatus = "已上电";
             });
+            return true;
+        }
 
-            _hardwareInitialized = false;
-            AddLog("硬件复位完成");
+        private void RefreshPowerStateDisplay()
+        {
+            var powerService = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            var isFuelPowered = powerService != null && powerService.IsHydraulicPowered &&
+                                string.Equals(powerService.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase);
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsPowerOn = isFuelPowered;
+                PowerStatus = isFuelPowered ? "已上电" : "未上电";
+            });
         }
 
         /// <summary>

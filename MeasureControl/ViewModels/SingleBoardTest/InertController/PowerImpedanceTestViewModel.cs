@@ -36,6 +36,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private const string MatrixIpAddress = "192.168.1.3";
         private const int MatrixTcpBasePort = 50200;
         private const int FirstMeasurementStartupDelayMs = 1000;
+        private const int DefaultMeasurementStabilizationDelayMs = 3000;
+        private const int Test2MeasurementStabilizationDelayMs = 10000;
 
         private const string PowerSupplyIpAddress = "192.168.1.16";
         private const double InputVoltageV = 24.0;
@@ -541,8 +543,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 return;
             }
 
-            Log("等待2秒，信号稳定后采集...");
-            await Task.Delay(2000, token).ConfigureAwait(false);
+            var stabilizationDelayMs = item?.ColumnIndex == 9
+                ? Test2MeasurementStabilizationDelayMs
+                : DefaultMeasurementStabilizationDelayMs;
+            Log($"等待{stabilizationDelayMs / 1000.0:0.#}秒，信号稳定后采集...");
+            await Task.Delay(stabilizationDelayMs, token).ConfigureAwait(false);
 
             const int maxAttempts = 3;
             for (int attempt = 1; attempt <= maxAttempts; attempt++)

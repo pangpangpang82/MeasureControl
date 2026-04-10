@@ -1592,6 +1592,7 @@ namespace MeasureControl.ViewModels.Common
                     var dlg = new PowerBoardSelectDialog();
                     if (dlg.ShowDialog() != true) return;
                     var selectedBoard = dlg.SelectedBoardType;
+                    var selectedVoltage = dlg.SelectedVoltage;
                     if (string.IsNullOrEmpty(selectedBoard)) return;
 
                     // 液压单板需要额外控制 JY7131 DO25
@@ -1600,14 +1601,17 @@ namespace MeasureControl.ViewModels.Common
                         await SetHydraulicAuxDoAsync(true, CancellationToken.None);
                     }
 
-                    // 所有单板共用同一台程控电源 28V / 192.168.1.15 / CH1
-                    await _hydraulicPowerService.PowerOnAsync(selectedBoard);
+                    // 所有单板共用同一台程控电源 / 192.168.1.15 / CH1，电压由弹窗选择
+                    await _hydraulicPowerService.PowerOnAsync(selectedBoard, selectedVoltage);
                 }
                 else
                 {
                     var boardType = _hydraulicPowerService.PoweredBoardType ?? "组件";
+                    var voltageText = _hydraulicPowerService.PoweredVoltage > 0
+                        ? _hydraulicPowerService.PoweredVoltage.ToString("0.###")
+                        : "28";
                     var confirm = ReMessageBox.Show(
-                        $"是否停止 {boardType} 28V 上电",
+                        $"是否停止 {boardType} {voltageText}V 上电",
                         "组件下电",
                         MessageBoxButton.YesNo,
                         MessageBoxImage.Question);
