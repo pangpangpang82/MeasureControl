@@ -119,6 +119,46 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private readonly Dictionary<string, (double value, DateTime timestampUtc)> _lastTemperatureCBySensor = new Dictionary<string, (double value, DateTime timestampUtc)>(StringComparer.OrdinalIgnoreCase);
 
+        // 保存每个点位每个传感器的测试结果，用于报表生成
+        // Key: pointIndex (1-4), Value: Dictionary<sensorName, (measuredTemp, result)>
+        private readonly Dictionary<int, Dictionary<string, (string measuredTemp, string result)>> _pointTestResults = new Dictionary<int, Dictionary<string, (string measuredTemp, string result)>>();
+
+        /// <summary>
+        /// 获取指定点位指定传感器的测试结果（用于报表生成）
+        /// </summary>
+        public (string measuredTemp, string result) GetPointTestResult(int pointIndex, string sensorName)
+        {
+            if (_pointTestResults.TryGetValue(pointIndex, out var sensorResults))
+            {
+                if (sensorResults.TryGetValue(sensorName, out var result))
+                {
+                    return result;
+                }
+            }
+            return ("--", "--");
+        }
+
+        /// <summary>
+        /// 保存当前点位的测试结果
+        /// </summary>
+        private void SaveCurrentPointTestResults(int pointIndex)
+        {
+            var sensorResults = new Dictionary<string, (string measuredTemp, string result)>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sensor in SensorItems)
+            {
+                sensorResults[sensor.SensorName] = (sensor.MeasuredTemperatureText ?? "--", sensor.TemperatureResultText ?? "--");
+            }
+            _pointTestResults[pointIndex] = sensorResults;
+        }
+
+        /// <summary>
+        /// 清除所有点位的测试结果
+        /// </summary>
+        private void ClearAllPointTestResults()
+        {
+            _pointTestResults.Clear();
+        }
+
 
 
         public TemperatureSensorSignalAcquisitionTestViewModel(
@@ -348,7 +388,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
 
 
-        private async Task MeasureInternalAsync(CancellationToken token, int timeoutMs)
+        private async Task MeasureInternalAsync(CancellationToken token, int timeoutMs, int? pointIndexForReport = null)
 
         {
 
@@ -432,6 +472,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             var failItems = new List<string>();
 
+            // 用于保存当前点位的测试结果（用于报表生成）
+            var pointResultsForReport = new Dictionary<string, (string measuredTemp, string result)>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var item in SensorItems)
 
             {
@@ -455,6 +498,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                     failItems.Add($"{sensorItem.SensorName}(未采集到数据)");
 
                     Log($"判定：{sensorItem.SensorName} 未采集到数据 => FAIL");
+
+                    // 保存失败结果用于报表
+                    pointResultsForReport[sensorItem.SensorName] = ("--", "FAIL");
 
                     continue;
 
@@ -480,6 +526,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 PostToUi(() => itemForTemp.TemperatureResultText = tempResult);
 
+                // 保存测试结果用于报表
+                pointResultsForReport[sensorItem.SensorName] = (t, tempResult);
+
                 if (!tempPass)
 
                 {
@@ -490,6 +539,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 Log($"温度判定：{sensorItem.SensorName} 目标={tempTarget:F3}℃ 实际={tempActual:F3}℃ 差值={tempDiff:F3}℃ 容差=±{TemperatureToleranceC:F1}℃ => {tempResult}");
 
+            }
+
+            // 如果指定了点位索引，保存测试结果用于报表生成
+            if (pointIndexForReport.HasValue)
+            {
+                _pointTestResults[pointIndexForReport.Value] = pointResultsForReport;
             }
 
             LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
@@ -1004,6 +1059,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 Log("开始自动测试：依次测试点位1~4（每个点位下发+回采+判定）");
 
+                ClearAllPointTestResults();
+
                 await EnsurePowerAsync(_cts.Token).ConfigureAwait(false);
 
                 var ok532 = await EnsureMtx532ReadyAsync(_cts.Token).ConfigureAwait(false);
@@ -1044,7 +1101,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                     await ApplyPointInternalAsync(pointIndex, _cts.Token).ConfigureAwait(false);
 
-                    await MeasureInternalAsync(_cts.Token, AutoMeasureTimeoutMs).ConfigureAwait(false);
+                    await MeasureInternalAsync(_cts.Token, AutoMeasureTimeoutMs, pointIndex).ConfigureAwait(false);
 
                     var pointPass = string.Equals(LastTestResult, "PASS", StringComparison.OrdinalIgnoreCase);
 
@@ -1168,6 +1225,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                 Log("开始自动测试：依次测试点位1~4（每个点位下发+回采+判定）");
 
+                ClearAllPointTestResults();
+
                 await EnsurePowerAsync(_cts.Token).ConfigureAwait(false);
 
                 var ok532 = await EnsureMtx532ReadyAsync(_cts.Token).ConfigureAwait(false);
@@ -1208,7 +1267,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
                     await ApplyPointInternalAsync(pointIndex, _cts.Token).ConfigureAwait(false);
 
-                    await MeasureInternalAsync(_cts.Token, AutoMeasureTimeoutMs).ConfigureAwait(false);
+                    await MeasureInternalAsync(_cts.Token, AutoMeasureTimeoutMs, pointIndex).ConfigureAwait(false);
 
                     var pointPass = string.Equals(LastTestResult, "PASS", StringComparison.OrdinalIgnoreCase);
 

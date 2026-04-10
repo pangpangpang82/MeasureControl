@@ -24,6 +24,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
     {
         private const string TestItemKey = "InertController_OverTemperatureCutoff";
 
+        private static readonly byte[] FpgaFrameHeader = new byte[] { 0xAA, 0x55 };
+
+        private const double PtA = 3.9083e-3;
+        private const double PtB = -5.775e-7;
+        private const double PtC = -4.183e-12;
+
         private const string FpgaServerIpAddress = "192.168.1.10";
         private const int FpgaServerPort = 5001;
 
@@ -59,9 +65,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private uint? _lastFpgaGpioInput;
         private DateTime? _lastFpgaGpioInputTime;
 
-        private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _resistorLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _diLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _sweepLock = new SemaphoreSlim(1, 1);
 
         private CancellationTokenSource _cts;
         private DateTime _lastAutoTestEndTime = DateTime.MinValue;
@@ -245,12 +251,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private OverTempItemViewModel CreatePt500aItem()
         {
+            const double r0 = 500.0;
+            const int minTempDeciC = 1100;
+            const int maxTempDeciC = 1138;
+            const int stepDeciC = 5;
+
             var item = new OverTempItemViewModel(this,
-                title: "PT500A 超温切断(模拟112℃)",
-                resistanceLabel: "(715.25±3.5)Ω",
-                targetResistanceOhm: 715.25,
+                title: "PT500A 超温切断(110~113.8℃)",
+                resistanceLabel: $"{FormatTemp(minTempDeciC)}~{FormatTemp(maxTempDeciC)}℃ ({FormatOhm(PtResistanceOhm(r0, minTempDeciC / 10.0))}~{FormatOhm(PtResistanceOhm(r0, maxTempDeciC / 10.0))})Ω",
+                targetResistanceOhm: PtResistanceOhm(r0, maxTempDeciC / 10.0),
                 resistanceToleranceOhm: 3.5,
-                roChannel: "RO0");
+                roChannel: "RO0",
+                r0Ohm: r0,
+                minTempDeciC: minTempDeciC,
+                maxTempDeciC: maxTempDeciC,
+                stepTempDeciC: stepDeciC);
 
             item.Checks.Add(new OverTempCheckViewModel(this, item,
                 pin: "J31",
@@ -277,12 +292,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private OverTempItemViewModel CreatePt1000aItem()
         {
+            const double r0 = 1000.0;
+            const int minTempDeciC = 1050;
+            const int maxTempDeciC = 1088;
+            const int stepDeciC = 5;
+
             var item = new OverTempItemViewModel(this,
-                title: "PT1000A 超温切断(模拟107℃)",
-                resistanceLabel: "(1411.6±7.1)Ω",
-                targetResistanceOhm: 1411.6,
+                title: "PT1000A 超温切断(105~108.8℃)",
+                resistanceLabel: $"{FormatTemp(minTempDeciC)}~{FormatTemp(maxTempDeciC)}℃ ({FormatOhm(PtResistanceOhm(r0, minTempDeciC / 10.0))}~{FormatOhm(PtResistanceOhm(r0, maxTempDeciC / 10.0))})Ω",
+                targetResistanceOhm: PtResistanceOhm(r0, maxTempDeciC / 10.0),
                 resistanceToleranceOhm: 7.1,
-                roChannel: "RO1");
+                roChannel: "RO1",
+                r0Ohm: r0,
+                minTempDeciC: minTempDeciC,
+                maxTempDeciC: maxTempDeciC,
+                stepTempDeciC: stepDeciC);
 
             item.Checks.Add(new OverTempCheckViewModel(this, item,
                 pin: "J32",
@@ -416,17 +440,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                     if (_cts.IsCancellationRequested)
                         return;
 
-                    await ApplyResistanceAsync(item, _cts.Token).ConfigureAwait(false);
-                    await Task.Delay(800, _cts.Token).ConfigureAwait(false);
-
-                    foreach (var check in item.Checks)
-                    {
-                        if (_cts.IsCancellationRequested)
-                            return;
-
-                        await MeasureAsync(check, _cts.Token).ConfigureAwait(false);
-                        await Task.Delay(100, _cts.Token).ConfigureAwait(false);
-                    }
+                    await ExecuteOverTempSweepAndMeasureAsync(item, _cts.Token).ConfigureAwait(false);
                 }
 
                 EvaluateOverall();
@@ -484,16 +498,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 {
                     _cts.Token.ThrowIfCancellationRequested();
 
-                    await ApplyResistanceAsync(item, _cts.Token).ConfigureAwait(false);
-                    await Task.Delay(800, _cts.Token).ConfigureAwait(false);
-
-                    foreach (var check in item.Checks)
-                    {
-                        _cts.Token.ThrowIfCancellationRequested();
-
-                        await MeasureAsync(check, _cts.Token).ConfigureAwait(false);
-                        await Task.Delay(100, _cts.Token).ConfigureAwait(false);
-                    }
+                    await ExecuteOverTempSweepAndMeasureAsync(item, _cts.Token).ConfigureAwait(false);
                 }
 
                 EvaluateOverall();
@@ -531,9 +536,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             return IsManualTestRunning && !IsBusy && IsPowerOn;
         }
 
-        internal bool CanMeasureCheck(OverTempCheckViewModel check)
+        internal bool CanSweepItem(OverTempItemViewModel item)
         {
-            if (check == null) return false;
+            if (item == null) return false;
             return IsManualTestRunning && !IsBusy && IsPowerOn;
         }
 
@@ -546,16 +551,35 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             EvaluateOverall();
         }
 
-        internal async Task MeasureAsync(OverTempCheckViewModel check)
+        internal async Task SweepItemAsync(OverTempItemViewModel item)
         {
-            if (check == null) return;
+            if (item == null) return;
             var token = _cts?.Token ?? CancellationToken.None;
-            await MeasureAsync(check, token).ConfigureAwait(false);
 
-            EvaluateOverall();
-            if (Items.All(i => i.IsMeasured))
+            await _sweepLock.WaitAsync(token).ConfigureAwait(false);
+            try
             {
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                IsBusy = true;
+                Log($"开始扫温: {item.Title}");
+                await ExecuteOverTempSweepAndMeasureAsync(item, token).ConfigureAwait(false);
+                EvaluateOverall();
+                if (Items.All(i => i.IsMeasured))
+                {
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Log($"扫温已取消: {item.Title}");
+            }
+            catch (Exception ex)
+            {
+                Log($"扫温失败: {item.Title}, {ex.Message}");
+            }
+            finally
+            {
+                IsBusy = false;
+                _sweepLock.Release();
             }
         }
 
@@ -609,7 +633,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                     Log($"电阻回读异常: {ex.Message}");
                 }
 
-                item.UpdateResistance(r, "--", measured: true);
+                var resistanceResult = IsResistanceInRange(item, r) ? "PASS" : "FAIL";
+                item.UpdateResistance(r, resistanceResult, measured: true);
 
                 Log($"电阻回读: {(r == null ? "--" : r.Value.ToString("0.###", CultureInfo.InvariantCulture))}Ω");
 
@@ -625,65 +650,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             {
                 IsBusy = false;
                 _resistorLock.Release();
-            }
-        }
-        private async Task MeasureAsync(OverTempCheckViewModel check, CancellationToken token)
-        {
-            if (check == null) return;
-
-            await _measureLock.WaitAsync(token).ConfigureAwait(false);
-            try
-            {
-                IsBusy = true;
-
-                Log($"开始测量: {check.Pin}({check.PinName})");
-
-                if (string.Equals(check.Pin, "J31", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(check.Pin, "J32", StringComparison.OrdinalIgnoreCase))
-                {
-                    await MeasureFpgaIoAsync(check, token).ConfigureAwait(false);
-                    return;
-                }
-
-                if (!string.IsNullOrWhiteSpace(check.DiChannel))
-                {
-                    await MeasureDIAsync(check, token).ConfigureAwait(false);
-                }
-                else
-                {
-                    var matrixPoint = ResolveMatrixPointForPin(check.Pin);
-                    if (string.IsNullOrWhiteSpace(matrixPoint))
-                    {
-                        check.UpdateMeasurement(null, "--", "--", measured: true);
-                        Log($"未配置引脚矩阵映射: {check.Pin}");
-                        return;
-                    }
-
-                    var matrix = MatrixControlService.Instance;
-                    var ok = await matrix.ConnectNodesAsync("I1", matrixPoint, MatrixSlotSequence, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-                    Log($"矩阵连接 I1-{matrixPoint}(slot{MatrixSlotSequence}) {(ok ? "OK" : "FAIL")}");
-                    if (!ok)
-                    {
-                        check.UpdateMeasurement(null, "--", "FAIL", measured: true);
-                        return;
-                    }
-
-                    var reading = await SafeReadVoltageAsync(token).ConfigureAwait(false);
-                    ApplyReading(check, reading);
-
-                    try
-                    {
-                        _ = await matrix.DisconnectNodesAsync("I1", matrixPoint, MatrixSlotSequence, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                    }
-                }
-            }
-            finally
-            {
-                IsBusy = false;
-                _measureLock.Release();
             }
         }
 
@@ -814,11 +780,219 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             foreach (var item in Items)
             {
                 item.UpdateResistance(null, "--", measured: false);
+                item.UpdateFirstOverTempTemperature(null);
                 foreach (var check in item.Checks)
                 {
                     check.UpdateMeasurement(null, "---", "--", measured: false);
                 }
             }
+        }
+
+        private static string FormatTemp(int deciC)
+        {
+            return (deciC / 10.0).ToString("0.0", CultureInfo.InvariantCulture);
+        }
+
+        private static string FormatOhm(double ohm)
+        {
+            return Math.Round(ohm, 2, MidpointRounding.AwayFromZero).ToString("0.##", CultureInfo.InvariantCulture);
+        }
+
+        private static double PtResistanceOhm(double r0Ohm, double tempC)
+        {
+            if (tempC >= 0)
+                return r0Ohm * (1.0 + PtA * tempC + PtB * tempC * tempC);
+
+            return r0Ohm * (1.0 + PtA * tempC + PtB * tempC * tempC + PtC * (tempC - 100.0) * tempC * tempC * tempC);
+        }
+
+        private async Task<bool?> ReadAwarnAsync(string pin, CancellationToken token)
+        {
+            var bitIndex = MapPinToIo43To64BitIndex(pin);
+            if (bitIndex == null)
+                return null;
+
+            await EnsureFpgaTcpConnectedAsync(token).ConfigureAwait(false);
+            await SendFpgaFrameAsync(0x0A, new byte[] { 0x00 }, token).ConfigureAwait(false);
+            var gpio = await ReadFpgaGpioInputOnceAsync(2000, token, acceptCmd: 0x0A).ConfigureAwait(false);
+            return GetIo43To64Bit(gpio, bitIndex.Value);
+        }
+
+        private static List<int> BuildSweepTemps(int minDeciC, int maxDeciC, int stepDeciC)
+        {
+            if (stepDeciC <= 0) throw new ArgumentOutOfRangeException(nameof(stepDeciC));
+
+            var list = new List<int>();
+            for (int t = minDeciC; t <= maxDeciC; t += stepDeciC)
+                list.Add(t);
+            if (list.Count == 0 || list[list.Count - 1] != maxDeciC)
+                list.Add(maxDeciC);
+            return list;
+        }
+
+        private async Task ExecuteOverTempSweepAndMeasureAsync(OverTempItemViewModel item, CancellationToken token)
+        {
+            if (item == null) return;
+
+            var awarnCheck = item.Checks.FirstOrDefault();
+            var minDeciC = item.MinTempDeciC;
+            var maxDeciC = item.MaxTempDeciC;
+            var stepDeciC = item.StepTempDeciC;
+
+            var belowDeciC = minDeciC - stepDeciC;
+            var aboveDeciC = maxDeciC + stepDeciC;
+            var inRangeTemps = BuildSweepTemps(minDeciC, maxDeciC, stepDeciC);
+
+            bool pass = true;
+            int? firstOverTempDeciC = null;
+
+            try
+            {
+                await EnsureResistorAsync(token).ConfigureAwait(false);
+                await EnsureFpgaTcpConnectedAsync(token).ConfigureAwait(false);
+
+                Log($"[{item.Title}] 扫描范围: {FormatTemp(minDeciC)}~{FormatTemp(maxDeciC)}℃, 步长={stepDeciC / 10.0:0.0}℃");
+
+                pass &= await StepAndCheckAwarnAsync(item, awarnCheck, belowDeciC, expectedHigh: false, token).ConfigureAwait(false);
+
+                foreach (var t in inRangeTemps)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var isHigh = await StepAndReadAwarnOnlyAsync(item, awarnCheck, t, token).ConfigureAwait(false);
+                    if (isHigh == true)
+                    {
+                        var diAllPass = await MeasureAllDiAsync(item, token).ConfigureAwait(false);
+                        if (diAllPass && firstOverTempDeciC == null)
+                        {
+                            firstOverTempDeciC = t;
+                            item.UpdateFirstOverTempTemperature(t / 10.0);
+                            Log($"[{item.Title}] 首次超温触发: {FormatTemp(t)}℃");
+                        }
+                    }
+                }
+
+                if (firstOverTempDeciC == null)
+                {
+                    pass = false;
+                    item.UpdateFirstOverTempTemperature(null);
+                    Log($"[{item.Title}] 在区间内未触发超温: {FormatTemp(minDeciC)}~{FormatTemp(maxDeciC)}℃");
+                }
+
+                pass &= await StepAndCheckAwarnAsync(item, awarnCheck, aboveDeciC, expectedHigh: true, token).ConfigureAwait(false);
+                if (pass)
+                {
+                    var isHighAtAbove = await ReadAwarnAsync(awarnCheck?.Pin, token).ConfigureAwait(false);
+                    if (isHighAtAbove == true)
+                    {
+                        var diAllPassAtAbove = await MeasureAllDiAsync(item, token).ConfigureAwait(false);
+                        if (!diAllPassAtAbove)
+                        {
+                            pass = false;
+                            Log($"[{item.Title}] DI判定FAIL: {FormatTemp(aboveDeciC)}℃ 期望开路");
+                        }
+                    }
+                }
+
+                if (firstOverTempDeciC == null)
+                {
+                    foreach (var check in item.Checks.Skip(1))
+                    {
+                        check.UpdateMeasurement(null, "--", "FAIL", measured: true);
+                    }
+                }
+
+                if (awarnCheck != null)
+                    awarnCheck.UpdateMeasurement(null, awarnCheck.VoltageText, pass ? "PASS" : "FAIL", measured: true);
+
+                EvaluateOverall();
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                pass = false;
+                if (awarnCheck != null)
+                    awarnCheck.UpdateMeasurement(null, "异常", "FAIL", measured: true);
+                Log($"[{item.Title}] 扫描异常: {ex.Message}");
+            }
+            finally
+            {
+                try { await DisconnectFpgaTcpAsync().ConfigureAwait(false); } catch { }
+                if (awarnCheck != null && !awarnCheck.IsMeasured)
+                    awarnCheck.UpdateMeasurement(null, awarnCheck.VoltageText, pass ? "PASS" : "FAIL", measured: true);
+            }
+        }
+
+        private async Task StepResistanceOnlyAsync(OverTempItemViewModel item, int tempDeciC, CancellationToken token)
+        {
+            var tempC = tempDeciC / 10.0;
+            var r = PtResistanceOhm(item.R0Ohm, tempC);
+            var apiChannel = MapRoChannelTo7012Api(item.RoChannel);
+
+            await _resistorLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                var prevBusy = IsBusy;
+                IsBusy = true;
+                await EnsureResistorAsync(token).ConfigureAwait(false);
+                await _resistor.SetRelayStateAsync(apiChannel, pathRelayClosed: true, shortCircuitClosed: false, token).ConfigureAwait(false);
+                await _resistor.SetResistanceAsync(apiChannel, r, Pxi7012OutputMode.NoWait, token).ConfigureAwait(false);
+                item.UpdateResistance(r, "--", measured: true);
+                Log($"[{item.Title}] 输出电阻: T={FormatTemp(tempDeciC)}℃ => R={FormatOhm(r)}Ω");
+
+                IsBusy = prevBusy;
+            }
+            finally
+            {
+                _resistorLock.Release();
+            }
+        }
+
+        private async Task<bool?> StepAndReadAwarnOnlyAsync(OverTempItemViewModel item, OverTempCheckViewModel awarnCheck, int tempDeciC, CancellationToken token)
+        {
+            await StepResistanceOnlyAsync(item, tempDeciC, token).ConfigureAwait(false);
+            await Task.Delay(200, token).ConfigureAwait(false);
+
+            var isHigh = await ReadAwarnAsync(awarnCheck?.Pin, token).ConfigureAwait(false);
+            var text = isHigh == true ? "高电平" : (isHigh == false ? "低电平" : "--");
+            Log($"[{item.Title}] AWARN={text} @ {FormatTemp(tempDeciC)}℃");
+
+            if (awarnCheck != null)
+                awarnCheck.UpdateMeasurement(isHigh == true ? 1.0 : 0.0, text, "--", measured: true);
+
+            return isHigh;
+        }
+
+        private async Task<bool> MeasureAllDiAsync(OverTempItemViewModel item, CancellationToken token)
+        {
+            foreach (var check in item.Checks.Skip(1))
+            {
+                token.ThrowIfCancellationRequested();
+                await MeasureDIAsync(check, token).ConfigureAwait(false);
+                await Task.Delay(50, token).ConfigureAwait(false);
+            }
+
+            return item.Checks.Skip(1).All(c => string.Equals(c.Result, "PASS", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private async Task<bool> StepAndCheckAwarnAsync(OverTempItemViewModel item, OverTempCheckViewModel awarnCheck, int tempDeciC, bool expectedHigh, CancellationToken token)
+        {
+            var isHigh = await StepAndReadAwarnOnlyAsync(item, awarnCheck, tempDeciC, token).ConfigureAwait(false);
+            if (isHigh == null)
+            {
+                Log($"[{item.Title}] AWARN读取失败: {FormatTemp(tempDeciC)}℃");
+                return false;
+            }
+
+            var ok = isHigh.Value == expectedHigh;
+            if (!ok)
+            {
+                var expText = expectedHigh ? "高电平" : "低电平";
+                Log($"[{item.Title}] AWARN判定FAIL: {FormatTemp(tempDeciC)}℃ 期望{expText}");
+            }
+            return ok;
         }
 
         private void EvaluateOverall()
@@ -885,10 +1059,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             foreach (var item in Items)
             {
                 item.ApplyResistanceCommand?.RaiseCanExecuteChanged();
-                foreach (var check in item.Checks)
-                {
-                    check.MeasureCommand?.RaiseCanExecuteChanged();
-                }
+                item.SweepCommand?.RaiseCanExecuteChanged();
             }
         }
 
@@ -1080,23 +1251,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         public void Dispose()
         {
-            try { _cts?.Cancel(); } catch { }
-            _cts?.Dispose();
-            _cts = null;
-
-            try { DisconnectFpgaTcpAsync().GetAwaiter().GetResult(); } catch { }
-
-            try { CleanupPowerAsync().GetAwaiter().GetResult(); } catch { }
-            try { CleanupResistorAsync().GetAwaiter().GetResult(); } catch { }
+            try { StopTestAsync().GetAwaiter().GetResult(); } catch { }
             try { CleanupDIDriverAsync().GetAwaiter().GetResult(); } catch { }
 
+            try { _cts?.Cancel(); } catch { }
+            try { _cts?.Dispose(); } catch { }
+            _cts = null;
+
             try { _fpgaSendLock?.Dispose(); } catch { }
-            try { _measureLock?.Dispose(); } catch { }
             try { _resistorLock?.Dispose(); } catch { }
             try { _diLock?.Dispose(); } catch { }
+            try { _sweepLock?.Dispose(); } catch { }
         }
-
-        private static readonly byte[] FpgaFrameHeader = { 0xAA, 0x55 };
 
         private static string FpgaTs()
         {
@@ -1284,6 +1450,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             private string _measuredResistanceText = "---";
             private string _resistanceResult = "--";
             private bool _isResistanceMeasured;
+            private string _firstOverTempTemperatureText = "--";
 
             internal OverTempItemViewModel(
                 OverTemperatureCutoffTestViewModel owner,
@@ -1291,7 +1458,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 string resistanceLabel,
                 double targetResistanceOhm,
                 double resistanceToleranceOhm,
-                string roChannel)
+                string roChannel,
+                double r0Ohm,
+                int minTempDeciC,
+                int maxTempDeciC,
+                int stepTempDeciC)
             {
                 _owner = owner;
                 Title = title;
@@ -1299,8 +1470,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 TargetResistanceOhm = targetResistanceOhm;
                 ResistanceToleranceOhm = resistanceToleranceOhm;
                 RoChannel = roChannel;
+                R0Ohm = r0Ohm;
+                MinTempDeciC = minTempDeciC;
+                MaxTempDeciC = maxTempDeciC;
+                StepTempDeciC = stepTempDeciC;
 
                 ApplyResistanceCommand = new DelegateCommand(async () => await _owner.ApplyResistanceAsync(this), () => _owner.CanApplyResistance(this));
+                SweepCommand = new DelegateCommand(async () => await _owner.SweepItemAsync(this), () => _owner.CanSweepItem(this));
             }
 
             public string Title { get; }
@@ -1312,6 +1488,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             public double ResistanceToleranceOhm { get; }
 
             public string RoChannel { get; set; }
+
+            public double R0Ohm { get; }
+
+            public int MinTempDeciC { get; }
+
+            public int MaxTempDeciC { get; }
+
+            public int StepTempDeciC { get; }
 
             public ObservableCollection<OverTempCheckViewModel> Checks { get; } = new ObservableCollection<OverTempCheckViewModel>();
 
@@ -1333,11 +1517,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 private set => SetProperty(ref _isResistanceMeasured, value);
             }
 
+            public string FirstOverTempTemperatureText
+            {
+                get => _firstOverTempTemperatureText;
+                private set => SetProperty(ref _firstOverTempTemperatureText, value);
+            }
+
             public bool IsMeasured => IsResistanceMeasured && Checks.All(c => c.IsMeasured);
 
             public bool IsPass => Checks.All(c => string.Equals(c.Result, "PASS", StringComparison.OrdinalIgnoreCase));
 
             public DelegateCommand ApplyResistanceCommand { get; }
+
+            public DelegateCommand SweepCommand { get; }
 
             internal void UpdateResistance(double? valueOhm, string result, bool measured)
             {
@@ -1345,8 +1537,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                     ? "---"
                     : valueOhm.Value.ToString("0.###", CultureInfo.InvariantCulture);
 
-                ResistanceResult = "--";
+                ResistanceResult = result;
                 IsResistanceMeasured = measured;
+            }
+
+            internal void UpdateFirstOverTempTemperature(double? tempC)
+            {
+                FirstOverTempTemperatureText = tempC == null
+                    ? "--"
+                    : tempC.Value.ToString("0.0", CultureInfo.InvariantCulture);
             }
         }
 
@@ -1368,8 +1567,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 Expected = expected;
                 Evaluation = evaluation;
                 DiChannel = diChannel;
-
-                MeasureCommand = new DelegateCommand(async () => await _owner.MeasureAsync(this), () => _owner.CanMeasureCheck(this));
             }
 
             public string Pin { get; }
@@ -1399,8 +1596,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 get => _isMeasured;
                 private set => SetProperty(ref _isMeasured, value);
             }
-
-            public DelegateCommand MeasureCommand { get; }
 
             internal void UpdateMeasurement(double? valueVolt, string valueText, string result, bool measured)
             {

@@ -1859,19 +1859,21 @@ namespace MeasureControl.Views.Common
                 if (vm5 != null)
                 {
                     // 温度传感器测试：4个传感器（PT500A, PT500B, PT1000A, PT1000B），每个测试4个点位
-                    // 由于ViewModel只保存最后一次测量值，我们将4个传感器的值重复4次填入16行
                     // 报表格式：点位1的4个传感器 + 点位2的4个传感器 + 点位3的4个传感器 + 点位4的4个传感器
+                    // 传感器顺序：PT500A, PT500B, PT1000A, PT1000B
+                    var sensorNames = new[] { "PT500A", "PT500B", "PT1000A", "PT1000B" };
                     var tempValues = new List<string>();
                     var tempResults = new List<string>();
                     
-                    // 重复4次（对应4个点位）
-                    for (int point = 0; point < 4; point++)
+                    // 遍历4个点位（点位索引1-4）
+                    for (int pointIndex = 1; pointIndex <= 4; pointIndex++)
                     {
                         // 每个点位添加4个传感器的数据
-                        foreach (var sensor in vm5.SensorItems)
+                        foreach (var sensorName in sensorNames)
                         {
-                            tempValues.Add(sensor.MeasuredTemperatureText ?? "--");
-                            tempResults.Add(sensor.TemperatureResultText ?? "--");
+                            var (measuredTemp, result) = vm5.GetPointTestResult(pointIndex, sensorName);
+                            tempValues.Add(measuredTemp);
+                            tempResults.Add(result);
                         }
                     }
                     
