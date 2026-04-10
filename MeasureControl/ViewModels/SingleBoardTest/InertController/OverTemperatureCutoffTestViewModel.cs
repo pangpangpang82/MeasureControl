@@ -30,6 +30,46 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private const double PtB = -5.775e-7;
         private const double PtC = -4.183e-12;
 
+        // PT500A 温度-阻值对照表 (温度单位: 0.1℃, 阻值单位: Ω)
+        // 温度范围: 110.0℃ ~ 113.9℃, 步长0.3℃
+        private static readonly Dictionary<int, double> Pt500ResistanceTable = new Dictionary<int, double>
+        {
+            { 1100, 711.46 },  // 110.0℃
+            { 1103, 712.30 },  // 110.3℃
+            { 1106, 712.60 },  // 110.6℃
+            { 1109, 713.16 },  // 110.9℃
+            { 1112, 713.73 },  // 111.2℃
+            { 1115, 714.30 },  // 111.5℃
+            { 1118, 714.86 },  // 111.8℃
+            { 1121, 715.43 },  // 112.1℃
+            { 1124, 715.99 },  // 112.4℃
+            { 1127, 716.57 },  // 112.7℃
+            { 1130, 717.13 },  // 113.0℃
+            { 1133, 717.70 },  // 113.3℃
+            { 1136, 718.27 },  // 113.6℃
+            { 1139, 718.83 },  // 113.9℃
+        };
+
+        // PT1000A 温度-阻值对照表 (温度单位: 0.1℃, 阻值单位: Ω)
+        // 温度范围: 105.0℃ ~ 108.9℃, 步长0.3℃
+        private static readonly Dictionary<int, double> Pt1000ResistanceTable = new Dictionary<int, double>
+        {
+            { 1050, 1404.00 },  // 105.0℃
+            { 1053, 1405.14 },  // 105.3℃
+            { 1056, 1406.28 },  // 105.6℃
+            { 1059, 1407.41 },  // 105.9℃
+            { 1062, 1408.55 },  // 106.2℃
+            { 1065, 1409.68 },  // 106.5℃
+            { 1068, 1410.82 },  // 106.8℃
+            { 1071, 1411.96 },  // 107.1℃
+            { 1074, 1413.09 },  // 107.4℃
+            { 1077, 1414.22 },  // 107.7℃
+            { 1080, 1415.36 },  // 108.0℃
+            { 1083, 1416.50 },  // 108.3℃
+            { 1086, 1417.63 },  // 108.6℃
+            { 1089, 1418.76 },  // 108.9℃
+        };
+
         private const string FpgaServerIpAddress = "192.168.1.10";
         private const int FpgaServerPort = 5001;
 
@@ -252,20 +292,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private OverTempItemViewModel CreatePt500aItem()
         {
             const double r0 = 500.0;
-            const int minTempDeciC = 1100;
-            const int maxTempDeciC = 1138;
-            const int stepDeciC = 5;
+            const int minTempDeciC = 1100;  // 110.0℃
+            const int maxTempDeciC = 1139;  // 113.9℃
+            const int stepDeciC = 3;        // 0.3℃ 步长
 
             var item = new OverTempItemViewModel(this,
-                title: "PT500A 超温切断(110~113.8℃)",
-                resistanceLabel: $"{FormatTemp(minTempDeciC)}~{FormatTemp(maxTempDeciC)}℃ ({FormatOhm(PtResistanceOhm(r0, minTempDeciC / 10.0))}~{FormatOhm(PtResistanceOhm(r0, maxTempDeciC / 10.0))})Ω",
-                targetResistanceOhm: PtResistanceOhm(r0, maxTempDeciC / 10.0),
+                title: "PT500A 超温切断(110~113.9℃)",
+                resistanceLabel: $"{FormatTemp(minTempDeciC)}~{FormatTemp(maxTempDeciC)}℃ ({FormatOhm(GetPt500Resistance(minTempDeciC))}~{FormatOhm(GetPt500Resistance(maxTempDeciC))})Ω",
+                targetResistanceOhm: GetPt500Resistance(maxTempDeciC),
                 resistanceToleranceOhm: 3.5,
                 roChannel: "RO0",
                 r0Ohm: r0,
                 minTempDeciC: minTempDeciC,
                 maxTempDeciC: maxTempDeciC,
-                stepTempDeciC: stepDeciC);
+                stepTempDeciC: stepDeciC,
+                resistanceTableType: ResistanceTableType.PT500);
 
             item.Checks.Add(new OverTempCheckViewModel(this, item,
                 pin: "J31",
@@ -293,20 +334,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private OverTempItemViewModel CreatePt1000aItem()
         {
             const double r0 = 1000.0;
-            const int minTempDeciC = 1050;
-            const int maxTempDeciC = 1088;
-            const int stepDeciC = 5;
+            const int minTempDeciC = 1050;  // 105.0℃
+            const int maxTempDeciC = 1089;  // 108.9℃
+            const int stepDeciC = 3;        // 0.3℃ 步长
 
             var item = new OverTempItemViewModel(this,
-                title: "PT1000A 超温切断(105~108.8℃)",
-                resistanceLabel: $"{FormatTemp(minTempDeciC)}~{FormatTemp(maxTempDeciC)}℃ ({FormatOhm(PtResistanceOhm(r0, minTempDeciC / 10.0))}~{FormatOhm(PtResistanceOhm(r0, maxTempDeciC / 10.0))})Ω",
-                targetResistanceOhm: PtResistanceOhm(r0, maxTempDeciC / 10.0),
+                title: "PT1000A 超温切断(105~108.9℃)",
+                resistanceLabel: $"{FormatTemp(minTempDeciC)}~{FormatTemp(maxTempDeciC)}℃ ({FormatOhm(GetPt1000Resistance(minTempDeciC))}~{FormatOhm(GetPt1000Resistance(maxTempDeciC))})Ω",
+                targetResistanceOhm: GetPt1000Resistance(maxTempDeciC),
                 resistanceToleranceOhm: 7.1,
                 roChannel: "RO1",
                 r0Ohm: r0,
                 minTempDeciC: minTempDeciC,
                 maxTempDeciC: maxTempDeciC,
-                stepTempDeciC: stepDeciC);
+                stepTempDeciC: stepDeciC,
+                resistanceTableType: ResistanceTableType.PT1000);
 
             item.Checks.Add(new OverTempCheckViewModel(this, item,
                 pin: "J32",
@@ -389,12 +431,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         {
             if (IsAutoTestRunning)
             {
+                Log("自动测试已在运行中，停止当前测试");
                 await StopTestAsync().ConfigureAwait(false);
                 return;
             }
 
             // 检查是否已总上电
             var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            Log($"总上电状态: HPS={(_hps == null ? "null" : (_hps.IsHydraulicPowered ? "Powered" : "NotPowered"))}");
             if (_hps == null || !_hps.IsHydraulicPowered)
             {
                 MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -410,6 +454,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             if (IsManualTestRunning)
             {
+                Log("手动测试正在运行，先停止手动测试");
                 await StopTestAsync().ConfigureAwait(false);
             }
 
@@ -426,7 +471,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             IsAutoTestRunning = true;
             IsManualTestRunning = false;
 
-            Log("开始自动测试");
+            Log("========== 开始自动测试 ==========");
 
             try
             {
@@ -434,33 +479,45 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 await EnsurePowerAsync(28.0, _cts.Token).ConfigureAwait(false);
                 IsPowerOn = true;
                 PowerStatus = "已供电";
+                Log("供电完成");
 
+                Log($"共有 {Items.Count} 个测试项需要执行");
+                var itemIndex = 0;
                 foreach (var item in Items)
                 {
+                    itemIndex++;
                     if (_cts.IsCancellationRequested)
+                    {
+                        Log("测试被取消");
                         return;
+                    }
 
+                    Log($"---------- 开始测试项 {itemIndex}/{Items.Count}: {item.Title} ----------");
                     await ExecuteOverTempSweepAndMeasureAsync(item, _cts.Token).ConfigureAwait(false);
+                    Log($"---------- 测试项 {itemIndex}/{Items.Count} 完成 ----------");
                 }
 
                 EvaluateOverall();
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-                Log($"自动测试完成，总体结果: {OverallResult}");
+                Log($"========== 自动测试完成，总体结果: {OverallResult} ==========");
 
                 await StopTestAsync().ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
+                Log("自动测试被取消");
                 await StopTestAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                Log($"自动测试失败: {ex.Message}");
+                Log($"自动测试失败: {ex.GetType().Name}: {ex.Message}");
+                Log($"堆栈: {ex.StackTrace}");
                 await StopTestAsync().ConfigureAwait(false);
             }
             finally
             {
                 _lastAutoTestEndTime = DateTime.Now;
+                Log("自动测试流程结束");
             }
         }
 
@@ -806,6 +863,41 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             return r0Ohm * (1.0 + PtA * tempC + PtB * tempC * tempC + PtC * (tempC - 100.0) * tempC * tempC * tempC);
         }
 
+        private static double GetPt500Resistance(int tempDeciC)
+        {
+            if (Pt500ResistanceTable.TryGetValue(tempDeciC, out var r))
+                return r;
+            // 如果不在表中，使用公式计算作为后备
+            return PtResistanceOhm(500.0, tempDeciC / 10.0);
+        }
+
+        private static double GetPt1000Resistance(int tempDeciC)
+        {
+            if (Pt1000ResistanceTable.TryGetValue(tempDeciC, out var r))
+                return r;
+            // 如果不在表中，使用公式计算作为后备
+            return PtResistanceOhm(1000.0, tempDeciC / 10.0);
+        }
+
+        private static double GetResistanceByTable(ResistanceTableType tableType, int tempDeciC)
+        {
+            switch (tableType)
+            {
+                case ResistanceTableType.PT500:
+                    return GetPt500Resistance(tempDeciC);
+                case ResistanceTableType.PT1000:
+                    return GetPt1000Resistance(tempDeciC);
+                default:
+                    return PtResistanceOhm(500.0, tempDeciC / 10.0);
+            }
+        }
+
+        public enum ResistanceTableType
+        {
+            PT500,
+            PT1000
+        }
+
         private async Task<bool?> ReadAwarnAsync(string pin, CancellationToken token)
         {
             var bitIndex = MapPinToIo43To64BitIndex(pin);
@@ -915,7 +1007,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 pass = false;
                 if (awarnCheck != null)
                     awarnCheck.UpdateMeasurement(null, "异常", "FAIL", measured: true);
-                Log($"[{item.Title}] 扫描异常: {ex.Message}");
+                Log($"[{item.Title}] 扫描异常: {ex.GetType().Name}: {ex.Message}");
+                Log($"[{item.Title}] 异常堆栈: {ex.StackTrace}");
             }
             finally
             {
@@ -927,8 +1020,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task StepResistanceOnlyAsync(OverTempItemViewModel item, int tempDeciC, CancellationToken token)
         {
-            var tempC = tempDeciC / 10.0;
-            var r = PtResistanceOhm(item.R0Ohm, tempC);
+            var r = GetResistanceByTable(item.ResistanceTableType, tempDeciC);
             var apiChannel = MapRoChannelTo7012Api(item.RoChannel);
 
             await _resistorLock.WaitAsync(token).ConfigureAwait(false);
@@ -1014,6 +1106,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
         private async Task StopTestAsync()
         {
+            try
+            {
+                var stack = new System.Diagnostics.StackTrace(1, true).ToString();
+                Log($"StopTestAsync触发: IsManualTestRunning={IsManualTestRunning}, IsAutoTestRunning={IsAutoTestRunning}, IsBusy={IsBusy}, IsPowerOn={IsPowerOn}");
+                Log($"StopTestAsync堆栈: {stack}");
+            }
+            catch
+            {
+            }
             try { _cts?.Cancel(); } catch { }
 
             IsManualTestRunning = false;
@@ -1462,7 +1563,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 double r0Ohm,
                 int minTempDeciC,
                 int maxTempDeciC,
-                int stepTempDeciC)
+                int stepTempDeciC,
+                ResistanceTableType resistanceTableType = ResistanceTableType.PT500)
             {
                 _owner = owner;
                 Title = title;
@@ -1474,6 +1576,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 MinTempDeciC = minTempDeciC;
                 MaxTempDeciC = maxTempDeciC;
                 StepTempDeciC = stepTempDeciC;
+                ResistanceTableType = resistanceTableType;
 
                 ApplyResistanceCommand = new DelegateCommand(async () => await _owner.ApplyResistanceAsync(this), () => _owner.CanApplyResistance(this));
                 SweepCommand = new DelegateCommand(async () => await _owner.SweepItemAsync(this), () => _owner.CanSweepItem(this));
@@ -1496,6 +1599,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             public int MaxTempDeciC { get; }
 
             public int StepTempDeciC { get; }
+
+            public ResistanceTableType ResistanceTableType { get; }
 
             public ObservableCollection<OverTempCheckViewModel> Checks { get; } = new ObservableCollection<OverTempCheckViewModel>();
 

@@ -1199,8 +1199,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!_dmm.IsConnected)
             {
                 await _dmm.ConnectAsync(DmmIpAddress, cancellationToken).ConfigureAwait(false);
-                await ConfigureDmmAsync(cancellationToken).ConfigureAwait(false);
             }
+
+            await ConfigureDmmAsync(cancellationToken).ConfigureAwait(false);
         }
 
         private async Task ConfigureDmmAsync(CancellationToken cancellationToken)
@@ -1208,6 +1209,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (_dmm == null)
                 return;
 
+            await _dmm.SendAsync("*CLS", cancellationToken).ConfigureAwait(false);
             await _dmm.SendAsync(DmmTriggerDelayCommand, cancellationToken).ConfigureAwait(false);
         }
 
