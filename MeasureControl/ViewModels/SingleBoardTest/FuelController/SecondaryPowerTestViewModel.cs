@@ -78,7 +78,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const double VoltageUpperLimit = 5.5;
         
         /// <summary>硬件初始化默认超时时间（毫秒）</summary>
-        private const int DefaultTimeoutMs = 3000;
+        private const int DefaultTimeoutMs = 15000;
         
         /// <summary>万用表测量超时时间（毫秒）</summary>
         private const int DmmTimeoutMs = 2000;
