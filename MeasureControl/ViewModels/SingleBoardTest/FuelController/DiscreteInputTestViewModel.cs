@@ -820,6 +820,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
         private async Task InitializeHardwareAsync(CancellationToken token)
         {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            timeoutCts.CancelAfter(HardwareTimeoutMs);
+            token = timeoutCts.Token;
+
             AddLog("检测组件供电状态...");
             if (!EnsureFuelBoardPowered())
                 throw new InvalidOperationException("请先给加放油单板上电后再进行测试。");
@@ -972,18 +976,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             AddLog("正在复位硬件...");
 
             // 关闭 485 继电器前 4 路
-            AddLog("正在关闭 485 继电器前 4 路...");
-            try
+            if (_jy7131Api != null && _jy7131Api.IsConnected)
             {
-                await _jy7131Api.SetRelayAsync(0, false, token);
-                await _jy7131Api.SetRelayAsync(1, false, token);
-                await _jy7131Api.SetRelayAsync(2, false, token);
-                await _jy7131Api.SetRelayAsync(3, false, token);
-                AddLog("485 继电器前 4 路已关闭");
-            }
-            catch (Exception ex)
-            {
-                AddLog($"485 继电器操作失败: {ex.Message}");
+                AddLog("正在关闭 485 继电器前 4 路...");
+                try
+                {
+                    await _jy7131Api.SetRelayAsync(0, false, token);
+                    await _jy7131Api.SetRelayAsync(1, false, token);
+                    await _jy7131Api.SetRelayAsync(2, false, token);
+                    await _jy7131Api.SetRelayAsync(3, false, token);
+                    AddLog("485 继电器前 4 路已关闭");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"485 继电器操作失败: {ex.Message}");
+                }
             }
 
             // 断开7131

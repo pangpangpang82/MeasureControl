@@ -176,7 +176,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         /// <summary>硬件初始化默认超时时间（毫秒）</summary>
 
-        private const int DefaultTimeoutMs = 3000;
+        private const int DefaultTimeoutMs = 15000;
 
         
 
