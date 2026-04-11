@@ -1584,7 +1584,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 // 等待电压稳定
 
-                await Task.Delay(200, token);
+                await Task.Delay(400, token);
 
 
 
