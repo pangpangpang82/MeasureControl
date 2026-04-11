@@ -314,6 +314,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// <summary>手动测试是否已检测到电平翻转（或已到最低电压）</summary>
         private bool _flipDetected;
         private string _stepDownButtonText = "降到17V";
+        private bool _isManualTestInitializing;
+        private bool _isAutoTestInitializing;
+        private bool _isManualTestStopping;
+        private bool _isAutoTestStopping;
 
 
 
@@ -391,9 +395,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             // 初始化命令
 
-            ManualTestCommand = new DelegateCommand(OnManualTest);
+            ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
 
-            AutoTestCommand = new DelegateCommand(OnAutoTest);
+            AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
 
             StepDownCommand = new DelegateCommand(async () => await StepDownVoltageAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized && !_flipDetected);
 
@@ -441,6 +445,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 {
 
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
                     UpdateCommandStates();
 
                 }
@@ -465,6 +471,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 {
 
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
                     UpdateCommandStates();
 
                 }
@@ -643,6 +651,68 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             set => SetProperty(ref _stepDownButtonText, value);
         }
 
+        public bool IsManualTestBusy => IsManualTestInitializing || IsManualTestStopping;
+        public bool IsAutoTestBusy => IsAutoTestInitializing || IsAutoTestStopping;
+
+        public bool IsManualTestInitializing
+        {
+            get => _isManualTestInitializing;
+            private set
+            {
+                if (SetProperty(ref _isManualTestInitializing, value))
+                {
+                    RaisePropertyChanged(nameof(IsManualTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsAutoTestInitializing
+        {
+            get => _isAutoTestInitializing;
+            private set
+            {
+                if (SetProperty(ref _isAutoTestInitializing, value))
+                {
+                    RaisePropertyChanged(nameof(IsAutoTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsManualTestStopping
+        {
+            get => _isManualTestStopping;
+            private set
+            {
+                if (SetProperty(ref _isManualTestStopping, value))
+                {
+                    RaisePropertyChanged(nameof(IsManualTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsAutoTestStopping
+        {
+            get => _isAutoTestStopping;
+            private set
+            {
+                if (SetProperty(ref _isAutoTestStopping, value))
+                {
+                    RaisePropertyChanged(nameof(IsAutoTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool CanStartManualTest => !IsManualTestBusy && !IsAutoTestBusy && !IsAutoTestRunning;
+        public bool CanStartAutoTest   => !IsManualTestBusy && !IsAutoTestBusy && !IsManualTestRunning;
+
 
 
         #endregion
@@ -671,285 +741,151 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
 
 
-        private void OnManualTest()
-
+        private async Task OnManualTestAsync()
         {
+            if (IsManualTestStopping) return;
 
-            if (IsManualTestRunning)
-
+            if (IsManualTestRunning || IsManualTestInitializing)
             {
-
-                StopManualTest();
-
+                await StopManualTestAsync().ConfigureAwait(false);
+                return;
             }
 
-            else
+            if (IsAutoTestRunning || IsAutoTestInitializing)
+                await StopAutoTestAsync().ConfigureAwait(false);
 
-            {
-
-                StartManualTest();
-
-            }
-
-        }
-
-
-
-        private void OnAutoTest()
-
-        {
-
-            if (IsAutoTestRunning)
-
-            {
-
-                StopAutoTest();
-
-            }
-
-            else
-
-            {
-
-                StartAutoTest();
-
-            }
-
-        }
-
-
-
-        private void StartManualTest()
-
-        {
-
-            _opCts?.Cancel();
-
-            _opCts = new CancellationTokenSource();
-
-            var token = _opCts.Token;
-
-
-
-            IsManualTestRunning = true;
-
+            IsManualTestInitializing = true;
             ClearResults();
 
-            AddLog("手动测试开始");
-
-
-
-            Task.Run(async () =>
-
-            {
-
-                try
-
-                {
-
-                    AddLog("步骤1: 初始化硬件设备...");
-
-                    await InitializeHardwareWithTimeoutAsync(token);
-
-                    if (token.IsCancellationRequested) return;
-
-
-
-                    AddLog("硬件初始化完成，请点击\"降到17V\"按钮开始测试");
-
-                    Application.Current?.Dispatcher?.Invoke(() => UpdateCommandStates());
-                }
-
-                catch (TimeoutException ex)
-
-                {
-
-                    AddLog($"超时: {ex.Message}");
-
-                    Application.Current?.Dispatcher?.Invoke(() =>
-
-                    {
-
-                        ReMessageBox.Show(ex.Message, "超时提示",
-
-                            MessageBoxButton.OK, MessageBoxImage.Warning);
-
-                    });
-
-                    try { await ResetHardwareAsync(CancellationToken.None); } catch { }
-
-                    Application.Current?.Dispatcher?.Invoke(() => IsManualTestRunning = false);
-
-                }
-
-                catch (OperationCanceledException)
-
-                {
-
-                    AddLog("测试已取消");
-
-                }
-
-                catch (Exception ex)
-
-                {
-
-                    AddLog($"错误: {ex.Message}");
-
-                    Application.Current?.Dispatcher?.Invoke(() =>
-
-                    {
-
-                        ReMessageBox.Show($"测试出错: {ex.Message}", "错误",
-
-                            MessageBoxButton.OK, MessageBoxImage.Error);
-
-                    });
-
-                    try { await ResetHardwareAsync(CancellationToken.None); } catch { }
-
-                    Application.Current?.Dispatcher?.Invoke(() => IsManualTestRunning = false);
-
-                }
-
-            });
-
-        }
-
-
-
-        private void StopManualTest()
-
-        {
-
             _opCts?.Cancel();
-
-            AddLog("正在停止手动测试...");
-
-
-
-            Task.Run(async () =>
-
-            {
-
-                try
-
-                {
-
-                    await ResetHardwareAsync(CancellationToken.None);
-
-                }
-
-                catch (Exception ex)
-
-                {
-
-                    AddLog($"停止测试时复位硬件失败: {ex.Message}");
-
-                }
-
-                finally
-
-                {
-
-                    Application.Current?.Dispatcher?.Invoke(() => IsManualTestRunning = false);
-
-                }
-
-            });
-
-        }
-
-
-
-        private async void StartAutoTest()
-
-        {
-
-            _opCts?.Cancel();
-
+            _opCts?.Dispose();
             _opCts = new CancellationTokenSource();
 
-
-
+            AddLog("手动测试开始，正在初始化硬件...");
             try
-
             {
-
-                await ExecuteAutoTestAsync(_opCts.Token);
-
+                await InitializeHardwareWithTimeoutAsync(_opCts.Token).ConfigureAwait(false);
+                IsManualTestInitializing = false;
+                IsManualTestRunning = true;
+                AddLog("硬件初始化完成，请点击\"降到17V\"按鈕开始测试");
             }
-
             catch (OperationCanceledException)
-
             {
-
-                // 已在 ExecuteAutoTestAsync 中处理
-
+                AddLog("手动测试初始化已取消");
+                await AbortManualTestAsync().ConfigureAwait(false);
             }
-
             catch (Exception ex)
-
             {
-
-                AddLog($"自动测试异常: {ex.Message}");
-
+                AddLog($"手动测试初始化失败: {ex.Message}");
+                await AbortManualTestAsync().ConfigureAwait(false);
             }
-
-            finally
-
-            {
-
-                _opCts?.Dispose();
-
-                _opCts = null;
-
-            }
-
         }
-        
 
-
-        private void StopAutoTest()
-
+        private async Task StopManualTestAsync()
         {
+            if (IsManualTestStopping) return;
+
+            IsManualTestStopping = true;
+            IsManualTestInitializing = false;
+            try { _opCts?.Cancel(); } catch { }
+
+            AddLog("手动测试停止，正在断开硬件...");
+            try
+            {
+                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"硬件断开异常: {ex.Message}");
+            }
+            finally
+            {
+                _initialVoltageSet = false;
+                _flipDetected = false;
+                IsManualTestInitializing = false;
+                IsManualTestRunning = false;
+                IsManualTestStopping = false;
+                Application.Current?.Dispatcher?.Invoke(() => StepDownButtonText = "降到17V");
+                RaisePropertyChanged(nameof(CanStartManualTest));
+                RaisePropertyChanged(nameof(CanStartAutoTest));
+                UpdateCommandStates();
+                AddLog("手动测试已结束");
+            }
+        }
+
+        private async Task AbortManualTestAsync()
+        {
+            await StopManualTestAsync().ConfigureAwait(false);
+        }
+
+        private async Task OnAutoTestAsync()
+        {
+            if (IsAutoTestStopping) return;
+
+            if (IsAutoTestRunning || IsAutoTestInitializing)
+            {
+                await StopAutoTestAsync().ConfigureAwait(false);
+                return;
+            }
+
+            if (IsManualTestRunning || IsManualTestInitializing)
+                await StopManualTestAsync().ConfigureAwait(false);
+
+            IsAutoTestInitializing = true;
+            ClearResults();
 
             _opCts?.Cancel();
+            _opCts?.Dispose();
+            _opCts = new CancellationTokenSource();
 
-            AddLog("正在停止自动测试...");
-
-
-
-            Task.Run(async () =>
-
+            try
             {
+                await ExecuteAutoTestAsync(_opCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                AddLog("自动测试已取消");
+                await StopAutoTestAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"自动测试异常: {ex.Message}");
+                await StopAutoTestAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                IsAutoTestInitializing = false;
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
 
-                try
+        private async Task StopAutoTestAsync()
+        {
+            if (IsAutoTestStopping) return;
 
-                {
+            IsAutoTestStopping = true;
+            IsAutoTestInitializing = false;
+            try { _opCts?.Cancel(); } catch { }
 
-                    await ResetHardwareAsync(CancellationToken.None);
-
-                }
-
-                catch (Exception ex)
-
-                {
-
-                    AddLog($"停止测试时复位硬件失败: {ex.Message}");
-
-                }
-
-                finally
-
-                {
-
-                    Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
-
-                }
-
-            });
-
+            AddLog("自动测试停止，正在断开硬件...");
+            try
+            {
+                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"硬件断开异常: {ex.Message}");
+            }
+            finally
+            {
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = false;
+                IsAutoTestStopping = false;
+                RaisePropertyChanged(nameof(CanStartManualTest));
+                RaisePropertyChanged(nameof(CanStartAutoTest));
+                AddLog("自动测试已结束");
+            }
         }
 
 
@@ -958,17 +894,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         {
 
-            if (IsAutoTestRunning || IsManualTestRunning)
-
-            {
-
-                _opCts?.Cancel();
-
-                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
-
-            }
-
-
+            if (IsAutoTestRunning) await StopAutoTestAsync().ConfigureAwait(false);
+            if (IsManualTestRunning) await StopManualTestAsync().ConfigureAwait(false);
 
             _opCts?.Cancel();
 
@@ -976,7 +903,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             _opCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-
+            Application.Current?.Dispatcher?.Invoke(() => { IsAutoTestInitializing = true; ClearResults(); });
 
             try
 
@@ -990,7 +917,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             {
 
-                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
+                await StopAutoTestAsync().ConfigureAwait(false);
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestInitializing = false);
 
                 _opCts?.Dispose();
 
@@ -1006,94 +934,49 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         {
 
-            Application.Current?.Dispatcher?.Invoke(() =>
-
-            {
-
-                IsAutoTestRunning = true;
-
-                ClearResults();
-
-            });
-
             AddLog("自动测试开始");
 
+            AddLog("步骤1: 初始化硬件设备...");
 
+            await InitializeHardwareWithTimeoutAsync(token).ConfigureAwait(false);
 
-            try
-
-            {
-
-                AddLog("步骤1: 初始化硬件设备...");
-
-                await InitializeHardwareWithTimeoutAsync(token).ConfigureAwait(false);
-
-                token.ThrowIfCancellationRequested();
+            token.ThrowIfCancellationRequested();
 
 
 
-                AddLog("步骤2: 设置初始电压（28V）...");
-
-                await SetInitialVoltageAsync(token).ConfigureAwait(false);
-
-                token.ThrowIfCancellationRequested();
+            // 初始化成功，切换到运行状态
+            IsAutoTestInitializing = false;
+            IsAutoTestRunning = true;
 
 
 
-                AddLog("步骤3: 开始梯度降压测试...");
+            AddLog("步骤2: 设置初始电压（17V）...");
 
-                await RunGradientTestAsync(token).ConfigureAwait(false);
+            await SetInitialVoltageAsync(token).ConfigureAwait(false);
 
-                token.ThrowIfCancellationRequested();
-
-
-
-                AddLog("步骤4: 判定测试结果...");
-
-                EvaluateTestResult();
+            token.ThrowIfCancellationRequested();
 
 
 
-                AddLog("步骤5: 复位硬件...");
+            AddLog("步骤3: 开始梯度降压测试...");
 
-                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
-                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
+            await RunGradientTestAsync(token).ConfigureAwait(false);
 
-
-
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-
-                AddLog($"自动测试完成，结果: {OverallResult}");
+            token.ThrowIfCancellationRequested();
 
 
 
-                return OverallResult;
+            AddLog("步骤4: 判定测试结果...");
 
-            }
+            EvaluateTestResult();
 
-            catch (OperationCanceledException)
 
-            {
 
-                AddLog("自动测试已取消");
+            AddLog($"自动测试完成，结果: {OverallResult}");
 
-                try { await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+            await StopAutoTestAsync().ConfigureAwait(false);
 
-                throw;
-
-            }
-
-            catch (Exception ex)
-
-            {
-
-                AddLog($"自动测试异常: {ex.Message}");
-
-                try { await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-
-                return "不合格";
-
-            }
+            return OverallResult ?? "--";
 
         }
 
@@ -1589,7 +1472,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         UpdateCommandStates();
                         EvaluateTestResult();
                         AddLog("翻转电压已记录，测试完成，正在停止测试...");
-                        StopManualTest();
+                        await StopManualTestAsync().ConfigureAwait(false);
                         return;
                     }
 
@@ -1600,7 +1483,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         _flipDetected = true;
                         UpdateCommandStates();
                         EvaluateTestResult();
-                        StopManualTest();
+                        await StopManualTestAsync().ConfigureAwait(false);
                     }
                 }
             }
@@ -1713,8 +1596,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
 
 
-
-            Application.Current?.Dispatcher?.Invoke(() => TestProgress = 100);
 
         }
 
