@@ -95,6 +95,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private readonly IEventAggregator _eventAggregator;                        // 事件聚合器，用于跨模块通信
         private readonly IComponentPowerStateApi _componentPowerStateApi;          // 组件供电状态API（复用）
         private readonly IPxiChassisService _pxiChassisService;                   // 机箱服务，用于查找板卡设备
+        private readonly IHydraulicPowerService _hydraulicPowerService;           // 组件上电服务，用于强制下电
         private IJy7131Api _jy7131Api;                                             // 7131板卡API，控制DO输出（运行时动态创建）
         private readonly IDmmApi _dmmApi;                                          // 万用表API，测量电阻
         private readonly PowerImpedanceSimulation _simulation;                     // 仿真类，硬件不可用时使用
@@ -162,6 +163,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IEventAggregator eventAggregator,
             IComponentPowerStateApi componentPowerStateApi,
             IPxiChassisService pxiChassisService,
+            IHydraulicPowerService hydraulicPowerService = null,
             IDmmApi dmmApi = null)
         {
             // 保存依赖服务引用
@@ -170,6 +172,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             _eventAggregator = eventAggregator;
             _componentPowerStateApi = componentPowerStateApi;
             _pxiChassisService = pxiChassisService;
+            _hydraulicPowerService = hydraulicPowerService;
             _dmmApi = dmmApi;
             _simulation = new PowerImpedanceSimulation();
 
@@ -398,6 +401,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             IsManualTestRunning = true;
             ClearResults();
+            
+            // 重置硬件状态标志，确保每次测试都从干净状态开始
+            _hardwareInitialized = false;
+            _relaySupplyOn = false;
+            
             AddLog("手动测试开始");
 
             // 在后台线程执行，避免阻塞UI
@@ -406,6 +414,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 var token = _opCts.Token;
                 try
                 {
+                    // 步骤0：强制下电 - 电源阻抗测试必须在板子未上电的情况下进行
+                    // 加放油单板电源：192.168.1.15 CH1 (28V)
+                    AddLog("步骤0: 强制关闭加放油单板电源（192.168.1.15 CH1）...");
+                    await ForceComponentPowerOffAsync(token);
+                    if (token.IsCancellationRequested) return;
+
                     // 步骤1：初始化硬件设备
                     AddLog("步骤1: 初始化硬件设备（7131板卡、万用表）...");
                     await InitializeHardwareWithTimeoutAsync(token);
@@ -578,10 +592,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 IsAutoTestRunning = true;
                 ClearResults();
             });
+            
+            // 重置硬件状态标志，确保每次测试都从干净状态开始
+            _hardwareInitialized = false;
+            _relaySupplyOn = false;
+            
             AddLog("自动测试开始");
 
             try
             {
+                // 步骤0：强制下电 - 电源阻抗测试必须在板子未上电的情况下进行
+                // 加放油单板电源：192.168.1.15 CH1 (28V)
+                AddLog("步骤0: 强制关闭加放油单板电源（192.168.1.15 CH1）...");
+                await ForceComponentPowerOffAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+
                 AddLog("步骤1: 初始化硬件设备（7131板卡、万用表）...");
                 await InitializeHardwareWithTimeoutAsync(token).ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
@@ -988,23 +1013,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             try
             {
-                if (_relaySupplyOn)
+                // 【重要】直接操作电源开启 CH2 24V
+                // 不依赖 ComponentPowerStateApi 的内部状态，确保每次都真正执行
+                
+                AddLog("正在开启继电器供电（24V）...");
+                
+                var power = new PowerSupplySocketApi();
+                try
                 {
-                    AddLog("继电器供电已上电，跳过");
-                    return;
-                }
-
-                // 使用IComponentPowerStateApi统一管理继电器供电（24V CH2）
-                if (_componentPowerStateApi != null)
-                {
-                    AddLog("正在开启继电器供电（24V）...");
-                    await _componentPowerStateApi.ApplyRelayPowerAsync(timeoutCts.Token);
+                    await power.ConnectAsync("192.168.1.15", timeoutCts.Token).ConfigureAwait(false);
+                    
+                    // 设置 CH2 为 24V/1A 并开启输出
+                    await power.ApplyAsync(PowerSupplyChannel.CH2, 24.0, 1.0, timeoutCts.Token).ConfigureAwait(false);
+                    await power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, true, timeoutCts.Token).ConfigureAwait(false);
+                    
+                    // 等待电源稳定
+                    await Task.Delay(200, timeoutCts.Token).ConfigureAwait(false);
+                    
                     _relaySupplyOn = true;
                     AddLog("继电器供电已上电: CH2 24V");
                 }
-                else
+                finally
                 {
-                    throw new InvalidOperationException("继电器供电API未就绪，无法执行真实供电");
+                    try { await power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await power.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
@@ -1020,10 +1052,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             try
             {
-                if (_componentPowerStateApi != null)
+                // 直接操作电源关闭 CH2
+                var power = new PowerSupplySocketApi();
+                try
                 {
-                    await _componentPowerStateApi.DisableRelayPowerAsync(token);
+                    await power.ConnectAsync("192.168.1.15", token).ConfigureAwait(false);
+                    await power.SetOutputEnabledAsync(PowerSupplyChannel.CH2, false, token).ConfigureAwait(false);
                     AddLog("继电器供电已关闭");
+                }
+                finally
+                {
+                    try { await power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await power.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
             }
             catch (Exception ex)
@@ -1033,6 +1073,70 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             finally
             {
                 _relaySupplyOn = false;
+            }
+        }
+
+        /// <summary>
+        /// 强制关闭加放油单板电源
+        /// 
+        /// 【电源阻抗测试要求】
+        /// 电源阻抗测试必须在板子未上电的情况下进行测量。
+        /// 点击手动或自动测试时，强制将加放油单板电源（18V、28V、32.2V）下掉。
+        /// 
+        /// 【硬件配置】
+        /// 加放油单板电源：低压电源1 (IT-N6332B) 192.168.1.15
+        ///   - CH1: 组件28V供电（实际输出28V/3A）
+        ///   - CH2: 继电器24V供电（实际输出24V/1A）
+        /// 
+        /// 【操作流程】
+        /// 1. 通过 IComponentPowerStateApi 关闭组件供电（CH1）
+        /// 2. 同步更新 IHydraulicPowerService 状态（UI上的"组件已下电"状态）
+        /// </summary>
+        private async Task ForceComponentPowerOffAsync(CancellationToken token)
+        {
+            try
+            {
+                // 【重要】电源阻抗测试的电源控制策略：
+                // 
+                // 问题背景：
+                // - HydraulicPowerService 和 ComponentPowerStateApi 都操作 192.168.1.15
+                // - 它们各自维护独立的连接和状态，容易不同步
+                // - 左上角"组件上电"按钮使用 HydraulicPowerService
+                // - 阻抗测试使用 ComponentPowerStateApi
+                // 
+                // 解决方案：
+                // 直接操作电源，确保 CH1 关闭，不依赖任何服务的内部状态
+                
+                AddLog("正在关闭组件供电（仅CH1）...");
+                
+                // 直接操作电源，确保 CH1 真正关闭
+                var power = new PowerSupplySocketApi();
+                try
+                {
+                    await power.ConnectAsync("192.168.1.15", token).ConfigureAwait(false);
+                    await power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, token).ConfigureAwait(false);
+                    AddLog("加放油单板电源已关闭（192.168.1.15 CH1）");
+                }
+                finally
+                {
+                    try { await power.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await power.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+                
+                // 同步更新 HydraulicPowerService 状态（仅更新UI状态）
+                _hydraulicPowerService?.SetPoweredState(false);
+
+                // 更新本地状态
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsPowerOn = false;
+                    PowerStatus = "已下电";
+                });
+            }
+            catch (Exception ex)
+            {
+                AddLog($"强制下电异常: {ex.Message}");
+                throw;
             }
         }
 

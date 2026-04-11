@@ -23,6 +23,12 @@ namespace MeasureControl.Services.HardwareApis
 
         Task ApplyComponentDownStateAsync(CancellationToken cancellationToken = default);
         Task ApplyComponent28VStateAsync(CancellationToken cancellationToken = default);
+        
+        /// <summary>
+        /// 仅关闭组件供电（CH1），保留继电器供电（CH2）状态不变
+        /// 用于电源阻抗测试等需要关闭组件电源但保留继电器供电的场景
+        /// </summary>
+        Task DisableComponentPowerOnlyAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// 设置组件供电电压（用于低电压告警测试等需要调节电压的场景）
@@ -98,6 +104,23 @@ namespace MeasureControl.Services.HardwareApis
 
             _currentVoltage = 0;
             _currentState = ComponentPowerState.ComponentDown;
+        }
+
+        public async Task DisableComponentPowerOnlyAsync(CancellationToken cancellationToken = default)
+        {
+            EnsureNotDisposed();
+
+            await EnsurePower1ConnectedAsync(cancellationToken).ConfigureAwait(false);
+
+            // 仅关闭组件供电（CH1），不影响继电器供电（CH2）
+            await _power1.SetOutputEnabledAsync(ComponentChannel, false, cancellationToken).ConfigureAwait(false);
+
+            _currentVoltage = 0;
+            // 更新状态：如果之前是全供电，现在变成仅继电器供电
+            if (_currentState == ComponentPowerState.FullPowerOn)
+                _currentState = ComponentPowerState.RelayPowerOn;
+            else if (_currentState == ComponentPowerState.Component28VOn)
+                _currentState = ComponentPowerState.ComponentDown;
         }
 
         public async Task ApplyComponent28VStateAsync(CancellationToken cancellationToken = default)
