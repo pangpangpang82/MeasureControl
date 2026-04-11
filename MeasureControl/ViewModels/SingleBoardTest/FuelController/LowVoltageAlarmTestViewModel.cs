@@ -1700,6 +1700,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     });
 
                     AddLog($"*** 电平翻转检测到！翻转电压: {voltage:F1}V ***");
+                    break;
 
                 }
 
@@ -2236,6 +2237,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 CurrentPinLevel = false;
                 FlipVoltage = null;
                 TestResult = "--";
+                OverallResult = "--";
+                LastTestTime = "--";
                 TestProgress = 0;
                 StepDownButtonText = "降到17V";
                 TestRecords.Clear();

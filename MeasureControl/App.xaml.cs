@@ -122,15 +122,15 @@ namespace MeasureControl
             containerRegistry.RegisterSingleton<HC_6_7ViewModel>();
             containerRegistry.RegisterSingleton<HC_6_8ViewModel>();
             containerRegistry.RegisterSingleton<HC_6_9ViewModel>();
-            containerRegistry.Register<PowerImpedanceTestViewModel>();
-            containerRegistry.Register<SecondaryPowerTestViewModel>();
-            containerRegistry.Register<LowVoltageAlarmTestViewModel>();
-            containerRegistry.Register<TemperatureAcquisitionTestViewModel>();
-            containerRegistry.Register<DiscreteInputTestViewModel>();
-            containerRegistry.Register<DiscreteOutputTestViewModel>();
-            containerRegistry.Register<RS422CommunicationFunctionTestViewModel>();
-            containerRegistry.Register<RS422SelfCheckTestViewModel>();
-            containerRegistry.Register<PowerToGroundImpedanceTestViewModel>();
+            containerRegistry.RegisterSingleton<PowerImpedanceTestViewModel>();
+            containerRegistry.RegisterSingleton<SecondaryPowerTestViewModel>();
+            containerRegistry.RegisterSingleton<LowVoltageAlarmTestViewModel>();
+            containerRegistry.RegisterSingleton<TemperatureAcquisitionTestViewModel>();
+            containerRegistry.RegisterSingleton<DiscreteInputTestViewModel>();
+            containerRegistry.RegisterSingleton<DiscreteOutputTestViewModel>();
+            containerRegistry.RegisterSingleton<RS422CommunicationFunctionTestViewModel>();
+            containerRegistry.RegisterSingleton<RS422SelfCheckTestViewModel>();
+            containerRegistry.RegisterSingleton<PowerToGroundImpedanceTestViewModel>();
             containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.PowerImpedanceTestViewModel>();
             containerRegistry.Register<MeasureControl.ViewModels.SingleBoardTest.InertController.ControlBoardPowerImpedanceTestViewModel>(provider =>
             {
