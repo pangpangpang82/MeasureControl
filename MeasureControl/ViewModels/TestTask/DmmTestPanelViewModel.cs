@@ -338,7 +338,7 @@ namespace MeasureControl.ViewModels.TestTask
 
                     try
                     {
-                        _dmmSession.TimeoutMilliseconds = 8000;
+                        _dmmSession.TimeoutMilliseconds = 3000;
                         _dmmSession.TerminationCharacterEnabled = true;
                         _dmmSession.TerminationCharacter = (byte)'\n';
                     }
@@ -390,17 +390,13 @@ namespace MeasureControl.ViewModels.TestTask
             {
                 ConnectionStatus = "断开中";
 
-                await StopPollingAsync();
+                // 立即强制关闭session：让轮询线程中阻塞的ReadString()立刻抛出异常并退出循环，
+                // 避免等待VISA超时（3s）才能停止轮询
+                var s = _dmmSession;
+                _dmmSession = null;
+                try { s?.Dispose(); } catch { }
 
-                await Task.Run(async () =>
-                {
-                    // 断开DMM
-                    if (_dmmSession != null)
-                    {
-                        _dmmSession.Dispose();
-                        _dmmSession = null;
-                    }
-                });
+                await StopPollingAsync();
 
                 IsDmmConnected = false;
                 ConnectionStatus = "离线";
@@ -409,13 +405,11 @@ namespace MeasureControl.ViewModels.TestTask
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[DmmTestPanel] 断开连接失败: {ex.Message}");
-                ConnectionStatus = "断开失败";
 
-                // 即使出错，也要更新界面状态
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     IsDmmConnected = false;
-                    ConnectionStatus = "断开失败";
+                    ConnectionStatus = "离线";
                 });
             }
         }
