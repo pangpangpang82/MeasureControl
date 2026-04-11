@@ -503,8 +503,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"FPGA连接失败: {ex.Message}，将使用仿真模式");
+                    AddLog($"FPGA连接失败: {ex.Message}");
                     _fpgaConnected = false;
+                    throw;
                 }
 
                 // 连接422串口（COM14 - 第1路，COM15 - 第2路）
@@ -521,6 +522,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 {
                     AddLog($"422串口 {Rs422SerialClient.DefaultPortName1} 连接失败: {ex.Message}");
                     _serial1Connected = false;
+                    throw;
                 }
 
                 try
@@ -535,6 +537,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 {
                     AddLog($"422串口 {Rs422SerialClient.DefaultPortName2} 连接失败: {ex.Message}");
                     _serial2Connected = false;
+                    throw;
                 }
 
                 _hardwareInitialized = true;
@@ -716,11 +719,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"步骤a执行失败: {ex.Message}，降级仿真");
+                    AddLog($"步骤a执行失败: {ex.Message}");
+                    SetStepResultAndRx("a", null);
+                    return;
                 }
             }
-            var simRx = await _simulation.SendAndReceiveAsync("步骤a", DefaultTxData, AddLog, token);
-            SetStepResultAndRx("a", simRx);
+            AddLog("步骤a执行失败: FPGA或422串口未连接");
+            SetStepResultAndRx("a", null);
         }
 
         private async Task RunStepBAsync(CancellationToken token)
@@ -761,11 +766,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"步骤b执行失败: {ex.Message}，降级仿真");
+                    AddLog($"步骤b执行失败: {ex.Message}");
+                    SetStepResultAndRx("b", null);
+                    return;
                 }
             }
-            var simRx = await _simulation.SendAndReceiveAsync("步骤b", DefaultTxData, AddLog, token);
-            SetStepResultAndRx("b", simRx);
+            AddLog("步骤b执行失败: FPGA或422串口未连接");
+            SetStepResultAndRx("b", null);
         }
 
         private async Task RunStepCAsync(CancellationToken token)
@@ -824,11 +831,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"步骤c执行失败: {ex.Message}，降级仿真");
+                    AddLog($"步骤c执行失败: {ex.Message}");
+                    SetStepResultAndRx("c", null);
+                    return;
                 }
             }
-            var simRx = await _simulation.SendAndReceiveAsync("步骤c", DefaultTxData, AddLog, token);
-            SetStepResultAndRx("c", simRx);
+            AddLog("步骤c执行失败: FPGA或422串口未连接");
+            SetStepResultAndRx("c", null);
         }
 
         private async Task RunStepDAsync(CancellationToken token)
@@ -887,11 +896,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"步骤d执行失败: {ex.Message}，降级仿真");
+                    AddLog($"步骤d执行失败: {ex.Message}");
+                    SetStepResultAndRx("d", null);
+                    return;
                 }
             }
-            var simRx = await _simulation.SendAndReceiveAsync("步骤d", DefaultTxData, AddLog, token);
-            SetStepResultAndRx("d", simRx);
+            AddLog("步骤d执行失败: FPGA或422串口未连接");
+            SetStepResultAndRx("d", null);
         }
 
         private void SetStepResultAndRx(string step, byte[] rx)

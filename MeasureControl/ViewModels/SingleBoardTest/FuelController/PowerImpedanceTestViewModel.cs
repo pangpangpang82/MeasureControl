@@ -722,8 +722,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"万用表连接异常: {ex.Message}，使用仿真模式");
-                    _useSimulatedDmm = true;
+                    AddLog($"万用表连接异常: {ex.Message}");
+                    throw;
                 }
 
                 // ========== 步骤2：初始化7131板卡 ==========
@@ -741,7 +741,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     }
                     else
                     {
-                        AddLog("未找到7131板卡，使用仿真模式");
+                        throw new InvalidOperationException("未找到7131板卡，无法执行真实继电器控制");
                     }
                 }
 
@@ -771,8 +771,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     }
                     catch (Exception ex)
                     {
-                        AddLog($"7131板卡初始化异常: {ex.Message}，使用仿真模式");
+                        AddLog($"7131板卡初始化异常: {ex.Message}");
                         _jy7131Api = null;
+                        throw;
                     }
                 }
 
@@ -792,15 +793,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                             throw new InvalidOperationException("组件供电API未就绪");
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        await _simulation.ApplyComponentDownStateAsync(msg => AddLog(msg), timeoutCts.Token);
+                        AddLog($"组件供电状态设置异常: {ex.Message}");
+                        throw;
                     }
                     AddLog("组件供电状态已设置为下电");
                 }
                 catch (Exception ex)
                 {
                     AddLog($"组件下电状态设置异常: {ex.Message}");
+                    throw;
                 }
 
                 _hardwareInitialized = true;
@@ -840,7 +843,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     {
                         await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
                     }
-                    await _simulation.ApplyComponentDownStateAsync(msg => AddLog(msg), token);
+                    else
+                    {
+                        throw new InvalidOperationException("组件供电API未就绪");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -994,13 +1000,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     AddLog("正在开启继电器供电（24V）...");
                     await _componentPowerStateApi.ApplyRelayPowerAsync(timeoutCts.Token);
                     _relaySupplyOn = true;
-                    AddLog("继电器供电已上电: 192.168.1.15 CH2 24.0V");
+                    AddLog("继电器供电已上电: CH2 24V");
                 }
                 else
                 {
-                    AddLog("继电器供电API不可用，使用仿真模式");
-                    await Task.Delay(200, timeoutCts.Token);
-                    _relaySupplyOn = true;
+                    throw new InvalidOperationException("继电器供电API未就绪，无法执行真实供电");
                 }
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
@@ -1091,8 +1095,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 else
                 {
-                    AddLog("7131板卡不可用，使用仿真继电器动作");
-                    await _simulation.SimulateRelayActivateAsync(timeoutCts.Token);
+                    throw new InvalidOperationException("7131板卡不可用，无法执行继电器激活");
                 }
 
                 // 等待继电器动作完成
@@ -1172,8 +1175,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 else
                 {
-                    AddLog("7131板卡不可用，使用仿真继电器动作");
-                    await _simulation.SimulateRelayDeactivateAsync(timeoutCts.Token);
+                    throw new InvalidOperationException("7131板卡不可用，无法执行继电器复位");
                 }
 
                 // 等待继电器动作完成
@@ -1361,7 +1363,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             if (_useSimulatedDmm)
             {
-                return await _simulation.SimulateMeasureResistanceAsync(point, token);
+                throw new InvalidOperationException("万用表未就绪，无法执行真实阻抗测量");
             }
 
             await _measureLock.WaitAsync(token);
@@ -1392,9 +1394,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 if (!ok1 || !ok2)
                 {
-                    AddLog("矩阵通路连接失败，使用仿真测量");
-                    _useSimulatedDmm = true;
-                    return await _simulation.SimulateMeasureResistanceAsync(point, token);
+                    throw new InvalidOperationException("矩阵通路连接失败，无法执行真实阻抗测量");
                 }
 
                 try
@@ -1411,9 +1411,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"万用表测量异常: {ex.Message}，使用仿真模式");
-                    _useSimulatedDmm = true;
-                    return await _simulation.SimulateMeasureResistanceAsync(point, token);
+                    AddLog($"万用表测量异常: {ex.Message}");
+                    throw;
                 }
             }
             finally

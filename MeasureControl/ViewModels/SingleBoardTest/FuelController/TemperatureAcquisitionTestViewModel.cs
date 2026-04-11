@@ -513,8 +513,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
             catch (Exception ex)
             {
-                AddLog($"FPGA TCP连接异常: {ex.Message}，温度读取将使用仿真");
+                AddLog($"FPGA TCP连接异常: {ex.Message}");
                 _fpgaConnected = false;
+                throw;
             }
 
             _hardwareInitialized = true;
@@ -657,9 +658,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             if (_fpga == null || !_fpgaConnected)
             {
-                var sim = await _simulation.SimulateReadTemperatureAsync(token);
-                AddLog($"温度来源: 仿真  {sim:F2}℃");
-                return sim;
+                throw new InvalidOperationException("FPGA未连接，无法读取DS18B20温度");
             }
 
             try
@@ -670,10 +669,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
             catch (Exception ex)
             {
-                AddLog($"FPGA温度读取异常: {ex.Message}，降级到仿真");
-                var sim = await _simulation.SimulateReadTemperatureAsync(token);
-                AddLog($"温度来源: 仿真  {sim:F2}℃");
-                return sim;
+                AddLog($"FPGA温度读取异常: {ex.Message}");
+                throw;
             }
         }
 

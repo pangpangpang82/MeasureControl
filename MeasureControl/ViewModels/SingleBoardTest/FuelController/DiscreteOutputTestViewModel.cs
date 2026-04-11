@@ -32,6 +32,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const int MatrixSlotDo = 6;
         private const int MatrixSlotDmmDo = 4;
         private const int MatrixSwitchSettleDelayMs = 1000;
+        private static readonly (string In, string Out) MatrixJ14VoltagePoint = ("I1", "O20");
 
         private static readonly (string In, string Out)[] MatrixDoImpedancePoints = new[]
         {
@@ -619,7 +620,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     }
                     else
                     {
-                        AddLog("未找到7131板卡，将使用仿真模式控制继电器");
+                        throw new InvalidOperationException("未找到7131板卡，无法执行真实继电器控制");
                     }
                 }
 
@@ -639,8 +640,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     }
                     catch (Exception ex)
                     {
-                        AddLog($"7131板卡初始化异常: {ex.Message}，使用仿真模式");
+                        AddLog($"7131板卡初始化异常: {ex.Message}");
                         _jy7131Api = null;
+                        throw;
                     }
                 }
 
@@ -655,13 +657,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     }
                     else
                     {
-                        await _simulation.ApplyComponentDownStateAsync(AddLog, token);
+                        throw new InvalidOperationException("组件供电API未就绪，无法执行真实下电");
                     }
                 }
                 catch (Exception ex)
                 {
                     AddLog($"组件下电状态设置异常: {ex.Message}");
-                    await _simulation.ApplyComponentDownStateAsync(AddLog, token);
+                    throw;
                 }
 
                 // 步骤3：继电器供电上电（CH2 24V）
@@ -676,13 +678,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     }
                     else
                     {
-                        AddLog("继电器供电API不可用，使用仿真模式");
-                        _relaySupplyOn = true;
+                        throw new InvalidOperationException("继电器供电API未就绪，无法执行真实供电");
                     }
                 }
                 catch (Exception ex)
                 {
                     AddLog($"继电器供电上电异常: {ex.Message}");
+                    throw;
                 }
 
                 //// 步骤4：激活继电器（DO15高电平 + 485继电器第4路），隔离产品与试验台
@@ -724,8 +726,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 // 步骤5：配置矩阵开关
                 try
                 {
-                    await _simulation.DisconnectMatrixAsync(AddLog, token);
-                    await _simulation.DisconnectMatrixJ14Async(AddLog, token);
+                    await DisconnectAllMatrixRoutesAsync();
                 }
                 catch { }
 
@@ -807,8 +808,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
 
                 // 步骤2：断开矩阵开关
-                await _simulation.DisconnectMatrixAsync(AddLog, token);
-                await _simulation.DisconnectMatrixJ14Async(AddLog, token);
+                await DisconnectAllMatrixRoutesAsync();
 
                 // 步骤3：断开7131板卡
                 if (_jy7131Api != null && _jy7131Api.IsConnected)
@@ -979,8 +979,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog("步骤c: 正在上电（28V供电）...");
 
                 // 切换矩阵通路：先断开a/b的阻抗通路，再接通J14电压测量通路
-                await _simulation.DisconnectMatrixAsync(AddLog, token);
-                await _simulation.ConnectMatrixJ14Async(AddLog, token);
+                await ConnectJ14VoltageMatrixRoutesAsync(token);
                 await Task.Delay(500, token);
 
                 // 上电
@@ -1009,8 +1008,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             try
             {
                 // 切换矩阵通路：先断开a/b的阻抗通路，再接通J14电压测量通路
-                await _simulation.DisconnectMatrixAsync(AddLog, token);
-                await _simulation.ConnectMatrixJ14Async(AddLog, token);
+                await ConnectJ14VoltageMatrixRoutesAsync(token);
                 await Task.Delay(500, token);
 
                 //如果继电器已激活则需复位 --> 然后再上电测电压
@@ -1113,8 +1111,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"组件下电/继电器供电控制异常: {ex.Message}，使用仿真下电");
-                    await _simulation.ApplyComponentDownStateAsync(AddLog, token);
+                    AddLog($"组件下电/继电器供电控制异常: {ex.Message}");
+                    throw;
                 }
             }
 
@@ -1137,14 +1135,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"DO15控制异常: {ex.Message}，使用仿真下电");
-                    await _simulation.ApplyComponentDownStateAsync(AddLog, token);
+                    AddLog($"DO15控制异常: {ex.Message}");
+                    throw;
                 }
             }
             else
             {
-                // 7131板卡不可用，使用仿真
-                await _simulation.ApplyComponentDownStateAsync(AddLog, token);
+                throw new InvalidOperationException("7131板卡不可用，无法执行真实下电隔离");
             }
             Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
         }
@@ -1166,8 +1163,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"组件上电控制异常: {ex.Message}，使用仿真上电");
-                    await _simulation.ApplyComponent28VStateAsync(AddLog, token);
+                    AddLog($"组件上电控制异常: {ex.Message}");
+                    throw;
                 }
             }
 
@@ -1190,14 +1187,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"DO15控制异常: {ex.Message}，使用仿真上电");
-                    await _simulation.ApplyComponent28VStateAsync(AddLog, token);
+                    AddLog($"DO15控制异常: {ex.Message}");
+                    throw;
                 }
             }
             else
             {
-                // 7131板卡不可用，使用仿真
-                await _simulation.ApplyComponent28VStateAsync(AddLog, token);
+                throw new InvalidOperationException("7131板卡不可用，无法执行真实上电恢复");
             }
             Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
         }
@@ -1266,21 +1262,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"DO1-DO14输出异常: {ex.Message}，使用仿真");
-                    if (grounded)
-                        await _simulation.SetDoGroundedAsync(AddLog, token);
-                    else
-                        await _simulation.SetDoOpenAsync(AddLog, token);
+                    AddLog($"DO1-DO14输出异常: {ex.Message}");
+                    throw;
                 }
             }
             else
             {
-                // 7131板卡不可用，使用仿真
-                AddLog("7131板卡不可用，使用仿真模式");
-                if (grounded)
-                    await _simulation.SetDoGroundedAsync(AddLog, token);
-                else
-                    await _simulation.SetDoOpenAsync(AddLog, token);
+                throw new InvalidOperationException("7131板卡不可用，无法设置DO1-DO14输出");
             }
         }
 
@@ -1294,10 +1282,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             if (pointIndex < 0 || pointIndex >= MatrixDoImpedancePoints.Length)
                 throw new ArgumentOutOfRangeException(nameof(pointIndex));
 
-            if (_dmmApi == null || _useSimulatedDmm)
+            if (_dmmApi == null)
                 return await ReadImpedanceAsync(token);
 
-            try { await _simulation.DisconnectMatrixJ14Async(AddLog, token); } catch { }
+            try { await DisconnectJ14VoltageMatrixRoutesAsync(); } catch { }
 
             await _matrixLock.WaitAsync(token);
             try
@@ -1318,9 +1306,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 if (!okDmm || !okP)
                 {
-                    AddLog("矩阵通路连接失败，使用仿真测量");
-                    _useSimulatedDmm = true;
-                    return await _simulation.MeasureImpedanceToGroundAsync(AddLog, token);
+                    throw new InvalidOperationException("矩阵通路连接失败，无法执行真实阻抗测量");
                 }
 
                 return await ReadImpedanceAsync(token);
@@ -1343,13 +1329,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private async Task<double> ReadImpedanceAsync(CancellationToken token)
         {
             if (_useSimulatedDmm)
-                return await _simulation.MeasureImpedanceToGroundAsync(AddLog, token);
+                throw new InvalidOperationException("万用表未就绪，无法执行真实阻抗测量");
 
             if (_dmmApi == null)
             {
-                _useSimulatedDmm = true;
-                AddLog("阻抗来源: 仿真(未注入DMM API)");
-                return await _simulation.MeasureImpedanceToGroundAsync(AddLog, token);
+                throw new InvalidOperationException("未注入DMM API，无法执行真实阻抗测量");
             }
 
             try
@@ -1394,24 +1378,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
             catch (Exception ex)
             {
-                // 只在连续多次失败时才切换到仿真模式
                 AddLog($"万用表阻抗测量异常: {ex.Message}");
-                _useSimulatedDmm = true;
-                AddLog("切换到仿真模式");
-                return await _simulation.MeasureImpedanceToGroundAsync(AddLog, token);
+                throw;
             }
         }
 
         private async Task<double> ReadJ14VoltageAsync(CancellationToken token)
         {
             if (_useSimulatedDmm)
-                return await _simulation.MeasureJ14VoltageAsync(AddLog, token);
+                throw new InvalidOperationException("万用表未就绪，无法执行真实电压测量");
 
             if (_dmmApi == null)
             {
-                _useSimulatedDmm = true;
-                AddLog("电压来源: 仿真(未注入DMM API)");
-                return await _simulation.MeasureJ14VoltageAsync(AddLog, token);
+                throw new InvalidOperationException("未注入DMM API，无法执行真实电压测量");
             }
 
             try
@@ -1427,9 +1406,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
             catch (Exception ex)
             {
-                _useSimulatedDmm = true;
-                AddLog($"万用表电压测量异常: {ex.Message}，切换到仿真");
-                return await _simulation.MeasureJ14VoltageAsync(AddLog, token);
+                AddLog($"万用表电压测量异常: {ex.Message}");
+                throw;
             }
         }
 
@@ -1445,6 +1423,35 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             AddLog($"正在连接万用表: {ip}...");
             await _dmmApi.ConnectAsync(ip, token);
             AddLog($"万用表连接成功: {_dmmApi.IpAddress}");
+        }
+
+        private async Task DisconnectAllMatrixRoutesAsync()
+        {
+            var matrix = MatrixControlService.Instance;
+            try { await DisconnectJ14VoltageMatrixRoutesAsync(); } catch { }
+            try { await matrix.DisconnectNodesAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress); } catch { }
+            foreach (var ch in MatrixDoImpedancePoints)
+            {
+                try { await matrix.DisconnectNodesAsync(ch.In, ch.Out, MatrixSlotDo, MatrixIpAddress); } catch { }
+            }
+        }
+
+        private async Task DisconnectJ14VoltageMatrixRoutesAsync()
+        {
+            var matrix = MatrixControlService.Instance;
+            try { await matrix.DisconnectNodesAsync(MatrixJ14VoltagePoint.In, MatrixJ14VoltagePoint.Out, MatrixSlotDo, MatrixIpAddress); } catch { }
+            try { await matrix.DisconnectNodesAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress); } catch { }
+        }
+
+        private async Task ConnectJ14VoltageMatrixRoutesAsync(CancellationToken token)
+        {
+            await DisconnectAllMatrixRoutesAsync();
+            var matrix = MatrixControlService.Instance;
+            var okPoint = await matrix.ConnectNodesAsync(MatrixJ14VoltagePoint.In, MatrixJ14VoltagePoint.Out, MatrixSlotDo, MatrixIpAddress);
+            var okDmm = await matrix.ConnectNodesAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress);
+            await Task.Delay(MatrixSwitchSettleDelayMs, token);
+            if (!okPoint || !okDmm)
+                throw new InvalidOperationException("矩阵通路连接失败，无法执行J14电压测量");
         }
 
         private string GetDmmIpAddress()
