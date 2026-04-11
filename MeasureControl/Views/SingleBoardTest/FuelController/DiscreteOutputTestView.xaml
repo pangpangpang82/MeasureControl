@@ -846,10 +846,20 @@
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="c) 电压测试" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="组件28V供电，测J14电压应≥16V" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap"/>
-                                        <Border Grid.Column="2" CornerRadius="4" Margin="10,0" Padding="10,3">
+                                        <TextBlock Grid.Column="1" Text="组件供电，测J14电压应≥16V" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#666" TextWrapping="Wrap"/>
+
+                                        <ComboBox
+                                            Grid.Column="2"
+                                            Width="75"
+                                            Height="26"
+                                            Margin="10,0,0,0"
+                                            ItemsSource="{Binding SupplyVoltageOptions}"
+                                            SelectedItem="{Binding SelectedSupplyVoltage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                        <Border Grid.Column="3" CornerRadius="4" Margin="10,0" Padding="10,3">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="#f3f4f6"/>
@@ -880,7 +890,7 @@
                                             </TextBlock>
                                         </Border>
                                         <!-- 上电按钮 -->
-                                        <Button Grid.Column="3" Command="{Binding PowerOnCommand}" Height="26" Width="60" Margin="0,0,5,0">
+                                        <Button Grid.Column="4" Command="{Binding PowerOnCommand}" Height="26" Width="60" Margin="0,0,5,0">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
                                                     <Border x:Name="border" Background="#22c55e" CornerRadius="4" Padding="8,3">
@@ -897,7 +907,7 @@
                                                 </ControlTemplate>
                                             </Button.Template>
                                         </Button>
-                                        <Button Grid.Column="4" Command="{Binding StepCCommand}" Height="26" Width="80">
+                                        <Button Grid.Column="5" Command="{Binding StepCCommand}" Height="26" Width="80">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
                                                     <Border x:Name="border" Background="#3b82f6" CornerRadius="4" Padding="10,3">

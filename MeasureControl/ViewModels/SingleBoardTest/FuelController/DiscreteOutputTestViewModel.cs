@@ -86,6 +86,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isPowerOn;
         private string _powerStatus = "未上电";
 
+        private double _selectedSupplyVoltage = 28.0;
+
         private double? _impedanceGrounded;
         private double? _impedanceOpen;
         private double? _j14Voltage;
@@ -130,7 +132,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             StepACommand = new DelegateCommand(async () => await RunStepAAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
             StepBCommand = new DelegateCommand(async () => await RunStepBAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
             StepCCommand = new DelegateCommand(async () => await RunStepCAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
-            PowerOnCommand = new DelegateCommand(async () => await PowerOnForStepCAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized && !IsPowerOn);
+            PowerOnCommand = new DelegateCommand(async () => await PowerOnForStepCAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
             //ToggleRelayCommand = new DelegateCommand(async () => await ToggleRelayAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
             ToggleRelayCommand = new DelegateCommand(async () => await ToggleRelayAsync(), () => testReset == true);
@@ -201,6 +203,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         public DelegateCommand MeasureOpenJ11Command { get; }
         public DelegateCommand MeasureOpenJ12Command { get; }
         public DelegateCommand MeasureOpenJ13Command { get; }
+
+        public IReadOnlyList<double> SupplyVoltageOptions { get; } = new List<double> { 18.0, 28.0, 32.0 };
+
+        public double SelectedSupplyVoltage
+        {
+            get => _selectedSupplyVoltage;
+            set => SetProperty(ref _selectedSupplyVoltage, value);
+        }
 
         public bool IsManualTestRunning
         {
@@ -308,12 +318,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private void AddLog(string msg)
         {
             var line = $"[{DateTime.Now:HH:mm:ss.fff}] {msg}";
-            Application.Current?.Dispatcher?.Invoke(() => Logs.Add(line));
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher == null)
+            {
+                Logs.Add(line);
+                return;
+            }
+
+            if (dispatcher.CheckAccess())
+                Logs.Add(line);
+            else
+                dispatcher.BeginInvoke(new Action(() => Logs.Add(line)));
         }
 
         private void UpdateCommandStates()
         {
-            Application.Current?.Dispatcher?.Invoke(() =>
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher == null)
+                return;
+
+            void RaiseAll()
             {
                 (StepACommand as DelegateCommand)?.RaiseCanExecuteChanged();
                 (StepBCommand as DelegateCommand)?.RaiseCanExecuteChanged();
@@ -338,7 +362,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 (MeasureOpenJ11Command as DelegateCommand)?.RaiseCanExecuteChanged();
                 (MeasureOpenJ12Command as DelegateCommand)?.RaiseCanExecuteChanged();
                 (MeasureOpenJ13Command as DelegateCommand)?.RaiseCanExecuteChanged();
-            });
+            }
+
+            if (dispatcher.CheckAccess())
+                RaiseAll();
+            else
+                dispatcher.BeginInvoke(new Action(RaiseAll));
         }
 
         private string PersistDataKey
@@ -483,6 +512,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 _opCts?.Cancel();
                 // 等待测试停止并重置状态
                 await Task.Delay(200);
+                await SafeResetHardwareAsync();
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     IsAutoTestRunning = false;
@@ -563,11 +593,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 await RunStepBAsync().ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
 
-                AddLog("--- 步骤c: 28V上电 + 测J14电压 ---");
-                await RunStepCAsync().ConfigureAwait(false);
+                AddLog("--- 步骤c: 18V/28V/32V上电 + 测J14电压 ---");
+                var stepCPass = await RunStepCAcrossVoltagesAsync(new[] { 18.0, 28.0, 32.0 }, token).ConfigureAwait(false);
+                Application.Current?.Dispatcher?.Invoke(() => StepCResult = stepCPass ? "PASS" : "FAIL");
                 token.ThrowIfCancellationRequested();
 
-                await ResetHardwareAsync(CancellationToken.None, preserveComponentPower: true).ConfigureAwait(false);
+                await ResetHardwareAsync(CancellationToken.None, preserveComponentPower: false).ConfigureAwait(false);
 
                 bool overallPass =
                     string.Equals(StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) &&
@@ -608,6 +639,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 // 步骤1：初始化7131板卡（用于DO15控制继电器和DO1-DO14输出）
                 if (_jy7131Api == null)
                 {
+                    if (_pxiChassisService == null)
+                        throw new InvalidOperationException("PXI机箱服务未注入（IPxiChassisService=null），无法枚举/连接7131板卡");
+
                     var device7131 = FindFirstJy7131Device();
                     if (device7131 != null)
                     {
@@ -828,8 +862,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 if (!preserveComponentPower)
                 {
-                    await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
-                    AddLog($"组件下电");
+                    if (_componentPowerStateApi != null)
+                    {
+                        await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
+                        AddLog($"组件下电");
+                    }
                     Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
                 }
                 else
@@ -911,6 +948,33 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
+        private async Task<bool> RunStepCAcrossVoltagesAsync(IEnumerable<double> voltages, CancellationToken token)
+        {
+            bool allPass = true;
+
+            foreach (var voltage in voltages)
+            {
+                token.ThrowIfCancellationRequested();
+
+                AddLog($"步骤c: 正在上电（{voltage:F0}V）并测量J14电压...");
+
+                await ConnectJ14VoltageMatrixRoutesAsync(token).ConfigureAwait(false);
+                await Task.Delay(500, token).ConfigureAwait(false);
+
+                await ApplyPowerAsync(voltage, token).ConfigureAwait(false);
+
+                double v = await ReadJ14VoltageAsync(token).ConfigureAwait(false);
+                Application.Current?.Dispatcher?.Invoke(() => J14Voltage = v);
+
+                bool pass = v >= J14VoltageLowerLimitV;
+                allPass &= pass;
+                AddLog($"  {voltage:F0}V: J14电压={v:F2}V，判据: ≥{J14VoltageLowerLimitV}V，结果={(pass ? "PASS" : "FAIL")}");
+            }
+
+            AddLog($"步骤c汇总: {(allPass ? "PASS" : "FAIL")}");
+            return allPass;
+        }
+
         private async Task RunStepBAsync()
         {
             if (_opCts == null)
@@ -976,14 +1040,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
-                AddLog("步骤c: 正在上电（28V供电）...");
+                AddLog($"步骤c: 正在上电（{SelectedSupplyVoltage:F0}V供电）...");
 
                 // 切换矩阵通路：先断开a/b的阻抗通路，再接通J14电压测量通路
                 await ConnectJ14VoltageMatrixRoutesAsync(token);
                 await Task.Delay(500, token);
 
-                // 上电
-                await ApplyPower28VAsync(token);
+                // 上电（可反复切换电压上电）
+                await ApplyPowerAsync(SelectedSupplyVoltage, token);
 
                 AddLog("步骤c: 上电完成，可以点击'电压测试'测量J14电压");
                 UpdateCommandStates();
@@ -1058,7 +1122,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
 
                 // 上电
-                await ApplyPower28VAsync(token);
+                await ApplyPowerAsync(SelectedSupplyVoltage, token);
 
                 // 测量J14电压
                 AddLog("步骤c: 正在测量J14电压...");
@@ -1100,7 +1164,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
 
             // 使用DO15控制继电器，将产品与试验台隔离（下电）
-            // DO15高电平 → 继电器得电 → NC跳NO → 产品隔离
+            // 与 410 版本保持一致：下电隔离时只写DO15，不在此处强制切换485继电器第4路
             if (_componentPowerStateApi != null)
             {
                 try
@@ -1146,7 +1210,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
         }
 
-        private async Task ApplyPower28VAsync(CancellationToken token)
+        private async Task ApplyPowerAsync(double voltage, CancellationToken token)
         {
             // 使用DO15控制继电器，恢复产品与试验台连接（上电）
             // DO15低电平 → 继电器失电 → 触点恢复NC → 产品连接
@@ -1154,12 +1218,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 try
                 {
-                    if (!_relaySupplyOn)
+                    if (Math.Abs(voltage - 28.0) < 0.0001)
                     {
-                        await _componentPowerStateApi.ApplyRelayPowerAsync(token);
-                        _relaySupplyOn = true;
+                        await _componentPowerStateApi.ApplyComponent28VStateAsync(token);
                     }
-                    await _componentPowerStateApi.ApplyComponent28VStateAsync(token);
+                    else
+                    {
+                        await _componentPowerStateApi.SetComponentVoltageAsync(voltage, token);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1198,6 +1264,90 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
         }
 
+        private async Task ActivateIsolationWithTimeoutAsync(CancellationToken token)
+        {
+            if (_jy7131Api == null || !_jy7131Api.IsConnected)
+                throw new InvalidOperationException("7131板卡不可用，无法执行真实隔离继电器控制");
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            timeoutCts.CancelAfter(RelayTimeoutMs);
+
+            try
+            {
+                if (!_jy7131Api.IsRunning)
+                {
+                    await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, timeoutCts.Token);
+                    await _jy7131Api.StartAsync(timeoutCts.Token);
+                    AddLog("7131板卡已启动");
+                }
+
+                // 先打开485继电器第4路
+                try
+                {
+                    await _jy7131Api.SetRelayAsync(3, true, timeoutCts.Token);
+                    await Task.Delay(200, timeoutCts.Token);
+                    AddLog("485继电器第4路已打开");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"485继电器操作失败: {ex.Message}");
+                }
+
+                AddLog("正在写DO15（高电平），隔离产品...");
+                await _jy7131Api.WriteDoAsync(RelayControlChannel, true, timeoutCts.Token);
+                IsRelayActivated = true;
+                await Task.Delay(500, timeoutCts.Token);
+                AddLog("继电器已激活，产品已隔离（下电）");
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
+            {
+                throw new TimeoutException($"隔离继电器操作超时（{RelayTimeoutMs}ms）");
+            }
+        }
+
+        private async Task DeactivateIsolationWithTimeoutAsync(CancellationToken token)
+        {
+            if (_jy7131Api == null || !_jy7131Api.IsConnected)
+                throw new InvalidOperationException("7131板卡不可用，无法执行真实隔离继电器控制");
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            timeoutCts.CancelAfter(RelayTimeoutMs);
+
+            try
+            {
+                if (!_jy7131Api.IsRunning)
+                {
+                    await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, timeoutCts.Token);
+                    await _jy7131Api.StartAsync(timeoutCts.Token);
+                    AddLog("7131板卡已启动");
+                }
+
+                AddLog("正在写DO15（低电平），恢复产品连接...");
+                await _jy7131Api.WriteDoAsync(RelayControlChannel, false, timeoutCts.Token);
+                await Task.Delay(200, timeoutCts.Token);
+
+                // 再关闭485继电器第4路
+                try
+                {
+                    await _jy7131Api.SetRelayAsync(3, false, timeoutCts.Token);
+                    await Task.Delay(200, timeoutCts.Token);
+                    AddLog("485继电器第4路已关闭");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"485继电器操作失败: {ex.Message}");
+                }
+
+                IsRelayActivated = false;
+                await Task.Delay(300, timeoutCts.Token);
+                AddLog("继电器已复位，产品已连接");
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
+            {
+                throw new TimeoutException($"复位继电器操作超时（{RelayTimeoutMs}ms）");
+            }
+        }
+
         /// <summary>
         /// 设置DO1-DO14输出状态
         /// </summary>
@@ -1217,7 +1367,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         AddLog("7131板卡已启动");
                     }
 
-                    // 1. 先操作 485 继电器第 4 路
+                    // 1. 先操作 485 继电器前 4 路（0..3）
                     AddLog($"正在{(grounded ? "打开" : "关闭")} 485 继电器前 4 路...");
                     try
                     {

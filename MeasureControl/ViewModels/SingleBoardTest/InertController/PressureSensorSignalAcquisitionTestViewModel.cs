@@ -78,9 +78,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
 
             Items = new ObservableCollection<PressurePointItemViewModel>
             {
-                new PressurePointItemViewModel("1)", "(0.5±0.0425)V", targetVoltageV: 0.5, voltageToleranceV: 0.0425, expectedPressurePsi: 0.0, pressureTolerancePsi: 0.45, this),
-                new PressurePointItemViewModel("2)", "(5.6±0.0425)V", targetVoltageV: 5.6, voltageToleranceV: 0.0425, expectedPressurePsi: 54.0, pressureTolerancePsi: 0.45, this),
-                new PressurePointItemViewModel("3)", "(9.0±0.0425)V", targetVoltageV: 9.0, voltageToleranceV: 0.0425, expectedPressurePsi: 90.0, pressureTolerancePsi: 0.45, this),
+                new PressurePointItemViewModel("1)", "(0.52±0.0425)V", targetVoltageV: 0.52, voltageToleranceV: 0.0425, expectedPressurePsi: 0.0, pressureTolerancePsi: 0.45, this),
+                new PressurePointItemViewModel("2)", "(5.62±0.0425)V", targetVoltageV: 5.62, voltageToleranceV: 0.0425, expectedPressurePsi: 54.0, pressureTolerancePsi: 0.45, this),
+                new PressurePointItemViewModel("3)", "(9.02±0.0425)V", targetVoltageV: 9.02, voltageToleranceV: 0.0425, expectedPressurePsi: 90.0, pressureTolerancePsi: 0.45, this),
             };
         }
 
