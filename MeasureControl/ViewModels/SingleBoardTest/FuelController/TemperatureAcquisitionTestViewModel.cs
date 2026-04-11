@@ -68,7 +68,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const double TemperatureUpperLimit = 45.0;
 
         /// <summary>硬件初始化默认超时时间（毫秒）</summary>
-        private const int DefaultTimeoutMs = 3000;
+        private const int DefaultTimeoutMs = 15000;
+
+        /// <summary>硬件初始化超时后的自动重试次数</summary>
+        private const int HardwareInitializationRetryCount = 1;
+
+        /// <summary>硬件初始化超时后的重试等待时间（毫秒）</summary>
+        private const int HardwareInitializationRetryDelayMs = 1500;
 
         /// <summary>温度采集超时时间（毫秒）</summary>
         private const int TemperatureReadTimeoutMs = 5000;
@@ -450,17 +456,51 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
         private async Task InitializeHardwareWithTimeoutAsync(CancellationToken token)
         {
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-            timeoutCts.CancelAfter(DefaultTimeoutMs);
+            var maxAttempts = HardwareInitializationRetryCount + 1;
+            TimeoutException lastTimeoutException = null;
 
-            try
+            for (var attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                await InitializeHardwareAsync(timeoutCts.Token);
+                token.ThrowIfCancellationRequested();
+
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                timeoutCts.CancelAfter(DefaultTimeoutMs);
+
+                try
+                {
+                    if (attempt > 1)
+                        AddLog($"开始第{attempt}次硬件初始化...");
+
+                    await InitializeHardwareAsync(timeoutCts.Token).ConfigureAwait(false);
+                    return;
+                }
+                catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
+                {
+                    lastTimeoutException = attempt < maxAttempts
+                        ? new TimeoutException($"硬件初始化超时（{DefaultTimeoutMs}ms），准备自动重试...")
+                        : new TimeoutException($"硬件初始化超时（{DefaultTimeoutMs}ms），自动重试后仍失败，请检查设备连接");
+                }
+
+                if (lastTimeoutException == null)
+                    break;
+
+                AddLog(lastTimeoutException.Message);
+
+                if (attempt >= maxAttempts)
+                    break;
+
+                try
+                {
+                    await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
+
+                await Task.Delay(HardwareInitializationRetryDelayMs, token).ConfigureAwait(false);
             }
-            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
-            {
-                throw new TimeoutException($"硬件初始化超时（{DefaultTimeoutMs}ms），请检查设备连接");
-            }
+
+            throw lastTimeoutException ?? new TimeoutException($"硬件初始化超时（{DefaultTimeoutMs}ms），请检查设备连接");
         }
 
         /// <summary>
