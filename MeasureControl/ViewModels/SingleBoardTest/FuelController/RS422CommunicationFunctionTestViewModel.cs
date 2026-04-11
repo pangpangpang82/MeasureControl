@@ -272,9 +272,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 return;
             }
 
-            if (!EnsureFuelBoardPowered())
-                return;
-
             IsManualTestRunning = true;
             _opCts = new CancellationTokenSource();
 
@@ -335,9 +332,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 return;
             }
 
-            if (!EnsureFuelBoardPowered())
-                return;
-
             _opCts = new CancellationTokenSource();
             try
             {
@@ -392,9 +386,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token)
         {
-            if (!EnsureFuelBoardPowered())
-                return "不合格";
-
             Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = true);
             AddLog("========== 自动测试开始 ==========");
 
@@ -469,11 +460,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
-                AddLog("检测组件供电状态...");
-                if (!EnsureFuelBoardPowered())
-                    throw new InvalidOperationException("请先给加放油单板上电后再进行测试。");
-                AddLog("已检测到加放油单板处于上电状态");
-
                 // 连接FPGA
                 AddLog("正在连接FPGA...");
                 try

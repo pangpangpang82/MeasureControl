@@ -309,6 +309,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private double _originalVoltage;
         /// <summary>测试前组件是否已上电</summary>
         private bool _wasOriginallyPowered;
+        /// <summary>手动测试是否已完成首次17V设置</summary>
+        private bool _initialVoltageSet;
+        /// <summary>手动测试是否已检测到电平翻转（或已到最低电压）</summary>
+        private bool _flipDetected;
+        private string _stepDownButtonText = "降到17V";
 
 
 
@@ -390,7 +395,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             AutoTestCommand = new DelegateCommand(OnAutoTest);
 
-            StepDownCommand = new DelegateCommand(async () => await StepDownVoltageAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            StepDownCommand = new DelegateCommand(async () => await StepDownVoltageAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized && !_flipDetected);
 
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
@@ -632,6 +637,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
 
 
+        public string StepDownButtonText
+        {
+            get => _stepDownButtonText;
+            set => SetProperty(ref _stepDownButtonText, value);
+        }
+
+
+
         #endregion
 
 
@@ -742,17 +755,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
 
 
-                    AddLog("步骤2: 设置初始供电电压17V...");
+                    AddLog("硬件初始化完成，请点击\"降到17V\"按钮开始测试");
 
-                    await SetInitialVoltageAsync(token);
-
-                    if (token.IsCancellationRequested) return;
-
-
-
-                    AddLog("硬件初始化完成，请点击\"降压\"按钮逐步降低电压");
-                    
-                    // 确保在UI线程上刷新降压按钮状态
                     Application.Current?.Dispatcher?.Invoke(() => UpdateCommandStates());
                 }
 
@@ -903,7 +907,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
 
         }
-
+        
 
 
         private void StopAutoTest()
@@ -1053,6 +1057,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog("步骤5: 复位硬件...");
 
                 await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
 
 
 
@@ -1128,29 +1133,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
 
 
-                // 步骤0：保存原始上电状态，然后下电
-                _wasOriginallyPowered = _hydraulicPowerService?.IsHydraulicPowered ?? false;
-                _originalVoltage = _hydraulicPowerService?.PoweredVoltage ?? 28.0;
-                if (_originalVoltage <= 0) _originalVoltage = 28.0; // 默认28V
-                
-                AddLog($"保存原始上电状态: {(_wasOriginallyPowered ? $"已上电({_originalVoltage:F1}V)" : "未上电")}");
-                
-                // 无论原始状态，先下电复位
-                // 确保 _power1State == ComponentDown，SetComponentVoltageAsync(17V) 才能正确开启输出
-                AddLog("正在关闭组件供电（初始化前复位）...");
-                try
-                {
-                    if (_componentPowerStateApi != null)
-                        await _componentPowerStateApi.ApplyComponentDownStateAsync(timeoutCts.Token);
-                    await Task.Delay(200, timeoutCts.Token);
-                    AddLog("组件已下电");
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"下电异常: {ex.Message}");
-                }
+                // 步骤1：初始化9774板卡（用于AD采集）
+                await Initialize9774AiAsync(timeoutCts.Token);
 
-                // 步骤1：配置矩阵开关通路
+                // 步骤2：配置矩阵开关通路
                 AddLog("正在配置矩阵开关通路...");
                 bool matrixOk = false;
                 try
@@ -1163,21 +1149,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     AddLog($"矩阵开关配置异常: {ex.Message}");
                 }
                 if (!matrixOk)
-                {
                     throw new InvalidOperationException("矩阵开关配置失败，无法执行真实测试");
-                }
 
-                // 步骤2：初始化9774板卡（用于AD采集）
-                await Initialize9774AiAsync(timeoutCts.Token);
-
-                // 步骤3：设置运放供电和DI上拉信号（+15V）
+                // 步骤3/4：并行开启.16和.17（+15V 运放供电 / DI上拉）
                 await InitializeOpAmpAndDiPullUpPowerAsync(timeoutCts.Token);
 
-                // 标记上电状态（实际电压将在 SetInitialVoltageAsync 中设置为17V）
+                // 步骤5：开启28V组件供电
+                AddLog("正在开启28V组件供电...");
+                await _componentPowerStateApi.ApplyComponent28VStateAsync(timeoutCts.Token);
+                AddLog("28V组件供电已开启");
+
+                // 等待电源稳定
+                await Task.Delay(500, timeoutCts.Token);
+
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     IsPowerOn = true;
-                    PowerStatus = "初始化中...";
+                    PowerStatus = "已上电(28V)";
                 });
 
 
@@ -1531,131 +1519,96 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
 
         private async Task StepDownVoltageAsync()
-
         {
-
-            if (IsBusy || !IsManualTestRunning || !_hardwareInitialized)
-
+            if (IsBusy || !IsManualTestRunning || !_hardwareInitialized || _flipDetected)
                 return;
 
-
-
             IsBusy = true;
-
             try
-
             {
-
                 var token = _opCts?.Token ?? CancellationToken.None;
+                bool wasFirstStep = !_initialVoltageSet;
 
-
-
-                double newVoltage = CurrentVoltage - VoltageStep;
-
-                if (newVoltage < EndVoltage)
-
+                double newVoltage;
+                if (wasFirstStep)
                 {
-
-                    AddLog("已达到最低电压，测试完成");
-
-                    EvaluateTestResult();
-
-                    return;
-
+                    // 首次点击：设置初始电压 17V
+                    newVoltage = StartVoltage;
                 }
-
-
-
-                // 使用真实电源API设置电压
+                else
+                {
+                    // 后续点击：降低 0.2V
+                    newVoltage = Math.Round(CurrentVoltage - VoltageStep, 1);
+                    if (newVoltage < EndVoltage) newVoltage = EndVoltage;
+                }
 
                 await SetPowerSupplyVoltageAsync(newVoltage, token);
-
                 Application.Current?.Dispatcher?.Invoke(() =>
-
                 {
-
                     CurrentVoltage = newVoltage;
-
-                    TestProgress = (int)((StartVoltage - newVoltage) / (StartVoltage - EndVoltage) * 100);
-
+                    TestProgress = wasFirstStep ? 0
+                        : (int)((StartVoltage - newVoltage) / (StartVoltage - EndVoltage) * 100);
                 });
-
-
 
                 // 等待电压稳定
-
                 await Task.Delay(400, token);
 
-
-
-                // 读取电平和PIN3电压
-
+                // 读取PIN3电平
                 bool previousLevel = CurrentPinLevel;
-
                 var (level, pin3Voltage) = await ReadPin3VoltageAsync(token);
-
                 Application.Current?.Dispatcher?.Invoke(() =>
-
                 {
-
                     CurrentPinLevel = level;
-
                     CurrentPin3Voltage = pin3Voltage;
-
                     AddTestRecord(newVoltage, level, pin3Voltage);
-
                 });
-
-
-
-                // 检测电平翻转
-
-                if (previousLevel != level && FlipVoltage == null)
-
-                {
-
-                    Application.Current?.Dispatcher?.Invoke(() =>
-
-                    {
-
-                        FlipVoltage = newVoltage;
-
-                    });
-
-                    AddLog($"*** 电平翻转检测到！翻转电压: {newVoltage:F1}V ***");
-
-                }
-
-
-
                 AddLog($"供电: {newVoltage:F1}V, PIN3: {pin3Voltage:F3}V, 电平: {(level ? "高" : "低")}");
 
-
-
-                // 检查是否已达到最低电压
-
-                if (newVoltage <= EndVoltage)
-
+                if (wasFirstStep)
                 {
-
-                    AddLog("已达到最低电压，测试完成");
-
-                    EvaluateTestResult();
-
+                    _initialVoltageSet = true;
+                    Application.Current?.Dispatcher?.Invoke(() =>
+                    {
+                        StepDownButtonText = "降低0.2V";
+                        UpdateCommandStates();
+                    });
+                    AddLog($"初始电压已设置为 {StartVoltage:F1}V，请点击\"降低0.2V\"继续降压");
                 }
+                else
+                {
+                    // 检测电平翻转
+                    if (previousLevel != level && FlipVoltage == null)
+                    {
+                        Application.Current?.Dispatcher?.Invoke(() => FlipVoltage = newVoltage);
+                        AddLog($"*** 电平翻转检测到！翻转电压: {newVoltage:F1}V ***");
+                        _flipDetected = true;
+                        UpdateCommandStates();
+                        EvaluateTestResult();
+                        AddLog("翻转电压已记录，测试完成，正在停止测试...");
+                        StopManualTest();
+                        return;
+                    }
 
+                    // 已达到最低电压，未检测到翻转
+                    if (newVoltage <= EndVoltage)
+                    {
+                        AddLog($"已达到最低电压 {EndVoltage:F1}V，未检测到电平翻转，判定不合格");
+                        _flipDetected = true;
+                        UpdateCommandStates();
+                        EvaluateTestResult();
+                        StopManualTest();
+                    }
+                }
             }
-
-            catch (Exception ex)
-
+            catch (OperationCanceledException)
             {
-
-                AddLog($"降压测试异常: {ex.Message}");
-
+                AddLog("降压操作已取消");
             }
-
+            catch (Exception ex)
+            {
+                AddLog($"降压操作失败: {ex.Message}");
+            }
             finally
-
             {
 
                 IsBusy = false;
@@ -1935,121 +1888,61 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task ResetHardwareAsync(CancellationToken token)
         {
-            AddLog("正在复位硬件...");
+            AddLog("正在复位硬件（反序断开）...");
 
-            // 恢复组件原始上电状态
+            // 步骤1: 关闭28V组件供电
             try
             {
-                if (_wasOriginallyPowered && _originalVoltage > 0)
-                {
-                    // 恢复原始电压
-                    AddLog($"正在恢复组件原始供电电压: {_originalVoltage:F1}V...");
-                    if (_componentPowerStateApi != null)
-                    {
-                        await _componentPowerStateApi.SetComponentVoltageAsync(_originalVoltage, token);
-                    }
-                    // 更新 HydraulicPowerService 状态
-                    _hydraulicPowerService?.SetPoweredState(true);
-                    
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        IsPowerOn = true;
-                        PowerStatus = $"已上电({_originalVoltage:F1}V)";
-                        CurrentVoltage = _originalVoltage;
-                    });
-                    AddLog($"组件供电已恢复为 {_originalVoltage:F1}V");
-                }
-                else
-                {
-                    // 原本未上电，保持下电状态
-                    AddLog("原本未上电，保持下电状态");
-                    if (_componentPowerStateApi != null)
-                    {
-                        await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
-                    }
-                    _hydraulicPowerService?.SetPoweredState(false);
-                    
-                    Application.Current?.Dispatcher?.Invoke(() =>
-                    {
-                        IsPowerOn = false;
-                        PowerStatus = "未上电";
-                        CurrentVoltage = 0;
-                    });
-                }
+                if (_componentPowerStateApi != null)
+                    await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
+                AddLog("28V组件供电已关闭");
             }
             catch (Exception ex)
             {
-                AddLog($"恢复供电异常: {ex.Message}");
+                AddLog($"关闭28V异常: {ex.Message}");
             }
-
-
-
-            // 断开9774板卡
-
-            if (_ai9774Api != null)
-
+            Application.Current?.Dispatcher?.Invoke(() =>
             {
+                IsPowerOn = false;
+                PowerStatus = "未上电";
+                CurrentVoltage = 0;
+            });
 
-                try
-
-                {
-
-                    await _ai9774Api.DisposeAsync();
-
-                    AddLog("9774板卡已断开");
-
-                }
-
-                catch (Exception ex)
-
-                {
-
-                    AddLog($"断开9774异常: {ex.Message}");
-
-                }
-
-                finally
-
-                {
-
-                    _ai9774Api = null;
-
-                }
-
-            }
-
-
-
-            // 断开矩阵开关
-
-            try
-
-            {
-
-                await DisconnectMatrixRoutesAsync(token);
-
-            }
-
-            catch (Exception ex)
-
-            {
-
-                AddLog($"断开矩阵开关异常: {ex.Message}");
-
-            }
-
-
-
-            // 关闭运放供电和DI上拉电源
-
+            // 步骤2/3: 关闭.17和.16（反序）
             await ShutdownOpAmpAndDiPullUpPowerAsync();
 
+            // 步骤4: 断开矩阵开关
+            try
+            {
+                await DisconnectMatrixRoutesAsync(token);
+                AddLog("矩阵开关已断开");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"断开矩阵开关异常: {ex.Message}");
+            }
 
+            // 步骤5: 断开9774板卡（最后）
+            if (_ai9774Api != null)
+            {
+                try
+                {
+                    await _ai9774Api.DisposeAsync();
+                    AddLog("9774板卡已断开");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"断开9774异常: {ex.Message}");
+                }
+                finally
+                {
+                    _ai9774Api = null;
+                }
+            }
 
             _hardwareInitialized = false;
-
             UpdateCommandStates();
-
+            AddLog("硬件复位完成");
         }
 
 
@@ -2128,28 +2021,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task ShutdownOpAmpAndDiPullUpPowerAsync()
         {
-            // 真正断开连接，释放给其他测试项使用
-            if (_powerSupply2 != null)
-            {
-                try
-                {
-                    if (_powerSupply2.IsConnected)
-                    {
-                        await _powerSupply2.SetOutputEnabledAsync(PowerSupplyChannel.CH3, false);
-                        AddLog("电源2 CH3已关闭（运放供电）");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"关闭电源2异常: {ex.Message}");
-                }
-                finally
-                {
-                    try { await _powerSupply2.DisposeAsync(); } catch { }
-                    _powerSupply2 = null;
-                }
-            }
-
+            // 反序断开：启动顺序.16→.17，停止顺序.17→.16
             if (_powerSupply3 != null)
             {
                 try
@@ -2168,6 +2040,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 {
                     try { await _powerSupply3.DisposeAsync(); } catch { }
                     _powerSupply3 = null;
+                }
+            }
+
+            if (_powerSupply2 != null)
+            {
+                try
+                {
+                    if (_powerSupply2.IsConnected)
+                    {
+                        await _powerSupply2.SetOutputEnabledAsync(PowerSupplyChannel.CH3, false);
+                        AddLog("电源2 CH3已关闭（运放供电）");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"关闭电源2异常: {ex.Message}");
+                }
+                finally
+                {
+                    try { await _powerSupply2.DisposeAsync(); } catch { }
+                    _powerSupply2 = null;
                 }
             }
 
@@ -2333,27 +2226,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
 
         private void ClearResults()
-
         {
+            _initialVoltageSet = false;
+            _flipDetected = false;
 
             Application.Current?.Dispatcher?.Invoke(() =>
-
             {
-
                 CurrentVoltage = 0;
-
                 CurrentPinLevel = false;
-
                 FlipVoltage = null;
-
                 TestResult = "--";
-
                 TestProgress = 0;
-
+                StepDownButtonText = "降到17V";
                 TestRecords.Clear();
-
             });
-
         }
 
 
