@@ -483,10 +483,18 @@ namespace MeasureControl.ViewModels.TestTask
                     }
                     catch (Exception ex)
                     {
+                        var sessionLost = _dmmSession == null;
                         Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                         {
-                            MeasurementResult = $"轮询失败: {ex.Message}";
+                            MeasurementResult = sessionLost ? "连接已断开" : $"轮询失败: {ex.Message}";
+                            if (sessionLost)
+                            {
+                                IsDmmConnected = false;
+                                ConnectionStatus = "离线（连接中断）";
+                            }
                         }));
+                        if (sessionLost)
+                            break;
                     }
 
                     try
@@ -552,8 +560,18 @@ namespace MeasureControl.ViewModels.TestTask
             try
             {
                 var cmd = query.EndsWith("\n", StringComparison.Ordinal) ? query : query + "\n";
-                _dmmSession.RawIO.Write(cmd);
-                return _dmmSession.RawIO.ReadString();
+                try
+                {
+                    _dmmSession.RawIO.Write(cmd);
+                    return _dmmSession.RawIO.ReadString();
+                }
+                catch
+                {
+                    // TCP已断：作废session，让轮询循环检测到后退出并更新界面
+                    try { _dmmSession?.Dispose(); } catch { }
+                    _dmmSession = null;
+                    throw;
+                }
             }
             finally
             {
@@ -570,7 +588,16 @@ namespace MeasureControl.ViewModels.TestTask
             try
             {
                 var cmd = command.EndsWith("\n", StringComparison.Ordinal) ? command : command + "\n";
-                _dmmSession.RawIO.Write(cmd);
+                try
+                {
+                    _dmmSession.RawIO.Write(cmd);
+                }
+                catch
+                {
+                    try { _dmmSession?.Dispose(); } catch { }
+                    _dmmSession = null;
+                    throw;
+                }
             }
             finally
             {

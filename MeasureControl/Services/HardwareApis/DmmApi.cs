@@ -360,14 +360,24 @@ namespace MeasureControl.Services.HardwareApis
             {
                 var cmd = scpi.EndsWith("\n", StringComparison.Ordinal) ? scpi : scpi + "\n";
                 Console.WriteLine("发送命令："+cmd);
-                _session.RawIO.Write(cmd);
-                await Task.Delay(200);
-                if (!expectResponse)
-                    return null;
-                var res= _session.RawIO.ReadString();
-                Console.WriteLine(cmd+"  内容："+res);
-                return res;
-                //return _session.RawIO.ReadString();
+                try
+                {
+                    _session.RawIO.Write(cmd);
+                    await Task.Delay(200);
+                    if (!expectResponse)
+                        return null;
+                    var res = _session.RawIO.ReadString();
+                    Console.WriteLine(cmd+"  内容："+res);
+                    return res;
+                }
+                catch
+                {
+                    // TCP已断：作废session，让IsConnected返回false
+                    // 下次EnsureDmmAsync会重新调ConnectAsync完成真正的重连
+                    try { _session?.Dispose(); } catch { }
+                    _session = null;
+                    throw;
+                }
             }
             finally
             {
