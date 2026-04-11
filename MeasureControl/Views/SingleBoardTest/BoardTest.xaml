@@ -147,6 +147,16 @@
 
     <Border>
         <Grid>
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="IsEnabled" Value="True" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsBoardAccessible}" Value="False">
+                            <Setter Property="IsEnabled" Value="False" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="80*" />
                 <ColumnDefinition Width="15*" />
@@ -638,25 +648,6 @@
                     </TreeView>
                 </Border>
             </Border>
-            <Grid Grid.Row="1" Panel.ZIndex="10">
-                <Grid.Style>
-                    <Style TargetType="Grid">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsBoardAccessible}" Value="False">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Grid.Style>
-                <Rectangle Fill="#cccccc" />
-                <TextBlock
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    FontSize="16"
-                    Foreground="White"
-                    Text="该单板未上电，请先通过上电按钮为该单板上电" />
-            </Grid>
         </Grid>
     </Border>
 </UserControl>

@@ -142,17 +142,19 @@ namespace MeasureControl.Services.HardwareApis
             if (!IsConnected && _resourceManager == null)
                 return;
 
-            // 立即强制关闭session：使正在阻塞的RawIO.ReadString()立刻抛出异常，
-            // 从而释放_ioLock，避免等待VISA超时（原8s/现3s）才能断开
-            var sessionToClose = _session;
-            _session = null;
-            try { sessionToClose?.RawIO.Write(":SYST:LOC\n"); } catch { }
-            try { sessionToClose?.Dispose(); } catch { }
-
-            // 用None等锁，不受外部cancellationToken已取消的影响
+            // 用None等锁：即使外部cancellationToken已取消，断开操作也能完成
+            // 最长等VISA超时（3s）后_ioLock会自动释放
             await _ioLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
+                if (_session != null)
+                {
+                    // 切换回本地控制模式（恢复万用表面板操作）
+                    try { _session.RawIO.Write(":SYST:LOC\n"); } catch { }
+                    try { _session.Dispose(); } catch { }
+                    _session = null;
+                }
+
                 if (_resourceManager != null)
                 {
                     try { _resourceManager.Dispose(); } catch { }
