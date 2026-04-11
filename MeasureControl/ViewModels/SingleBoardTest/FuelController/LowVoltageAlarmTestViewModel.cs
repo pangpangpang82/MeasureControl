@@ -1135,23 +1135,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 
                 AddLog($"保存原始上电状态: {(_wasOriginallyPowered ? $"已上电({_originalVoltage:F1}V)" : "未上电")}");
                 
-                // 先将组件下电
-                if (_wasOriginallyPowered)
+                // 无论原始状态，先下电复位
+                // 确保 _power1State == ComponentDown，SetComponentVoltageAsync(17V) 才能正确开启输出
+                AddLog("正在关闭组件供电（初始化前复位）...");
+                try
                 {
-                    AddLog("正在关闭组件原有供电...");
-                    try
-                    {
-                        if (_componentPowerStateApi != null)
-                        {
-                            await _componentPowerStateApi.ApplyComponentDownStateAsync(timeoutCts.Token);
-                        }
-                        await Task.Delay(200, timeoutCts.Token);
-                        AddLog("组件已下电");
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"下电异常: {ex.Message}");
-                    }
+                    if (_componentPowerStateApi != null)
+                        await _componentPowerStateApi.ApplyComponentDownStateAsync(timeoutCts.Token);
+                    await Task.Delay(200, timeoutCts.Token);
+                    AddLog("组件已下电");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"下电异常: {ex.Message}");
                 }
 
                 // 步骤1：配置矩阵开关通路
@@ -2069,99 +2065,57 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
 
         private async Task InitializeOpAmpAndDiPullUpPowerAsync(CancellationToken token)
-
         {
-
             AddLog("正在初始化运放供电和DI上拉信号（+15V）...");
 
+            // 并行连接两路电源：同时发起TCP连接，避免顺序失败（ARP/TCP预热问题）
+            await Task.WhenAll(
+                InitPowerSupply2Async(token),
+                InitPowerSupply3Async(token));
 
+            _opAmpPowerOn = (_powerSupply2 != null) && (_powerSupply3 != null);
+            if (!_opAmpPowerOn)
+                throw new InvalidOperationException(
+                    $"运放供电和DI上拉信号初始化失败（电源2:{(_powerSupply2 != null ? "OK" : "失败")}, 电源3:{(_powerSupply3 != null ? "OK" : "失败")}）");
+            AddLog("运放供电和DI上拉信号初始化完成");
+        }
 
-            // 连接第二个电源（运放供电+15V）
-
+        private async Task InitPowerSupply2Async(CancellationToken token)
+        {
             try
-
             {
-
                 AddLog($"正在连接电源2（运放供电）{PowerSupply2IpAddress}...");
-
-                _powerSupply2 = new PowerSupplySocketApi();
-
-                await _powerSupply2.ConnectAsync(PowerSupply2IpAddress, token);
-
-                
-
-                // 配置CH3输出+15V
-
-                await _powerSupply2.ApplyAsync(PowerSupplyChannel.CH3, OpAmpSupplyVoltage, OpAmpSupplyCurrent, token);
-
-                await _powerSupply2.SetOutputEnabledAsync(PowerSupplyChannel.CH3, true, token);
-
+                var ps = new PowerSupplySocketApi();
+                await ps.ConnectAsync(PowerSupply2IpAddress, token);
+                await ps.ApplyAsync(PowerSupplyChannel.CH3, OpAmpSupplyVoltage, OpAmpSupplyCurrent, token);
+                await ps.SetOutputEnabledAsync(PowerSupplyChannel.CH3, true, token);
                 AddLog($"电源2 CH3已配置: +{OpAmpSupplyVoltage:F1}V（运放供电）");
-
+                _powerSupply2 = ps;
             }
-
             catch (Exception ex)
-
             {
-
                 AddLog($"电源2连接失败: {ex.Message}");
-
                 _powerSupply2 = null;
-
-                throw;
-
             }
+        }
 
-
-
-            // 连接第三个电源（DI上拉信号+15V）
-
+        private async Task InitPowerSupply3Async(CancellationToken token)
+        {
             try
-
             {
-
                 AddLog($"正在连接电源3（DI上拉）{PowerSupply3IpAddress}...");
-
-                _powerSupply3 = new PowerSupplySocketApi();
-
-                await _powerSupply3.ConnectAsync(PowerSupply3IpAddress, token);
-
-                
-
-                // 配置CH3输出+15V
-
-                await _powerSupply3.ApplyAsync(PowerSupplyChannel.CH3, OpAmpSupplyVoltage, OpAmpSupplyCurrent, token);
-
-                await _powerSupply3.SetOutputEnabledAsync(PowerSupplyChannel.CH3, true, token);
-
+                var ps = new PowerSupplySocketApi();
+                await ps.ConnectAsync(PowerSupply3IpAddress, token);
+                await ps.ApplyAsync(PowerSupplyChannel.CH3, OpAmpSupplyVoltage, OpAmpSupplyCurrent, token);
+                await ps.SetOutputEnabledAsync(PowerSupplyChannel.CH3, true, token);
                 AddLog($"电源3 CH3已配置: +{OpAmpSupplyVoltage:F1}V（DI上拉信号）");
-
+                _powerSupply3 = ps;
             }
-
             catch (Exception ex)
-
             {
-
                 AddLog($"电源3连接失败: {ex.Message}");
-
                 _powerSupply3 = null;
-
-                throw;
-
             }
-
-
-
-            _opAmpPowerOn = (_powerSupply2 != null) || (_powerSupply3 != null);
-
-            if (_opAmpPowerOn)
-
-                AddLog("运放供电和DI上拉信号初始化完成");
-
-            else
-
-                throw new InvalidOperationException("运放供电和DI上拉信号初始化失败");
-
         }
 
 
@@ -2173,99 +2127,51 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
 
         private async Task ShutdownOpAmpAndDiPullUpPowerAsync()
-
         {
-
-            // 关闭电源2（运放供电）
-
+            // 真正断开连接，释放给其他测试项使用
             if (_powerSupply2 != null)
-
             {
-
                 try
-
                 {
-
                     if (_powerSupply2.IsConnected)
-
                     {
-
                         await _powerSupply2.SetOutputEnabledAsync(PowerSupplyChannel.CH3, false);
-
                         AddLog("电源2 CH3已关闭（运放供电）");
-
                     }
-
                 }
-
                 catch (Exception ex)
-
                 {
-
                     AddLog($"关闭电源2异常: {ex.Message}");
-
                 }
-
                 finally
-
                 {
-
                     try { await _powerSupply2.DisposeAsync(); } catch { }
-
                     _powerSupply2 = null;
-
                 }
-
             }
-
-
-
-            // 关闭电源3（DI上拉信号）
 
             if (_powerSupply3 != null)
-
             {
-
                 try
-
                 {
-
                     if (_powerSupply3.IsConnected)
-
                     {
-
                         await _powerSupply3.SetOutputEnabledAsync(PowerSupplyChannel.CH3, false);
-
                         AddLog("电源3 CH3已关闭（DI上拉信号）");
-
                     }
-
                 }
-
                 catch (Exception ex)
-
                 {
-
                     AddLog($"关闭电源3异常: {ex.Message}");
-
                 }
-
                 finally
-
                 {
-
                     try { await _powerSupply3.DisposeAsync(); } catch { }
-
                     _powerSupply3 = null;
-
                 }
-
             }
 
-
-
             _opAmpPowerOn = false;
-
         }
 
 
@@ -2649,26 +2555,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             _opCts?.Cancel();
 
             _opCts?.Dispose();
-
-
-
-            // 电源：只关闭输出，不调用DisposeAsync（避免发送SYST:LOC导致电源切换到本地模式）
-
-            try
-
-            {
-
-                if (_powerSupplyApi != null && _powerSupplyApi.IsConnected)
-
-                {
-
-                    _powerSupplyApi.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false).GetAwaiter().GetResult();
-
-                }
-
-            }
-
-            catch { }
 
 
 
