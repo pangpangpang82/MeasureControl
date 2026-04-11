@@ -478,8 +478,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"FPGA连接失败: {ex.Message}，将使用仿真模式");
+                    AddLog($"FPGA连接失败: {ex.Message}");
                     _fpgaConnected = false;
+                    throw;
                 }
 
                 _hardwareInitialized = true;
@@ -615,11 +616,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[FPGA] UART0自检失败: {ex.Message}，降级仿真");
+                    AddLog($"[FPGA] UART0自检失败: {ex.Message}");
+                    SetStepResultAndRx("a", null);
+                    return;
                 }
             }
-            var simRx = await _simulation.SendAndReceiveAsync("步骤a", TxPin1, RxPin1, DefaultTxData, AddLog, token);
-            SetStepResultAndRx("a", simRx);
+            AddLog("步骤a执行失败: FPGA未连接");
+            SetStepResultAndRx("a", null);
         }
 
         private async Task RunStepBAsync(CancellationToken token)
@@ -642,11 +645,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[FPGA] UART1自检失败: {ex.Message}，降级仿真");
+                    AddLog($"[FPGA] UART1自检失败: {ex.Message}");
+                    SetStepResultAndRx("b", null);
+                    return;
                 }
             }
-            var simRx = await _simulation.SendAndReceiveAsync("步骤b", TxPin2, RxPin2, DefaultTxData, AddLog, token);
-            SetStepResultAndRx("b", simRx);
+            AddLog("步骤b执行失败: FPGA未连接");
+            SetStepResultAndRx("b", null);
         }
 
         private void SetStepResultAndRx(string step, byte[] rx)

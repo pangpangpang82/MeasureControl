@@ -571,13 +571,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[FPGA] HI8435读取失败: {ex.Message}，降级仿真");
-                    hi8435Results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
+                    AddLog($"[FPGA] HI8435读取失败: {ex.Message}");
+                    throw;
                 }
             }
             else
             {
-                hi8435Results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
+                throw new InvalidOperationException("FPGA未连接，无法读取HI8435离散量采集结果");
             }
 
             // 3. 保存结果
@@ -636,13 +636,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[FPGA] HI8435读取失败: {ex.Message}，降级仿真");
-                    hi8435Results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
+                    AddLog($"[FPGA] HI8435读取失败: {ex.Message}");
+                    throw;
                 }
             }
             else
             {
-                hi8435Results = await _simulation.ReadDiscreteInputsAsync(AddLog, token);
+                throw new InvalidOperationException("FPGA未连接，无法读取HI8435离散量采集结果");
             }
 
             // 3. 保存结果
@@ -799,18 +799,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[7131] DI读取失败: {ex.Message}，使用仿真值");
-                    // 仿真模式：返回全0
-                    for (int i = 0; i < results.Length; i++)
-                        results[i] = 0;
+                    AddLog($"[7131] DI读取失败: {ex.Message}");
+                    throw;
                 }
             }
             else
             {
-                AddLog("[7131] 板卡不可用，使用仿真DI值");
-                // 仿真模式：返回全0
-                for (int i = 0; i < results.Length; i++)
-                    results[i] = 0;
+                throw new InvalidOperationException("7131板卡不可用，无法读取DI值");
             }
 
             return results;
@@ -880,8 +875,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"7131板卡初始化异常: {ex.Message}，使用仿真信号模式");
-                    _jy7131Api = null;
+                    AddLog($"7131板卡初始化异常: {ex.Message}");
+                    throw;
                 }
             }
 
@@ -906,8 +901,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
             catch (Exception ex)
             {
-                AddLog($"FPGA连接/初始化失败: {ex.Message}，将使用仿真模式读取");
-                _fpgaConnected = false;
+                AddLog($"FPGA连接/初始化失败: {ex.Message}");
+                throw;
             }
 
             _hardwareInitialized = true;
@@ -1149,20 +1144,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[7131] DO写入失败: {ex.Message}，降级仿真");
-                    if (grounded)
-                        await _simulation.SetAllDoGroundedAsync(AddLog, token);
-                    else
-                        await _simulation.SetAllDoOpenAsync(AddLog, token);
+                    AddLog($"[7131] DO写入失败: {ex.Message}");
+                    throw;
                 }
             }
             else
             {
-                AddLog("[7131] 板卡不可用，使用仿真模式");
-                if (grounded)
-                    await _simulation.SetAllDoGroundedAsync(AddLog, token);
-                else
-                    await _simulation.SetAllDoOpenAsync(AddLog, token);
+                throw new InvalidOperationException("7131板卡不可用，无法设置DO输出状态");
             }
         }
 

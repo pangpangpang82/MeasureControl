@@ -208,6 +208,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private const double OpAmpSupplyCurrent = 1.0;
 
+        private const string MatrixIpAddress = "192.168.1.3";
+
+        private const int MatrixSlot2601_1 = 4;
+
+        private const int MatrixSlot3022_1 = 2;
+
+        private const int MatrixTcpBasePort3022 = 50300;
+
+        private static readonly (string In, string Out, int Slot) Matrix2601 = ("I4", "O0", MatrixSlot2601_1);
+
+        private static readonly (string In, string Out, int Slot, int BasePort) Matrix3022 = ("I0", "O41", MatrixSlot3022_1, MatrixTcpBasePort3022);
+
 
 
         #endregion
@@ -1147,7 +1159,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 bool matrixOk = false;
                 try
                 {
-                    matrixOk = await _simulation.ConnectMatrixAsync(msg => AddLog(msg), timeoutCts.Token);
+                    await ConnectMatrixRoutesAsync(timeoutCts.Token);
+                    matrixOk = true;
                 }
                 catch (Exception ex)
                 {
@@ -1155,7 +1168,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 if (!matrixOk)
                 {
-                    AddLog("矩阵开关配置失败，继续使用仿真模式");
+                    throw new InvalidOperationException("矩阵开关配置失败，无法执行真实测试");
                 }
 
                 // 步骤2：初始化9774板卡（用于AD采集）
@@ -1215,9 +1228,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             {
 
-                AddLog("未找到9774板卡，将使用仿真模式");
-
-                return;
+                throw new InvalidOperationException("未找到9774板卡，无法执行真实测试");
 
             }
 
@@ -1271,11 +1282,49 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             {
 
-                AddLog($"9774板卡初始化失败: {ex.Message}，将使用仿真模式");
+                AddLog($"9774板卡初始化失败: {ex.Message}");
 
                 _ai9774Api = null;
 
+                throw;
+
             }
+
+        }
+
+        private async Task ConnectMatrixRoutesAsync(CancellationToken token)
+
+        {
+
+            var svc = MatrixControlService.Instance;
+
+            bool ok2601 = await svc.ConnectNodesAsync(Matrix2601.In, Matrix2601.Out, Matrix2601.Slot, MatrixIpAddress);
+
+            AddLog($"2601(1): {Matrix2601.In}->{Matrix2601.Out} slot={Matrix2601.Slot}, ok={ok2601}");
+
+            bool ok3022 = await svc.ConnectNodesAsync(Matrix3022.In, Matrix3022.Out, Matrix3022.Slot, MatrixIpAddress, Matrix3022.BasePort);
+
+            AddLog($"3022(1): {Matrix3022.In}->{Matrix3022.Out} slot={Matrix3022.Slot}, basePort={Matrix3022.BasePort}, ok={ok3022}");
+
+            if (!ok2601 || !ok3022)
+
+            {
+
+                throw new InvalidOperationException("矩阵开关通路连接失败");
+
+            }
+
+        }
+
+        private async Task DisconnectMatrixRoutesAsync(CancellationToken token)
+
+        {
+
+            var svc = MatrixControlService.Instance;
+
+            try { await svc.DisconnectNodesAsync(Matrix2601.In, Matrix2601.Out, Matrix2601.Slot, MatrixIpAddress); } catch { }
+
+            try { await svc.DisconnectNodesAsync(Matrix3022.In, Matrix3022.Out, Matrix3022.Slot, MatrixIpAddress, Matrix3022.BasePort); } catch { }
 
         }
 
@@ -1733,12 +1782,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[组件电源] 设置电压失败: {ex.Message}，使用仿真");
+                    AddLog($"[组件电源] 设置电压失败: {ex.Message}");
+                    throw;
                 }
             }
 
-            // 回退到仿真
-            await _simulation.SetSupplyVoltageAsync(voltage, msg => AddLog(msg), token);
+            throw new InvalidOperationException("组件电源API不可用，无法设置真实供电电压");
         }
 
 
@@ -1791,7 +1840,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             {
 
-                AddLog($"电源连接失败: {ex.Message}，将使用仿真模式");
+                AddLog($"电源连接失败: {ex.Message}");
 
                 _powerSupplyApi = null;
 
@@ -1854,32 +1903,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     return (level, adVoltage);
 
                 }
-
                 catch (Exception ex)
 
                 {
 
-                    AddLog($"9774读取异常: {ex.Message}，使用仿真");
+                    AddLog($"9774读取异常: {ex.Message}");
+
+                    throw;
 
                 }
 
             }
 
-
-
-            // 使用仿真
-
-            level = await _simulation.ReadPinLevelAsync(token);
-
-            adVoltage = level ? 3.3 : 0.5; // 仿真电压值
-
-            AddLog($"[SIM] 仿真电压: {adVoltage:F3}V, 电平: {(level ? "高" : "低")}");
-
-            return (level, adVoltage);
+            throw new InvalidOperationException("9774板卡未连接，无法读取PIN3电压");
 
         }
-
-
 
         /// <summary>
 
@@ -1992,7 +2030,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             {
 
-                await _simulation.DisconnectMatrixAsync(msg => AddLog(msg), token);
+                await DisconnectMatrixRoutesAsync(token);
 
             }
 
@@ -2066,9 +2104,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             {
 
-                AddLog($"电源2连接失败: {ex.Message}，运放供电将使用仿真");
+                AddLog($"电源2连接失败: {ex.Message}");
 
                 _powerSupply2 = null;
+
+                throw;
 
             }
 
@@ -2102,9 +2142,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             {
 
-                AddLog($"电源3连接失败: {ex.Message}，DI上拉信号将使用仿真");
+                AddLog($"电源3连接失败: {ex.Message}");
 
                 _powerSupply3 = null;
+
+                throw;
 
             }
 
@@ -2118,7 +2160,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             else
 
-                AddLog("运放供电和DI上拉信号初始化失败，使用仿真模式");
+                throw new InvalidOperationException("运放供电和DI上拉信号初始化失败");
 
         }
 

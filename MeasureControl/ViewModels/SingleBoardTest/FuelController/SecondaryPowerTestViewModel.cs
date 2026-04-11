@@ -211,7 +211,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
 
             var dmmVoltage = await ReadVoltageFromDmmAsync(token);
-            AddLog(_useSimulatedDmm ? "电压来源: 仿真" : "电压来源: 万用表");
+            AddLog("电压来源: 万用表");
             return dmmVoltage;
         }
 
@@ -714,8 +714,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"万用表连接异常: {ex.Message}，使用仿真模式");
-                    _useSimulatedDmm = true;
+                    AddLog($"万用表连接异常: {ex.Message}");
+                    throw;
                 }
 
                 await Initialize9774AiAsync(timeoutCts.Token);
@@ -813,8 +813,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
             catch (Exception ex)
             {
-                AddLog($"电源2连接失败: {ex.Message}，运放供电将使用仿真");
+                AddLog($"电源2连接失败: {ex.Message}");
                 _powerSupply2 = null;
+                throw;
             }
 
             // 连接第三个电源（DI上拉信号+15V）
@@ -831,15 +832,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
             catch (Exception ex)
             {
-                AddLog($"电源3连接失败: {ex.Message}，DI上拉信号将使用仿真");
+                AddLog($"电源3连接失败: {ex.Message}");
                 _powerSupply3 = null;
+                throw;
             }
 
             _opAmpPowerOn = (_powerSupply2 != null) || (_powerSupply3 != null);
             if (_opAmpPowerOn)
                 AddLog("运放供电和DI上拉信号初始化完成");
             else
-                AddLog("运放供电和DI上拉信号初始化失败，使用仿真模式");
+                throw new InvalidOperationException("运放供电和DI上拉信号初始化失败");
         }
 
         /// <summary>
@@ -1037,7 +1039,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private async Task<double> ReadVoltageFromDmmAsync(CancellationToken token = default)
         {
             if (_useSimulatedDmm)
-                return await _simulation.SimulateMeasureVoltageAsync(token);
+                throw new InvalidOperationException("万用表未就绪，无法执行真实电压测量");
 
             await _measureLock.WaitAsync(token);
             try
@@ -1049,9 +1051,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 if (!ok1 || !ok2)
                 {
-                    AddLog("矩阵通路连接失败，使用仿真测量");
-                    _useSimulatedDmm = true;
-                    return await _simulation.SimulateMeasureVoltageAsync(token);
+                    throw new InvalidOperationException("矩阵通路连接失败，无法执行真实电压测量");
                 }
 
                 try
@@ -1065,9 +1065,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"万用表测量异常: {ex.Message}，使用仿真模式");
-                    _useSimulatedDmm = true;
-                    return await _simulation.SimulateMeasureVoltageAsync(token);
+                    AddLog($"万用表测量异常: {ex.Message}");
+                    throw;
                 }
             }
             finally

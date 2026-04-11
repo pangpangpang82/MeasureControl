@@ -1266,7 +1266,11 @@ namespace MeasureControl.Views.Common
                 AppendSingleBoardReportLine(anyFailed ? "END | FAIL" : "END | PASS");
 
                 // 所有测试项完成后立即关闭28V电源，不等报表写入
-                if (string.Equals(boardType, "惰化模拟板", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
+                {
+                    await CleanupHydraulic28VPowerAsync().ConfigureAwait(true);
+                }
+                else if (string.Equals(boardType, "惰化模拟板", StringComparison.OrdinalIgnoreCase))
                 {
                     try { await CleanupInert28VPowerAsync("192.168.1.15", "192.168.1.16").ConfigureAwait(true); } catch { }
                     try { ContainerLocator.Container.Resolve<IHydraulicPowerService>()?.SetPoweredState(false); } catch { }
@@ -1318,7 +1322,11 @@ namespace MeasureControl.Views.Common
                 }
 
                 // 取消时也要关闭28V电源
-                if (string.Equals(boardType, "惰化模拟板", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
+                {
+                    await CleanupHydraulic28VPowerAsync().ConfigureAwait(true);
+                }
+                else if (string.Equals(boardType, "惰化模拟板", StringComparison.OrdinalIgnoreCase))
                 {
                     try { await CleanupInert28VPowerAsync("192.168.1.15", "192.168.1.16").ConfigureAwait(true); } catch { }
                     try { ContainerLocator.Container.Resolve<IHydraulicPowerService>()?.SetPoweredState(false); } catch { }
@@ -1434,6 +1442,31 @@ namespace MeasureControl.Views.Common
                 _inertControlAutoTestVm6 = null;
                 _inertControlAutoTestVm7 = null;
                 _inertControlAutoTestVm8 = null;
+            }
+        }
+
+        private static async Task CleanupHydraulic28VPowerAsync()
+        {
+            var hydraulicPowerService = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
+            if (hydraulicPowerService == null)
+            {
+                return;
+            }
+
+            try
+            {
+                await hydraulicPowerService.PowerOffAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                hydraulicPowerService.SetPoweredState(false);
+            }
+            catch
+            {
             }
         }
 
