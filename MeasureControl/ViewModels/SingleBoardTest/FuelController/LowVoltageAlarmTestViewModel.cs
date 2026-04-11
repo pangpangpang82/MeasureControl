@@ -1154,10 +1154,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 // 步骤3/4：并行开启.16和.17（+15V 运放供电 / DI上拉）
                 await InitializeOpAmpAndDiPullUpPowerAsync(timeoutCts.Token);
 
-                // 步骤5：开启28V组件供电
-                AddLog("正在开启28V组件供电...");
-                await _componentPowerStateApi.ApplyComponent28VStateAsync(timeoutCts.Token);
-                AddLog("28V组件供电已开启");
+                // 步骤5：直接连接192.168.1.15，开启CH1 28V供电
+                AddLog($"正在连接{PowerSupplyIpAddress}，开启CH1 28V供电...");
+                _powerSupplyApi ??= new PowerSupplySocketApi();
+                if (!_powerSupplyApi.IsConnected)
+                    await _powerSupplyApi.ConnectAsync(PowerSupplyIpAddress, timeoutCts.Token);
+                await _powerSupplyApi.ApplyAsync(PowerSupplyChannel.CH1, 28.0, PowerSupplyCurrent, timeoutCts.Token);
+                await _powerSupplyApi.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, timeoutCts.Token);
+                AddLog($"{PowerSupplyIpAddress} CH1 28V已开启");
 
                 // 等待电源稳定
                 await Task.Delay(500, timeoutCts.Token);
@@ -1716,27 +1720,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
 
         /// <summary>
-        /// 设置组件供电电压（使用组件电源API，失败时回退到仿真）
+        /// 设置供电电压（直接操作192.168.1.15 CH1）
         /// </summary>
         private async Task SetPowerSupplyVoltageAsync(double voltage, CancellationToken token)
         {
-            // 优先使用组件电源API（192.168.1.15 CH1）
-            if (_componentPowerStateApi != null)
-            {
-                try
-                {
-                    await _componentPowerStateApi.SetComponentVoltageAsync(voltage, token);
-                    AddLog($"[组件电源] 电压已设置为 {voltage:F1}V");
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"[组件电源] 设置电压失败: {ex.Message}");
-                    throw;
-                }
-            }
+            if (_powerSupplyApi == null || !_powerSupplyApi.IsConnected)
+                throw new InvalidOperationException($"{PowerSupplyIpAddress}电源未连接，无法设置供电电压");
 
-            throw new InvalidOperationException("组件电源API不可用，无法设置真实供电电压");
+            await _powerSupplyApi.ApplyAsync(PowerSupplyChannel.CH1, voltage, PowerSupplyCurrent, token);
+            await _powerSupplyApi.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token);
+            AddLog($"[{PowerSupplyIpAddress} CH1] 电压已设置为 {voltage:F1}V");
         }
 
 
@@ -1890,16 +1883,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             AddLog("正在复位硬件（反序断开）...");
 
-            // 步骤1: 关闭28V组件供电
+            // 步骤1: 关闭192.168.1.15 CH1并断开
             try
             {
-                if (_componentPowerStateApi != null)
-                    await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
-                AddLog("28V组件供电已关闭");
+                if (_powerSupplyApi != null && _powerSupplyApi.IsConnected)
+                {
+                    await _powerSupplyApi.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, token);
+                    await _powerSupplyApi.DisconnectAsync(token);
+                    AddLog($"{PowerSupplyIpAddress} CH1已关闭并断开");
+                }
             }
             catch (Exception ex)
             {
-                AddLog($"关闭28V异常: {ex.Message}");
+                AddLog($"关闭{PowerSupplyIpAddress}异常: {ex.Message}");
+            }
+            finally
+            {
+                _powerSupplyApi = null;
             }
             Application.Current?.Dispatcher?.Invoke(() =>
             {

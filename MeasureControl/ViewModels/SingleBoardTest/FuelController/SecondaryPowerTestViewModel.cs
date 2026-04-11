@@ -88,6 +88,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private const string AiVoltageChannel = "AI1";
 
+        /// <summary>第一个电源IP地址（组件28V供电）</summary>
+        private const string PowerSupply1IpAddress = "192.168.1.15";
+        /// <summary>组件28V供电电压（V）</summary>
+        private const double ComponentVoltage = 28.0;
+        /// <summary>组件28V供电电流限制（A）</summary>
+        private const double ComponentCurrentLimit = 3.0;
         /// <summary>第二个电源IP地址（运放供电+15V）</summary>
         private const string PowerSupply2IpAddress = "192.168.1.16";
         /// <summary>第三个电源IP地址（DI上拉信号+15V）</summary>
@@ -126,6 +132,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         #region 运放供电和DI上拉电源
 
+        private IPowerSupplyApi _powerSupply1;  // 第一个电源（组件28V供电）
         private IPowerSupplyApi _powerSupply2;  // 第二个电源（运放供电+15V）
         private IPowerSupplyApi _powerSupply3;  // 第三个电源（DI上拉信号+15V）
         private bool _opAmpPowerOn;             // 运放供电是否已开启
@@ -733,10 +740,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 _opAmpPowerOn = true;
 
-                // ========== 步骤4：开启28V组件供电 ==========
-                AddLog("正在开启28V组件供电...");
-                await _componentPowerStateApi.ApplyComponent28VStateAsync(timeoutCts.Token);
-                AddLog("28V组件供电已开启");
+                // ========== 步骤4：直接连接192.168.1.15，开启CH1 28V供电 ==========
+                AddLog($"正在连接{PowerSupply1IpAddress}，开启CH1 28V供电...");
+                _powerSupply1 ??= new PowerSupplySocketApi();
+                if (!_powerSupply1.IsConnected)
+                    await _powerSupply1.ConnectAsync(PowerSupply1IpAddress, timeoutCts.Token);
+                await _powerSupply1.ApplyAsync(PowerSupplyChannel.CH1, ComponentVoltage, ComponentCurrentLimit, timeoutCts.Token);
+                await _powerSupply1.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, timeoutCts.Token);
+                AddLog($"{PowerSupply1IpAddress} CH1 {ComponentVoltage:F0}V已开启");
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     IsPowerOn = true;
@@ -768,15 +779,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             // 步骤1: 断开矩阵开关
             await DisconnectAllMatrixRoutesAsync();
 
-            // 步骤2: 关闭28V组件供电
+            // 步骤2: 关闭192.168.1.15 CH1并断开
             try
             {
-                await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
-                AddLog("28V组件供电已关闭");
+                if (_powerSupply1 != null && _powerSupply1.IsConnected)
+                {
+                    await _powerSupply1.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, token);
+                    await _powerSupply1.DisconnectAsync(token);
+                    AddLog($"{PowerSupply1IpAddress} CH1已关闭并断开");
+                }
             }
             catch (Exception ex)
             {
-                AddLog($"关闭28V异常: {ex.Message}");
+                AddLog($"关闭{PowerSupply1IpAddress}异常: {ex.Message}");
+            }
+            finally
+            {
+                _powerSupply1 = null;
             }
             Application.Current?.Dispatcher?.Invoke(() =>
             {
