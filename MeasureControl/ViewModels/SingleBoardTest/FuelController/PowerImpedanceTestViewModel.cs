@@ -76,15 +76,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const string RelayControlChannel = "DO14";
         
         /// <summary>硬件初始化默认超时时间（毫秒）</summary>
-        private const int DefaultTimeoutMs = 3000;
+        private const int DefaultTimeoutMs = 6000;
         
         /// <summary>万用表测量超时时间（毫秒）</summary>
-        private const int DmmTimeoutMs = 2000;
+        private const int DmmTimeoutMs = 5000;
+        private const string DmmTriggerDelayCommand = "TRIG:DEL 0.01";
         
         /// <summary>继电器操作超时时间（毫秒）</summary>
-        private const int RelayTimeoutMs = 2000;
+        private const int RelayTimeoutMs = 4000;
 
-        private const int RelayPowerTimeoutMs = 2000;
+        private const int RelayPowerTimeoutMs = 4000;
 
         #endregion
 
@@ -797,7 +798,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     catch (Exception ex)
                     {
                         AddLog($"7131板卡初始化异常: {ex.Message}");
-                        _jy7131Api = null;
+                        await CleanupJy7131ApiAsync();
                         throw;
                     }
                 }
@@ -911,21 +912,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         AddLog($"7131板卡复位异常: {ex.Message}");
                     }
                 }
+                await CleanupJy7131ApiAsync();
 
                 // 步骤3：断开矩阵开关通路
                 await DisconnectAllMatrixRoutesAsync();
 
                 // 步骤4：断开万用表
-                if (_dmmSocket != null)
-                {
-                    try
-                    {
-                        if (_dmmSocket.IsConnected)
-                            await _dmmSocket.DisconnectAsync(token);
-                        AddLog("万用表已断开");
-                    }
-                    catch { }
-                }
+                await CleanupDmmSocketAsync();
+                AddLog("万用表已断开");
 
                 _hardwareInitialized = false;
                 AddLog("硬件设备已复位");
@@ -933,6 +927,52 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             catch (Exception ex)
             {
                 AddLog($"硬件复位异常: {ex.Message}");
+            }
+        }
+
+        private async Task CleanupJy7131ApiAsync()
+        {
+            try
+            {
+                if (_jy7131Api != null)
+                {
+                    try
+                    {
+                        if (_jy7131Api.IsRunning)
+                        {
+                            await _jy7131Api.StopAsync(CancellationToken.None);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"7131板卡停止异常: {ex.Message}");
+                    }
+
+                    try
+                    {
+                        if (_jy7131Api.IsConnected)
+                        {
+                            await _jy7131Api.DisconnectAsync(CancellationToken.None);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"7131板卡断开异常: {ex.Message}");
+                    }
+
+                    try
+                    {
+                        await _jy7131Api.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"7131板卡释放异常: {ex.Message}");
+                    }
+                }
+            }
+            finally
+            {
+                _jy7131Api = null;
             }
         }
 
@@ -972,9 +1012,40 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         [MethodImpl(MethodImplOptions.NoInlining)]
         private async Task ConnectDmmAsync(string ipAddress, CancellationToken token)
         {
+            if (string.IsNullOrWhiteSpace(ipAddress))
+                throw new InvalidOperationException("万用表IP地址为空");
+
             _dmmSocket ??= new DmmSocketApi();
-            if (!_dmmSocket.IsConnected)
+
+            try
+            {
+                if (!_dmmSocket.IsConnected)
+                    await _dmmSocket.ConnectAsync(ipAddress, token);
+
+                await ConfigureDmmAsync(token);
+            }
+            catch (OperationCanceledException)
+            {
+                await CleanupDmmSocketAsync();
+                throw;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"万用表首次连接失败，准备重建连接: {ex.Message}");
+                await CleanupDmmSocketAsync();
+
+                _dmmSocket = new DmmSocketApi();
                 await _dmmSocket.ConnectAsync(ipAddress, token);
+                await ConfigureDmmAsync(token);
+            }
+        }
+
+        private async Task ConfigureDmmAsync(CancellationToken token)
+        {
+            if (_dmmSocket == null)
+                return;
+
+            await _dmmSocket.SendAsync(DmmTriggerDelayCommand, token);
         }
 
         /// <summary>
@@ -984,15 +1055,44 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         [MethodImpl(MethodImplOptions.NoInlining)]
         private async Task<DmmReading> DmmReadResistanceAsync(CancellationToken token)
         {
-            if (_dmmSocket == null || !_dmmSocket.IsConnected)
-            {
-                _dmmSocket ??= new DmmSocketApi();
-                await _dmmSocket.ConnectAsync(GetDmmIpAddress(), token);
-            }
+            await ConnectDmmAsync(GetDmmIpAddress(), token);
+
             return await _dmmSocket.ReadOnceAsync(
                 DmmMeasureMode.RES,
                 new DmmReadOptions { TimeoutMilliseconds = DmmTimeoutMs },
                 token);
+        }
+
+        private async Task CleanupDmmSocketAsync()
+        {
+            try
+            {
+                if (_dmmSocket != null)
+                {
+                    try
+                    {
+                        if (_dmmSocket.IsConnected)
+                            await _dmmSocket.DisconnectAsync(CancellationToken.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"万用表断开异常: {ex.Message}");
+                    }
+
+                    try
+                    {
+                        await _dmmSocket.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"万用表释放异常: {ex.Message}");
+                    }
+                }
+            }
+            finally
+            {
+                _dmmSocket = null;
+            }
         }
 
         private async Task DisconnectAllMatrixRoutesAsync()
@@ -1716,10 +1816,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             try
             {
-                if (_dmmSocket != null && _dmmSocket.IsConnected)
-                {
-                    _dmmSocket.DisconnectAsync(CancellationToken.None).GetAwaiter().GetResult();
-                }
+                CleanupDmmSocketAsync().GetAwaiter().GetResult();
             }
             catch { }
 

@@ -460,6 +460,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
+                AddLog("正在上组件28V电...");
+                await ApplyPower28VAsync(token);
+
                 // 连接FPGA
                 AddLog("正在连接FPGA...");
                 try

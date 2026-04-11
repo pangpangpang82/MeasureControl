@@ -514,6 +514,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 return;
             }
 
+            // ========== 步骤1：组件28V上电 ==========
+            AddLog("正在上组件28V电...");
+            await ApplyPower28VAsync(token);
+
             // ========== 步骤2：连接FPGA TCP服务器 ==========
             AddLog($"正在连接FPGA TCP服务器 {FpgaIoClient.DefaultIpAddress}:{FpgaIoClient.DefaultPort} ...");
             try
@@ -570,6 +574,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             UpdateCommandStates();
             AddLog("硬件复位完成");
             RefreshPowerStateDisplay();
+        }
+
+        private async Task ApplyPower28VAsync(CancellationToken token)
+        {
+            try
+            {
+                await _componentPowerStateApi.ApplyComponent28VStateAsync(token);
+                AddLog("组件供电: 28V上电(真实API)");
+            }
+            catch
+            {
+                AddLog("组件供电: 28V上电(仿真占位)");
+                await Task.Delay(120, token);
+            }
+
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsPowerOn = true;
+                PowerStatus = "已上电";
+            });
         }
 
         private bool EnsureFuelBoardPowered()

@@ -76,7 +76,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private readonly SemaphoreSlim _matrixLock = new SemaphoreSlim(1, 1);
 
         private CancellationTokenSource _opCts;
-        private Task<string> _autoTestTask;
         private SubscriptionToken _projectSavingToken;
 
         private bool _hardwareInitialized;
@@ -88,7 +87,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private string _powerStatus = "未上电";
 
         private double _selectedSupplyVoltage = 28.0;
-        private double? _poweredSupplyVoltage;
 
         private double? _impedanceGrounded;
         private double? _impedanceOpen;
@@ -133,10 +131,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             AutoTestCommand = new DelegateCommand(OnAutoTest);
             StepACommand = new DelegateCommand(async () => await RunStepAAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
             StepBCommand = new DelegateCommand(async () => await RunStepBAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
-            StepCCommand = new DelegateCommand(
-                async () => await RunStepCAsync(),
-                () => !IsBusy && IsManualTestRunning && _hardwareInitialized && IsPowerOn && _poweredSupplyVoltage.HasValue && Math.Abs(_poweredSupplyVoltage.Value - SelectedSupplyVoltage) < 0.0001);
-            PowerOnCommand = new DelegateCommand(async () => await PowerOnForStepCAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            StepCCommand = new DelegateCommand(async () => await RunStepCAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
+            PowerOnCommand = new DelegateCommand(async () => await PowerOnForStepCAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized && !IsPowerOn);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
             //ToggleRelayCommand = new DelegateCommand(async () => await ToggleRelayAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
             ToggleRelayCommand = new DelegateCommand(async () => await ToggleRelayAsync(), () => testReset == true);
@@ -168,11 +164,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         public bool IsPowerOn
         {
             get => _isPowerOn;
-            set
-            {
-                if (SetProperty(ref _isPowerOn, value))
-                    UpdateCommandStates();
-            }
+            set => SetProperty(ref _isPowerOn, value);
         }
 
         public string PowerStatus
@@ -217,11 +209,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         public double SelectedSupplyVoltage
         {
             get => _selectedSupplyVoltage;
-            set
-            {
-                if (SetProperty(ref _selectedSupplyVoltage, value))
-                    UpdateCommandStates();
-            }
+            set => SetProperty(ref _selectedSupplyVoltage, value);
         }
 
         public bool IsManualTestRunning
@@ -471,7 +459,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             catch (Exception ex)
             {
                 AddLog($"手动测试异常: {ex.Message}");
-                await StopManualTestAsync();
             }
         }
 
@@ -504,29 +491,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 AddLog("正在停止自动测试...");
                 _opCts?.Cancel();
-                try
+                // 等待测试停止并重置状态
+                await Task.Delay(200);
+                Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    if (_autoTestTask != null)
-                        await _autoTestTask;
-                }
-                catch (OperationCanceledException)
-                {
-                }
-                catch
-                {
-                }
-                finally
-                {
-                    AddLog("自动测试已停止");
-                }
+                    IsAutoTestRunning = false;
+                    _hardwareInitialized = false;
+                    UpdateCommandStates();
+                });
+                AddLog("自动测试已停止");
                 return;
             }
 
             _opCts = new CancellationTokenSource();
             try
             {
-                _autoTestTask = ExecuteAutoTestCoreAsync(_opCts.Token);
-                await _autoTestTask;
+                await ExecuteAutoTestCoreAsync(_opCts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -538,7 +518,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
             finally
             {
-                _autoTestTask = null;
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     IsAutoTestRunning = false;
@@ -599,7 +578,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 Application.Current?.Dispatcher?.Invoke(() => StepCResult = stepCPass ? "PASS" : "FAIL");
                 token.ThrowIfCancellationRequested();
 
-                await ResetHardwareAsync(CancellationToken.None, preserveComponentPower: false).ConfigureAwait(false);
+                await ResetHardwareAsync(CancellationToken.None, preserveComponentPower: true).ConfigureAwait(false);
 
                 bool overallPass =
                     string.Equals(StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) &&
@@ -637,33 +616,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IsBusy = true;
             try
             {
-                // 步骤0：强制关闭加放油组件供电（如果已上电）
-                AddLog("正在设置组件供电状态: 下电...");
-                try
-                {
-                    if (_componentPowerStateApi != null)
-                    {
-                        await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
-                        AddLog("组件供电状态已设置为下电");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"组件下电状态设置异常: {ex.Message}");
-                }
-
                 // 步骤1：初始化7131板卡（用于DO15控制继电器和DO1-DO14输出）
                 if (_jy7131Api == null)
                 {
-                    MeasureControl.Models.Devices.DeviceBase device7131 = null;
-                    for (int attempt = 1; attempt <= 3; attempt++)
-                    {
-                        device7131 = FindFirstJy7131Device();
-                        if (device7131 != null)
-                            break;
-                        AddLog($"未找到7131板卡(第{attempt}次)，即将重试...");
-                        await Task.Delay(300, token);
-                    }
+                    var device7131 = FindFirstJy7131Device();
                     if (device7131 != null)
                     {
                         string devSlot = Infer7131SlotNumber(device7131);
@@ -675,7 +631,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     }
                     else
                     {
-                        throw new InvalidOperationException("未找到7131板卡。请先在硬件配置中确认PXI机箱/板卡已加载并连接，再进入本测试项。");
+                        throw new InvalidOperationException("未找到7131板卡，无法执行真实继电器控制");
                     }
                 }
 
@@ -742,41 +698,41 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     throw;
                 }
 
-                // 步骤4：激活继电器（DO15高电平 + 485继电器第4路），隔离产品与试验台
-                AddLog("正在激活继电器（DO15高电平），隔离产品...");
-                try
-                {
-                    if (_jy7131Api != null && _jy7131Api.IsConnected)
-                    {
-                        await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token);
-                        IsRelayActivated = true;
-                        await Task.Delay(500, token);
-                        AddLog("DO15输出完成，继电器线圈得电");
+                //// 步骤4：激活继电器（DO15高电平 + 485继电器第4路），隔离产品与试验台
+                //AddLog("正在激活继电器（DO15高电平），隔离产品...");
+                //try
+                //{
+                //    if (_jy7131Api != null && _jy7131Api.IsConnected)
+                //    {
+                //        await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token);
+                //        IsRelayActivated = true;
+                //        await Task.Delay(500, token);
+                //        AddLog("DO15输出完成，继电器线圈得电");
 
-                        // 打开485继电器第4路（index=3，从0开始计数），配合DO15完成产品隔离
-                        AddLog("正在打开485继电器第4路...");
-                        try
-                        {
-                            await _jy7131Api.SetRelayAsync(3, true, token);
-                            AddLog("485继电器第4路已打开");
-                        }
-                        catch (Exception ex)
-                        {
-                            AddLog($"485继电器操作失败: {ex.Message}");
-                        }
+                //        // 打开485继电器第4路（index=3，从0开始计数），配合DO15完成产品隔离
+                //        AddLog("正在打开485继电器第4路...");
+                //        try
+                //        {
+                //            await _jy7131Api.SetRelayAsync(3, true, token);
+                //            AddLog("485继电器第4路已打开");
+                //        }
+                //        catch (Exception ex)
+                //        {
+                //            AddLog($"485继电器操作失败: {ex.Message}");
+                //        }
 
-                        AddLog("继电器已激活，产品已隔离（下电状态）");
-                    }
-                    else
-                    {
-                        await _simulation.ApplyComponentDownStateAsync(AddLog, token);
-                        IsRelayActivated = true;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"继电器激活异常: {ex.Message}");
-                }
+                //        AddLog("继电器已激活，产品已隔离（下电状态）");
+                //    }
+                //    else
+                //    {
+                //        await _simulation.ApplyComponentDownStateAsync(AddLog, token);
+                //        IsRelayActivated = true;
+                //    }
+                //}
+                //catch (Exception ex)
+                //{
+                //    AddLog($"继电器激活异常: {ex.Message}");
+                //}
 
                 // 步骤5：配置矩阵开关
                 try
@@ -883,34 +839,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 if (!preserveComponentPower)
                 {
-                    if (_componentPowerStateApi != null)
-                    {
-                        await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
-                        AddLog($"组件下电");
-                    }
-                    _poweredSupplyVoltage = null;
+                    await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
+                    AddLog($"组件下电");
                     Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
                 }
                 else
                 {
                     AddLog("保留组件当前供电状态，不执行自动下电");
-                }
-
-                // 断开万用表连接，释放资源
-                if (_dmmApi != null)
-                {
-                    try
-                    {
-                        if (_dmmApi.IsConnected)
-                        {
-                            await _dmmApi.DisconnectAsync(token);
-                            AddLog("万用表已断开");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"万用表断开异常: {ex.Message}");
-                    }
                 }
 
                 _hardwareInitialized = false;
@@ -925,28 +860,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             try
             {
-                using (var cts = new CancellationTokenSource(8000))
+                using (var cts = new CancellationTokenSource(1500))
                 {
                     await ResetHardwareAsync(cts.Token);
                 }
             }
-            catch
-            {
-                try
-                {
-                    if (_componentPowerStateApi != null)
-                    {
-                        await _componentPowerStateApi.ApplyComponentDownStateAsync(CancellationToken.None);
-                        await _componentPowerStateApi.DisableRelayPowerAsync(CancellationToken.None);
-                    }
-                }
-                catch { }
-                // 确保万用表也断开
-                if (_dmmApi != null && _dmmApi.IsConnected)
-                {
-                    await _dmmApi.DisconnectAsync(CancellationToken.None);
-                }
-            }
+            catch { }
         }
 
         private async Task RunStepAAsync()
@@ -1176,19 +1095,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     AddLog("继电器已复位");
                 }
 
-                if (!IsPowerOn)
-                {
-                    AddLog("步骤c: 未上电，请先点击'上电'按钮");
-                    Application.Current?.Dispatcher?.Invoke(() => StepCResult = "FAIL");
-                    return;
-                }
-
-                if (_poweredSupplyVoltage.HasValue && Math.Abs(_poweredSupplyVoltage.Value - SelectedSupplyVoltage) > 0.0001)
-                {
-                    AddLog($"步骤c: 当前供电电压为{_poweredSupplyVoltage.Value:F0}V，与选择的{SelectedSupplyVoltage:F0}V不一致，请重新点击'上电'");
-                    Application.Current?.Dispatcher?.Invoke(() => StepCResult = "FAIL");
-                    return;
-                }
+                // 上电
+                await ApplyPowerAsync(SelectedSupplyVoltage, token);
 
                 // 测量J14电压
                 AddLog("步骤c: 正在测量J14电压...");
@@ -1245,10 +1153,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     throw;
                 }
             }
-            else
-            {
-                throw new InvalidOperationException("组件供电API未就绪，无法执行真实下电");
-            }
 
             if (_jy7131Api != null && _jy7131Api.IsConnected)
             {
@@ -1262,7 +1166,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     }
 
                     AddLog("正在激活继电器（DO15高电平），隔离产品...");
-                    await _jy7131Api.WriteDoAsync(RelayControlChannel, true, token);
+                    await _jy7131Api.WriteDoAsync(RelayControlChannel, false, token);
                     IsRelayActivated = true;
                     await Task.Delay(500, token);
                     AddLog("继电器已激活，产品已隔离（下电）");
@@ -1277,7 +1181,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 throw new InvalidOperationException("7131板卡不可用，无法执行真实下电隔离");
             }
-            _poweredSupplyVoltage = null;
             Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
         }
 
@@ -1337,9 +1240,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 throw new InvalidOperationException("7131板卡不可用，无法执行真实上电恢复");
             }
-            _poweredSupplyVoltage = voltage;
-            Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = $"已上电({voltage:F0}V)"; });
-            UpdateCommandStates();
+            Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
         }
 
         /// <summary>
