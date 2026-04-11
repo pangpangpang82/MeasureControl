@@ -45,7 +45,8 @@
                             Margin="0,0,20,0"
                             VerticalAlignment="Center"
                             BorderThickness="0"
-                            Command="{Binding ManualTestCommand}">
+                            Command="{Binding ManualTestCommand}"
+                            IsEnabled="{Binding CanStartManualTest}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border
@@ -105,7 +106,8 @@
                             Margin="0,0,30,0"
                             VerticalAlignment="Center"
                             BorderThickness="0"
-                            Command="{Binding AutoTestCommand}">
+                            Command="{Binding AutoTestCommand}"
+                            IsEnabled="{Binding CanStartAutoTest}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border

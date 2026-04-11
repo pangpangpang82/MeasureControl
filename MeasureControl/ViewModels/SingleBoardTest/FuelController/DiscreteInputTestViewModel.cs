@@ -35,7 +35,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// <summary>
         /// 硬件操作超时时间（毫秒）
         /// </summary>
-        private const int HardwareTimeoutMs = 3000;
+        private const int HardwareTimeoutMs = 10000;
 
         /// <summary>
         /// 继电器控制通道，使用7131板卡的DO14（物理DO15映射到API的DO14）
@@ -43,10 +43,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const string RelayControlChannel = "DO14";
 
         /// <summary>
-        /// 7131板卡DI输入阈值电压（3V）
-        /// DI1-4、DI5-8、DI9-12的阈值设置为3V
+        /// 7131板卡DI输入阈值电压（2V），8组全部设置
         /// </summary>
-        private const double Jy7131DiThresholdV = 3.0;
+        private const double Jy7131DiThresholdV = 2.0;
+
+        private const string PowerSupplyIpAddress = "192.168.1.15";
+        private const double PowerSupplyVoltageV  = 28.0;
+        private const double PowerSupplyCurrentA  = 1.0;
 
         #endregion
 
@@ -70,6 +73,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private FpgaIoClient _fpga;
         private bool _fpgaConnected;
         private bool _jy7131DiThresholdApplied;
+        private IPowerSupplyApi _powerSupply;
+        private bool _powerSupplyOn;
+        private bool _isManualTestInitializing;
+        private bool _isAutoTestInitializing;
+        private bool _isManualTestStopping;
+        private bool _isAutoTestStopping;
 
         // DO0-DO13通道名称（物理DO1-DO14映射到API的DO0-DO13）
         private static readonly string[] DoChannels = new[]
@@ -114,8 +123,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
 
             // 初始化命令
-            ManualTestCommand = new DelegateCommand(ExecuteManualTest, CanExecuteManualTest);
-            AutoTestCommand = new DelegateCommand(ExecuteAutoTest, CanExecuteAutoTest);
+            ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
+            AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
             SetGroundedSignalCommand = new DelegateCommand(ExecuteSetGroundedSignal, CanExecuteSetSignal);
             SetOpenSignalCommand = new DelegateCommand(ExecuteSetOpenSignal, CanExecuteSetSignal);
             GroundedTestCommand = new DelegateCommand(ExecuteGroundedTest, CanExecuteGroundedTest);
@@ -140,7 +149,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             set
             {
                 if (SetProperty(ref _isManualTestRunning, value))
+                {
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
                     UpdateCommandStates();
+                }
             }
         }
 
@@ -151,9 +164,75 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             set
             {
                 if (SetProperty(ref _isAutoTestRunning, value))
+                {
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
                     UpdateCommandStates();
+                }
             }
         }
+
+        public bool IsManualTestBusy => IsManualTestInitializing || IsManualTestStopping;
+        public bool IsAutoTestBusy   => IsAutoTestInitializing   || IsAutoTestStopping;
+
+        public bool IsManualTestInitializing
+        {
+            get => _isManualTestInitializing;
+            private set
+            {
+                if (SetProperty(ref _isManualTestInitializing, value))
+                {
+                    RaisePropertyChanged(nameof(IsManualTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsAutoTestInitializing
+        {
+            get => _isAutoTestInitializing;
+            private set
+            {
+                if (SetProperty(ref _isAutoTestInitializing, value))
+                {
+                    RaisePropertyChanged(nameof(IsAutoTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsManualTestStopping
+        {
+            get => _isManualTestStopping;
+            private set
+            {
+                if (SetProperty(ref _isManualTestStopping, value))
+                {
+                    RaisePropertyChanged(nameof(IsManualTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool IsAutoTestStopping
+        {
+            get => _isAutoTestStopping;
+            private set
+            {
+                if (SetProperty(ref _isAutoTestStopping, value))
+                {
+                    RaisePropertyChanged(nameof(IsAutoTestBusy));
+                    RaisePropertyChanged(nameof(CanStartManualTest));
+                    RaisePropertyChanged(nameof(CanStartAutoTest));
+                }
+            }
+        }
+
+        public bool CanStartManualTest => !IsManualTestBusy && !IsAutoTestBusy && !IsAutoTestRunning;
+        public bool CanStartAutoTest   => !IsManualTestBusy && !IsAutoTestBusy && !IsManualTestRunning;
 
         private bool _isPowerOn;
         public bool IsPowerOn
@@ -244,8 +323,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         #region 命令执行方法
 
-        private bool CanExecuteManualTest() => !IsAutoTestRunning;
-        private bool CanExecuteAutoTest() => !IsManualTestRunning;
         private bool CanExecuteSetSignal() => IsManualTestRunning && _hardwareInitialized;
         private bool CanExecuteGroundedTest() => IsManualTestRunning && _hardwareInitialized;
         private bool CanExecuteOpenTest() => IsManualTestRunning && _hardwareInitialized;
@@ -292,113 +369,160 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
-        private async void ExecuteManualTest()
+        private async Task OnManualTestAsync()
         {
-            if (IsManualTestRunning)
-            {
-                // 停止测试：取消令牌 + 安全复位硬件 + 重置状态
-                try
-                {
-                    AddLog("========== 手动测试停止中... ==========");
-                    _testCts?.Cancel();
-                    await SafeResetHardwareAsync();
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"停止手动测试异常: {ex.Message}");
-                }
-                finally
-                {
-                    try
-                    {
-                        _testCts?.Dispose();
-                    }
-                    catch { }
+            if (IsManualTestStopping) return;
 
-                    _testCts = null;
-                    _hardwareInitialized = false;
-                    IsManualTestRunning = false;
-                    UpdateCommandStates();
-                    AddLog("========== 手动测试已停止 ==========");
-                }
+            if (IsManualTestRunning || IsManualTestInitializing)
+            {
+                await StopManualTestAsync().ConfigureAwait(false);
                 return;
             }
 
-            IsManualTestRunning = true;
+            if (IsAutoTestRunning || IsAutoTestInitializing)
+                await StopAutoTestAsync().ConfigureAwait(false);
+
+            IsManualTestInitializing = true;
+            ClearTestResults();
+
+            _testCts?.Cancel();
+            _testCts?.Dispose();
             _testCts = new CancellationTokenSource();
 
+            AddLog("========== 手动测试开始，正在初始化硬件... ==========");
             try
             {
-                AddLog("========== 手动测试开始 ==========");
-                await InitializeHardwareAsync(_testCts.Token);
+                await InitializeHardwareAsync(_testCts.Token).ConfigureAwait(false);
+
+                IsManualTestInitializing = false;
+                IsManualTestRunning = true;
                 AddLog("硬件初始化完成，可以进行手动测试");
                 AddLog("请点击\"接地测试\"或\"开路测试\"按钮进行测试");
             }
             catch (OperationCanceledException)
             {
-                AddLog("手动测试已取消");
+                AddLog("手动测试初始化已取消");
+                await StopManualTestAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                AddLog($"手动测试异常: {ex.Message}");
+                AddLog($"手动测试初始化失败: {ex.Message}");
+                await StopManualTestAsync().ConfigureAwait(false);
             }
         }
 
-        private async void ExecuteAutoTest()
+        private async Task StopManualTestAsync()
         {
-            if (IsAutoTestRunning)
+            if (IsManualTestStopping) return;
+
+            IsManualTestStopping = true;
+            IsManualTestInitializing = false;
+            try { _testCts?.Cancel(); } catch { }
+
+            AddLog("手动测试停止，正在断开硬件...");
+            try
             {
-                AddLog("正在停止自动测试...");
-                _testCts?.Cancel();
-                // 等待测试停止并重置状态
-                await Task.Delay(200);
-                Application.Current?.Dispatcher?.Invoke(() =>
-                {
-                    IsAutoTestRunning = false;
-                    _hardwareInitialized = false;
-                    UpdateCommandStates();
-                });
-                AddLog("自动测试已停止");
+                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"硬件断开异常: {ex.Message}");
+            }
+            finally
+            {
+                IsManualTestInitializing = false;
+                IsManualTestRunning = false;
+                IsManualTestStopping = false;
+                _hardwareInitialized = false;
+                RaisePropertyChanged(nameof(CanStartManualTest));
+                RaisePropertyChanged(nameof(CanStartAutoTest));
+                UpdateCommandStates();
+                AddLog("手动测试已结束");
+            }
+        }
+
+        private async Task OnAutoTestAsync()
+        {
+            if (IsAutoTestStopping) return;
+
+            if (IsAutoTestRunning || IsAutoTestInitializing)
+            {
+                await StopAutoTestAsync().ConfigureAwait(false);
                 return;
             }
 
+            if (IsManualTestRunning || IsManualTestInitializing)
+                await StopManualTestAsync().ConfigureAwait(false);
+
+            IsAutoTestInitializing = true;
+            ClearTestResults();
+
+            _testCts?.Cancel();
+            _testCts?.Dispose();
             _testCts = new CancellationTokenSource();
+
             try
             {
-                await ExecuteAutoTestCoreAsync(_testCts.Token);
+                await ExecuteAutoTestCoreAsync(_testCts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
-                // 已在 ExecuteAutoTestCoreAsync 中处理
+                AddLog("自动测试已取消");
+                await StopAutoTestAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 AddLog($"自动测试异常: {ex.Message}");
+                await StopAutoTestAsync().ConfigureAwait(false);
             }
             finally
             {
-                Application.Current?.Dispatcher?.Invoke(() =>
-                {
-                    IsAutoTestRunning = false;
-                    _hardwareInitialized = false;
-                    UpdateCommandStates();
-                });
+                IsAutoTestInitializing = false;
                 _testCts?.Dispose();
                 _testCts = null;
             }
         }
 
+        private async Task StopAutoTestAsync()
+        {
+            if (IsAutoTestStopping) return;
+
+            IsAutoTestStopping = true;
+            IsAutoTestInitializing = false;
+            try { _testCts?.Cancel(); } catch { }
+
+            AddLog("自动测试停止，正在断开硬件...");
+            try
+            {
+                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"硬件断开异常: {ex.Message}");
+            }
+            finally
+            {
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = false;
+                IsAutoTestStopping = false;
+                _hardwareInitialized = false;
+                RaisePropertyChanged(nameof(CanStartManualTest));
+                RaisePropertyChanged(nameof(CanStartAutoTest));
+                UpdateCommandStates();
+                AddLog("自动测试已结束");
+            }
+        }
+
         public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
         {
-            if (IsAutoTestRunning || IsManualTestRunning)
-            {
-                _testCts?.Cancel();
-                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
-            }
+            if (IsAutoTestRunning) await StopAutoTestAsync().ConfigureAwait(false);
+            if (IsManualTestRunning) await StopManualTestAsync().ConfigureAwait(false);
 
             _testCts?.Cancel();
             _testCts?.Dispose();
             _testCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            Application.Current?.Dispatcher?.Invoke(() => { IsAutoTestInitializing = true; ClearTestResults(); });
 
             try
             {
@@ -406,9 +530,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
             finally
             {
-                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
-                _hardwareInitialized = false;
-                UpdateCommandStates();
+                await StopAutoTestAsync().ConfigureAwait(false);
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestInitializing = false);
                 _testCts?.Dispose();
                 _testCts = null;
             }
@@ -416,50 +539,36 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token)
         {
-            Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = true);
             AddLog("========== 自动测试开始 ==========");
 
-            try
+            await InitializeHardwareAsync(token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
+
+            IsAutoTestInitializing = false;
+            IsAutoTestRunning = true;
+
+            AddLog("--- 步骤a: 接地测试 ---");
+            await SetDoOutputAsync(true, token).ConfigureAwait(false);
+            await Task.Delay(500, token).ConfigureAwait(false);
+            bool groundedPass = await PerformGroundedTestAsync(token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
+
+            AddLog("--- 步骤b: 开路测试 ---");
+            await SetDoOutputAsync(false, token).ConfigureAwait(false);
+            await Task.Delay(500, token).ConfigureAwait(false);
+            bool openPass = await PerformOpenTestAsync(token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
+
+            bool overallPass = groundedPass && openPass;
+            Application.Current?.Dispatcher?.Invoke(() =>
             {
-                await InitializeHardwareAsync(token).ConfigureAwait(false);
-                token.ThrowIfCancellationRequested();
+                OverallResult = overallPass ? "合格" : "不合格";
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            });
 
-                AddLog("--- 步骤a: 接地测试 ---");
-                await SetDoOutputAsync(true, token).ConfigureAwait(false);
-                await Task.Delay(500, token).ConfigureAwait(false);
-                bool groundedPass = await PerformGroundedTestAsync(token).ConfigureAwait(false);
-                token.ThrowIfCancellationRequested();
-
-                AddLog("--- 步骤b: 开路测试 ---");
-                await SetDoOutputAsync(false, token).ConfigureAwait(false);
-                await Task.Delay(500, token).ConfigureAwait(false);
-                bool openPass = await PerformOpenTestAsync(token).ConfigureAwait(false);
-                token.ThrowIfCancellationRequested();
-
-                await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
-
-                bool overallPass = groundedPass && openPass;
-                Application.Current?.Dispatcher?.Invoke(() =>
-                {
-                    OverallResult = overallPass ? "合格" : "不合格";
-                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                });
-
-                AddLog($"========== 自动测试完成: {OverallResult} ==========");
-                return OverallResult;
-            }
-            catch (OperationCanceledException)
-            {
-                AddLog("自动测试已取消");
-                await SafeResetHardwareAsync().ConfigureAwait(false);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                AddLog($"自动测试异常: {ex.Message}");
-                await SafeResetHardwareAsync().ConfigureAwait(false);
-                return "不合格";
-            }
+            AddLog($"========== 自动测试完成: {OverallResult} ==========");
+            await StopAutoTestAsync().ConfigureAwait(false);
+            return OverallResult;
         }
 
         private async void ExecuteGroundedTest()
@@ -529,12 +638,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                ManualTestCommand.RaiseCanExecuteChanged();
-                AutoTestCommand.RaiseCanExecuteChanged();
                 SetGroundedSignalCommand.RaiseCanExecuteChanged();
                 SetOpenSignalCommand.RaiseCanExecuteChanged();
                 GroundedTestCommand.RaiseCanExecuteChanged();
                 OpenTestCommand.RaiseCanExecuteChanged();
+            });
+        }
+
+        private void ClearTestResults()
+        {
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                GroundedTestResult = "--";
+                OpenTestResult = "--";
+                OverallResult = "--";
+                LastTestTime = "--";
+                Bank0GroundedResults = "-- -- -- -- -- -- --";
+                Bank1GroundedResults = "-- -- -- -- -- -- --";
+                Bank0OpenResults = "-- -- -- -- -- -- --";
+                Bank1OpenResults = "-- -- -- -- -- -- --";
             });
         }
 
@@ -548,62 +670,45 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
         private async Task<bool> PerformGroundedTestAsync(CancellationToken token)
         {
-            // 1. 读取7131板卡DI值作为判断基准
-            int[] diResults = await Read7131DiResultsAsync(token);
-            AddLog($"[7131] DI读取结果: {string.Join(" ", diResults.Select(v => v.ToString()))}");
-
-            // 2. 读取HI8435离散量采集结果（通过FPGA命令0x06）
-            int[] hi8435Results;
-            if (_fpgaConnected && _fpga != null)
-            {
-                try
-                {
-                    hi8435Results = await ReadHi8435WithAsyncReceiveAsync(token);
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"[FPGA] HI8435读取失败: {ex.Message}");
-                    throw;
-                }
-            }
-            else
-            {
+            // 读取HI8435离散量采集结果
+            if (!_fpgaConnected || _fpga == null)
                 throw new InvalidOperationException("FPGA未连接，无法读取HI8435离散量采集结果");
+
+            int[] hi8435Results;
+            try
+            {
+                hi8435Results = await ReadHi8435WithAsyncReceiveAsync(token);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[FPGA] HI8435读取失败: {ex.Message}");
+                throw;
             }
 
-            // 3. 保存结果
-            Array.Copy(hi8435Results, _groundedTestResults, hi8435Results.Length);
+            var b0g = FormatBankResults(hi8435Results, 0, DiscreteInputSimulation.Bank0ChannelCount);
+            var b1g = FormatBankResults(hi8435Results, DiscreteInputSimulation.Bank0ChannelCount, DiscreteInputSimulation.Bank1ChannelCount);
+            AddLog($"[HI8435采集] Bank0[0:6]: {b0g}  Bank1[0:6]: {b1g}");
 
-            // 4. 更新UI显示
+            Array.Copy(hi8435Results, _groundedTestResults, hi8435Results.Length);
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                Bank0GroundedResults = FormatBankResults(hi8435Results, 0, DiscreteInputSimulation.Bank0ChannelCount);
-                Bank1GroundedResults = FormatBankResults(hi8435Results, DiscreteInputSimulation.Bank0ChannelCount, DiscreteInputSimulation.Bank1ChannelCount);
+                Bank0GroundedResults = b0g;
+                Bank1GroundedResults = b1g;
             });
 
-            // 5. 判定结果：使用7131板卡DI值作为基准，接地时DI应为高电平(1)
+            // 判定：接地时所有通道应为1
             bool pass = true;
-            for (int i = 0; i < diResults.Length && i < hi8435Results.Length; i++)
+            for (int i = 0; i < hi8435Results.Length; i++)
             {
-                // 接地测试：7131 DI应为高电平(1)，HI8435也应为1
-                if (diResults[i] != 1)
-                {
-                    pass = false;
-                    AddLog($"  通道{i}: 7131 DI期望1, 实际{diResults[i]} - FAIL");
-                }
                 if (hi8435Results[i] != 1)
                 {
                     pass = false;
-                    AddLog($"  通道{i}: HI8435期望1, 实际{hi8435Results[i]} - FAIL");
+                    AddLog($"  CH{i}: [HI8435] 期望1 实际{hi8435Results[i]} ✗");
                 }
             }
 
-            Application.Current?.Dispatcher?.Invoke(() =>
-            {
-                GroundedTestResult = pass ? "PASS" : "FAIL";
-            });
-
-            AddLog($"接地测试结果: {(pass ? "PASS" : "FAIL")}");
+            Application.Current?.Dispatcher?.Invoke(() => GroundedTestResult = pass ? "PASS" : "FAIL");
+            AddLog($"接地测试: {(pass ? "PASS ✓" : "FAIL ✗")}");
             return pass;
         }
 
@@ -613,62 +718,45 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
         private async Task<bool> PerformOpenTestAsync(CancellationToken token)
         {
-            // 1. 读取7131板卡DI值作为判断基准
-            int[] diResults = await Read7131DiResultsAsync(token);
-            AddLog($"[7131] DI读取结果: {string.Join(" ", diResults.Select(v => v.ToString()))}");
-
-            // 2. 读取HI8435离散量采集结果（通过FPGA命令0x06）
-            int[] hi8435Results;
-            if (_fpgaConnected && _fpga != null)
-            {
-                try
-                {
-                    hi8435Results = await ReadHi8435WithAsyncReceiveAsync(token);
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"[FPGA] HI8435读取失败: {ex.Message}");
-                    throw;
-                }
-            }
-            else
-            {
+            // 读取HI8435离散量采集结果
+            if (!_fpgaConnected || _fpga == null)
                 throw new InvalidOperationException("FPGA未连接，无法读取HI8435离散量采集结果");
+
+            int[] hi8435Results;
+            try
+            {
+                hi8435Results = await ReadHi8435WithAsyncReceiveAsync(token);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[FPGA] HI8435读取失败: {ex.Message}");
+                throw;
             }
 
-            // 3. 保存结果
-            Array.Copy(hi8435Results, _openTestResults, hi8435Results.Length);
+            var b0o = FormatBankResults(hi8435Results, 0, DiscreteInputSimulation.Bank0ChannelCount);
+            var b1o = FormatBankResults(hi8435Results, DiscreteInputSimulation.Bank0ChannelCount, DiscreteInputSimulation.Bank1ChannelCount);
+            AddLog($"[HI8435采集] Bank0[0:6]: {b0o}  Bank1[0:6]: {b1o}");
 
-            // 4. 更新UI显示
+            Array.Copy(hi8435Results, _openTestResults, hi8435Results.Length);
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                Bank0OpenResults = FormatBankResults(hi8435Results, 0, DiscreteInputSimulation.Bank0ChannelCount);
-                Bank1OpenResults = FormatBankResults(hi8435Results, DiscreteInputSimulation.Bank0ChannelCount, DiscreteInputSimulation.Bank1ChannelCount);
+                Bank0OpenResults = b0o;
+                Bank1OpenResults = b1o;
             });
 
-            // 5. 判定结果：使用7131板卡DI值作为基准，开路时DI应为低电平(0)
+            // 判定：开路时所有通道应为0
             bool pass = true;
-            for (int i = 0; i < diResults.Length && i < hi8435Results.Length; i++)
+            for (int i = 0; i < hi8435Results.Length; i++)
             {
-                // 开路测试：7131 DI应为低电平(0)，HI8435也应为0
-                if (diResults[i] != 0)
-                {
-                    pass = false;
-                    AddLog($"  通道{i}: 7131 DI期望0, 实际{diResults[i]} - FAIL");
-                }
                 if (hi8435Results[i] != 0)
                 {
                     pass = false;
-                    AddLog($"  通道{i}: HI8435期望0, 实际{hi8435Results[i]} - FAIL");
+                    AddLog($"  CH{i}: [HI8435] 期望0 实际{hi8435Results[i]} ✗");
                 }
             }
 
-            Application.Current?.Dispatcher?.Invoke(() =>
-            {
-                OpenTestResult = pass ? "PASS" : "FAIL";
-            });
-
-            AddLog($"开路测试结果: {(pass ? "PASS" : "FAIL")}");
+            Application.Current?.Dispatcher?.Invoke(() => OpenTestResult = pass ? "PASS" : "FAIL");
+            AddLog($"开路测试: {(pass ? "PASS ✓" : "FAIL ✗")}");
             return pass;
         }
 
@@ -815,7 +903,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             timeoutCts.CancelAfter(HardwareTimeoutMs);
             token = timeoutCts.Token;
 
-            // 2. 连接7131板卡（用于提供地/开信号）
+            // 1. 连接7131板卡
             AddLog("正在连接7131板卡...");
             if (_jy7131Api == null)
             {
@@ -844,15 +932,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         AddLog("7131板卡已启动");
                     }
 
-                    // 设置DI输入阈值为3V（DI1-4、DI5-8、DI9-12）
                     if (!_jy7131DiThresholdApplied)
                     {
-                        AddLog("正在设置7131板卡DI输入阈值为3V...");
+                        AddLog("正在设置7131板卡DI输入阈值为2V（8组）...");
                         await _jy7131Api.ApplyDiThresholdsAsync(new Jy7131DiThresholds
                         {
-                            Group1 = Jy7131DiThresholdV,  // DI1-4
-                            Group2 = Jy7131DiThresholdV,  // DI5-8
-                            Group3 = Jy7131DiThresholdV,  // DI9-12
+                            Group1 = Jy7131DiThresholdV,
+                            Group2 = Jy7131DiThresholdV,
+                            Group3 = Jy7131DiThresholdV,
                             Group4 = Jy7131DiThresholdV,
                             Group5 = Jy7131DiThresholdV,
                             Group6 = Jy7131DiThresholdV,
@@ -860,7 +947,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                             Group8 = Jy7131DiThresholdV,
                         }, token);
                         _jy7131DiThresholdApplied = true;
-                        AddLog("7131板卡DI输入阈值设置完成（3V）");
+                        AddLog("7131板卡DI输入阈值设置完成（2V）");
                     }
                 }
                 catch (Exception ex)
@@ -868,6 +955,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     AddLog($"7131板卡初始化异常: {ex.Message}");
                     throw;
                 }
+            }
+
+            // 2. 上电（28V/1A，CH1）
+            AddLog($"正在连接电源（{PowerSupplyIpAddress}）...");
+            try
+            {
+                _powerSupply ??= new PowerSupplySocketApi();
+                if (!_powerSupply.IsConnected)
+                    await _powerSupply.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
+                await _powerSupply.ApplyAsync(PowerSupplyChannel.CH1, PowerSupplyVoltageV, PowerSupplyCurrentA, token).ConfigureAwait(false);
+                await _powerSupply.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token).ConfigureAwait(false);
+                _powerSupplyOn = true;
+                AddLog($"电源CH1已上电（{PowerSupplyVoltageV}V / {PowerSupplyCurrentA}A）");
+                await Task.Delay(600, token).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"电源初始化异常: {ex.Message}");
+                throw;
             }
 
             // 3. 连接FPGA
@@ -880,13 +986,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 _fpgaConnected = true;
                 AddLog("FPGA连接成功");
 
-                // 4. 初始化HI8435 (cmd 0x04)
                 AddLog("正在初始化HI8435...");
                 await _fpga.InitHi8435AfterConnectAsync(token);
                 await Task.Delay(50, token);
                 AddLog("HI8435初始化完成");
 
-                // 启动异步接收功能
                 _fpga.StartAsyncReceive(AddLog);
             }
             catch (Exception ex)
@@ -955,51 +1059,65 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         }
 
         /// <summary>
-        /// 复位硬件
+        /// 复位硬件（反序：FPGA → 电源 → 7131）
         /// </summary>
         private async Task ResetHardwareAsync(CancellationToken token)
         {
             AddLog("正在复位硬件...");
 
-            // 关闭 485 继电器前 4 路
-            if (_jy7131Api != null && _jy7131Api.IsConnected)
-            {
-                AddLog("正在关闭 485 继电器前 4 路...");
-                try
-                {
-                    await _jy7131Api.SetRelayAsync(0, false, token);
-                    await _jy7131Api.SetRelayAsync(1, false, token);
-                    await _jy7131Api.SetRelayAsync(2, false, token);
-                    await _jy7131Api.SetRelayAsync(3, false, token);
-                    AddLog("485 继电器前 4 路已关闭");
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"485 继电器操作失败: {ex.Message}");
-                }
-            }
-
-            // 断开7131
-            if (_jy7131Api != null)
-            {
-                try
-                {
-                    if (_jy7131Api.IsRunning) await _jy7131Api.StopAsync(token);
-                    await _jy7131Api.DisconnectAsync(token);
-                    AddLog("7131板卡已断开");
-                }
-                catch { }
-                _jy7131Api = null;
-                _jy7131DiThresholdApplied = false;
-            }
-
-            // 断开FPGA
+            // 反序第一步：断开FPGA
             if (_fpga != null)
             {
                 try { _fpga.StopAsyncReceive(); } catch { }
                 try { _fpga.Disconnect(); } catch { }
                 _fpga = null;
                 _fpgaConnected = false;
+                AddLog("FPGA已断开");
+            }
+
+            // 反序第二步：关闭电源
+            if (_powerSupply != null)
+            {
+                if (_powerSupplyOn)
+                {
+                    try { await _powerSupply.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).ConfigureAwait(false); } catch { }
+                }
+                try { await _powerSupply.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                try { await _powerSupply.DisposeAsync().ConfigureAwait(false); } catch { }
+                _powerSupply = null;
+                _powerSupplyOn = false;
+                AddLog("电源已断开");
+            }
+
+            // 反序第三步：关闭485继电器并断开7131
+            if (_jy7131Api != null && _jy7131Api.IsConnected)
+            {
+                AddLog("正在关闭485继电器前4路...");
+                try
+                {
+                    await _jy7131Api.SetRelayAsync(0, false, CancellationToken.None);
+                    await _jy7131Api.SetRelayAsync(1, false, CancellationToken.None);
+                    await _jy7131Api.SetRelayAsync(2, false, CancellationToken.None);
+                    await _jy7131Api.SetRelayAsync(3, false, CancellationToken.None);
+                    AddLog("485继电器前4路已关闭");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"485继电器操作失败: {ex.Message}");
+                }
+            }
+
+            if (_jy7131Api != null)
+            {
+                try
+                {
+                    if (_jy7131Api.IsRunning) await _jy7131Api.StopAsync(CancellationToken.None);
+                    await _jy7131Api.DisconnectAsync(CancellationToken.None);
+                    AddLog("7131板卡已断开");
+                }
+                catch { }
+                _jy7131Api = null;
+                _jy7131DiThresholdApplied = false;
             }
 
             _hardwareInitialized = false;
@@ -1079,71 +1197,66 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         #region DO输出控制
 
         /// <summary>
-        /// 设置DO1-DO14输出状态（参考DiscreteOutputTestViewModel）
+        /// 设置DO0-DO13输出状态，并根据模式控制485继电器
         /// </summary>
-        /// <param name="grounded">true=接地（高电平），false=开路（低电平）</param>
+        /// <param name="grounded">true=接地（开启继电器+DO高电平），false=开路（关闭继电器+DO低电平）</param>
         private async Task SetDoOutputAsync(bool grounded, CancellationToken token)
         {
-            if (_jy7131Api != null && _jy7131Api.IsConnected)
+            if (_jy7131Api == null || !_jy7131Api.IsConnected)
+                throw new InvalidOperationException("7131板卡不可用，无法设置DO输出状态");
+
+            try
             {
+                if (!_jy7131Api.IsRunning)
+                {
+                    await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
+                    await _jy7131Api.StartAsync(token);
+                    AddLog("7131板卡已启动");
+                }
+
+                if (grounded)
+                {
+                    AddLog("接地测试：开启485继电器前4路...");
+                    await _jy7131Api.SetRelayAsync(0, true, token);
+                    await _jy7131Api.SetRelayAsync(1, true, token);
+                    await _jy7131Api.SetRelayAsync(2, true, token);
+                    await _jy7131Api.SetRelayAsync(3, true, token);
+                    AddLog("485继电器前4路已开启");
+                }
+                else
+                {
+                    AddLog("开路测试：关闭485继电器前4路...");
+                    await _jy7131Api.SetRelayAsync(0, false, token);
+                    await _jy7131Api.SetRelayAsync(1, false, token);
+                    await _jy7131Api.SetRelayAsync(2, false, token);
+                    await _jy7131Api.SetRelayAsync(3, false, token);
+                    AddLog("485继电器前4路已关闭");
+                }
+
+                AddLog($"正在写DO0-DO13（{(grounded ? "高电平/接地" : "低电平/开路")}）...");
+                foreach (var channel in DoChannels)
+                {
+                    await _jy7131Api.WriteDoAsync(channel, grounded, token);
+                }
+                AddLog($"[7131] DO0-DO13已设置为{(grounded ? "高电平（接地）" : "低电平（开路）")}");
+
                 try
                 {
-                    // 确保7131板卡已连接并启动
-                    //await _jy7131Api.EnsureConnectedAndRunningAsync(token);
-                    if (!_jy7131Api.IsRunning)
-                    {
-                        await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
-                        await _jy7131Api.StartAsync(token);
-                        AddLog("7131板卡已启动");
-                    }
-
-                    //打开前四路 485 继电器
-                    AddLog("正在打开 485 继电器前 4 路...");
-                    try
-                    {
-                        await _jy7131Api.SetRelayAsync(0, true, token);
-                        await _jy7131Api.SetRelayAsync(1, true, token);
-                        await _jy7131Api.SetRelayAsync(2, true, token);
-                        await _jy7131Api.SetRelayAsync(3, true, token);
-                        AddLog("485 继电器前 4 路已打开");
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"485 继电器操作失败: {ex.Message}");
-                    }
-
-                    // 设置DO1-DO14输出
-                    AddLog($"正在写DO1-DO14（{(grounded ? "高电平" : "低电平")}）...");
-                    foreach (var channel in DoChannels)
-                    {
-                        await _jy7131Api.WriteDoAsync(channel, grounded, token);
-                    }
-                    AddLog($"[7131] DO1-DO14已设置为{(grounded ? "接地（高电平）" : "开路（低电平）")}");
-
-                    // 回读验证DO输出状态
-                    try
-                    {
-                        var mask = await _jy7131Api.ReadDoBitmaskAsync(token);
-                        // DO0-DO13对应bit0-bit13
-                        uint expectedMask = grounded ? 0x3FFFu : 0x0000u;
-                        uint actualDo0To13 = mask & 0x3FFFu;
-                        bool verified = (grounded && actualDo0To13 == expectedMask) || (!grounded && actualDo0To13 == 0);
-                        AddLog($"DO回读验证: mask=0x{mask:X8}, DO0-13=0x{actualDo0To13:X4}, 期望=0x{expectedMask:X4}, {(verified ? "✓" : "✗")}");
+                    var mask = await _jy7131Api.ReadDoBitmaskAsync(token);
+                    uint expectedMask = grounded ? 0x3FFFu : 0x0000u;
+                    uint actualDo0To13 = mask & 0x3FFFu;
+                    bool verified = grounded ? (actualDo0To13 == expectedMask) : (actualDo0To13 == 0);
+                    AddLog($"DO回读验证: mask=0x{mask:X8}, DO0-13=0x{actualDo0To13:X4}, 期望=0x{expectedMask:X4}, {(verified ? "✓" : "✗")}");
                 }
                 catch (Exception ex)
                 {
-                        AddLog($"DO回读验证失败: {ex.Message}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"[7131] DO写入失败: {ex.Message}");
-                    throw;
+                    AddLog($"DO回读验证失败: {ex.Message}");
                 }
             }
-            else
+            catch (Exception ex)
             {
-                throw new InvalidOperationException("7131板卡不可用，无法设置DO输出状态");
+                AddLog($"[7131] DO写入失败: {ex.Message}");
+                throw;
             }
         }
 
@@ -1318,8 +1431,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             _testCts?.Dispose();
             _simulation?.Dispose();
 
+            try { _fpga?.StopAsyncReceive(); } catch { }
             try { _fpga?.Disconnect(); } catch { }
             _fpga = null;
+
+            if (_powerSupply != null)
+            {
+                try { _powerSupply.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).Wait(1000); } catch { }
+                try { _powerSupply.DisconnectAsync(CancellationToken.None).Wait(1000); } catch { }
+                try { _powerSupply.DisposeAsync().AsTask().Wait(1000); } catch { }
+                _powerSupply = null;
+            }
 
             if (_componentPowerStateApi != null)
             {
