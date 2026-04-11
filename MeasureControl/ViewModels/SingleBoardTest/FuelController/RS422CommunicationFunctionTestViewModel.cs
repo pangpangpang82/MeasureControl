@@ -23,6 +23,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
     {
         private const string TestItemKey = "FuelController_RS422CommunicationFunction";
 
+        private const int PowerStabilizeMs = 1000;
+        private const string PowerSupply1IpAddress = "192.168.1.15";
+        private const double ComponentVoltage = 28.0;
+        private const double ComponentCurrentLimit = 3.0;
+
         private static readonly byte[] DefaultTxData = { 0xAA, 0x55 };
 
         // FPGA透传命令帧：AA 55 03 01 AA 55（命令0x01=UART0 TX透传，数据=AA 55）
@@ -45,6 +50,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isBusy;
         private FpgaIoClient _fpga;
         private bool _fpgaConnected;
+        private IPowerSupplyApi _powerSupply1;
         private Rs422SerialClient _serial1; // COM14 - 第1路422串口
         private Rs422SerialClient _serial2; // COM15 - 第2路422串口
         private bool _serial1Connected;
@@ -578,6 +584,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     _serial2Connected = false;
                 }
 
+                try
+                {
+                    if (_powerSupply1 != null && _powerSupply1.IsConnected)
+                    {
+                        await _powerSupply1.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, token);
+                        await _powerSupply1.DisconnectAsync(token);
+                        AddLog($"{PowerSupply1IpAddress} CH1已关闭并断开");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"关闭{PowerSupply1IpAddress}异常: {ex.Message}");
+                }
+                finally
+                {
+                    _powerSupply1 = null;
+                }
+
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsPowerOn = false;
+                    PowerStatus = "未上电";
+                });
+
                 _hardwareInitialized = false;
                 RefreshPowerStateDisplay();
             }
@@ -638,17 +668,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task ApplyPower28VAsync(CancellationToken token)
         {
-            try
-            {
-                await _componentPowerStateApi.ApplyComponent28VStateAsync(token);
-                AddLog("组件供电: 28V上电(真实API)");
-            }
-            catch
-            {
-                AddLog("组件供电: 28V上电(仿真占位)");
-                await Task.Delay(120, token);
-            }
+            AddLog($"正在连接{PowerSupply1IpAddress}，开启CH1 28V供电...");
+            _powerSupply1 ??= new PowerSupplySocketApi();
+            if (!_powerSupply1.IsConnected)
+                await _powerSupply1.ConnectAsync(PowerSupply1IpAddress, token);
+
+            await _powerSupply1.ApplyAsync(PowerSupplyChannel.CH1, ComponentVoltage, ComponentCurrentLimit, token);
+            await _powerSupply1.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token);
+            AddLog($"{PowerSupply1IpAddress} CH1 {ComponentVoltage:F0}V已开启");
+
             Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
+            AddLog($"等待电源稳定（{PowerStabilizeMs}ms）...");
+            await Task.Delay(PowerStabilizeMs, token);
         }
 
         private async Task EnsureRs422LoopModeAsync(bool enable, CancellationToken token)

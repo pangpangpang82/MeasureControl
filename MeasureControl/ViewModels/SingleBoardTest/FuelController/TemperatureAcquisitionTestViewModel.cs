@@ -79,6 +79,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// <summary>温度采集超时时间（毫秒）</summary>
         private const int TemperatureReadTimeoutMs = 5000;
 
+        /// <summary>28V上电后等待稳定时间（毫秒）</summary>
+        private const int PowerStabilizeMs = 1000;
+
+        /// <summary>组件28V供电电源IP地址</summary>
+        private const string PowerSupply1IpAddress = "192.168.1.15";
+
+        /// <summary>组件28V供电电压（V）</summary>
+        private const double ComponentVoltage = 28.0;
+
+        /// <summary>组件28V供电电流限制（A）</summary>
+        private const double ComponentCurrentLimit = 3.0;
+
         #endregion
 
         #region 依赖服务
@@ -89,7 +101,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private readonly IComponentPowerStateApi _componentPowerStateApi;          // 组件供电状态API（优先使用）
         private readonly TemperatureAcquisitionSimulation _simulation;             // 仿真类，硬件不可用时使用
 
-        private IPowerSupplyApi _power;                                            // 电源API（componentPowerStateApi不可用时备用）
+        private IPowerSupplyApi _powerSupply1;                                     // 第一个电源（组件28V供电）
         private FpgaIoClient _fpga;                                                 // FPGA IO TCP客户端
 
         #endregion
@@ -570,6 +582,30 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog("FPGA TCP已断开");
             }
 
+            try
+            {
+                if (_powerSupply1 != null && _powerSupply1.IsConnected)
+                {
+                    await _powerSupply1.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, token);
+                    await _powerSupply1.DisconnectAsync(token);
+                    AddLog($"{PowerSupply1IpAddress} CH1已关闭并断开");
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"关闭{PowerSupply1IpAddress}异常: {ex.Message}");
+            }
+            finally
+            {
+                _powerSupply1 = null;
+            }
+
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsPowerOn = false;
+                PowerStatus = "未上电";
+            });
+
             _hardwareInitialized = false;
             UpdateCommandStates();
             AddLog("硬件复位完成");
@@ -578,22 +614,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task ApplyPower28VAsync(CancellationToken token)
         {
-            try
-            {
-                await _componentPowerStateApi.ApplyComponent28VStateAsync(token);
-                AddLog("组件供电: 28V上电(真实API)");
-            }
-            catch
-            {
-                AddLog("组件供电: 28V上电(仿真占位)");
-                await Task.Delay(120, token);
-            }
+            AddLog($"正在连接{PowerSupply1IpAddress}，开启CH1 28V供电...");
+            _powerSupply1 ??= new PowerSupplySocketApi();
+            if (!_powerSupply1.IsConnected)
+                await _powerSupply1.ConnectAsync(PowerSupply1IpAddress, token);
+
+            await _powerSupply1.ApplyAsync(PowerSupplyChannel.CH1, ComponentVoltage, ComponentCurrentLimit, token);
+            await _powerSupply1.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token);
+            AddLog($"{PowerSupply1IpAddress} CH1 {ComponentVoltage:F0}V已开启");
 
             Application.Current?.Dispatcher?.Invoke(() =>
             {
                 IsPowerOn = true;
                 PowerStatus = "已上电";
             });
+
+            AddLog($"等待电源稳定（{PowerStabilizeMs}ms）...");
+            await Task.Delay(PowerStabilizeMs, token);
         }
 
         private bool EnsureFuelBoardPowered()
@@ -895,10 +932,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             try
             {
-                if (_power != null)
+                if (_powerSupply1 != null)
                 {
-                    try { _power.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).GetAwaiter().GetResult(); } catch { }
-                    try { _power.DisposeAsync().AsTask().GetAwaiter().GetResult(); } catch { }
+                    try { _powerSupply1.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, CancellationToken.None).GetAwaiter().GetResult(); } catch { }
+                    try { _powerSupply1.DisconnectAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
                 }
             }
             catch { }
