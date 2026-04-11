@@ -274,9 +274,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
         private void StartManualTest()
         {
-            if (!EnsureFuelBoardPowered())
-                return;
-
             _opCts?.Cancel();
             _opCts = new CancellationTokenSource();
             var token = _opCts.Token;
@@ -330,9 +327,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
         private async void StartAutoTest()
         {
-            if (!EnsureFuelBoardPowered())
-                return;
-
             _opCts?.Cancel();
             _opCts = new CancellationTokenSource();
 
@@ -408,9 +402,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task<string> ExecuteAutoTestAsync(CancellationToken token)
         {
-            if (!EnsureFuelBoardPowered())
-                return "不合格";
-
             Application.Current?.Dispatcher?.Invoke(() =>
             {
                 IsAutoTestRunning = true;
@@ -482,11 +473,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog("硬件已初始化，跳过");
                 return;
             }
-
-            AddLog("检测组件供电状态...");
-            if (!EnsureFuelBoardPowered())
-                throw new InvalidOperationException("请先给加放油单板上电后再进行测试。");
-            AddLog("已检测到加放油单板处于上电状态");
 
             // ========== 步骤2：连接FPGA TCP服务器 ==========
             AddLog($"正在连接FPGA TCP服务器 {FpgaIoClient.DefaultIpAddress}:{FpgaIoClient.DefaultPort} ...");

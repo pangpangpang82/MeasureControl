@@ -83,6 +83,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// <summary>万用表测量超时时间（毫秒）</summary>
         private const int DmmTimeoutMs = 2000;
 
+        /// <summary>28V上电后等待稳定时间（毫秒）</summary>
+        private const int PowerStabilizeMs = 1000;
+
         private const string AiVoltageChannel = "AI1";
 
         /// <summary>第二个电源IP地址（运放供电+15V）</summary>
@@ -501,9 +504,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
         private void StartManualTest()
         {
-            if (!EnsureFuelBoardPowered())
-                return;
-
             _opCts?.Cancel();
             _opCts = new CancellationTokenSource();
             var token = _opCts.Token;
@@ -557,9 +557,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
         private async void StartAutoTest()
         {
-            if (!EnsureFuelBoardPowered())
-                return;
-
             _opCts?.Cancel();
             _opCts = new CancellationTokenSource();
 
@@ -588,8 +585,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private void StopTest()
         {
             _opCts?.Cancel();
-            IsManualTestRunning = false;
-            IsAutoTestRunning = false;
             AddLog("测试已停止，正在复位硬件...");
 
             Task.Run(async () =>
@@ -606,6 +601,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     {
                         ReMessageBox.Show($"硬件复位失败: {ex.Message}", "警告",
                             MessageBoxButton.OK, MessageBoxImage.Warning);
+                    });
+                }
+                finally
+                {
+                    Application.Current?.Dispatcher?.Invoke(() =>
+                    {
+                        IsManualTestRunning = false;
+                        IsAutoTestRunning = false;
                     });
                 }
             });
@@ -640,9 +643,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private async Task<string> ExecuteAutoTestAsync(CancellationToken token)
         {
-            if (!EnsureFuelBoardPowered())
-                return "不合格";
-
             Application.Current?.Dispatcher?.Invoke(() =>
             {
                 IsAutoTestRunning = true;
@@ -666,6 +666,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 AddLog("步骤3: 复位硬件...");
                 await ResetHardwareAsync(CancellationToken.None).ConfigureAwait(false);
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
 
                 return OverallResult;
             }
@@ -720,13 +721,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 await Initialize9774AiAsync(timeoutCts.Token);
 
-                AddLog("检测组件供电状态...");
-                if (!EnsureFuelBoardPowered())
-                    throw new InvalidOperationException("请先给加放油单板上电后再进行测试。");
-                AddLog("已检测到加放油单板处于上电状态");
+                // ========== 步骤2：开启.16 CH3 +15V（运放供电） ==========
+                await InitPowerSupply2Async(timeoutCts.Token);
+                if (_powerSupply2 == null)
+                    throw new InvalidOperationException("电源2（运放供电）连接失败，请检查192.168.1.16");
 
-                // ========== 步骤4：设置运放供电和DI上拉信号（+15V） ==========
-                await InitializeOpAmpAndDiPullUpPowerAsync(timeoutCts.Token);
+                // ========== 步骤3：开启.17 CH3 +15V（DI上拉） ==========
+                await InitPowerSupply3Async(timeoutCts.Token);
+                if (_powerSupply3 == null)
+                    throw new InvalidOperationException("电源3（DI上拉）连接失败，请检查192.168.1.17");
+
+                _opAmpPowerOn = true;
+
+                // ========== 步骤4：开启28V组件供电 ==========
+                AddLog("正在开启28V组件供电...");
+                await _componentPowerStateApi.ApplyComponent28VStateAsync(timeoutCts.Token);
+                AddLog("28V组件供电已开启");
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    IsPowerOn = true;
+                    PowerStatus = "已上电";
+                });
+
+                // 等待电源稳定
+                AddLog($"等待电源稳定（{PowerStabilizeMs}ms）...");
+                await Task.Delay(PowerStabilizeMs, timeoutCts.Token);
 
                 _hardwareInitialized = true;
                 AddLog("硬件初始化完成");
@@ -744,26 +763,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
         private async Task ResetHardwareAsync(CancellationToken token)
         {
-            AddLog("正在复位硬件...");
+            AddLog("正在复位硬件（反序断开）...");
 
-            // 断开矩阵开关
+            // 步骤1: 断开矩阵开关
             await DisconnectAllMatrixRoutesAsync();
 
-            // 断开万用表
-            if (_dmmSocket != null)
+            // 步骤2: 关闭28V组件供电
+            try
             {
-                try
-                {
-                    if (_dmmSocket.IsConnected)
-                        await _dmmSocket.DisconnectAsync(token);
-                    AddLog("万用表已断开");
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"断开万用表异常: {ex.Message}");
-                }
+                await _componentPowerStateApi.ApplyComponentDownStateAsync(token);
+                AddLog("28V组件供电已关闭");
             }
+            catch (Exception ex)
+            {
+                AddLog($"关闭28V异常: {ex.Message}");
+            }
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsPowerOn = false;
+                PowerStatus = "未上电";
+            });
 
+            // 步骤3: 关闭.17、.16电源（反序）
+            await ShutdownOpAmpAndDiPullUpPowerAsync();
+
+            // 步骤4: 断开9774板卡
             if (_ai9774Api != null)
             {
                 try
@@ -781,8 +805,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 }
             }
 
-            // 关闭运放供电和DI上拉电源
-            await ShutdownOpAmpAndDiPullUpPowerAsync();
+            // 步骤5: 断开万用表
+            if (_dmmSocket != null)
+            {
+                try
+                {
+                    if (_dmmSocket.IsConnected)
+                        await _dmmSocket.DisconnectAsync(token);
+                    AddLog("万用表已断开");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"断开万用表异常: {ex.Message}");
+                }
+            }
 
             _hardwareInitialized = false;
             UpdateCommandStates();
@@ -854,28 +890,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// </summary>
         private async Task ShutdownOpAmpAndDiPullUpPowerAsync()
         {
-            // 真正断开连接，释放给其他测试项使用
-            if (_powerSupply2 != null)
-            {
-                try
-                {
-                    if (_powerSupply2.IsConnected)
-                    {
-                        await _powerSupply2.SetOutputEnabledAsync(PowerSupplyChannel.CH3, false);
-                        AddLog("电源2 CH3已关闭（运放供电）");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    AddLog($"关闭电源2异常: {ex.Message}");
-                }
-                finally
-                {
-                    try { await _powerSupply2.DisposeAsync(); } catch { }
-                    _powerSupply2 = null;
-                }
-            }
-
+            // 反序断开：启动顺序.16→.17，停止顺序.17→.16
             if (_powerSupply3 != null)
             {
                 try
@@ -894,6 +909,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 {
                     try { await _powerSupply3.DisposeAsync(); } catch { }
                     _powerSupply3 = null;
+                }
+            }
+
+            if (_powerSupply2 != null)
+            {
+                try
+                {
+                    if (_powerSupply2.IsConnected)
+                    {
+                        await _powerSupply2.SetOutputEnabledAsync(PowerSupplyChannel.CH3, false);
+                        AddLog("电源2 CH3已关闭（运放供电）");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"关闭电源2异常: {ex.Message}");
+                }
+                finally
+                {
+                    try { await _powerSupply2.DisposeAsync(); } catch { }
+                    _powerSupply2 = null;
                 }
             }
 
