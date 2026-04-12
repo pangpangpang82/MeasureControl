@@ -564,6 +564,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 if (_componentSupplyOn || globallyPowered)
                 {
                     try { await WithTimeoutAsync(_powerSupply1.SetOutputEnabledAsync(ComponentSupplyChannel, false, CancellationToken.None), DefaultHardwareTimeoutMs, "组件供电关闭", CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { ContainerLocator.Container.Resolve<IBoardPowerService>()?.SetPoweredState(false); } catch { }
                 }
 
                 _componentSupplyOn = false;
@@ -886,6 +887,76 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             try
             {
                 return await ExecuteAutoTestCoreAsync(_opCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
+                _hardwareInitialized = false;
+                UpdateCommandStates();
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
+
+        public async Task<string> RunStepCOnlyAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                _opCts?.Cancel();
+                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            _opCts?.Cancel();
+            _opCts?.Dispose();
+            _opCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                J14Voltage = null;
+                StepCResult = "--";
+                OverallResult = "--";
+                IsAutoTestRunning = true;
+            });
+            UpdateCommandStates();
+            AddLog($"========== 步骤C复用阻抗数据，仅测J14电压（{SelectedSupplyVoltage:F0}V）==========");
+
+            try
+            {
+                await InitializeHardwareAsync(_opCts.Token).ConfigureAwait(false);
+                _opCts.Token.ThrowIfCancellationRequested();
+
+                AddLog($"--- 步骤c: {SelectedSupplyVoltage:F0}V上电 + 测J14电压 ---");
+                bool stepCPass = await RunStepCSingleAsync(SelectedSupplyVoltage, _opCts.Token).ConfigureAwait(false);
+                Application.Current?.Dispatcher?.Invoke(() => StepCResult = stepCPass ? "PASS" : "FAIL");
+                _opCts.Token.ThrowIfCancellationRequested();
+
+                await ResetHardwareAsync(CancellationToken.None, preserveComponentPower: false).ConfigureAwait(false);
+
+                bool overallPass =
+                    string.Equals(StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(StepBResult, "PASS", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(StepCResult, "PASS", StringComparison.OrdinalIgnoreCase);
+
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    OverallResult = overallPass ? "PASS" : "FAIL";
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                });
+
+                AddLog($"========== 步骤C完成: {(overallPass ? "PASS" : "FAIL")} ==========");
+                return overallPass ? "PASS" : "FAIL";
+            }
+            catch (OperationCanceledException)
+            {
+                AddLog("步骤C测试被取消");
+                await SafeResetHardwareAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"步骤C测试异常: {ex.Message}");
+                await SafeResetHardwareAsync().ConfigureAwait(false);
+                return "FAIL";
             }
             finally
             {

@@ -1840,16 +1840,19 @@ namespace MeasureControl.Views.Common
             };
         }
 
-        private (string Name, Func<CancellationToken, Task<string>> Run)[] BuildFuelSteps(double voltage = 28.0)
+        private (string Name, Func<CancellationToken, Task<string>> Run)[] BuildFuelSteps(double voltage = 28.0, bool isFirstRound = true)
         {
-            _fuelAutoTestVm1 = ContainerLocator.Container.Resolve<PowerImpedanceTestViewModel>();
-            _fuelAutoTestVm2 = ContainerLocator.Container.Resolve<SecondaryPowerTestViewModel>();
-            _fuelAutoTestVm3 = ContainerLocator.Container.Resolve<LowVoltageAlarmTestViewModel>();
-            _fuelAutoTestVm4 = ContainerLocator.Container.Resolve<TemperatureAcquisitionTestViewModel>();
-            _fuelAutoTestVm5 = ContainerLocator.Container.Resolve<DiscreteInputTestViewModel>();
-            _fuelAutoTestVm6 = ContainerLocator.Container.Resolve<DiscreteOutputTestViewModel>();
-            _fuelAutoTestVm7 = ContainerLocator.Container.Resolve<RS422CommunicationFunctionTestViewModel>();
-            _fuelAutoTestVm8 = ContainerLocator.Container.Resolve<RS422SelfCheckTestViewModel>();
+            if (isFirstRound)
+            {
+                _fuelAutoTestVm1 = ContainerLocator.Container.Resolve<PowerImpedanceTestViewModel>();
+                _fuelAutoTestVm2 = ContainerLocator.Container.Resolve<SecondaryPowerTestViewModel>();
+                _fuelAutoTestVm3 = ContainerLocator.Container.Resolve<LowVoltageAlarmTestViewModel>();
+                _fuelAutoTestVm4 = ContainerLocator.Container.Resolve<TemperatureAcquisitionTestViewModel>();
+                _fuelAutoTestVm5 = ContainerLocator.Container.Resolve<DiscreteInputTestViewModel>();
+                _fuelAutoTestVm6 = ContainerLocator.Container.Resolve<DiscreteOutputTestViewModel>();
+                _fuelAutoTestVm7 = ContainerLocator.Container.Resolve<RS422CommunicationFunctionTestViewModel>();
+                _fuelAutoTestVm8 = ContainerLocator.Container.Resolve<RS422SelfCheckTestViewModel>();
+            }
 
             var Vm1 = _fuelAutoTestVm1;
             var Vm2 = _fuelAutoTestVm2;
@@ -1876,6 +1879,12 @@ namespace MeasureControl.Views.Common
             {
                 ("电源阻抗测试", async ct =>
                 {
+                    if (!isFirstRound)
+                    {
+                        // 复用18V阻抗结果，跳过重测
+                        await EnsurePowerOnAsync(ct).ConfigureAwait(false);
+                        return Vm1?.OverallResult ?? "--";
+                    }
                     var result = await Vm1.RunOnceAsync(ct);
                     bool impedancePass = string.Equals(result, "PASS", StringComparison.OrdinalIgnoreCase) ||
                                         string.Equals(result, "\u5408\u683c", StringComparison.OrdinalIgnoreCase);
@@ -1909,7 +1918,11 @@ namespace MeasureControl.Views.Common
                 {
                     await EnsurePowerOnAsync(ct).ConfigureAwait(false);
                     Vm6.SelectedSupplyVoltage = voltage;
-                    return await Vm6.RunOnceAsync(ct);
+                    string r6 = !isFirstRound
+                        ? await Vm6.RunStepCOnlyAsync(ct)
+                        : await Vm6.RunOnceAsync(ct);
+                    isPoweredOn = false; // 离散量输出测试强制下电，后续测试需重新上电
+                    return r6;
                 }),
                 ("RS422通信功能测试", async ct =>
                 {
@@ -2002,7 +2015,7 @@ namespace MeasureControl.Views.Common
                 for (int vi = 0; vi < voltages.Length && !globalAbort; vi++)
                 {
                     double voltage = voltages[vi];
-                    var steps = BuildFuelSteps(voltage);
+                    var steps = BuildFuelSteps(voltage, isFirstRound: vi == 0);
                     var filteredSteps = steps.Where(s => selectedItems.Contains(s.Name, StringComparer.OrdinalIgnoreCase)).ToArray();
 
                     AppendSingleBoardReportLine($"ROUND | {voltage:G}V");

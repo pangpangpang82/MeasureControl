@@ -1615,7 +1615,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 var okDmm = await matrix.ConnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress);
                 var ok1   = await matrix.ConnectNodesAsync(c1.In, c1.Out, c1.Slot, MatrixIpAddress);
-                await Task.Delay(1000);
+                await Task.Delay(300);
                 var ok2   = c2.HasValue ? await matrix.ConnectNodesAsync(c2.Value.In, c2.Value.Out, c2.Value.Slot, MatrixIpAddress) : true;
                 AddLog(
                     c2.HasValue
