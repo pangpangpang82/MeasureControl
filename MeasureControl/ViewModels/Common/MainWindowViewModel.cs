@@ -1617,6 +1617,13 @@ namespace MeasureControl.ViewModels.Common
                         await SetHydraulicAuxDoAsync(true, CancellationToken.None);
                     }
 
+                    // 惰化模拟板需要先设置PT500和PT1000电阻初始值（500Ω/1000Ω）
+                    // 电阻保持到超温测试项进行扫温时才会改变
+                    if (string.Equals(selectedBoard, "惰化模拟板", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        await SetInertSimulationInitialResistanceAsync(CancellationToken.None);
+                    }
+
                     // 所有单板共用同一台程控电源 / 192.168.1.15 / CH1，电压由弹窗选择
                     await _boardPowerService.PowerOnAsync(selectedBoard, selectedVoltage);
                 }
@@ -1672,6 +1679,63 @@ namespace MeasureControl.ViewModels.Common
             {
                 try { await jy7131.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 try { await jy7131.DisposeAsync().ConfigureAwait(false); } catch { }
+            }
+        }
+
+        private async Task SetInertSimulationInitialResistanceAsync(CancellationToken cancellationToken)
+        {
+            // 参考超温测试中的连接方式，自动探测逻辑ID
+            var candidates = new uint[] { 1, 0, 2, 3, 4, 5, 6, 7 };
+            IPxi7012Api resistor = null;
+
+            foreach (var logicalId in candidates)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    var device = new ProgrammableResistorDevice
+                    {
+                        Name = "电阻输出",
+                        Model = "PXI-7012",
+                        CardName = $"电阻输出(自动探测-{logicalId})",
+                        SlotIndex = (int)logicalId
+                    };
+
+                    var api = new Pxi7012Api(device, logicalId);
+                    await api.ConnectAsync(cancellationToken).ConfigureAwait(false);
+                    resistor = api;
+                    System.Diagnostics.Debug.WriteLine($"[MainWindowViewModel] PXI-7012连接成功：逻辑ID={logicalId}");
+                    break;
+                }
+                catch
+                {
+                    // 尝试下一个逻辑ID
+                }
+            }
+
+            if (resistor == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[MainWindowViewModel] 未找到PXI-7012设备，跳过电阻初始化");
+                return;
+            }
+
+            try
+            {
+                // PT500 -> RO1 (API 1-based), 设置500Ω
+                await resistor.SetRelayStateAsync("RO1", pathRelayClosed: true, shortCircuitClosed: false, cancellationToken).ConfigureAwait(false);
+                await resistor.SetResistanceAsync("RO1", 500.0, Pxi7012OutputMode.NoWait, cancellationToken).ConfigureAwait(false);
+
+                // PT1000 -> RO2 (API 1-based), 设置1000Ω
+                await resistor.SetRelayStateAsync("RO2", pathRelayClosed: true, shortCircuitClosed: false, cancellationToken).ConfigureAwait(false);
+                await resistor.SetResistanceAsync("RO2", 1000.0, Pxi7012OutputMode.NoWait, cancellationToken).ConfigureAwait(false);
+
+                System.Diagnostics.Debug.WriteLine("[MainWindowViewModel] 惰化模拟板电阻初始化完成: PT500=500Ω, PT1000=1000Ω");
+            }
+            finally
+            {
+                // 注意：这里断开连接但不关闭继电器，电阻值保持输出
+                try { await resistor.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                try { await resistor.DisposeAsync().ConfigureAwait(false); } catch { }
             }
         }
 
