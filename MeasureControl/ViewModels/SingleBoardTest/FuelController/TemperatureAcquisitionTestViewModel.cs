@@ -677,6 +677,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     await _fpga.InitHi8435AfterConnectAsync(token);
                     AddLog("HI8435初始化完成");
                 }
+                catch (OperationCanceledException)
+                {
+                    AddLog("HI8435初始化被取消（超时）");
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     AddLog($"HI8435初始化失败: {ex.Message}");
@@ -708,9 +713,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             if (_fpga != null)
             {
                 try { _fpga.StopAsyncReceive(); } catch { }
-                try { _fpga.Disconnect(); } catch { }
+                var fpgaRef = _fpga;
                 _fpga = null;
                 _fpgaConnected = false;
+                try
+                {
+                    var disconnectTask = Task.Run(() => fpgaRef.Disconnect());
+                    await Task.WhenAny(disconnectTask, Task.Delay(2000)).ConfigureAwait(false);
+                }
+                catch { }
                 AddLog("FPGA TCP已断开");
             }
 

@@ -1913,7 +1913,7 @@ namespace MeasureControl.Views.Common
             string completionMessage = null;
             string abortMessage = null;
 
-            var voltages = new double[] { 17.0, 28.0, 32.2 };
+            var voltages = new double[] { 18.0, 28.0, 32.2 };
             var snapshots = new FuelRoundSnapshot[3];
             var roundResults = new Dictionary<string, string>[3];
 
@@ -2525,7 +2525,7 @@ namespace MeasureControl.Views.Common
                 case "加放油单板":
                     return new SingleBoardExcelReportConfig
                     {
-                        TemplateFileName = "加放油报表模板.xlsx",
+                        TemplateFileName = "加放油测试报表模板.xlsx",
                         OutputFolderName = "TestResults",
                         FileNamePrefix = "加放油测试",
                         FillAction = FillFuelBoardExcelReport
@@ -4004,7 +4004,7 @@ namespace MeasureControl.Views.Common
                 cells = sheet.GetType().InvokeMember("Cells", BindingFlags.GetProperty, null, sheet, null);
 
                 // 列定义：E=测试值(5), F=单项测试结果(6), G=测试结果(7)
-                // 行定义（17V基准行）：电源阻抗3-6, 二次电源7, 低压告警8, 温度9,
+                // 行定义（18V基准行）：电源阻抗3-6, 二次电源7, 低压告警8, 温度9,
                 // 离散量采集10-13, 离散量输出14-30, RS422通信31-34, RS422自检35-36
                 // 28V段行偏移+37, 32.2V段行偏移+74
                 const int valueCol = 5;
@@ -4055,7 +4055,7 @@ namespace MeasureControl.Views.Common
                         {
                             FillUntestedCells(cells, 3 + ro, valueCol, 6 + ro);
                             FillUntestedCells(cells, 3 + ro, singleResultCol, 6 + ro);
-                            SetOverall(3 + ro, snap.Aborted ? "中止" : "未测试");
+                            SetOverall(3 + ro, "未测试");
                         }
                     }
                     else
@@ -4078,14 +4078,14 @@ namespace MeasureControl.Views.Common
                         else
                         {
                             SetExcelCellValue(cells, 7 + ro, valueCol, "--");
-                            SetExcelCellValue(cells, 7 + ro, singleResultCol, snap.Aborted ? "中止" : "未测试");
-                            SetOverall(7 + ro, snap.Aborted ? "中止" : "未测试");
+                            SetExcelCellValue(cells, 7 + ro, singleResultCol, "--");
+                            SetOverall(7 + ro, "未测试");
                         }
                     }
                     else
                     {
-                        SetExcelCellValue(cells, 7 + ro, valueCol, "未测试");
-                        SetExcelCellValue(cells, 7 + ro, singleResultCol, "未测试");
+                        SetExcelCellValue(cells, 7 + ro, valueCol, "--");
+                        SetExcelCellValue(cells, 7 + ro, singleResultCol, "--");
                         SetOverall(7 + ro, "未测试");
                     }
 
@@ -4102,14 +4102,14 @@ namespace MeasureControl.Views.Common
                         else
                         {
                             SetExcelCellValue(cells, 8 + ro, valueCol, "--");
-                            SetExcelCellValue(cells, 8 + ro, singleResultCol, snap.Aborted ? "中止" : "未测试");
-                            SetOverall(8 + ro, snap.Aborted ? "中止" : "未测试");
+                            SetExcelCellValue(cells, 8 + ro, singleResultCol, "--");
+                            SetOverall(8 + ro, "未测试");
                         }
                     }
                     else
                     {
-                        SetExcelCellValue(cells, 8 + ro, valueCol, "未测试");
-                        SetExcelCellValue(cells, 8 + ro, singleResultCol, "未测试");
+                        SetExcelCellValue(cells, 8 + ro, valueCol, "--");
+                        SetExcelCellValue(cells, 8 + ro, singleResultCol, "--");
                         SetOverall(8 + ro, "未测试");
                     }
 
@@ -4126,14 +4126,14 @@ namespace MeasureControl.Views.Common
                         else
                         {
                             SetExcelCellValue(cells, 9 + ro, valueCol, "--");
-                            SetExcelCellValue(cells, 9 + ro, singleResultCol, snap.Aborted ? "中止" : "未测试");
-                            SetOverall(9 + ro, snap.Aborted ? "中止" : "未测试");
+                            SetExcelCellValue(cells, 9 + ro, singleResultCol, "--");
+                            SetOverall(9 + ro, "未测试");
                         }
                     }
                     else
                     {
-                        SetExcelCellValue(cells, 9 + ro, valueCol, "未测试");
-                        SetExcelCellValue(cells, 9 + ro, singleResultCol, "未测试");
+                        SetExcelCellValue(cells, 9 + ro, valueCol, "--");
+                        SetExcelCellValue(cells, 9 + ro, singleResultCol, "--");
                         SetOverall(9 + ro, "未测试");
                     }
 
@@ -4155,12 +4155,14 @@ namespace MeasureControl.Views.Common
                         }
                         else
                         {
+                            FillUntestedCells(cells, 10 + ro, valueCol, 13 + ro);
                             FillUntestedCells(cells, 10 + ro, singleResultCol, 13 + ro);
-                            SetOverall(10 + ro, snap.Aborted ? "中止" : "未测试");
+                            SetOverall(10 + ro, "未测试");
                         }
                     }
                     else
                     {
+                        FillUntestedCells(cells, 10 + ro, valueCol, 13 + ro);
                         FillUntestedCells(cells, 10 + ro, singleResultCol, 13 + ro);
                         SetOverall(10 + ro, "未测试");
                     }
@@ -4197,19 +4199,19 @@ namespace MeasureControl.Views.Common
                         {
                             FillUntestedCells(cells, 14 + ro, valueCol, 21 + ro);
                             FillUntestedCells(cells, 22 + ro, valueCol, 30 + ro);
-                            SetExcelCellValue(cells, 14 + ro, singleResultCol, snap.Aborted ? "中止" : "未测试");
-                            SetExcelCellValue(cells, 22 + ro, singleResultCol, snap.Aborted ? "中止" : "未测试");
-                            SetExcelCellValue(cells, 30 + ro, singleResultCol, snap.Aborted ? "中止" : "未测试");
-                            SetOverall(14 + ro, snap.Aborted ? "中止" : "未测试");
+                            SetExcelCellValue(cells, 14 + ro, singleResultCol, "--");
+                            SetExcelCellValue(cells, 22 + ro, singleResultCol, "--");
+                            SetExcelCellValue(cells, 30 + ro, singleResultCol, "--");
+                            SetOverall(14 + ro, "未测试");
                         }
                     }
                     else
                     {
                         FillUntestedCells(cells, 14 + ro, valueCol, 21 + ro);
                         FillUntestedCells(cells, 22 + ro, valueCol, 30 + ro);
-                        SetExcelCellValue(cells, 14 + ro, singleResultCol, "未测试");
-                        SetExcelCellValue(cells, 22 + ro, singleResultCol, "未测试");
-                        SetExcelCellValue(cells, 30 + ro, singleResultCol, "未测试");
+                        SetExcelCellValue(cells, 14 + ro, singleResultCol, "--");
+                        SetExcelCellValue(cells, 22 + ro, singleResultCol, "--");
+                        SetExcelCellValue(cells, 30 + ro, singleResultCol, "--");
                         SetOverall(14 + ro, "未测试");
                     }
 
@@ -4231,12 +4233,14 @@ namespace MeasureControl.Views.Common
                         }
                         else
                         {
+                            FillUntestedCells(cells, 31 + ro, valueCol, 34 + ro);
                             FillUntestedCells(cells, 31 + ro, singleResultCol, 34 + ro);
-                            SetOverall(31 + ro, snap.Aborted ? "中止" : "未测试");
+                            SetOverall(31 + ro, "未测试");
                         }
                     }
                     else
                     {
+                        FillUntestedCells(cells, 31 + ro, valueCol, 34 + ro);
                         FillUntestedCells(cells, 31 + ro, singleResultCol, 34 + ro);
                         SetOverall(31 + ro, "未测试");
                     }
@@ -4255,18 +4259,20 @@ namespace MeasureControl.Views.Common
                         }
                         else
                         {
+                            FillUntestedCells(cells, 35 + ro, valueCol, 36 + ro);
                             FillUntestedCells(cells, 35 + ro, singleResultCol, 36 + ro);
-                            SetOverall(35 + ro, snap.Aborted ? "中止" : "未测试");
+                            SetOverall(35 + ro, "未测试");
                         }
                     }
                     else
                     {
+                        FillUntestedCells(cells, 35 + ro, valueCol, 36 + ro);
                         FillUntestedCells(cells, 35 + ro, singleResultCol, 36 + ro);
                         SetOverall(35 + ro, "未测试");
                     }
                 }
 
-                FillSection(_fuelSnapshot17V, 0);   // 17V 基准行
+                FillSection(_fuelSnapshot17V, 0);   // 18V 基准行
                 FillSection(_fuelSnapshot28V, 37);  // 28V +37行
                 FillSection(_fuelSnapshot322V, 74); // 32.2V +74行
 

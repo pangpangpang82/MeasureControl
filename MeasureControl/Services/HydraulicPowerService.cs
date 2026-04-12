@@ -74,9 +74,9 @@ namespace MeasureControl.Services
                 await api.ConnectAsync(IpAddress, cancellationToken).ConfigureAwait(false);
                 await api.ApplyAsync(PowerSupplyChannel.CH1, voltage, Current1A, cancellationToken).ConfigureAwait(false);
                 await api.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-                IsPowered = true;
                 PoweredBoardType = boardType;
                 PoweredVoltage = voltage;
+                IsPowered = true;
             }
             finally
             {
@@ -105,9 +105,9 @@ namespace MeasureControl.Services
 
         public void SetPoweredState(bool powered, string boardType = null, double voltage = 0)
         {
-            IsPowered = powered;
             PoweredBoardType = powered ? boardType : null;
             PoweredVoltage = powered ? (voltage > 0 ? voltage : DefaultVoltage) : 0;
+            IsPowered = powered;
         }
     }
 }

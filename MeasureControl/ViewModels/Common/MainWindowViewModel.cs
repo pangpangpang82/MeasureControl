@@ -1182,8 +1182,10 @@ namespace MeasureControl.ViewModels.Common
             get
             {
                 if (_boardPowerService?.IsPowered != true) return "组件已下电";
+                var boardType = _boardPowerService.PoweredBoardType;
                 var v = _boardPowerService.PoweredVoltage;
-                return v > 0 ? $"组件已上电{v:G}V" : "组件已上电";
+                var prefix = string.IsNullOrEmpty(boardType) ? "组件" : boardType;
+                return v > 0 ? $"{prefix}上电{v:G}V" : $"{prefix}已上电";
             }
         }
 
