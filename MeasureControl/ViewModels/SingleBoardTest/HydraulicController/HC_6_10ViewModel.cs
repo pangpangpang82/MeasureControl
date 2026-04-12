@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using MeasureControl.Views.Dialogs;
 using MeasureControl.Events;
 using MeasureControl.Models;
 using MeasureControl.Models.Devices;
@@ -330,6 +331,37 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _autoCts?.Cancel();
             _autoCts?.Dispose();
             _autoCts = new CancellationTokenSource();
+
+            if (_boardPowerService?.IsPowered == true)
+            {
+                MessageBoxResult cycleResult = MessageBoxResult.No;
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    cycleResult = MessageBox.Show(
+                        "该测试项需要下电后重新上电，是否继续执行？",
+                        "需要重新上电",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+                });
+                if (cycleResult != MessageBoxResult.Yes)
+                {
+                    IsAutoTestInitializing = false;
+                    _autoCts?.Dispose();
+                    _autoCts = null;
+                    return;
+                }
+            }
+            else
+            {
+                var (confirmed, _) = PowerOnPromptDialog.ShowPrompt("液压单板", showVoltage: false);
+                if (!confirmed)
+                {
+                    IsAutoTestInitializing = false;
+                    _autoCts?.Dispose();
+                    _autoCts = null;
+                    return;
+                }
+            }
 
             try
             {

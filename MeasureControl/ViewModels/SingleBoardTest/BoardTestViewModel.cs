@@ -564,7 +564,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             get => _selectedTestItem;
             set
             {
-                if (_isNavigationLocked && value != null && !ReferenceEquals(value, _selectedTestItem))
+                bool globalBatch = IsGlobalBatchTestRunning();
+
+                if (!globalBatch && _isNavigationLocked && value != null && !ReferenceEquals(value, _selectedTestItem))
                 {
                     try
                     {
@@ -578,7 +580,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     return;
                 }
 
-                if (_isStoppingCurrentTest)
+                if (!globalBatch && _isStoppingCurrentTest)
                 {
                     System.Windows.Application.Current?.Dispatcher.InvokeAsync(
                         () => RaisePropertyChanged(nameof(SelectedTestItem)),
@@ -586,9 +588,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     return;
                 }
 
-                var currentTestState = GetCurrentTestState();
+                var currentTestState = globalBatch ? CurrentTestState.Idle : GetCurrentTestState();
 
-                if (!ReferenceEquals(value, _selectedTestItem) && _selectedTestItem != null && currentTestState == CurrentTestState.Stopping)
+                if (!globalBatch && !ReferenceEquals(value, _selectedTestItem) && _selectedTestItem != null && currentTestState == CurrentTestState.Stopping)
                 {
                     ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                     System.Windows.Application.Current?.Dispatcher.InvokeAsync(
@@ -597,10 +599,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     return;
                 }
 
-                if (!ReferenceEquals(value, _selectedTestItem) && _selectedTestItem != null && currentTestState == CurrentTestState.Running)
+                if (!globalBatch && !ReferenceEquals(value, _selectedTestItem) && _selectedTestItem != null && currentTestState == CurrentTestState.Running)
                 {
-                    var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
-                    if (result != System.Windows.MessageBoxResult.Yes)
+                    var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                    if (result != MessageBoxResult.Yes)
                     {
                         System.Windows.Application.Current?.Dispatcher.InvokeAsync(
                             () => RaisePropertyChanged(nameof(SelectedTestItem)),
@@ -634,7 +636,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
                     if (TryGetViewFactory(BoardType, value.Name, out var viewFactory))
                     {
-                        RightPanelContent = viewFactory();
+                        var view = viewFactory();
+                        if (IsGlobalBatchTestRunning())
+                            view.IsEnabled = false;
+                        RightPanelContent = view;
                         return;
                     }
 
@@ -652,6 +657,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         private bool IsCurrentTestRunning()
         {
             return GetCurrentTestState() == CurrentTestState.Running;
+        }
+
+        private static bool IsGlobalBatchTestRunning()
+        {
+            try
+            {
+                var mw = System.Windows.Application.Current?.MainWindow;
+                if (mw?.DataContext == null) return false;
+                var prop = mw.DataContext.GetType().GetProperty("IsAutoTestRunning");
+                return prop?.PropertyType == typeof(bool) && (bool)(prop.GetValue(mw.DataContext) ?? false);
+            }
+            catch { return false; }
         }
 
         private CurrentTestState GetCurrentTestState()
@@ -715,23 +732,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 return true;
             }
 
+            if (IsGlobalBatchTestRunning())
+            {
+                return true;
+            }
+
             if (_isStoppingCurrentTest)
             {
-                ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                ReMessageBox.Show("请等待测试停止", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
 
             var currentTestState = GetCurrentTestState();
             if (currentTestState == CurrentTestState.Stopping)
             {
-                ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                ReMessageBox.Show("请等待测试停止", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
 
             if (currentTestState == CurrentTestState.Running)
             {
-                var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
-                if (result != System.Windows.MessageBoxResult.Yes)
+                var result = ReMessageBox.Show("当前测试正在进行，是否停止测试并离开当前页面？", "提示", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (result != MessageBoxResult.Yes)
                 {
                     return false;
                 }
@@ -1174,21 +1196,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
         public bool CanClose()
         {
+            // 全局批量测试期间允许自由导航，不拦截
+            if (IsGlobalBatchTestRunning()) return true;
+
             if (_isStoppingCurrentTest)
             {
-                ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                ReMessageBox.Show("请等待测试停止", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
 
             if (GetCurrentTestState() == CurrentTestState.Running)
             {
-                ReMessageBox.Show("请先停止测试才能导航离开", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                ReMessageBox.Show("请先停止测试才能导航离开", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
 
             if (GetCurrentTestState() == CurrentTestState.Stopping)
             {
-                ReMessageBox.Show("请等待测试停止", "提示", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                ReMessageBox.Show("请等待测试停止", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
 

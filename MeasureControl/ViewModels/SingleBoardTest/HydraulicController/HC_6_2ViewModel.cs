@@ -327,7 +327,34 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _manualCts?.Cancel();
             _manualCts?.Dispose();
             _manualCts = new CancellationTokenSource();
-            
+
+            if (_boardPowerService?.IsPowered == true)
+            {
+                MessageBoxResult cycleResult = MessageBoxResult.No;
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    cycleResult = MessageBox.Show(
+                        "该测试项需要下电后重新上电，是否继续执行？",
+                        "需要重新上电",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+                });
+                if (cycleResult != MessageBoxResult.Yes)
+                {
+                    IsManualTestInitializing = false;
+                    return;
+                }
+            }
+            else
+            {
+                var (confirmed, _) = PowerOnPromptDialog.ShowPrompt("液压单板", showVoltage: false);
+                if (!confirmed)
+                {
+                    IsManualTestInitializing = false;
+                    return;
+                }
+            }
+
             Log("开始手动测试");
             Log("正在初始化设备...");
             
@@ -434,7 +461,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _autoCts?.Cancel();
             _autoCts?.Dispose();
             _autoCts = new CancellationTokenSource();
-            
+
+            if (_boardPowerService?.IsPowered == true)
+            {
+                MessageBoxResult cycleResult = MessageBoxResult.No;
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    cycleResult = MessageBox.Show(
+                        "该测试项需要下电后重新上电，是否继续执行？",
+                        "需要重新上电",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+                });
+                if (cycleResult != MessageBoxResult.Yes)
+                {
+                    IsAutoTestInitializing = false;
+                    _autoCts?.Dispose();
+                    _autoCts = null;
+                    return;
+                }
+            }
+            else
+            {
+                var (confirmed, _) = PowerOnPromptDialog.ShowPrompt("液压单板", showVoltage: false);
+                if (!confirmed)
+                {
+                    IsAutoTestInitializing = false;
+                    _autoCts?.Dispose();
+                    _autoCts = null;
+                    return;
+                }
+            }
+
             try
             {
                 _ = await ExecuteAutoTestAsync(_autoCts.Token).ConfigureAwait(false);

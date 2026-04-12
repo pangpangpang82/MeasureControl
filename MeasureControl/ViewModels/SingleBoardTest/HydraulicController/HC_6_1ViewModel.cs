@@ -457,6 +457,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _autoCts?.Dispose();
             _autoCts = new CancellationTokenSource();
 
+            if (_boardPowerService?.IsPowered == true)
+            {
+                MessageBoxResult powerOffResult = MessageBoxResult.No;
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    powerOffResult = MessageBox.Show(
+                        "该测试项需要先下电，是否继续执行？",
+                        "需要下电",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+                });
+                if (powerOffResult != MessageBoxResult.Yes)
+                {
+                    IsAutoTestInitializing = false;
+                    IsAutoTestRunning = false;
+                    _autoCts?.Dispose();
+                    _autoCts = null;
+                    return;
+                }
+            }
+
             Log("开始自动测试");
             Log("正在初始化设备...");         
 
@@ -659,6 +680,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             if (_boardPowerService?.IsPowered == true)
             {
+                MessageBoxResult powerOffResult = MessageBoxResult.No;
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    powerOffResult = MessageBox.Show(
+                        "该测试项需要先下电，是否继续执行？",
+                        "需要下电",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+                });
+                if (powerOffResult != MessageBoxResult.Yes)
+                {
+                    IsManualTestRunning = false;
+                    IsManualTestInitializing = false;
+                    return;
+                }
                 await _boardPowerService.PowerOffAsync(_manualCts.Token).ConfigureAwait(false);
             }
 
