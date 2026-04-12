@@ -29,7 +29,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
     {
         private readonly IEventAggregator _eventAggregator;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
-        private readonly IHydraulicPowerService _hydraulicPowerService;
+        private readonly IBoardPowerService _boardPowerService;
         private const string CommonBoardTypeKey = "Common";
         private bool _isStoppingCurrentTest;
 
@@ -522,7 +522,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
         {
             get
             {
-                var powered = _hydraulicPowerService?.PoweredBoardType;
+                var powered = _boardPowerService?.PoweredBoardType;
                 if (powered == null) return true;
                 return string.Equals(powered, BoardType, StringComparison.OrdinalIgnoreCase);
             }
@@ -533,13 +533,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             RaisePropertyChanged(nameof(IsBoardAccessible));
         }
 
-        public BoardTestViewModel(IEventAggregator eventAggregator, ISingleBoardTestContextService singleBoardTestContext, IHydraulicPowerService hydraulicPowerService)
+        public BoardTestViewModel(IEventAggregator eventAggregator, ISingleBoardTestContextService singleBoardTestContext, IBoardPowerService hydraulicPowerService)
         {
             _eventAggregator = eventAggregator ?? throw new ArgumentNullException(nameof(eventAggregator));
             _singleBoardTestContext = singleBoardTestContext ?? throw new ArgumentNullException(nameof(singleBoardTestContext));
-            _hydraulicPowerService = hydraulicPowerService;
-            if (_hydraulicPowerService != null)
-                _hydraulicPowerService.IsHydraulicPoweredChanged += OnPowerStateChanged;
+            _boardPowerService = hydraulicPowerService;
+            if (_boardPowerService != null)
+                _boardPowerService.IsPoweredChanged += OnPowerStateChanged;
             CloseInRegionCommand = new DelegateCommand(OnCloseInRegion);
 
             _eventAggregator.GetEvent<NavigationLockChangedEvent>().Subscribe(OnNavigationLockChanged, ThreadOption.UIThread, keepSubscriberReferenceAlive: true);

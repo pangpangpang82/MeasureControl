@@ -34,7 +34,7 @@ namespace MeasureControl.ViewModels.Dialogs
 
         public bool CanConfirm => SelectedItems.Any() && string.IsNullOrWhiteSpace(ValidationMessage);
 
-        public void Initialize(string[] names)
+        public void Initialize(string[] names, string[] mandatoryNames = null)
         {
             Items.Clear();
             if (names == null)
@@ -43,9 +43,10 @@ namespace MeasureControl.ViewModels.Dialogs
                 return;
             }
 
+            var mandatorySet = new System.Collections.Generic.HashSet<string>(mandatoryNames ?? System.Array.Empty<string>(), System.StringComparer.OrdinalIgnoreCase);
             foreach (var name in names)
             {
-                var item = new FuelAutoTestSelectionItem(name);
+                var item = new FuelAutoTestSelectionItem(name, mandatorySet.Contains(name));
                 item.PropertyChanged += (_, args) =>
                 {
                     if (args.PropertyName == nameof(FuelAutoTestSelectionItem.IsSelected))
@@ -82,7 +83,8 @@ namespace MeasureControl.ViewModels.Dialogs
         {
             foreach (var item in Items)
             {
-                item.IsSelected = false;
+                if (!item.IsMandatory)
+                    item.IsSelected = false;
             }
 
             ValidateSelection();
@@ -93,17 +95,24 @@ namespace MeasureControl.ViewModels.Dialogs
     {
         private bool _isSelected = true;
 
-        public FuelAutoTestSelectionItem(string name)
+        public FuelAutoTestSelectionItem(string name, bool isMandatory = false)
         {
             Name = name;
+            IsMandatory = isMandatory;
         }
 
         public string Name { get; }
 
+        public bool IsMandatory { get; }
+
         public bool IsSelected
         {
             get => _isSelected;
-            set => SetProperty(ref _isSelected, value);
+            set
+            {
+                if (IsMandatory && !value) return;
+                SetProperty(ref _isSelected, value);
+            }
         }
     }
 }

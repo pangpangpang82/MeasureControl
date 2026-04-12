@@ -189,7 +189,7 @@
                         VerticalAlignment="Center"
                         FontSize="20"
                         FontWeight="Bold"
-                        Text="测试步骤（组件28V供电状态）" />
+                        Text="测试步骤" />
 
                     <ScrollViewer
                         Grid.Row="1"

@@ -13,10 +13,10 @@ namespace MeasureControl.Views.Dialogs
 
         public string[] SelectedItems => (DataContext as HydraulicAutoTestSelectionDialogViewModel)?.SelectedItems;
 
-        public void Initialize(string[] names)
+        public void Initialize(string[] names, string[] mandatoryNames = null)
         {
             var vm = new HydraulicAutoTestSelectionDialogViewModel();
-            vm.Initialize(names);
+            vm.Initialize(names, mandatoryNames);
             DataContext = vm;
         }
 

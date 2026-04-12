@@ -13,10 +13,10 @@ namespace MeasureControl.Views.Dialogs
 
         public string[] SelectedItems => (DataContext as FuelAutoTestSelectionDialogViewModel)?.SelectedItems;
 
-        public void Initialize(string[] names)
+        public void Initialize(string[] names, string[] mandatoryNames = null)
         {
             var vm = new FuelAutoTestSelectionDialogViewModel();
-            vm.Initialize(names);
+            vm.Initialize(names, mandatoryNames);
             DataContext = vm;
         }
 

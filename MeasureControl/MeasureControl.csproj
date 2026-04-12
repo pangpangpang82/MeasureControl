@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Import disabled by automation: Costura.Fody props removed to avoid MSBuild compatibility issues during CI/local edits -->
   <!-- <Import Project="..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props" Condition="Exists('..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props')" /> -->
@@ -287,6 +287,9 @@
     </Compile>
     <Compile Include="Views\Dialogs\PowerBoardSelectDialog.xaml.cs">
       <DependentUpon>PowerBoardSelectDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Dialogs\PowerOnPromptDialog.xaml.cs">
+      <DependentUpon>PowerOnPromptDialog.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\Dialogs\FuelAutoTestSelectionDialog.xaml.cs">
       <DependentUpon>FuelAutoTestSelectionDialog.xaml</DependentUpon>
@@ -1084,6 +1087,9 @@
     </Compile>
     <Compile Include="Views\Dialogs\PowerBoardSelectDialog.xaml.cs">
       <DependentUpon>PowerBoardSelectDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Dialogs\PowerOnPromptDialog.xaml.cs">
+      <DependentUpon>PowerOnPromptDialog.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\Dialogs\FuelAutoTestSelectionDialog.xaml.cs">
       <DependentUpon>FuelAutoTestSelectionDialog.xaml</DependentUpon>

@@ -362,8 +362,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             }
 
             // 检查是否已总上电
-            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
-            if (_hps == null || !_hps.IsHydraulicPowered)
+            var _bps = ContainerLocator.Container.Resolve<IBoardPowerService>();
+            if (_bps == null || !_bps.IsPowered)
             {
                 MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
@@ -534,8 +534,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             }
 
             // 检查是否已总上电
-            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
-            if (_hps == null || !_hps.IsHydraulicPowered)
+            var _bps = ContainerLocator.Container.Resolve<IBoardPowerService>();
+            if (_bps == null || !_bps.IsPowered)
             {
                 MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;

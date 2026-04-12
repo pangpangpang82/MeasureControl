@@ -788,7 +788,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 await tempPower.DisconnectAsync(token).ConfigureAwait(false);
                 Log("192.168.1.15 CH1 已关闭");
                 // 同步更新左上角上电状态
-                try { Prism.Ioc.ContainerLocator.Container.Resolve<IHydraulicPowerService>()?.SetPoweredState(false); } catch { }
+                try { Prism.Ioc.ContainerLocator.Container.Resolve<IBoardPowerService>()?.SetPoweredState(false); } catch { }
             }
             catch (Exception ex)
             {

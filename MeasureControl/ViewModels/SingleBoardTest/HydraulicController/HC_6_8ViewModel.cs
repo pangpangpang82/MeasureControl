@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using MeasureControl.Views.Dialogs;
 using MeasureControl.Drivers;
 using MeasureControl.Events;
 using MeasureControl.Models.Devices;
@@ -88,7 +89,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
-        private readonly IHydraulicPowerService _hydraulicPowerService;
+        private readonly IBoardPowerService _boardPowerService;
         private readonly Dictionary<int, string> _groundPinTexts = new Dictionary<int, string>();
         private readonly Dictionary<int, string> _openPinTexts = new Dictionary<int, string>();
 
@@ -122,11 +123,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _detectedChannelText = "--";
         
 
-        public HC_6_8ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IHydraulicPowerService hydraulicPowerService)
+        public HC_6_8ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IBoardPowerService hydraulicPowerService)
         {
             _pxiChassisService = pxiChassisService;
             _singleBoardTestContext = singleBoardTestContext;
-            _hydraulicPowerService = hydraulicPowerService;
+            _boardPowerService = hydraulicPowerService;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
@@ -994,9 +995,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
         {
-            if (!_hydraulicPowerService.IsHydraulicPowered)
+            if (_boardPowerService.IsPowered)
             {
-                await _hydraulicPowerService.PowerOnAsync(null, cancellationToken: cancellationToken).ConfigureAwait(false);
+                MessageBoxResult cycleResult = MessageBoxResult.No;
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    cycleResult = MessageBox.Show(
+                        "该测试项需要先下电再上电，是否执行？",
+                        "需要重新上电",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+                });
+                if (cycleResult != MessageBoxResult.Yes)
+                    throw new OperationCanceledException("用户取消重新上电");
+                await _boardPowerService.PowerOffAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+                await _boardPowerService.PowerOnAsync("液压单板", cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                var (confirmed, _) = PowerOnPromptDialog.ShowPrompt("液压单板", showVoltage: false);
+                if (!confirmed) throw new OperationCanceledException("用户取消上电");
+                await _boardPowerService.PowerOnAsync("液压单板", cancellationToken: cancellationToken).ConfigureAwait(false);
             }
             await Task.Delay(PowerSettleDelayMs, cancellationToken).ConfigureAwait(false);
         }

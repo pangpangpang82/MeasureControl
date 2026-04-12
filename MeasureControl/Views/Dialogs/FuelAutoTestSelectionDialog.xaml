@@ -177,12 +177,30 @@
                         <ItemsControl ItemsSource="{Binding Items}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <CheckBox
-                                        Margin="12,6"
-                                        Content="{Binding Name}"
-                                        FontSize="14"
-                                        IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
-                                        Style="{StaticResource EnableCheckBoxStyle}" />
+                                    <StackPanel Margin="12,6" Orientation="Horizontal">
+                                        <CheckBox
+                                            Content="{Binding Name}"
+                                            FontSize="14"
+                                            IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
+                                            Style="{StaticResource EnableCheckBoxStyle}" />
+                                        <TextBlock
+                                            Margin="6,0,0,0"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Foreground="#C62828"
+                                            Text="（必选）">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMandatory}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

@@ -16,6 +16,7 @@ using Prism.Events;
 using Prism.Mvvm;
 using System.Windows;
 using MeasureControl.Views.Dialogs;
+using Prism.Ioc;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 {
@@ -96,7 +97,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private readonly IEventAggregator _eventAggregator;                        // 事件聚合器，用于跨模块通信
         private readonly IComponentPowerStateApi _componentPowerStateApi;          // 组件供电状态API（复用）
         private readonly IPxiChassisService _pxiChassisService;                   // 机箱服务，用于查找板卡设备
-        private readonly IHydraulicPowerService _hydraulicPowerService;           // 组件上电服务，用于强制下电
+        private readonly IBoardPowerService _boardPowerService;           // 组件上电服务，用于强制下电
         private IJy7131Api _jy7131Api;                                             // 7131板卡API，控制DO输出（运行时动态创建）
         private readonly IDmmApi _dmmApi;                                          // 万用表API，测量电阻
         private readonly PowerImpedanceSimulation _simulation;                     // 仿真类，硬件不可用时使用
@@ -168,7 +169,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             IEventAggregator eventAggregator,
             IComponentPowerStateApi componentPowerStateApi,
             IPxiChassisService pxiChassisService,
-            IHydraulicPowerService hydraulicPowerService = null,
+            IBoardPowerService hydraulicPowerService = null,
             IDmmApi dmmApi = null)
         {
             // 保存依赖服务引用
@@ -177,7 +178,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             _eventAggregator = eventAggregator;
             _componentPowerStateApi = componentPowerStateApi;
             _pxiChassisService = pxiChassisService;
-            _hydraulicPowerService = hydraulicPowerService;
+            _boardPowerService = hydraulicPowerService;
             _dmmApi = dmmApi;
             _simulation = new PowerImpedanceSimulation();
 
@@ -434,6 +435,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             if (IsAutoTestRunning || IsAutoTestInitializing)
                 await StopAutoTestAsync().ConfigureAwait(false);
 
+            var hpsPreCheck = ContainerLocator.Container.Resolve<IBoardPowerService>();
+            bool isPoweredBefore = hpsPreCheck != null && hpsPreCheck.IsPowered &&
+                string.Equals(hpsPreCheck.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase);
+            if (isPoweredBefore)
+            {
+                bool confirmed = false;
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    var r = ReMessageBox.Show("加放油单板当前已上电，阻抗测试需将其下电，是否继续？",
+                        "提示", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    confirmed = r == MessageBoxResult.Yes;
+                });
+                if (!confirmed) return;
+            }
+
             IsManualTestInitializing = true;
             ClearResults();
 
@@ -513,6 +529,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             if (IsManualTestRunning || IsManualTestInitializing)
                 await StopManualTestAsync().ConfigureAwait(false);
+
+            var hpsPreCheck2 = ContainerLocator.Container.Resolve<IBoardPowerService>();
+            bool isPoweredBefore2 = hpsPreCheck2 != null && hpsPreCheck2.IsPowered &&
+                string.Equals(hpsPreCheck2.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase);
+            if (isPoweredBefore2)
+            {
+                bool confirmed2 = false;
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    var r = ReMessageBox.Show("加放油单板当前已上电，阻抗测试需将其下电，是否继续？",
+                        "提示", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    confirmed2 = r == MessageBoxResult.Yes;
+                });
+                if (!confirmed2) return;
+            }
 
             IsAutoTestInitializing = true;
             ClearResults();
@@ -1186,7 +1217,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// 
         /// 【操作流程】
         /// 1. 通过 IComponentPowerStateApi 关闭组件供电（CH1）
-        /// 2. 同步更新 IHydraulicPowerService 状态（UI上的"组件已下电"状态）
+        /// 2. 同步更新 IBoardPowerService 状态（UI上的"组件已下电"状态）
         /// </summary>
         private async Task ForceComponentPowerOffAsync(CancellationToken token)
         {
@@ -1195,15 +1226,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 // 【重要】电源阻抗测试的电源控制策略：
                 // 
                 // 问题背景：
-                // - HydraulicPowerService 和 ComponentPowerStateApi 都操作 192.168.1.15
+                // - IBoardPowerService 和 ComponentPowerStateApi 都操作 192.168.1.15
                 // - 它们各自维护独立的连接和状态，容易不同步
-                // - 左上角"组件上电"按钮使用 HydraulicPowerService
+                // - 左上角"组件上电"按钮使用 IBoardPowerService
                 // - 阻抗测试使用 ComponentPowerStateApi
                 // 
                 // 解决方案：
                 // 直接操作电源，确保 CH1 关闭，不依赖任何服务的内部状态
-                
-                AddLog("正在关闭组件供电（仅CH1）...");
                 
                 // 直接操作电源，确保 CH1 真正关闭
                 var power = new PowerSupplySocketApi();
@@ -1219,8 +1248,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     try { await power.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
                 
-                // 同步更新 HydraulicPowerService 状态（仅更新UI状态）
-                _hydraulicPowerService?.SetPoweredState(false);
+                // 同步更新 IBoardPowerService 状态（仅更新UI状态）
+                _boardPowerService?.SetPoweredState(false);
 
                 // 更新本地状态
                 Application.Current?.Dispatcher?.Invoke(() =>

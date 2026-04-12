@@ -34,7 +34,7 @@ namespace MeasureControl.ViewModels.Dialogs
 
         public bool CanConfirm => SelectedItems.Any() && string.IsNullOrWhiteSpace(ValidationMessage);
 
-        public void Initialize(string[] names)
+        public void Initialize(string[] names, string[] mandatoryNames = null)
         {
             Items.Clear();
             if (names == null)
@@ -43,9 +43,13 @@ namespace MeasureControl.ViewModels.Dialogs
                 return;
             }
 
+            var mandatorySet = mandatoryNames != null
+                ? new System.Collections.Generic.HashSet<string>(mandatoryNames, System.StringComparer.OrdinalIgnoreCase)
+                : new System.Collections.Generic.HashSet<string>();
+
             foreach (var name in names)
             {
-                var item = new HydraulicAutoTestSelectionItem(name);
+                var item = new HydraulicAutoTestSelectionItem(name, mandatorySet.Contains(name));
                 item.PropertyChanged += (_, args) =>
                 {
                     if (args.PropertyName == nameof(HydraulicAutoTestSelectionItem.IsSelected))
@@ -82,7 +86,8 @@ namespace MeasureControl.ViewModels.Dialogs
         {
             foreach (var item in Items)
             {
-                item.IsSelected = false;
+                if (!item.IsMandatory)
+                    item.IsSelected = false;
             }
 
             ValidateSelection();
@@ -93,17 +98,27 @@ namespace MeasureControl.ViewModels.Dialogs
     {
         private bool _isSelected = true;
 
-        public HydraulicAutoTestSelectionItem(string name)
+        public HydraulicAutoTestSelectionItem(string name, bool isMandatory = false)
         {
             Name = name;
+            IsMandatory = isMandatory;
+            if (isMandatory) _isSelected = true;
         }
 
         public string Name { get; }
 
+        public bool IsMandatory { get; }
+
+        public bool IsEditable => !IsMandatory;
+
         public bool IsSelected
         {
             get => _isSelected;
-            set => SetProperty(ref _isSelected, value);
+            set
+            {
+                if (IsMandatory) return;
+                SetProperty(ref _isSelected, value);
+            }
         }
     }
 }

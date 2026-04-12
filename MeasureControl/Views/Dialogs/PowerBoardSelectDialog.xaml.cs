@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Windows;
+using System.Windows.Controls;
 
 namespace MeasureControl.Views.Dialogs
 {
@@ -13,11 +15,11 @@ namespace MeasureControl.Views.Dialogs
             "惰化控制板",
         };
 
-        public static readonly IReadOnlyList<double> AvailableVoltages = new List<double>
+        public static readonly IReadOnlyList<string> AvailableVoltages = new List<string>
         {
-            18.0,
-            28.0,
-            32.2,
+            "18V",
+            "28V",
+            "32.2V",
         };
 
         public string SelectedBoardType { get; private set; }
@@ -27,16 +29,31 @@ namespace MeasureControl.Views.Dialogs
         {
             InitializeComponent();
             BoardTypeComboBox.ItemsSource = AvailableBoardTypes;
-            BoardTypeComboBox.SelectedIndex = 0;
             VoltageComboBox.ItemsSource = AvailableVoltages;
-            VoltageComboBox.SelectedItem = 28.0;
+            VoltageComboBox.SelectedItem = "28V";
+            BoardTypeComboBox.SelectedIndex = 0;
+        }
+
+        private void BoardTypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            bool showVoltage = string.Equals(
+                BoardTypeComboBox.SelectedItem as string,
+                "加放油单板",
+                StringComparison.OrdinalIgnoreCase);
+            var vis = showVoltage ? Visibility.Visible : Visibility.Collapsed;
+            VoltageRowSpacer.Visibility = vis;
+            VoltageLabelText.Visibility = vis;
+            VoltageComboBox.Visibility = vis;
+            if (!showVoltage)
+                SelectedVoltage = 28.0;
         }
 
         private void OnOkClick(object sender, RoutedEventArgs e)
         {
             SelectedBoardType = BoardTypeComboBox.SelectedItem as string;
             if (string.IsNullOrEmpty(SelectedBoardType)) return;
-            if (VoltageComboBox.SelectedItem is double voltage)
+            if (VoltageComboBox.SelectedItem is string voltageStr &&
+                double.TryParse(voltageStr.TrimEnd('V'), out double voltage))
                 SelectedVoltage = voltage;
             DialogResult = true;
         }

@@ -16,6 +16,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using MeasureControl.Views.Dialogs;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 {
@@ -75,6 +76,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _jy7131DiThresholdApplied;
         private IPowerSupplyApi _powerSupply;
         private bool _powerSupplyOn;
+        private bool _powerManagedExternally;
+        private bool _forceCleanupPowerOff;
         private bool _isManualTestInitializing;
         private bool _isAutoTestInitializing;
         private bool _isManualTestStopping;
@@ -382,6 +385,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             if (IsAutoTestRunning || IsAutoTestInitializing)
                 await StopAutoTestAsync().ConfigureAwait(false);
 
+            // 检查加放油单板是否已上电，未上电则询问用户
+            var hpsCheck = ContainerLocator.Container.Resolve<IBoardPowerService>();
+            bool alreadyPowered = hpsCheck != null && hpsCheck.IsPowered &&
+                string.Equals(hpsCheck.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase);
+            if (!alreadyPowered)
+            {
+                var (confirmed, selectedVoltage) = PowerOnPromptDialog.ShowPrompt("加放油单板", showVoltage: true);
+                if (!confirmed) return;
+                try
+                {
+                    using var powerCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    await hpsCheck.PowerOnAsync("加放油单板", selectedVoltage, powerCts.Token).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"上电失败: {ex.Message}");
+                    return;
+                }
+            }
+
             IsManualTestInitializing = true;
             ClearTestResults();
 
@@ -402,11 +425,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             catch (OperationCanceledException)
             {
                 AddLog("手动测试初始化已取消");
+                _forceCleanupPowerOff = true;
                 await StopManualTestAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 AddLog($"手动测试初始化失败: {ex.Message}");
+                _forceCleanupPowerOff = true;
                 await StopManualTestAsync().ConfigureAwait(false);
             }
         }
@@ -454,6 +479,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             if (IsManualTestRunning || IsManualTestInitializing)
                 await StopManualTestAsync().ConfigureAwait(false);
 
+            var hpsCheck = ContainerLocator.Container.Resolve<IBoardPowerService>();
+            bool alreadyPowered = hpsCheck != null && hpsCheck.IsPowered &&
+                string.Equals(hpsCheck.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase);
+            if (!alreadyPowered)
+            {
+                var (confirmed, selectedVoltage) = PowerOnPromptDialog.ShowPrompt("加放油单板", showVoltage: true);
+                if (!confirmed) return;
+                try
+                {
+                    using var powerCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    await hpsCheck.PowerOnAsync("加放油单板", selectedVoltage, powerCts.Token).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"上电失败: {ex.Message}");
+                    return;
+                }
+            }
+
             IsAutoTestInitializing = true;
             ClearTestResults();
 
@@ -468,11 +512,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             catch (OperationCanceledException)
             {
                 AddLog("自动测试已取消");
+                _forceCleanupPowerOff = true;
                 await StopAutoTestAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 AddLog($"自动测试异常: {ex.Message}");
+                _forceCleanupPowerOff = true;
                 await StopAutoTestAsync().ConfigureAwait(false);
             }
             finally
@@ -527,6 +573,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             try
             {
                 return await ExecuteAutoTestCoreAsync(_testCts.Token).ConfigureAwait(false);
+            }
+            catch
+            {
+                _forceCleanupPowerOff = true;
+                throw;
             }
             finally
             {
@@ -958,22 +1009,36 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
 
             // 2. 上电（28V/1A，CH1）
-            AddLog($"正在连接电源（{PowerSupplyIpAddress}）...");
-            try
+            var hps = ContainerLocator.Container.Resolve<IBoardPowerService>();
+            bool fuelAlreadyPowered = hps != null && hps.IsPowered &&
+                string.Equals(hps.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase);
+            if (fuelAlreadyPowered)
             {
-                _powerSupply ??= new PowerSupplySocketApi();
-                if (!_powerSupply.IsConnected)
-                    await _powerSupply.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
-                await _powerSupply.ApplyAsync(PowerSupplyChannel.CH1, PowerSupplyVoltageV, PowerSupplyCurrentA, token).ConfigureAwait(false);
-                await _powerSupply.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token).ConfigureAwait(false);
-                _powerSupplyOn = true;
-                AddLog($"电源CH1已上电（{PowerSupplyVoltageV}V / {PowerSupplyCurrentA}A）");
-                await Task.Delay(600, token).ConfigureAwait(false);
+                _powerManagedExternally = true;
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
+                AddLog("加放油单板已由外部上电，跳过电源初始化");
             }
-            catch (Exception ex)
+            else
             {
-                AddLog($"电源初始化异常: {ex.Message}");
-                throw;
+                _powerManagedExternally = false;
+                AddLog($"正在连接电源（{PowerSupplyIpAddress}）...");
+                try
+                {
+                    _powerSupply ??= new PowerSupplySocketApi();
+                    if (!_powerSupply.IsConnected)
+                        await _powerSupply.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
+                    await _powerSupply.ApplyAsync(PowerSupplyChannel.CH1, PowerSupplyVoltageV, PowerSupplyCurrentA, token).ConfigureAwait(false);
+                    await _powerSupply.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token).ConfigureAwait(false);
+                    _powerSupplyOn = true;
+                    AddLog($"电源CH1已上电（{PowerSupplyVoltageV}V / {PowerSupplyCurrentA}A）");
+                    hps?.SetPoweredState(true, "加放油单板", PowerSupplyVoltageV);
+                    await Task.Delay(600, token).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"电源初始化异常: {ex.Message}");
+                    throw;
+                }
             }
 
             // 3. 连接FPGA
@@ -1075,8 +1140,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog("FPGA已断开");
             }
 
-            // 反序第二步：关闭电源
-            if (_powerSupply != null)
+            // 反序第二步：关闭电源（外部托管时跳过，保持全局上电状态）
+            if ((!_powerManagedExternally || _forceCleanupPowerOff) && _powerSupply != null)
             {
                 if (_powerSupplyOn)
                 {
@@ -1087,7 +1152,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 _powerSupply = null;
                 _powerSupplyOn = false;
                 AddLog("电源已断开");
+                try { ContainerLocator.Container.Resolve<IBoardPowerService>()?.SetPoweredState(false); } catch { }
             }
+            else if (_powerSupply != null)
+            {
+                try { await _powerSupply.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                try { await _powerSupply.DisposeAsync().ConfigureAwait(false); } catch { }
+                _powerSupply = null;
+                _powerSupplyOn = false;
+            }
+            _powerManagedExternally = false;
+            _forceCleanupPowerOff = false;
 
             // 反序第三步：关闭485继电器并断开7131
             if (_jy7131Api != null && _jy7131Api.IsConnected)
@@ -1127,8 +1202,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private bool EnsureFuelBoardPowered()
         {
-            var powerService = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
-            if (powerService == null || !powerService.IsHydraulicPowered)
+            var powerService = ContainerLocator.Container.Resolve<IBoardPowerService>();
+            if (powerService == null || !powerService.IsPowered)
             {
                 AddLog("未检测到加放油单板上电，请先通过左上角组件上电按钮上电。");
                 Application.Current?.Dispatcher?.Invoke(() =>
@@ -1164,8 +1239,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private void RefreshPowerStateDisplay()
         {
-            var powerService = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
-            var isFuelPowered = powerService != null && powerService.IsHydraulicPowered &&
+            var powerService = ContainerLocator.Container.Resolve<IBoardPowerService>();
+            var isFuelPowered = powerService != null && powerService.IsPowered &&
                                 string.Equals(powerService.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase);
             Application.Current?.Dispatcher?.Invoke(() =>
             {

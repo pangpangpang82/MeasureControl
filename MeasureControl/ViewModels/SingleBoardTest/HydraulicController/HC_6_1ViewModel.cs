@@ -56,7 +56,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
-        private readonly IHydraulicPowerService _hydraulicPowerService;
+        private readonly IBoardPowerService _boardPowerService;
         private IJy7131Api _jy7131;
         private bool _isRelay485On;
         private bool _isAuxPowerOn;
@@ -89,11 +89,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _previousTestResult = "--";
         private string _currentTestResult = "--";
 
-        public HC_6_1ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IHydraulicPowerService hydraulicPowerService)
+        public HC_6_1ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IBoardPowerService hydraulicPowerService)
         {
             _pxiChassisService = pxiChassisService;
             _singleBoardTestContext = singleBoardTestContext;
-            _hydraulicPowerService = hydraulicPowerService;
+            _boardPowerService = hydraulicPowerService;
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
             Measure14Command = new DelegateCommand(async () => await OnMeasure14Async(), () => CanMeasure14);
@@ -504,9 +504,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                if (_hydraulicPowerService?.IsHydraulicPowered == true)
+                if (_boardPowerService?.IsPowered == true)
                 {
-                    await _hydraulicPowerService.PowerOffAsync(cancellationToken).ConfigureAwait(false);
+                    await _boardPowerService.PowerOffAsync(cancellationToken).ConfigureAwait(false);
                 }
 
                 await EnsureAuxPowerAsync(cancellationToken).ConfigureAwait(false);
@@ -657,9 +657,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _manualCts?.Dispose();
             _manualCts = new CancellationTokenSource();
 
-            if (_hydraulicPowerService?.IsHydraulicPowered == true)
+            if (_boardPowerService?.IsPowered == true)
             {
-                await _hydraulicPowerService.PowerOffAsync(_manualCts.Token).ConfigureAwait(false);
+                await _boardPowerService.PowerOffAsync(_manualCts.Token).ConfigureAwait(false);
             }
 
             Log("开始手动测试");

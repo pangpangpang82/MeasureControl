@@ -6,44 +6,47 @@ using Prism.Mvvm;
 
 namespace MeasureControl.Services
 {
-    public interface IHydraulicPowerService
+    /// <summary>
+    /// 管理 192.168.1.15 CH1 共用电源的全局状态。
+    /// 所有板卡（液压单板 / 加放油单板 / 惰化模拟板 / 惰化控制板）均通过此服务共享同一路输出。
+    /// </summary>
+    public interface IBoardPowerService
     {
-        bool IsHydraulicPowered { get; }
-        /// <summary>
-        /// 当前已上电的单板类型（null 表示未上电），与 IsHydraulicPowered 同步更新
-        /// </summary>
+        /// <summary>192.168.1.15 CH1 当前是否有输出</summary>
+        bool IsPowered { get; }
+        /// <summary>当前已上电的单板类型（null 表示未上电）</summary>
         string PoweredBoardType { get; }
+        /// <summary>当前已上电的电压（V），0 表示未上电</summary>
         double PoweredVoltage { get; }
-        event EventHandler IsHydraulicPoweredChanged;
-        Task PowerOnAsync(string boardType = null, double voltage = 28.0, CancellationToken cancellationToken = default);
+        event EventHandler IsPoweredChanged;
+        /// <summary>通过服务发起网络操作并更新全局状态</summary>
+        Task PowerOnAsync(string boardType, double voltage = 28.0, CancellationToken cancellationToken = default);
         Task PowerOffAsync(CancellationToken cancellationToken = default);
         /// <summary>
-        /// 由测试项直接管理硬件调用后调用，仅更新状态标志，不发起网络操作
+        /// 由测试项自行管理硬件后调用，仅同步状态标志，不发起网络操作
         /// </summary>
-        void SetPoweredState(bool powered);
+        void SetPoweredState(bool powered, string boardType = null, double voltage = 0);
     }
 
-    public sealed class HydraulicPowerService : BindableBase, IHydraulicPowerService
+    public sealed class BoardPowerService : BindableBase, IBoardPowerService
     {
         private const string IpAddress = "192.168.1.15";
         private const double DefaultVoltage = 28.0;
         private const double Current1A = 1.0;
 
-        private const string HydraulicBoardTypeName = "液压单板";
-
-        private bool _isHydraulicPowered;
+        private bool _isPowered;
         private string _poweredBoardType;
         private double _poweredVoltage;
 
-        public bool IsHydraulicPowered
+        public bool IsPowered
         {
-            get => _isHydraulicPowered;
+            get => _isPowered;
             private set
             {
-                if (_isHydraulicPowered == value) return;
-                _isHydraulicPowered = value;
+                if (_isPowered == value) return;
+                _isPowered = value;
                 RaisePropertyChanged();
-                IsHydraulicPoweredChanged?.Invoke(this, EventArgs.Empty);
+                IsPoweredChanged?.Invoke(this, EventArgs.Empty);
             }
         }
 
@@ -59,18 +62,20 @@ namespace MeasureControl.Services
             private set => SetProperty(ref _poweredVoltage, value);
         }
 
-        public event EventHandler IsHydraulicPoweredChanged;
+        public event EventHandler IsPoweredChanged;
 
-        public async Task PowerOnAsync(string boardType = null, double voltage = DefaultVoltage, CancellationToken cancellationToken = default)
+        public async Task PowerOnAsync(string boardType, double voltage = DefaultVoltage, CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrEmpty(boardType))
+                throw new ArgumentException("必须指定单板类型", nameof(boardType));
             var api = new PowerSupplySocketApi();
             try
             {
                 await api.ConnectAsync(IpAddress, cancellationToken).ConfigureAwait(false);
                 await api.ApplyAsync(PowerSupplyChannel.CH1, voltage, Current1A, cancellationToken).ConfigureAwait(false);
                 await api.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-                IsHydraulicPowered = true;
-                PoweredBoardType = boardType ?? HydraulicBoardTypeName;
+                IsPowered = true;
+                PoweredBoardType = boardType;
                 PoweredVoltage = voltage;
             }
             finally
@@ -87,7 +92,7 @@ namespace MeasureControl.Services
             {
                 await api.ConnectAsync(IpAddress, cancellationToken).ConfigureAwait(false);
                 await api.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, cancellationToken).ConfigureAwait(false);
-                IsHydraulicPowered = false;
+                IsPowered = false;
                 PoweredBoardType = null;
                 PoweredVoltage = 0;
             }
@@ -98,11 +103,11 @@ namespace MeasureControl.Services
             }
         }
 
-        public void SetPoweredState(bool powered)
+        public void SetPoweredState(bool powered, string boardType = null, double voltage = 0)
         {
-            IsHydraulicPowered = powered;
-            PoweredBoardType = powered ? HydraulicBoardTypeName : null;
-            PoweredVoltage = powered ? DefaultVoltage : 0;
+            IsPowered = powered;
+            PoweredBoardType = powered ? boardType : null;
+            PoweredVoltage = powered ? (voltage > 0 ? voltage : DefaultVoltage) : 0;
         }
     }
 }

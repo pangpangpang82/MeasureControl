@@ -1,4 +1,4 @@
-using MeasureControl.Services.HardwareApis;
+﻿using MeasureControl.Services.HardwareApis;
 using MeasureControl.Drivers;
 using MeasureControl.Models.Devices;
 using Prism.Commands;
@@ -243,19 +243,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
                 return;
             }
 
-            // 检查是否已总上电
-            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
-            if (_hps == null || !_hps.IsHydraulicPowered)
-            {
-                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            if (IsAutoTestRunning)
-            {
-                await StopTestAsync().ConfigureAwait(false);
-            }
-
             _cts?.Cancel();
             _cts?.Dispose();
             _cts = new CancellationTokenSource();
@@ -267,12 +254,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
             IsManualTestRunning = true;
             IsAutoTestRunning = false;
 
-            Log("开始手动测试");
+            Log("进入手动测试模式");
 
             try
             {
                 ResetFpgaCapture();
-
                 Log($"电源: CH1 28V 1A, IP={PowerSupplyIpAddress}");
                 await EnsureMainPowerAsync(28.0, _cts.Token).ConfigureAwait(false);
                 SetPowerState(true, "已供电");
@@ -291,20 +277,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.InertController
         private async Task OnAutoTestAsync()
         {
             if (IsAutoTestRunning)
-            {
-                await StopTestAsync().ConfigureAwait(false);
-                return;
-            }
-
-            // 检查是否已总上电
-            var _hps = ContainerLocator.Container.Resolve<IHydraulicPowerService>();
-            if (_hps == null || !_hps.IsHydraulicPowered)
-            {
-                MessageBox.Show("请先点击左上角组件上电按钮进行总上电，再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            if (IsManualTestRunning)
             {
                 await StopTestAsync().ConfigureAwait(false);
             }

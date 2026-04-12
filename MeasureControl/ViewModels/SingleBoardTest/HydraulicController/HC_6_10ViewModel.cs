@@ -57,7 +57,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private readonly SemaphoreSlim _relayLock = new SemaphoreSlim(1, 1);
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
-        private readonly IHydraulicPowerService _hydraulicPowerService;
+        private readonly IBoardPowerService _boardPowerService;
 
         private CancellationTokenSource _manualCts;
         private CancellationTokenSource _autoCts;
@@ -86,11 +86,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _previousTestResult = "--";
         private string _currentTestResult = "--";
 
-        public HC_6_10ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IHydraulicPowerService hydraulicPowerService)
+        public HC_6_10ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IBoardPowerService hydraulicPowerService)
         {
             _pxiChassisService = pxiChassisService;
             _singleBoardTestContext = singleBoardTestContext;
-            _hydraulicPowerService = hydraulicPowerService;
+            _boardPowerService = hydraulicPowerService;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
@@ -815,15 +815,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task RestartBoardPowerAsync(CancellationToken cancellationToken)
         {
-            if (_hydraulicPowerService?.IsHydraulicPowered == true)
+            if (_boardPowerService?.IsPowered == true)
             {
                 Log($"准备重新上电: 先下电并保持 {PowerOffHoldDelayMs}ms");
-                await _hydraulicPowerService.PowerOffAsync(cancellationToken).ConfigureAwait(false);
+                await _boardPowerService.PowerOffAsync(cancellationToken).ConfigureAwait(false);
                 await Task.Delay(PowerOffHoldDelayMs, cancellationToken).ConfigureAwait(false);
             }
 
             Log($"准备重新上电: 上电后等待稳定 {PowerStabilizeDelayMs}ms");
-            await _hydraulicPowerService.PowerOnAsync(null, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await _boardPowerService.PowerOnAsync("液压单板", cancellationToken: cancellationToken).ConfigureAwait(false);
             await Task.Delay(PowerStabilizeDelayMs, cancellationToken).ConfigureAwait(false);
         }
 

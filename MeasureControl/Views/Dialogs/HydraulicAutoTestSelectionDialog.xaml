@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="选择液压测试项"
     Width="380"
-    Height="430"
+    Height="490"
     Background="White"
     ResizeMode="NoResize"
     ShowInTaskbar="False"
@@ -177,12 +177,30 @@
                         <ItemsControl ItemsSource="{Binding Items}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <CheckBox
-                                        Margin="12,6"
-                                        Content="{Binding Name}"
-                                        FontSize="14"
-                                        IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
-                                        Style="{StaticResource EnableCheckBoxStyle}" />
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox
+                                            Margin="12,6,4,6"
+                                            Content="{Binding Name}"
+                                            FontSize="14"
+                                            IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
+                                            Style="{StaticResource EnableCheckBoxStyle}" />
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Foreground="#C62828"
+                                            Text="(必选)">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMandatory}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

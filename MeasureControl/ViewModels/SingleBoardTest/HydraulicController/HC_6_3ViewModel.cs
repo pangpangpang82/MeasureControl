@@ -87,7 +87,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
-        private readonly IHydraulicPowerService _hydraulicPowerService;
+        private readonly IBoardPowerService _boardPowerService;
         private IPowerSupplyApi _power;
         private IArt4229Api _arinc;
         private IJy7131Api _jy7131;
@@ -124,11 +124,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private double? _voltage15V;
         private double? _voltageM15V;
 
-        public HC_6_3ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IHydraulicPowerService hydraulicPowerService)
+        public HC_6_3ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IBoardPowerService hydraulicPowerService)
         {
             _pxiChassisService = pxiChassisService;
             _singleBoardTestContext = singleBoardTestContext;
-            _hydraulicPowerService = hydraulicPowerService;
+            _boardPowerService = hydraulicPowerService;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
@@ -1016,9 +1016,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task EnsurePowerAsync(CancellationToken cancellationToken)
         {
-            if (!_hydraulicPowerService.IsHydraulicPowered)
+            Log($"[上电检查] IsPowered={_boardPowerService?.IsPowered}");
+            if (!_boardPowerService.IsPowered)
             {
-                await _hydraulicPowerService.PowerOnAsync(null, cancellationToken: cancellationToken).ConfigureAwait(false);
+                var (confirmed, _) = PowerOnPromptDialog.ShowPrompt("液压单板", showVoltage: false);
+                if (!confirmed) throw new OperationCanceledException("用户取消上电");
+                await _boardPowerService.PowerOnAsync("液压单板", cancellationToken: cancellationToken).ConfigureAwait(false);
             }
             await Task.Delay(PowerStabilizeDelayMs, cancellationToken).ConfigureAwait(false);
         }

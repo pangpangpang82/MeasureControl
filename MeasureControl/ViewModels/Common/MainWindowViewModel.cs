@@ -56,7 +56,7 @@ namespace MeasureControl.ViewModels.Common
         private readonly Prism.Services.Dialogs.IDialogService _dialogService;
         private readonly DeviceConfigurationService _deviceConfigurationService;
         private readonly SignalValueUpdateService _signalValueUpdateService;
-        private readonly IHydraulicPowerService _hydraulicPowerService;
+        private readonly IBoardPowerService _boardPowerService;
         private readonly MeasureControl.Services.MatrixSwitchTcpServerAutoStartService _matrixSwitchTcpServerAutoStartService;
 
         private bool _isProjectMenuOpen;
@@ -1173,9 +1173,19 @@ namespace MeasureControl.ViewModels.Common
         public bool IsTestStopped => !IsTestRunning;
 
         /// <summary>
-        /// 液压控制器 28V 是否已上电
+        /// 192.168.1.15 CH1 当前是否有输出
         /// </summary>
-        public bool IsHydraulicPowered => _hydraulicPowerService?.IsHydraulicPowered ?? false;
+        public bool IsBoardPowered => _boardPowerService?.IsPowered ?? false;
+
+        public string BoardPoweredText
+        {
+            get
+            {
+                if (_boardPowerService?.IsPowered != true) return "组件已下电";
+                var v = _boardPowerService.PoweredVoltage;
+                return v > 0 ? $"组件已上电{v:G}V" : "组件已上电";
+            }
+        }
 
         #endregion
 
@@ -1188,7 +1198,7 @@ namespace MeasureControl.ViewModels.Common
             ProjectService projectService, INavigationStateService navigationState, INavigationService navigationService,
             Prism.Services.Dialogs.IDialogService dialogService, SignalValueUpdateService signalValueUpdateService,
             MeasureControl.Services.MatrixSwitchTcpServerAutoStartService matrixSwitchTcpServerAutoStartService,
-            IHydraulicPowerService hydraulicPowerService)
+            IBoardPowerService boardPowerService)
         {
             // 依赖注入
             _projectService = projectService ?? throw new ArgumentNullException(nameof(projectService));
@@ -1206,8 +1216,12 @@ namespace MeasureControl.ViewModels.Common
             _deviceConfigurationService = new DeviceConfigurationService();
             _signalValueUpdateService = signalValueUpdateService ?? throw new ArgumentNullException(nameof(signalValueUpdateService));
             _matrixSwitchTcpServerAutoStartService = matrixSwitchTcpServerAutoStartService ?? throw new ArgumentNullException(nameof(matrixSwitchTcpServerAutoStartService));
-            _hydraulicPowerService = hydraulicPowerService ?? throw new ArgumentNullException(nameof(hydraulicPowerService));
-            _hydraulicPowerService.IsHydraulicPoweredChanged += (s, e) => RaisePropertyChanged(nameof(IsHydraulicPowered));
+            _boardPowerService = boardPowerService ?? throw new ArgumentNullException(nameof(boardPowerService));
+            _boardPowerService.IsPoweredChanged += (s, e) =>
+            {
+                RaisePropertyChanged(nameof(IsBoardPowered));
+                RaisePropertyChanged(nameof(BoardPoweredText));
+            };
 
             // 初始化集合
             InitializeCollections();
@@ -1587,7 +1601,7 @@ namespace MeasureControl.ViewModels.Common
         {
             try
             {
-                if (!IsHydraulicPowered)
+                if (!IsBoardPowered)
                 {
                     var dlg = new PowerBoardSelectDialog();
                     if (dlg.ShowDialog() != true) return;
@@ -1602,13 +1616,13 @@ namespace MeasureControl.ViewModels.Common
                     }
 
                     // 所有单板共用同一台程控电源 / 192.168.1.15 / CH1，电压由弹窗选择
-                    await _hydraulicPowerService.PowerOnAsync(selectedBoard, selectedVoltage);
+                    await _boardPowerService.PowerOnAsync(selectedBoard, selectedVoltage);
                 }
                 else
                 {
-                    var boardType = _hydraulicPowerService.PoweredBoardType ?? "组件";
-                    var voltageText = _hydraulicPowerService.PoweredVoltage > 0
-                        ? _hydraulicPowerService.PoweredVoltage.ToString("0.###")
+                    var boardType = _boardPowerService.PoweredBoardType ?? "组件";
+                    var voltageText = _boardPowerService.PoweredVoltage > 0
+                        ? _boardPowerService.PoweredVoltage.ToString("0.###")
                         : "28";
                     var confirm = ReMessageBox.Show(
                         $"是否停止 {boardType} {voltageText}V 上电",
@@ -1617,8 +1631,8 @@ namespace MeasureControl.ViewModels.Common
                         MessageBoxImage.Question);
                     if (confirm != MessageBoxResult.Yes) return;
 
-                    var wasHydraulic = string.Equals(_hydraulicPowerService.PoweredBoardType, "液压单板", System.StringComparison.OrdinalIgnoreCase);
-                    await _hydraulicPowerService.PowerOffAsync();
+                    var wasHydraulic = string.Equals(_boardPowerService.PoweredBoardType, "液压单板", System.StringComparison.OrdinalIgnoreCase);
+                    await _boardPowerService.PowerOffAsync();
                     // 仅液压单板需要关闭 JY7131 DO25
                     if (wasHydraulic)
                     {
@@ -2617,9 +2631,9 @@ namespace MeasureControl.ViewModels.Common
 
                     await ShutdownAllHardwareAsync();
 
-                    if (_hydraulicPowerService != null && _hydraulicPowerService.IsHydraulicPowered)
+                    if (_boardPowerService != null && _boardPowerService.IsPowered)
                     {
-                        try { await _hydraulicPowerService.PowerOffAsync().ConfigureAwait(false); } catch { }
+                        try { await _boardPowerService.PowerOffAsync().ConfigureAwait(false); } catch { }
                     }
 
                     if (!CheckAllOpenPanelsCanClose())

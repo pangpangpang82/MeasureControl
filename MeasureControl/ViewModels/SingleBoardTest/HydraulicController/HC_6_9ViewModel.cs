@@ -96,7 +96,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private readonly SemaphoreSlim _relayLock = new SemaphoreSlim(1, 1);
         private readonly IPxiChassisService _pxiChassisService;
         private readonly ISingleBoardTestContextService _singleBoardTestContext;
-        private readonly IHydraulicPowerService _hydraulicPowerService;
+        private readonly IBoardPowerService _boardPowerService;
 
         private const string TestItemName = "离散量输出测试";
 
@@ -159,11 +159,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private readonly Dictionary<int, double?> _openValuesByPin = new Dictionary<int, double?>();
         private readonly Dictionary<int, double?> _closeValuesByPin = new Dictionary<int, double?>();
 
-        public HC_6_9ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IHydraulicPowerService hydraulicPowerService)
+        public HC_6_9ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IBoardPowerService hydraulicPowerService)
         {
             _pxiChassisService = pxiChassisService;
             _singleBoardTestContext = singleBoardTestContext;
-            _hydraulicPowerService = hydraulicPowerService;
+            _boardPowerService = hydraulicPowerService;
 
             ManualTestCommand = new DelegateCommand(async () => await OnManualTestAsync());
             AutoTestCommand = new DelegateCommand(async () => await OnAutoTestAsync());
@@ -1861,14 +1861,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _powerA.ApplyAsync(PowerSupplyChannel.CH1, Input24VoltageV, Input24CurrentA, cancellationToken).ConfigureAwait(false);
             await _powerA.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
 
-            if (_hydraulicPowerService.IsHydraulicPowered)
+            if (_boardPowerService.IsPowered)
             {
                 await _power28.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
             }
             await _power28.ApplyAsync(PowerSupplyChannel.CH1, Input28VoltageV, Input28CurrentA, cancellationToken).ConfigureAwait(false);
             await _power28.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
-            _hydraulicPowerService.SetPoweredState(true);
+            _boardPowerService.SetPoweredState(true, "液压单板", Input28VoltageV);
 
             await _power28.ApplyAsync(PowerSupplyChannel.CH2, Input28VoltageV, MeasureChannelCurrentA, cancellationToken).ConfigureAwait(false);
             await _power28.SetOutputEnabledAsync(PowerSupplyChannel.CH2, true, cancellationToken).ConfigureAwait(false);
