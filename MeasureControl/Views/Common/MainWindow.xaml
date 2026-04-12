@@ -975,10 +975,9 @@
                         ShowsPreview="True" />
 
                     <!--  主内容  -->
-                    <ContentControl
-                        x:Name="MainContentContainer"
-                        Grid.Column="1"
-                        prism:RegionManager.RegionName="MainRegion" />
+                    <Grid Grid.Column="1">
+                        <ContentControl x:Name="MainContentContainer" prism:RegionManager.RegionName="MainRegion" />
+                    </Grid>
                 </Grid>
             </Border>
 
@@ -1010,12 +1009,14 @@
                                 Margin="10,0,0,0"
                                 HorizontalAlignment="Left"
                                 VerticalAlignment="Center"
-                                Source="/Resources/Logo/device.png" />
+                                Source="/Resources/Logo/device.png"
+                                Visibility="Collapsed" />
                             <TextBlock
                                 Grid.Column="1"
                                 VerticalAlignment="Center"
                                 Foreground="White"
-                                Text="设备占位符" />
+                                Text="设备占位符"
+                                Visibility="Collapsed" />
                         </Grid>
                     </Border>
                     <Border Grid.Column="1">
@@ -1030,12 +1031,14 @@
                                 Margin="10,0,5,0"
                                 HorizontalAlignment="Left"
                                 VerticalAlignment="Center"
-                                Source="/Resources/Logo/database.png" />
+                                Source="/Resources/Logo/database.png"
+                                Visibility="Collapsed" />
                             <TextBlock
                                 Grid.Column="1"
                                 VerticalAlignment="Center"
                                 Foreground="White"
-                                Text="数据库占位符" />
+                                Text="数据库占位符"
+                                Visibility="Collapsed" />
                         </Grid>
                     </Border>
                     <!--<Border Grid.Column="2" Margin="7,0,0,0">
