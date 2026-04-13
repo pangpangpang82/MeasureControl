@@ -468,6 +468,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest
 
         private bool _isNavigationLocked;
 
+        private void OnGlobalBatchTestEnded()
+        {
+            if (RightPanelContent is System.Windows.FrameworkElement fe && !fe.IsEnabled)
+                fe.IsEnabled = true;
+        }
+
         private void OnNavigationLockChanged(NavigationLockChangedEventArgs args)
         {
             try
@@ -543,6 +549,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             CloseInRegionCommand = new DelegateCommand(OnCloseInRegion);
 
             _eventAggregator.GetEvent<NavigationLockChangedEvent>().Subscribe(OnNavigationLockChanged, ThreadOption.UIThread, keepSubscriberReferenceAlive: true);
+            _eventAggregator.GetEvent<GlobalBatchTestEndedEvent>().Subscribe(OnGlobalBatchTestEnded, ThreadOption.UIThread, keepSubscriberReferenceAlive: true);
         }
 
         public ObservableCollection<TestSequenceItem> TestSequenceItems { get; } = new ObservableCollection<TestSequenceItem>();

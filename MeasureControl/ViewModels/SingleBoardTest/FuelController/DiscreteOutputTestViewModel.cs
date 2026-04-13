@@ -10,6 +10,7 @@ using MeasureControl.Models;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
 using MeasureControl.Simulations.FuelController;
+using MeasureControl.Views.Dialogs;
 using Prism.Commands;
 using Prism.Events;
 using Prism.Ioc;
@@ -229,7 +230,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         public DelegateCommand MeasureOpenJ12Command { get; }
         public DelegateCommand MeasureOpenJ13Command { get; }
 
-        public IReadOnlyList<double> SupplyVoltageOptions { get; } = new List<double> { 18.0, 28.0, 32.0 };
+        public IReadOnlyList<double> SupplyVoltageOptions { get; } = new List<double> { 18.0, 28.0, 32.2 };
 
         public double SelectedSupplyVoltage
         {
@@ -714,8 +715,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             if (svc?.IsPowered != true)
                 return true;
 
-            var result = MessageBox.Show(
-                "当前加放油单板已上电（192.168.1.15 CH1），该测试项需要先下电再重新上电才能正确执行。\n\n是否立即下电并开始测试？",
+            var result = ReMessageBox.Show(
+                "该测试项需要下电再重新上电，是否下电并开始测试？",
                 "上电状态确认",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
@@ -989,7 +990,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog(batchMode ? "--- 步骤c: 18V/28V/32V上电 + 测J14电压 ---" : $"--- 步骤c: {SelectedSupplyVoltage:F0}V上电 + 测J14电压 ---");
                 bool stepCPass;
                 if (batchMode)
-                    stepCPass = await RunStepCAcrossVoltagesAsync(new[] { 18.0, 28.0, 32.0 }, token).ConfigureAwait(false);
+                    stepCPass = await RunStepCAcrossVoltagesAsync(new[] { 18.0, 28.0, 32.2 }, token).ConfigureAwait(false);
                 else
                     stepCPass = await RunStepCSingleAsync(SelectedSupplyVoltage, token).ConfigureAwait(false);
                 Application.Current?.Dispatcher?.Invoke(() => StepCResult = stepCPass ? "PASS" : "FAIL");
@@ -1106,7 +1107,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 catch { }
 
                 _hardwareInitialized = true;
-                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "已下电"; });
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "下电就绪"; });
             }
             finally
             {
@@ -1271,7 +1272,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 for (int i = 0; i < J6ToJ13Points.Length; i++)
                 {
-                    double ohm = await ReadImpedanceForPointAsync(i, token);
+                    double ohm = await ReadImpedanceForPointAsync(i, token, isFirstPoint: i == 0, isLastPoint: i == J6ToJ13Points.Length - 1);
                     double adjustedOhm = AdjustGroundedImpedance(i, ohm);
                     _j6ToJ13Impedances[i] = ohm;
                     Application.Current?.Dispatcher?.Invoke(() => SetImpedanceValue(i, true, ohm));
@@ -1352,7 +1353,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 for (int i = 0; i < J6ToJ13Points.Length; i++)
                 {
-                    double ohm = await ReadImpedanceForPointAsync(i, token);
+                    double ohm = await ReadImpedanceForPointAsync(i, token, isFirstPoint: i == 0, isLastPoint: i == J6ToJ13Points.Length - 1);
                     _j6ToJ13Impedances[i] = ohm;
                     Application.Current?.Dispatcher?.Invoke(() => SetImpedanceValue(i, false, ohm));
                     totalOhm += ohm;
@@ -1607,45 +1608,56 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// 需要先配置对应的矩阵开关通路
         /// </summary>
         /// <param name="pointIndex">测量点索引（0=J6, 1=J7, ..., 7=J13）</param>
-        private async Task<double> ReadImpedanceForPointAsync(int pointIndex, CancellationToken token)
+        /// <param name="isFirstPoint">是否是本轮第一个测量点，true时执行DMM初始化；false时只切换测量点</param>
+        /// <param name="isLastPoint">是否是本轮最后一个测量点，true时断开DMM</param>
+        private async Task<double> ReadImpedanceForPointAsync(int pointIndex, CancellationToken token, bool isFirstPoint = false, bool isLastPoint = false)
         {
             if (pointIndex < 0 || pointIndex >= MatrixDoImpedancePoints.Length)
                 throw new ArgumentOutOfRangeException(nameof(pointIndex));
 
-            try { await DisconnectJ14VoltageMatrixRoutesAsync(token).ConfigureAwait(false); } catch { }
-
             await _matrixLock.WaitAsync(token);
             try
             {
-                try { await MatrixDisconnectWithTimeoutAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress, token).ConfigureAwait(false); } catch { }
-                foreach (var ch in MatrixDoImpedancePoints)
+                if (isFirstPoint)
                 {
-                    try { await MatrixDisconnectWithTimeoutAsync(ch.In, ch.Out, MatrixSlotDo, MatrixIpAddress, token).ConfigureAwait(false); } catch { }
+                    // 首个测量点：断开J14通路和所有阻抗通路，连接DMM（只做一次）
+                    try { await DisconnectJ14VoltageMatrixRoutesAsync(token).ConfigureAwait(false); } catch { }
+                    try { await MatrixDisconnectWithTimeoutAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress, token).ConfigureAwait(false); } catch { }
+                    foreach (var ch in MatrixDoImpedancePoints)
+                    {
+                        try { await MatrixDisconnectWithTimeoutAsync(ch.In, ch.Out, MatrixSlotDo, MatrixIpAddress, token).ConfigureAwait(false); } catch { }
+                    }
+                    var okDmm = await MatrixConnectWithTimeoutAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress, token).ConfigureAwait(false);
+                    if (!okDmm)
+                        throw new InvalidOperationException("DMM矩阵通路连接失败，无法执行阻抗测量");
+                }
+                else
+                {
+                    // 非首个测量点：仅断开上一个测量点（DMM保持连接）
+                    var prev = MatrixDoImpedancePoints[pointIndex - 1];
+                    try { await MatrixDisconnectWithTimeoutAsync(prev.In, prev.Out, MatrixSlotDo, MatrixIpAddress, token).ConfigureAwait(false); } catch { }
                 }
 
-                var okDmm = await MatrixConnectWithTimeoutAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress, token).ConfigureAwait(false);
+                // 连接当前测量点并稳定
                 var p = MatrixDoImpedancePoints[pointIndex];
-                await Task.Delay(250, token);
                 var okP = await MatrixConnectWithTimeoutAsync(p.In, p.Out, MatrixSlotDo, MatrixIpAddress, token).ConfigureAwait(false);
-                await Task.Delay(MatrixSwitchSettleDelayMs, token);
+                if (!okP)
+                    throw new InvalidOperationException($"测量点{p.In}->{p.Out}连接失败");
+                await Task.Delay(MatrixSwitchSettleDelayMs, token).ConfigureAwait(false);
 
-                if (!okDmm || !okP)
-                {
-                    throw new InvalidOperationException("矩阵通路连接失败，无法执行真实阻抗测量");
-                }
+                double result = await ReadImpedanceAsync(token).ConfigureAwait(false);
 
-                return await ReadImpedanceAsync(token);
-            }
-            finally
-            {
-                try
+                if (isLastPoint)
                 {
-                    var p = MatrixDoImpedancePoints[pointIndex];
-                    await Task.Delay(250, token);
+                    // 最后一个测量点：断开当前点和DMM
                     try { await MatrixDisconnectWithTimeoutAsync(p.In, p.Out, MatrixSlotDo, MatrixIpAddress, token).ConfigureAwait(false); } catch { }
                     try { await MatrixDisconnectWithTimeoutAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress, token).ConfigureAwait(false); } catch { }
                 }
-                catch { }
+
+                return result;
+            }
+            finally
+            {
                 _matrixLock.Release();
             }
         }

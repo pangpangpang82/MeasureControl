@@ -861,7 +861,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 _hardwareInitialized = true;
                 AddLog("硬件初始化完成");
-                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "已下电"; });
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "下电就绪"; });
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
             {
@@ -1255,7 +1255,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     IsPowerOn = false;
-                    PowerStatus = "已下电";
+                    PowerStatus = "下电就绪";
                 });
             }
             catch (Exception ex)

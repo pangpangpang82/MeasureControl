@@ -52,6 +52,13 @@ namespace MeasureControl.Events
     {
     }
 
+    /// <summary>
+    /// 全局批量测试结束事件，用于通知各 BoardTestViewModel 恢复当前测试项视图的可交互状态
+    /// </summary>
+    public class GlobalBatchTestEndedEvent : PubSubEvent
+    {
+    }
+
     public class NavigationLockChangedEventArgs
     {
         public bool IsLocked { get; set; }

@@ -218,7 +218,7 @@
                                     Margin="5,0"
                                     VerticalAlignment="Center"
                                     Foreground="#92400e"
-                                    Text="提供28V供电" />
+                                    Text="组件+供电" />
                                 <Border
                                     Grid.Column="2"
                                     Margin="5,0"
@@ -581,7 +581,7 @@
                         VerticalAlignment="Center"
                         FontSize="14"
                         Foreground="#666"
-                        Text="组件28V供电状态下，按照DS18B20U+T&amp;R规格书解析CRM_PIN7的信号，提示并记录温度值。温度值处于[15℃, 45℃]区间内为PASS。" />
+                        Text="组件供电状态下，按照DS18B20U+T&amp;R规格书解析CRM_PIN7的信号，提示并记录温度值。温度值处于[15℃, 45℃]区间内为PASS。" />
                 </StackPanel>
             </Border>
         </Grid>

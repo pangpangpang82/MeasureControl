@@ -1464,6 +1464,7 @@ namespace MeasureControl.Views.Common
 
                 // 恢复主窗口操作
                 if (mainVm1 != null) mainVm1.IsAutoTestRunning = false;
+                try { _eventAggregator.GetEvent<Events.GlobalBatchTestEndedEvent>().Publish(); } catch { }
                 _activeTestProjectItem = null;
 
                 if (shouldNotifyCompletion && !string.IsNullOrWhiteSpace(completionMessage))
@@ -2015,6 +2016,8 @@ namespace MeasureControl.Views.Common
                 for (int vi = 0; vi < voltages.Length && !globalAbort; vi++)
                 {
                     double voltage = voltages[vi];
+                    // 每档开始前重置电源状态，确保本档以正确电压重新上电
+                    try { ContainerLocator.Container.Resolve<IBoardPowerService>()?.SetPoweredState(false); } catch { }
                     var steps = BuildFuelSteps(voltage, isFirstRound: vi == 0);
                     var filteredSteps = steps.Where(s => selectedItems.Contains(s.Name, StringComparer.OrdinalIgnoreCase)).ToArray();
 
@@ -2067,6 +2070,17 @@ namespace MeasureControl.Views.Common
                     }
 
                     snapshots[vi] = SnapshotFuelVms(voltage, roundResults[vi], roundAborted);
+
+                    // 每档结束后物理下电 CH1，确保下一档以新电压干净上电
+                    try
+                    {
+                        var hps = ContainerLocator.Container.Resolve<IBoardPowerService>();
+                        if (hps != null && hps.IsPowered)
+                            await hps.PowerOffAsync(token).ConfigureAwait(true);
+                        else
+                            hps?.SetPoweredState(false);
+                    }
+                    catch { }
                 }
 
                 _fuelSnapshot17V = snapshots[0];
@@ -2127,6 +2141,7 @@ namespace MeasureControl.Views.Common
                 try { progressDialog?.Close(); } catch { }
 
                 if (mainVm2 != null) mainVm2.IsAutoTestRunning = false;
+                try { _eventAggregator.GetEvent<Events.GlobalBatchTestEndedEvent>().Publish(); } catch { }
                 _activeTestProjectItem = null;
 
                 if (shouldNotifyCompletion && !string.IsNullOrWhiteSpace(completionMessage))
