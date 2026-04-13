@@ -59,7 +59,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isPowerOn;
         private bool _powerManagedExternally;
         private bool _forceCleanupPowerOff;
-        private string _powerStatus = "未上电";
+        private string _powerStatus = "已下电";
 
         private bool _rs422LoopModeEnabled;
         private bool _rs422LoopModeInitialized;
@@ -117,6 +117,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             //LoadPersistedState();
             _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
+            try { var hps = ContainerLocator.Container.Resolve<IBoardPowerService>(); if (hps != null) hps.IsPoweredChanged += OnBoardPowerStateChanged; } catch { }
+            RefreshPowerStateDisplay();
         }
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
@@ -589,7 +591,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                OverallResult = overallPass ? "合格" : "不合格";
+                OverallResult = overallPass ? "PASS" : "FAIL";
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             });
 
@@ -807,7 +809,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     IsPowerOn = false;
-                    PowerStatus = "未上电";
+                    PowerStatus = "已下电";
                 });
 
                 _hardwareInitialized = false;
@@ -827,7 +829,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog("未检测到加放油单板上电，请先通过左上角组件上电按钮上电。");
                 Application.Current?.Dispatcher?.Invoke(() =>
                     MessageBox.Show("请先点击左上角组件上电按钮，并选择“加放油单板”上电后再进行测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning));
-                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "已下电"; });
                 return false;
             }
 
@@ -836,7 +838,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog($"当前上电单板为{powerService.PoweredBoardType ?? "未知"}，请切换为加放油单板。");
                 Application.Current?.Dispatcher?.Invoke(() =>
                     MessageBox.Show($"当前已上电单板为“{powerService.PoweredBoardType ?? "未知"}”，请先下电并选择“加放油单板”上电。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning));
-                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "已下电"; });
                 return false;
             }
 
@@ -852,8 +854,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             Application.Current?.Dispatcher?.Invoke(() =>
             {
                 IsPowerOn = isFuelPowered;
-                PowerStatus = isFuelPowered ? "已上电" : "未上电";
+                PowerStatus = isFuelPowered ? "已上电" : "已下电";
             });
+        }
+
+        private void OnBoardPowerStateChanged(object sender, EventArgs e)
+        {
+            if (!IsManualTestRunning && !IsAutoTestRunning)
+                RefreshPowerStateDisplay();
         }
 
         private async Task SafeResetHardwareAsync()

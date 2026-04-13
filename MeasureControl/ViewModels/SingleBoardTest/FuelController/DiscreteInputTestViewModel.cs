@@ -139,6 +139,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             // 加载持久化数据
             //LoadPersistedState();
+            try { var hps = ContainerLocator.Container.Resolve<IBoardPowerService>(); if (hps != null) hps.IsPoweredChanged += OnBoardPowerStateChanged; } catch { }
+            RefreshPowerStateDisplay();
         }
 
         #endregion
@@ -244,7 +246,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             set => SetProperty(ref _isPowerOn, value);
         }
 
-        private string _powerStatus = "未上电";
+        private string _powerStatus = "已下电";
         public string PowerStatus
         {
             get => _powerStatus;
@@ -613,7 +615,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             bool overallPass = groundedPass && openPass;
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                OverallResult = overallPass ? "合格" : "不合格";
+                OverallResult = overallPass ? "PASS" : "FAIL";
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             });
 
@@ -1211,7 +1213,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     IsPowerOn = false;
-                    PowerStatus = "未上电";
+                    PowerStatus = "已下电";
                 });
                 return false;
             }
@@ -1224,7 +1226,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     IsPowerOn = false;
-                    PowerStatus = "未上电";
+                    PowerStatus = "已下电";
                 });
                 return false;
             }
@@ -1245,8 +1247,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             Application.Current?.Dispatcher?.Invoke(() =>
             {
                 IsPowerOn = isFuelPowered;
-                PowerStatus = isFuelPowered ? "已上电" : "未上电";
+                PowerStatus = isFuelPowered ? "已上电" : "已下电";
             });
+        }
+
+        private void OnBoardPowerStateChanged(object sender, EventArgs e)
+        {
+            if (!IsManualTestRunning && !IsAutoTestRunning)
+                RefreshPowerStateDisplay();
         }
 
         /// <summary>

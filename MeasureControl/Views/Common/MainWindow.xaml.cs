@@ -4363,7 +4363,9 @@ namespace MeasureControl.Views.Common
 
         private static bool IsPass(string result)
         {
-            return string.Equals(result?.Trim(), "合格", StringComparison.OrdinalIgnoreCase);
+            var r = result?.Trim();
+            return string.Equals(r, "PASS", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(r, "合格", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string NormalizeResult(string result)

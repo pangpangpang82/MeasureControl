@@ -346,7 +346,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private string _lastTestTime = "--";      // 上次测试时间
 
-        private string _powerStatus = "未上电";   // 供电状态显示文本
+        private string _powerStatus = "已下电";   // 供电状态显示文本
 
         private int _testProgress;                // 测试进度（0-100）
 
@@ -417,6 +417,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             // 订阅项目保存事件
 
             _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
+
+            if (_boardPowerService != null)
+                _boardPowerService.IsPoweredChanged += OnBoardPowerStateChanged;
+            RefreshPowerStateDisplay();
 
         }
 
@@ -1863,12 +1867,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 _forceCleanupPowerOff = false;
                 _powerManagedExternally = false;
             }
-            Application.Current?.Dispatcher?.Invoke(() =>
-            {
-                IsPowerOn = false;
-                PowerStatus = "未上电";
-                CurrentVoltage = 0;
-            });
+            Application.Current?.Dispatcher?.Invoke(() => { CurrentVoltage = 0; });
+            RefreshPowerStateDisplay();
 
             // 步骤2/3: 关闭.17和.16（反序）
             await ShutdownOpAmpAndDiPullUpPowerAsync();
@@ -1905,6 +1905,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             _hardwareInitialized = false;
             UpdateCommandStates();
             AddLog("硬件复位完成");
+        }
+
+        private void RefreshPowerStateDisplay()
+        {
+            var isFuelPowered = _boardPowerService != null && _boardPowerService.IsPowered &&
+                                string.Equals(_boardPowerService.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase);
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsPowerOn = isFuelPowered;
+                PowerStatus = isFuelPowered ? "已上电" : "已下电";
+            });
+        }
+
+        private void OnBoardPowerStateChanged(object sender, EventArgs e)
+        {
+            if (!IsManualTestRunning && !IsAutoTestRunning)
+                RefreshPowerStateDisplay();
         }
 
 

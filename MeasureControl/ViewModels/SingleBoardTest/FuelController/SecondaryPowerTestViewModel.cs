@@ -166,7 +166,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private string _testResult = "--";    // 测试结果（PASS/FAIL/--）
         private string _overallResult = "--"; // 综合结果
         private string _lastTestTime = "--";  // 上次测试时间
-        private string _powerStatus = "未上电"; // 供电状态显示文本
+        private string _powerStatus = "已下电"; // 供电状态显示文本
 
         #endregion
 
@@ -203,6 +203,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             
             // 订阅项目保存事件
             _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
+            try { var hps = ContainerLocator.Container.Resolve<IBoardPowerService>(); if (hps != null) hps.IsPoweredChanged += OnBoardPowerStateChanged; } catch { }
+            RefreshPowerStateDisplay();
         }
 
         private async Task<double> ReadVoltageAsync(CancellationToken token = default)
@@ -925,7 +927,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             Application.Current?.Dispatcher?.Invoke(() =>
             {
                 IsPowerOn = false;
-                PowerStatus = "未上电";
+                PowerStatus = "已下电";
             });
 
             // 步骤3: 关闭.17、.16电源（反序）
@@ -1321,7 +1323,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     IsPowerOn = false;
-                    PowerStatus = "未上电";
+                    PowerStatus = "已下电";
                 });
                 return false;
             }
@@ -1334,7 +1336,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     IsPowerOn = false;
-                    PowerStatus = "未上电";
+                    PowerStatus = "已下电";
                 });
                 return false;
             }
@@ -1355,8 +1357,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             Application.Current?.Dispatcher?.Invoke(() =>
             {
                 IsPowerOn = isFuelPowered;
-                PowerStatus = isFuelPowered ? "已上电" : "未上电";
+                PowerStatus = isFuelPowered ? "已上电" : "已下电";
             });
+        }
+
+        private void OnBoardPowerStateChanged(object sender, EventArgs e)
+        {
+            if (!IsManualTestRunning && !IsAutoTestRunning)
+                RefreshPowerStateDisplay();
         }
 
         private void LoadPersistedState()

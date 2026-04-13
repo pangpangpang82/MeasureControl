@@ -110,7 +110,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isBusy;
         private bool _useSimulatedDmm;
         private bool _isPowerOn;
-        private string _powerStatus = "未上电";
+        private string _powerStatus = "已下电";
 
         private double _selectedSupplyVoltage = 28.0;
 
@@ -186,6 +186,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             //LoadPersistedState();
             _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
+            try { var hps = ContainerLocator.Container.Resolve<IBoardPowerService>(); if (hps != null) hps.IsPoweredChanged += OnBoardPowerStateChanged; } catch { }
+            RefreshPowerStateDisplay();
         }
 
         public bool IsPowerOn
@@ -575,7 +577,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 _powerLock.Release();
             }
 
-            Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
+            Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "已下电"; });
         }
 
         private async Task ApplyComponentVoltageAsync(double voltage, CancellationToken token)
@@ -706,6 +708,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// <summary>
         /// 检查全局上电状态，如已上电则弹窗询问是否下电后继续
         /// </summary>
+        private void RefreshPowerStateDisplay()
+        {
+            var hps = ContainerLocator.Container.Resolve<IBoardPowerService>();
+            var isFuelPowered = hps != null && hps.IsPowered &&
+                                string.Equals(hps.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase);
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsPowerOn = isFuelPowered;
+                PowerStatus = isFuelPowered ? "已上电" : "已下电";
+            });
+        }
+
+        private void OnBoardPowerStateChanged(object sender, EventArgs e)
+        {
+            if (!IsManualTestRunning && !IsAutoTestRunning)
+                RefreshPowerStateDisplay();
+        }
+
         private bool CheckAndRequestPowerOffIfNeeded()
         {
             IBoardPowerService svc;
@@ -1107,7 +1127,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 catch { }
 
                 _hardwareInitialized = true;
-                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "下电就绪"; });
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "已下电"; });
             }
             finally
             {
@@ -1475,7 +1495,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 catch (Exception ex) { AddLog($"继电器供电开启异常: {ex.Message}"); }
 
                 AddLog("已处于下电且继电器已激活，跳过重复下电/继电器动作");
-                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "已下电"; });
                 return;
             }
 
@@ -1507,7 +1527,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 AddLog($"DO15控制异常: {ex.Message}");
                 throw;
             }
-            Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "未上电"; });
+            Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "已下电"; });
         }
 
         private async Task ApplyPowerAsync(double voltage, CancellationToken token)

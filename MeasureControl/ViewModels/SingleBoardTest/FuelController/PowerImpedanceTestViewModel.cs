@@ -122,7 +122,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isBusy;                                                      // 是否正在执行操作
         private bool _isRelayActivated;                                            // 继电器是否已激活
         private bool _isPowerOn;                                                   // 组件供电状态（阻抗测试要求下电，此字段标记是否已完成下电初始化）
-        private string _powerStatus = "未就绪";                                      // 供电状态显示文本
+        private string _powerStatus = "已下电";                                      // 供电状态显示文本
         private bool _isManualTestInitializing;
         private bool _isAutoTestInitializing;
         private bool _isManualTestStopping;
@@ -206,6 +206,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             
             // 订阅项目保存事件，在保存项目时自动保存测试结果
             _projectSavingToken = _eventAggregator?.GetEvent<ProjectSavingEvent>()?.Subscribe(OnProjectSaving);
+            if (_boardPowerService != null)
+                _boardPowerService.IsPoweredChanged += OnBoardPowerStateChanged;
+            RefreshPowerStateDisplay();
         }
 
         #endregion
@@ -513,6 +516,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 RaisePropertyChanged(nameof(CanStartManualTest));
                 RaisePropertyChanged(nameof(CanStartAutoTest));
                 UpdateCommandStates();
+                RefreshPowerStateDisplay();
                 AddLog("手动测试已结束");
             }
         }
@@ -598,6 +602,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 IsAutoTestStopping = false;
                 RaisePropertyChanged(nameof(CanStartManualTest));
                 RaisePropertyChanged(nameof(CanStartAutoTest));
+                RefreshPowerStateDisplay();
                 AddLog("自动测试已结束");
             }
         }
@@ -861,7 +866,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 _hardwareInitialized = true;
                 AddLog("硬件初始化完成");
-                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "下电就绪"; });
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "已下电"; });
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
             {
@@ -1219,6 +1224,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// 1. 通过 IComponentPowerStateApi 关闭组件供电（CH1）
         /// 2. 同步更新 IBoardPowerService 状态（UI上的"组件已下电"状态）
         /// </summary>
+        private void RefreshPowerStateDisplay()
+        {
+            var isFuelPowered = _boardPowerService != null && _boardPowerService.IsPowered &&
+                                string.Equals(_boardPowerService.PoweredBoardType, "加放油单板", StringComparison.OrdinalIgnoreCase);
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsPowerOn = isFuelPowered;
+                PowerStatus = isFuelPowered ? "已上电" : "已下电";
+            });
+        }
+
+        private void OnBoardPowerStateChanged(object sender, EventArgs e)
+        {
+            if (!IsManualTestRunning && !IsAutoTestRunning && !IsManualTestInitializing && !IsAutoTestInitializing)
+                RefreshPowerStateDisplay();
+        }
+
         private async Task ForceComponentPowerOffAsync(CancellationToken token)
         {
             try
@@ -1255,7 +1277,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     IsPowerOn = false;
-                    PowerStatus = "下电就绪";
+                    PowerStatus = "已下电";
                 });
             }
             catch (Exception ex)
