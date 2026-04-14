@@ -606,7 +606,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
             AddLog("--- 步骤a: 接地测试 ---");
             await SetDoOutputAsync(true, token).ConfigureAwait(false);
-            await Task.Delay(500, token).ConfigureAwait(false);
+            await Task.Delay(800, token).ConfigureAwait(false);
             bool groundedPass = await PerformGroundedTestAsync(token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
 
@@ -826,6 +826,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             const byte Cmd06 = 0x06;
             const int WaitTimeMs = 3000; // 等待响应的最大时间
 
+            // 清空异步接收缓冲，避免旧的0x06响应帧干扰本次读取
+            _fpga.ClearReceivedFrames();
             // 记录发送前的时间，用于过滤旧帧
             var sendTime = DateTime.UtcNow;
 
@@ -1299,6 +1301,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
                     await _jy7131Api.StartAsync(token);
                     AddLog("7131板卡已启动");
+                    await Task.Delay(200, token);
                 }
 
                 if (grounded)
