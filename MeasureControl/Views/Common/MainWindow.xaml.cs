@@ -2519,23 +2519,39 @@ namespace MeasureControl.Views.Common
                 var vm3 = _inertSimulationAutoTestVm3;
                 if (vm3 != null)
                 {
-                    var checks = new List<MeasureControl.ViewModels.SingleBoardTest.InertController.OverTemperatureCutoffTestViewModel.OverTempCheckViewModel>();
-                    foreach (var item in vm3.Items)
-                    {
-                        if (item?.Checks != null)
-                        {
-                            foreach (var check in item.Checks)
-                            {
-                                checks.Add(check);
-                            }
-                        }
-                    }
-                    _inertSimOverTempValues = Enumerable.Range(0, 6)
-                        .Select(i => checks.Count > i && checks[i] != null ? checks[i].VoltageText : "--")
-                        .ToArray();
-                    _inertSimOverTempResults = Enumerable.Range(0, 6)
-                        .Select(i => checks.Count > i && checks[i] != null ? checks[i].Result : "--")
-                        .ToArray();
+                    // 报表(超温切断模块电路测试)行序：
+                    // PT500A首次超温触发阻值/温度
+                    // PT500A设定首次超温触发阻值时 J31/J11/J12
+                    // PT1000A首次超温触发阻值/温度
+                    // PT1000A设定首次超温触发阻值时 J32/J13/J14
+                    var values = new List<string>();
+                    var results = new List<string>();
+
+                    var pt500 = vm3.Items.Count > 0 ? vm3.Items[0] : null;
+                    var pt1000 = vm3.Items.Count > 1 ? vm3.Items[1] : null;
+
+                    values.Add(pt500?.FirstOverTempReportText ?? "--");
+                    results.Add(pt500?.FirstOverTempTriggerResult ?? "--");
+
+                    values.Add(pt500?.Checks != null && pt500.Checks.Count > 0 ? pt500.Checks[0]?.VoltageText ?? "--" : "--");
+                    results.Add(pt500?.Checks != null && pt500.Checks.Count > 0 ? pt500.Checks[0]?.Result ?? "--" : "--");
+                    values.Add(pt500?.Checks != null && pt500.Checks.Count > 1 ? pt500.Checks[1]?.VoltageText ?? "--" : "--");
+                    results.Add(pt500?.Checks != null && pt500.Checks.Count > 1 ? pt500.Checks[1]?.Result ?? "--" : "--");
+                    values.Add(pt500?.Checks != null && pt500.Checks.Count > 2 ? pt500.Checks[2]?.VoltageText ?? "--" : "--");
+                    results.Add(pt500?.Checks != null && pt500.Checks.Count > 2 ? pt500.Checks[2]?.Result ?? "--" : "--");
+
+                    values.Add(pt1000?.FirstOverTempReportText ?? "--");
+                    results.Add(pt1000?.FirstOverTempTriggerResult ?? "--");
+
+                    values.Add(pt1000?.Checks != null && pt1000.Checks.Count > 0 ? pt1000.Checks[0]?.VoltageText ?? "--" : "--");
+                    results.Add(pt1000?.Checks != null && pt1000.Checks.Count > 0 ? pt1000.Checks[0]?.Result ?? "--" : "--");
+                    values.Add(pt1000?.Checks != null && pt1000.Checks.Count > 1 ? pt1000.Checks[1]?.VoltageText ?? "--" : "--");
+                    results.Add(pt1000?.Checks != null && pt1000.Checks.Count > 1 ? pt1000.Checks[1]?.Result ?? "--" : "--");
+                    values.Add(pt1000?.Checks != null && pt1000.Checks.Count > 2 ? pt1000.Checks[2]?.VoltageText ?? "--" : "--");
+                    results.Add(pt1000?.Checks != null && pt1000.Checks.Count > 2 ? pt1000.Checks[2]?.Result ?? "--" : "--");
+
+                    _inertSimOverTempValues = values.ToArray();
+                    _inertSimOverTempResults = results.ToArray();
                     _inertSimOverTempOverallResult = vm3.OverallResult;
                 }
 
@@ -3304,7 +3320,7 @@ namespace MeasureControl.Views.Common
 
                 if (_inertSimOverTempSelected)
                 {
-                    for (var i = 0; i < 6; i++)
+                    for (var i = 0; i < 8; i++)
                     {
                         var row = 14 + i;
                         var value = _inertSimOverTempExecuted && _inertSimOverTempValues != null && _inertSimOverTempValues.Length > i
@@ -3318,7 +3334,7 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, row, 6, result);
                     }
 
-                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G14:G19" });
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G14:G21" });
                     range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
                     var overall = _inertSimOverTempExecuted
                         ? GetSingleBoardStepResult("超温切断模块电路测试", _inertSimOverTempOverallResult)
@@ -3329,9 +3345,9 @@ namespace MeasureControl.Views.Common
                 }
                 else
                 {
-                    FillUntestedCells(cells, 14, 5, 19);
-                    FillUntestedCells(cells, 14, 6, 19);
-                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G14:G19" });
+                    FillUntestedCells(cells, 14, 5, 21);
+                    FillUntestedCells(cells, 14, 6, 21);
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G14:G21" });
                     range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
                     range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
                     ReleaseComObject(range);
@@ -3342,7 +3358,7 @@ namespace MeasureControl.Views.Common
                 {
                     for (var i = 0; i < 6; i++)
                     {
-                        var row = 20 + i;
+                        var row = 22 + i;
                         var value = _inertSimLatchExecuted && _inertSimLatchValues != null && _inertSimLatchValues.Length > i
                             ? _inertSimLatchValues[i]
                             : "--";
@@ -3354,7 +3370,7 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, row, 6, result);
                     }
 
-                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G20:G25" });
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G22:G27" });
                     range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
                     var overall = _inertSimLatchExecuted
                         ? GetSingleBoardStepResult("锁存模块电路测试", _inertSimLatchOverallResult)
@@ -3365,9 +3381,9 @@ namespace MeasureControl.Views.Common
                 }
                 else
                 {
-                    FillUntestedCells(cells, 20, 5, 25);
-                    FillUntestedCells(cells, 20, 6, 25);
-                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G20:G25" });
+                    FillUntestedCells(cells, 22, 5, 27);
+                    FillUntestedCells(cells, 22, 6, 27);
+                    range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G22:G27" });
                     range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
                     range.GetType().InvokeMember("Value", BindingFlags.SetProperty, null, range, new object[] { "未测试" });
                     ReleaseComObject(range);

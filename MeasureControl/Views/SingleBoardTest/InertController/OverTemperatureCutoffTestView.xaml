@@ -171,16 +171,12 @@
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Margin="10,0" FontSize="14" Text="输出电阻(Ω)：" VerticalAlignment="Center" />
-                                <Border Grid.Column="1" Width="150" Height="26" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock Margin="5,0,1,0" VerticalAlignment="Center" FontSize="13" Text="{Binding Items[0].ResistanceLabel}" />
-                                </Border>
-                                <Border Grid.Column="2" Width="100" Height="26" Margin="8,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <Border Grid.Column="1" Width="150" Height="26" Margin="8,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
                                     <TextBlock Margin="5,0,1,0" VerticalAlignment="Center" FontSize="13" Text="{Binding Items[0].MeasuredResistanceText, TargetNullValue=---, FallbackValue=---}" />
                                 </Border>
-                                <Border Grid.Column="3" Width="60" Height="26" Margin="8,0,0,0" VerticalAlignment="Center" CornerRadius="3">
+                                <Border Grid.Column="2" Width="60" Height="26" Margin="8,0,0,0" VerticalAlignment="Center" CornerRadius="3">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="#f3f4f6" />
@@ -196,7 +192,7 @@
                                     </Border.Style>
                                     <TextBlock Text="{Binding Items[0].ResistanceResult}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
-                                <Button Grid.Column="4" Width="60" Height="26" Margin="10,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Items[0].SweepCommand}">
+                                <Button Grid.Column="3" Width="60" Height="26" Margin="10,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Items[0].SweepCommand}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
@@ -224,9 +220,20 @@
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Margin="10,0" FontSize="13" Text="首次超温触发(℃)：" VerticalAlignment="Center" />
-                                <Border Grid.Column="1" Width="100" Height="26" Margin="8,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <TextBlock Grid.Column="0" Margin="10,0" FontSize="13" Text="首次超温触发(Ω/℃)：" VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Width="180" Height="26" Margin="8,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
                                     <TextBlock Margin="5,0,1,0" VerticalAlignment="Center" FontSize="13" Text="{Binding Items[0].FirstOverTempTemperatureText, TargetNullValue=--, FallbackValue=--}" />
+                                </Border>
+                            </Grid>
+
+                            <Grid Margin="0,4,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Margin="10,0" FontSize="13" Text="触发状态：" VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Width="200" Height="26" Margin="8,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                    <TextBlock Margin="5,0,1,0" VerticalAlignment="Center" FontSize="13" Text="{Binding Items[0].TriggerStatusDisplayText, TargetNullValue=--, FallbackValue=--}" />
                                 </Border>
                             </Grid>
 
@@ -328,16 +335,12 @@
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Margin="10,0" FontSize="14" Text="输出电阻(Ω)：" VerticalAlignment="Center" />
-                                <Border Grid.Column="1" Width="150" Height="26" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock Margin="5,0,1,0" VerticalAlignment="Center" FontSize="13" Text="{Binding Items[1].ResistanceLabel}" />
-                                </Border>
-                                <Border Grid.Column="2" Width="100" Height="26" Margin="8,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <Border Grid.Column="1" Width="150" Height="26" Margin="8,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
                                     <TextBlock Margin="5,0,1,0" VerticalAlignment="Center" FontSize="13" Text="{Binding Items[1].MeasuredResistanceText, TargetNullValue=---, FallbackValue=---}" />
                                 </Border>
-                                <Border Grid.Column="3" Width="60" Height="26" Margin="8,0,0,0" VerticalAlignment="Center" CornerRadius="3">
+                                <Border Grid.Column="2" Width="60" Height="26" Margin="8,0,0,0" VerticalAlignment="Center" CornerRadius="3">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="#f3f4f6" />
@@ -353,7 +356,7 @@
                                     </Border.Style>
                                     <TextBlock Text="{Binding Items[1].ResistanceResult}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
-                                <Button Grid.Column="4" Width="60" Height="26" Margin="10,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Items[1].SweepCommand}">
+                                <Button Grid.Column="3" Width="60" Height="26" Margin="10,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Items[1].SweepCommand}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
@@ -381,9 +384,20 @@
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Margin="10,0" FontSize="13" Text="首次超温触发(℃)：" VerticalAlignment="Center" />
-                                <Border Grid.Column="1" Width="100" Height="26" Margin="8,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                <TextBlock Grid.Column="0" Margin="10,0" FontSize="13" Text="首次超温触发(Ω/℃)：" VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Width="180" Height="26" Margin="8,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
                                     <TextBlock Margin="5,0,1,0" VerticalAlignment="Center" FontSize="13" Text="{Binding Items[1].FirstOverTempTemperatureText, TargetNullValue=--, FallbackValue=--}" />
+                                </Border>
+                            </Grid>
+
+                            <Grid Margin="0,4,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Margin="10,0" FontSize="13" Text="触发状态：" VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Width="200" Height="26" Margin="8,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                    <TextBlock Margin="5,0,1,0" VerticalAlignment="Center" FontSize="13" Text="{Binding Items[1].TriggerStatusDisplayText, TargetNullValue=--, FallbackValue=--}" />
                                 </Border>
                             </Grid>
 
