@@ -1172,6 +1172,16 @@ namespace MeasureControl.ViewModels.Common
         /// </summary>
         public bool IsTestStopped => !IsTestRunning;
 
+        private bool _isAutoTestRunning;
+        /// <summary>
+        /// 整板自动测试正在执行（内容区灰化遮罩，但允许导航）
+        /// </summary>
+        public bool IsAutoTestRunning
+        {
+            get => _isAutoTestRunning;
+            set => SetProperty(ref _isAutoTestRunning, value);
+        }
+
         /// <summary>
         /// 192.168.1.15 CH1 当前是否有输出
         /// </summary>

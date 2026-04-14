@@ -10,8 +10,10 @@ using MeasureControl.Models;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
 using MeasureControl.Simulations.FuelController;
+using MeasureControl.Views.Dialogs;
 using Prism.Commands;
 using Prism.Events;
+using Prism.Ioc;
 using Prism.Mvvm;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
@@ -47,7 +49,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const string MatrixIpAddress = "192.168.1.3";
         private const int MatrixSlotDo = 6;
         private const int MatrixSlotDmmDo = 4;
-        private const int MatrixSwitchSettleDelayMs = 1000;
+        private const int MatrixSwitchSettleDelayMs = 200;
         private static readonly (string In, string Out) MatrixJ14VoltagePoint = ("I1", "O20");
 
         private static readonly (string In, string Out)[] MatrixDoImpedancePoints = new[]
@@ -116,9 +118,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private double? _impedanceOpen;
         private double? _j14Voltage;
 
-        private double? _j14Voltage18;
-        private double? _j14Voltage28;
-        private double? _j14Voltage32;
 
         // J6-J13各点阻抗测量结果（接地测试）
         private double? _impedanceJ6, _impedanceJ7, _impedanceJ8, _impedanceJ9;
@@ -156,8 +155,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             _dmmSocket = dmmApi ?? new DmmSocketApi();
             _simulation = new DiscreteOutputSimulation();
 
-            ManualTestCommand = new DelegateCommand(OnManualTest);
-            AutoTestCommand = new DelegateCommand(OnAutoTest);
+            ManualTestCommand = new DelegateCommand(OnManualTest, () => !IsAutoTestRunning);
+            AutoTestCommand = new DelegateCommand(OnAutoTest, () => !IsManualTestRunning);
             StepACommand = new DelegateCommand(async () => await RunStepAAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
             StepBCommand = new DelegateCommand(async () => await RunStepBAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
             StepCCommand = new DelegateCommand(async () => await RunStepCAsync(), () => !IsBusy && IsManualTestRunning && _hardwareInitialized);
@@ -231,7 +230,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         public DelegateCommand MeasureOpenJ12Command { get; }
         public DelegateCommand MeasureOpenJ13Command { get; }
 
-        public IReadOnlyList<double> SupplyVoltageOptions { get; } = new List<double> { 18.0, 28.0, 32.0 };
+        public IReadOnlyList<double> SupplyVoltageOptions { get; } = new List<double> { 18.0, 28.0, 32.2 };
 
         public double SelectedSupplyVoltage
         {
@@ -287,23 +286,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             set => SetProperty(ref _j14Voltage, value);
         }
 
-        public double? J14Voltage18
-        {
-            get => _j14Voltage18;
-            set => SetProperty(ref _j14Voltage18, value);
-        }
-
-        public double? J14Voltage28
-        {
-            get => _j14Voltage28;
-            set => SetProperty(ref _j14Voltage28, value);
-        }
-
-        public double? J14Voltage32
-        {
-            get => _j14Voltage32;
-            set => SetProperty(ref _j14Voltage32, value);
-        }
 
         // J6-J13接地测试阻抗属性
         public double? ImpedanceJ6 { get => _impedanceJ6; set => SetProperty(ref _impedanceJ6, value); }
@@ -370,6 +352,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         {
             Application.Current?.Dispatcher?.Invoke(() =>
             {
+                ManualTestCommand.RaiseCanExecuteChanged();
+                AutoTestCommand.RaiseCanExecuteChanged();
                 (StepACommand as DelegateCommand)?.RaiseCanExecuteChanged();
                 (StepBCommand as DelegateCommand)?.RaiseCanExecuteChanged();
                 (StepCCommand as DelegateCommand)?.RaiseCanExecuteChanged();
@@ -570,9 +554,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 if (_powerSupply1 == null)
                     return;
 
-                if (_componentSupplyOn)
+                bool globallyPowered = false;
+                try
+                {
+                    var svc = ContainerLocator.Container.Resolve<IBoardPowerService>();
+                    globallyPowered = svc?.IsPowered == true;
+                }
+                catch { }
+
+                if (_componentSupplyOn || globallyPowered)
                 {
                     try { await WithTimeoutAsync(_powerSupply1.SetOutputEnabledAsync(ComponentSupplyChannel, false, CancellationToken.None), DefaultHardwareTimeoutMs, "组件供电关闭", CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { ContainerLocator.Container.Resolve<IBoardPowerService>()?.SetPoweredState(false); } catch { }
                 }
 
                 _componentSupplyOn = false;
@@ -594,7 +587,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 await WithTimeoutAsync(_powerSupply1.ApplyAsync(ComponentSupplyChannel, voltage, ComponentCurrentLimitA, token), DefaultHardwareTimeoutMs, "组件供电参数设置", token).ConfigureAwait(false);
                 await WithTimeoutAsync(_powerSupply1.SetOutputEnabledAsync(ComponentSupplyChannel, true, token), DefaultHardwareTimeoutMs, "组件供电开启", token).ConfigureAwait(false);
                 _componentSupplyOn = true;
-                await Task.Delay(300, token).ConfigureAwait(false);
+                await Task.Delay(500, token).ConfigureAwait(false);
             }
             finally
             {
@@ -710,6 +703,66 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             catch { }
         }
 
+        /// <summary>
+        /// 检查全局上电状态，如已上电则弹窗询问是否下电后继续
+        /// </summary>
+        private bool CheckAndRequestPowerOffIfNeeded()
+        {
+            IBoardPowerService svc;
+            try { svc = ContainerLocator.Container.Resolve<IBoardPowerService>(); }
+            catch { return true; }
+
+            if (svc?.IsPowered != true)
+                return true;
+
+            var result = ReMessageBox.Show(
+                "该测试项需要下电再重新上电，是否下电并开始测试？",
+                "上电状态确认",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            return result == MessageBoxResult.Yes;
+        }
+
+        /// <summary>
+        /// 重置所有测试数据为默认值
+        /// </summary>
+        private void ResetTestData()
+        {
+            StepAResult = "--";
+            StepBResult = "--";
+            StepCResult = "--";
+            OverallResult = "--";
+            LastTestTime = "--";
+            ImpedanceGrounded = null;
+            ImpedanceOpen = null;
+            J14Voltage = null;
+            ImpedanceJ6 = null; ImpedanceJ7 = null; ImpedanceJ8 = null; ImpedanceJ9 = null;
+            ImpedanceJ10 = null; ImpedanceJ11 = null; ImpedanceJ12 = null; ImpedanceJ13 = null;
+            ImpedanceOpenJ6 = null; ImpedanceOpenJ7 = null; ImpedanceOpenJ8 = null; ImpedanceOpenJ9 = null;
+            ImpedanceOpenJ10 = null; ImpedanceOpenJ11 = null; ImpedanceOpenJ12 = null; ImpedanceOpenJ13 = null;
+        }
+
+        /// <summary>
+        /// 步骤c单电压档测试（手动/自动测试使用下拉框选中的电压值）
+        /// </summary>
+        private async Task<bool> RunStepCSingleAsync(double voltage, CancellationToken token)
+        {
+            AddLog($"步骤c: 正在上电（{voltage:F0}V）并测量J14电压...");
+
+            await ConnectJ14VoltageMatrixRoutesAsync(token).ConfigureAwait(false);
+            await Task.Delay(500, token).ConfigureAwait(false);
+            await ApplyPowerAsync(voltage, token).ConfigureAwait(false);
+
+            double v = await ReadJ14VoltageAsync(token).ConfigureAwait(false);
+
+            Application.Current?.Dispatcher?.Invoke(() => J14Voltage = v);
+
+            bool pass = v >= J14VoltageLowerLimitV;
+            AddLog($"  {voltage:F0}V: J14电压={v:F2}V，判据: ≥{J14VoltageLowerLimitV}V，结果={(pass ? "PASS" : "FAIL")}");
+            return pass;
+        }
+
         private async void OnManualTest()
         {
             if (IsManualTestRunning)
@@ -718,6 +771,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 return;
             }
 
+            if (!CheckAndRequestPowerOffIfNeeded())
+            {
+                AddLog("用户已取消，手动测试未开始");
+                return;
+            }
+
+            Application.Current?.Dispatcher?.Invoke(ResetTestData);
             IsManualTestRunning = true;
             _opCts = new CancellationTokenSource();
 
@@ -779,6 +839,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 return;
             }
 
+            if (!CheckAndRequestPowerOffIfNeeded())
+            {
+                AddLog("用户已取消，自动测试未开始");
+                return;
+            }
+
+            Application.Current?.Dispatcher?.Invoke(ResetTestData);
             _opCts = new CancellationTokenSource();
             try
             {
@@ -817,6 +884,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             _opCts?.Dispose();
             _opCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
+            Application.Current?.Dispatcher?.Invoke(ResetTestData);
             try
             {
                 return await ExecuteAutoTestCoreAsync(_opCts.Token).ConfigureAwait(false);
@@ -831,7 +899,77 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
-        private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token)
+        public async Task<string> RunStepCOnlyAsync(CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning || IsManualTestRunning)
+            {
+                _opCts?.Cancel();
+                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            _opCts?.Cancel();
+            _opCts?.Dispose();
+            _opCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                J14Voltage = null;
+                StepCResult = "--";
+                OverallResult = "--";
+                IsAutoTestRunning = true;
+            });
+            UpdateCommandStates();
+            AddLog($"========== 步骤C复用阻抗数据，仅测J14电压（{SelectedSupplyVoltage:F0}V）==========");
+
+            try
+            {
+                await InitializeHardwareAsync(_opCts.Token).ConfigureAwait(false);
+                _opCts.Token.ThrowIfCancellationRequested();
+
+                AddLog($"--- 步骤c: {SelectedSupplyVoltage:F0}V上电 + 测J14电压 ---");
+                bool stepCPass = await RunStepCSingleAsync(SelectedSupplyVoltage, _opCts.Token).ConfigureAwait(false);
+                Application.Current?.Dispatcher?.Invoke(() => StepCResult = stepCPass ? "PASS" : "FAIL");
+                _opCts.Token.ThrowIfCancellationRequested();
+
+                await ResetHardwareAsync(CancellationToken.None, preserveComponentPower: false).ConfigureAwait(false);
+
+                bool overallPass =
+                    string.Equals(StepAResult, "PASS", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(StepBResult, "PASS", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(StepCResult, "PASS", StringComparison.OrdinalIgnoreCase);
+
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    OverallResult = overallPass ? "PASS" : "FAIL";
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                });
+
+                AddLog($"========== 步骤C完成: {(overallPass ? "PASS" : "FAIL")} ==========");
+                return overallPass ? "PASS" : "FAIL";
+            }
+            catch (OperationCanceledException)
+            {
+                AddLog("步骤C测试被取消");
+                await SafeResetHardwareAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"步骤C测试异常: {ex.Message}");
+                await SafeResetHardwareAsync().ConfigureAwait(false);
+                return "FAIL";
+            }
+            finally
+            {
+                Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = false);
+                _hardwareInitialized = false;
+                UpdateCommandStates();
+                _opCts?.Dispose();
+                _opCts = null;
+            }
+        }
+
+        private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token, bool batchMode = false)
         {
             Application.Current?.Dispatcher?.Invoke(() => IsAutoTestRunning = true);
             AddLog("========== 自动测试开始 ==========");
@@ -849,8 +987,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 await RunStepBAsync().ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
 
-                AddLog("--- 步骤c: 18V/28V/32V上电 + 测J14电压 ---");
-                var stepCPass = await RunStepCAcrossVoltagesAsync(new[] { 18.0, 28.0, 32.0 }, token).ConfigureAwait(false);
+                AddLog(batchMode ? "--- 步骤c: 18V/28V/32V上电 + 测J14电压 ---" : $"--- 步骤c: {SelectedSupplyVoltage:F0}V上电 + 测J14电压 ---");
+                bool stepCPass;
+                if (batchMode)
+                    stepCPass = await RunStepCAcrossVoltagesAsync(new[] { 18.0, 28.0, 32.2 }, token).ConfigureAwait(false);
+                else
+                    stepCPass = await RunStepCSingleAsync(SelectedSupplyVoltage, token).ConfigureAwait(false);
                 Application.Current?.Dispatcher?.Invoke(() => StepCResult = stepCPass ? "PASS" : "FAIL");
                 token.ThrowIfCancellationRequested();
 
@@ -863,12 +1005,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    OverallResult = overallPass ? "合格" : "不合格";
+                    OverallResult = overallPass ? "PASS" : "FAIL";
                     LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 });
 
-                AddLog($"========== 自动测试完成: {OverallResult} ==========");
-                return OverallResult;
+                AddLog($"========== 自动测试完成: {(overallPass ? "PASS" : "FAIL")} ==========");
+                return overallPass ? "PASS" : "FAIL";
             }
             catch (OperationCanceledException)
             {
@@ -880,7 +1022,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 AddLog($"自动测试异常: {ex.Message}");
                 await SafeResetHardwareAsync().ConfigureAwait(false);
-                return "不合格";
+                return "FAIL";
             }
         }
 
@@ -965,7 +1107,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 catch { }
 
                 _hardwareInitialized = true;
-                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "已下电"; });
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "下电就绪"; });
             }
             finally
             {
@@ -987,7 +1129,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                         AddLog("正在复位继电器（DO15低电平）...");
                         await _jy7131Api.WriteDoAsync(RelayControlChannel, false, token);
-                        await Task.Delay(500);
+                        await Task.Delay(300);
                         AddLog("DO15输出完成，继电器线圈失电");
 
                         // 关闭485继电器第4路（index=3，从0开始计数），配合DO15恢复产品连接
@@ -998,7 +1140,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                             await _jy7131Api.SetRelayAsync(1, false, token);
                             await _jy7131Api.SetRelayAsync(2, false, token);
                             await _jy7131Api.SetRelayAsync(3, false, token);
-                            await Task.Delay(500);
+                            await Task.Delay(300);
                             AddLog("485继电器前4路已关闭");
                         }
                         catch (Exception ex)
@@ -1120,7 +1262,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 await SetDoOutputAsync(true, token); // true = 接地
 
                 // 等待信号稳定
-                await Task.Delay(500, token);
+                await Task.Delay(300, token);
 
                 // 测量J6-J13各点阻抗
                 AddLog("步骤a: 测量J6-J13对地阻抗...");
@@ -1130,7 +1272,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 for (int i = 0; i < J6ToJ13Points.Length; i++)
                 {
-                    double ohm = await ReadImpedanceForPointAsync(i, token);
+                    double ohm = await ReadImpedanceForPointAsync(i, token, isFirstPoint: i == 0, isLastPoint: i == J6ToJ13Points.Length - 1);
                     double adjustedOhm = AdjustGroundedImpedance(i, ohm);
                     _j6ToJ13Impedances[i] = ohm;
                     Application.Current?.Dispatcher?.Invoke(() => SetImpedanceValue(i, true, ohm));
@@ -1174,13 +1316,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 double v = await ReadJ14VoltageAsync(token).ConfigureAwait(false);
                 Application.Current?.Dispatcher?.Invoke(() => J14Voltage = v);
 
-                if (Math.Abs(voltage - 18.0) < 0.0001)
-                    Application.Current?.Dispatcher?.Invoke(() => J14Voltage18 = v);
-                else if (Math.Abs(voltage - 28.0) < 0.0001)
-                    Application.Current?.Dispatcher?.Invoke(() => J14Voltage28 = v);
-                else if (Math.Abs(voltage - 32.0) < 0.0001)
-                    Application.Current?.Dispatcher?.Invoke(() => J14Voltage32 = v);
-
                 bool pass = v >= J14VoltageLowerLimitV;
                 allPass &= pass;
                 AddLog($"  {voltage:F0}V: J14电压={v:F2}V，判据: ≥{J14VoltageLowerLimitV}V，结果={(pass ? "PASS" : "FAIL")}");
@@ -1208,7 +1343,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 await SetDoOutputAsync(false, token); // false = 开路
 
                 // 等待信号稳定
-                await Task.Delay(500, token);
+                await Task.Delay(300, token);
 
                 // 测量J6-J13各点阻抗
                 AddLog("步骤b: 测量J6-J13开路阻抗...");
@@ -1218,7 +1353,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 for (int i = 0; i < J6ToJ13Points.Length; i++)
                 {
-                    double ohm = await ReadImpedanceForPointAsync(i, token);
+                    double ohm = await ReadImpedanceForPointAsync(i, token, isFirstPoint: i == 0, isLastPoint: i == J6ToJ13Points.Length - 1);
                     _j6ToJ13Impedances[i] = ohm;
                     Application.Current?.Dispatcher?.Invoke(() => SetImpedanceValue(i, false, ohm));
                     totalOhm += ohm;
@@ -1254,7 +1389,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             {
                 // 切换矩阵通路：先断开a/b的阻抗通路，再接通J14电压测量通路
                 await ConnectJ14VoltageMatrixRoutesAsync(token);
-                await Task.Delay(500, token);
+                await Task.Delay(300, token);
 
                 //如果继电器已激活则需复位 --> 然后再上电测电压
                 if (IsRelayActivated)
@@ -1310,13 +1445,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 double v = await ReadJ14VoltageAsync(token);
                 Application.Current?.Dispatcher?.Invoke(() => J14Voltage = v);
 
-                if (Math.Abs(SelectedSupplyVoltage - 18.0) < 0.0001)
-                    Application.Current?.Dispatcher?.Invoke(() => J14Voltage18 = v);
-                else if (Math.Abs(SelectedSupplyVoltage - 28.0) < 0.0001)
-                    Application.Current?.Dispatcher?.Invoke(() => J14Voltage28 = v);
-                else if (Math.Abs(SelectedSupplyVoltage - 32.0) < 0.0001)
-                    Application.Current?.Dispatcher?.Invoke(() => J14Voltage32 = v);
-
                 bool pass = v >= J14VoltageLowerLimitV;
                 Application.Current?.Dispatcher?.Invoke(UpdateStepCResultFromVoltages);
                 AddLog($"c) {SelectedSupplyVoltage:F0}V: J14电压={v:F2}V，判据: ≥{J14VoltageLowerLimitV}V，结果={(pass ? "PASS" : "FAIL")}");
@@ -1331,29 +1459,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private void UpdateStepCResultFromVoltages()
         {
-            var v18 = J14Voltage18;
-            var v28 = J14Voltage28;
-            var v32 = J14Voltage32;
-
-            bool anyFail =
-                (v18.HasValue && v18.Value < J14VoltageLowerLimitV) ||
-                (v28.HasValue && v28.Value < J14VoltageLowerLimitV) ||
-                (v32.HasValue && v32.Value < J14VoltageLowerLimitV);
-
-            if (anyFail)
-            {
-                StepCResult = "FAIL";
-                return;
-            }
-
-            bool allMeasured = v18.HasValue && v28.HasValue && v32.HasValue;
-            if (!allMeasured)
+            if (!J14Voltage.HasValue)
             {
                 StepCResult = "--";
                 return;
             }
-
-            StepCResult = "PASS";
+            StepCResult = J14Voltage.Value >= J14VoltageLowerLimitV ? "PASS" : "FAIL";
         }
 
         private async Task ApplyPowerDownAsync(CancellationToken token)
@@ -1450,7 +1561,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     await _jy7131Api.SetRelayAsync(1, grounded, token);
                     await _jy7131Api.SetRelayAsync(2, grounded, token);
                     await _jy7131Api.SetRelayAsync(3, grounded, token);
-                    await Task.Delay(500, token);
+                    await Task.Delay(300, token);
                     AddLog($"485 继电器前 4 路已{(grounded ? "打开" : "关闭")}");
                 }
                 catch (Exception ex)
@@ -1497,45 +1608,56 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         /// 需要先配置对应的矩阵开关通路
         /// </summary>
         /// <param name="pointIndex">测量点索引（0=J6, 1=J7, ..., 7=J13）</param>
-        private async Task<double> ReadImpedanceForPointAsync(int pointIndex, CancellationToken token)
+        /// <param name="isFirstPoint">是否是本轮第一个测量点，true时执行DMM初始化；false时只切换测量点</param>
+        /// <param name="isLastPoint">是否是本轮最后一个测量点，true时断开DMM</param>
+        private async Task<double> ReadImpedanceForPointAsync(int pointIndex, CancellationToken token, bool isFirstPoint = false, bool isLastPoint = false)
         {
             if (pointIndex < 0 || pointIndex >= MatrixDoImpedancePoints.Length)
                 throw new ArgumentOutOfRangeException(nameof(pointIndex));
 
-            try { await DisconnectJ14VoltageMatrixRoutesAsync(token).ConfigureAwait(false); } catch { }
-
             await _matrixLock.WaitAsync(token);
             try
             {
-                try { await MatrixDisconnectWithTimeoutAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress, token).ConfigureAwait(false); } catch { }
-                foreach (var ch in MatrixDoImpedancePoints)
+                if (isFirstPoint)
                 {
-                    try { await MatrixDisconnectWithTimeoutAsync(ch.In, ch.Out, MatrixSlotDo, MatrixIpAddress, token).ConfigureAwait(false); } catch { }
+                    // 首个测量点：断开J14通路和所有阻抗通路，连接DMM（只做一次）
+                    try { await DisconnectJ14VoltageMatrixRoutesAsync(token).ConfigureAwait(false); } catch { }
+                    try { await MatrixDisconnectWithTimeoutAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress, token).ConfigureAwait(false); } catch { }
+                    foreach (var ch in MatrixDoImpedancePoints)
+                    {
+                        try { await MatrixDisconnectWithTimeoutAsync(ch.In, ch.Out, MatrixSlotDo, MatrixIpAddress, token).ConfigureAwait(false); } catch { }
+                    }
+                    var okDmm = await MatrixConnectWithTimeoutAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress, token).ConfigureAwait(false);
+                    if (!okDmm)
+                        throw new InvalidOperationException("DMM矩阵通路连接失败，无法执行阻抗测量");
+                }
+                else
+                {
+                    // 非首个测量点：仅断开上一个测量点（DMM保持连接）
+                    var prev = MatrixDoImpedancePoints[pointIndex - 1];
+                    try { await MatrixDisconnectWithTimeoutAsync(prev.In, prev.Out, MatrixSlotDo, MatrixIpAddress, token).ConfigureAwait(false); } catch { }
                 }
 
-                var okDmm = await MatrixConnectWithTimeoutAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress, token).ConfigureAwait(false);
+                // 连接当前测量点并稳定
                 var p = MatrixDoImpedancePoints[pointIndex];
-                await Task.Delay(1000, token);
                 var okP = await MatrixConnectWithTimeoutAsync(p.In, p.Out, MatrixSlotDo, MatrixIpAddress, token).ConfigureAwait(false);
-                await Task.Delay(MatrixSwitchSettleDelayMs, token);
+                if (!okP)
+                    throw new InvalidOperationException($"测量点{p.In}->{p.Out}连接失败");
+                await Task.Delay(MatrixSwitchSettleDelayMs, token).ConfigureAwait(false);
 
-                if (!okDmm || !okP)
-                {
-                    throw new InvalidOperationException("矩阵通路连接失败，无法执行真实阻抗测量");
-                }
+                double result = await ReadImpedanceAsync(token).ConfigureAwait(false);
 
-                return await ReadImpedanceAsync(token);
-            }
-            finally
-            {
-                try
+                if (isLastPoint)
                 {
-                    var p = MatrixDoImpedancePoints[pointIndex];
-                    await Task.Delay(500, token);
+                    // 最后一个测量点：断开当前点和DMM
                     try { await MatrixDisconnectWithTimeoutAsync(p.In, p.Out, MatrixSlotDo, MatrixIpAddress, token).ConfigureAwait(false); } catch { }
                     try { await MatrixDisconnectWithTimeoutAsync(MatrixDmmImpedance.In, MatrixDmmImpedance.Out, MatrixSlotDmmDo, MatrixIpAddress, token).ConfigureAwait(false); } catch { }
                 }
-                catch { }
+
+                return result;
+            }
+            finally
+            {
                 _matrixLock.Release();
             }
         }

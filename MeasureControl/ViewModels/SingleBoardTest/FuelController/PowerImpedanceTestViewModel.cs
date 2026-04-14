@@ -861,7 +861,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 _hardwareInitialized = true;
                 AddLog("硬件初始化完成");
-                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "已下电"; });
+                Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = false; PowerStatus = "下电就绪"; });
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
             {
@@ -1255,7 +1255,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     IsPowerOn = false;
-                    PowerStatus = "已下电";
+                    PowerStatus = "下电就绪";
                 });
             }
             catch (Exception ex)
@@ -1615,7 +1615,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 var okDmm = await matrix.ConnectNodesAsync(MatrixDmmH.In, MatrixDmmH.Out, MatrixDmmH.Slot, MatrixIpAddress);
                 var ok1   = await matrix.ConnectNodesAsync(c1.In, c1.Out, c1.Slot, MatrixIpAddress);
-                await Task.Delay(1000);
+                await Task.Delay(300);
                 var ok2   = c2.HasValue ? await matrix.ConnectNodesAsync(c2.Value.In, c2.Value.Out, c2.Value.Slot, MatrixIpAddress) : true;
                 AddLog(
                     c2.HasValue

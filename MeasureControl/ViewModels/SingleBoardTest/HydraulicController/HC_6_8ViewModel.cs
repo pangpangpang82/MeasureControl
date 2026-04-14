@@ -460,6 +460,33 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _manualCts?.Dispose();
             _manualCts = new CancellationTokenSource();
 
+            if (_boardPowerService.IsPowered)
+            {
+                MessageBoxResult cycleResult = MessageBoxResult.No;
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    cycleResult = MessageBox.Show(
+                        "该测试项需要先下电再上电，是否继续执行？",
+                        "需要重新上电",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+                });
+                if (cycleResult != MessageBoxResult.Yes)
+                {
+                    IsManualTestInitializing = false;
+                    return;
+                }
+            }
+            else
+            {
+                var (confirmed, _) = PowerOnPromptDialog.ShowPrompt("液压单板", showVoltage: false);
+                if (!confirmed)
+                {
+                    IsManualTestInitializing = false;
+                    return;
+                }
+            }
+
             Log("开始手动测试");
             Log("正在初始化设备...");
 
@@ -507,6 +534,37 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             _autoCts?.Cancel();
             _autoCts?.Dispose();
             _autoCts = new CancellationTokenSource();
+
+            if (_boardPowerService.IsPowered)
+            {
+                MessageBoxResult cycleResult = MessageBoxResult.No;
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    cycleResult = MessageBox.Show(
+                        "该测试项需要先下电再上电，是否继续执行？",
+                        "需要重新上电",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+                });
+                if (cycleResult != MessageBoxResult.Yes)
+                {
+                    IsAutoTestInitializing = false;
+                    _autoCts?.Dispose();
+                    _autoCts = null;
+                    return;
+                }
+            }
+            else
+            {
+                var (confirmed, _) = PowerOnPromptDialog.ShowPrompt("液压单板", showVoltage: false);
+                if (!confirmed)
+                {
+                    IsAutoTestInitializing = false;
+                    _autoCts?.Dispose();
+                    _autoCts = null;
+                    return;
+                }
+            }
 
             try
             {
@@ -997,27 +1055,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         {
             if (_boardPowerService.IsPowered)
             {
-                MessageBoxResult cycleResult = MessageBoxResult.No;
-                Application.Current?.Dispatcher?.Invoke(() =>
-                {
-                    cycleResult = MessageBox.Show(
-                        "该测试项需要先下电再上电，是否执行？",
-                        "需要重新上电",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Question);
-                });
-                if (cycleResult != MessageBoxResult.Yes)
-                    throw new OperationCanceledException("用户取消重新上电");
                 await _boardPowerService.PowerOffAsync(cancellationToken).ConfigureAwait(false);
                 await Task.Delay(500, cancellationToken).ConfigureAwait(false);
-                await _boardPowerService.PowerOnAsync("液压单板", cancellationToken: cancellationToken).ConfigureAwait(false);
             }
-            else
-            {
-                var (confirmed, _) = PowerOnPromptDialog.ShowPrompt("液压单板", showVoltage: false);
-                if (!confirmed) throw new OperationCanceledException("用户取消上电");
-                await _boardPowerService.PowerOnAsync("液压单板", cancellationToken: cancellationToken).ConfigureAwait(false);
-            }
+            await _boardPowerService.PowerOnAsync("液压单板", cancellationToken: cancellationToken).ConfigureAwait(false);
             await Task.Delay(PowerSettleDelayMs, cancellationToken).ConfigureAwait(false);
         }
 

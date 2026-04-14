@@ -45,6 +45,7 @@ namespace MeasureControl.Views.Common
         private readonly IEventAggregator _eventAggregator;
 
         private CancellationTokenSource _singleBoardAutoTestCts;
+        private ProjectItem _activeTestProjectItem;
         private string _singleBoardAutoTestReportPath;
         private string _singleBoardAutoTestExcelReportPath;
         private HashSet<string> _selectedSingleBoardAutoTestItems;
@@ -175,6 +176,19 @@ namespace MeasureControl.Views.Common
         private MeasureControl.ViewModels.SingleBoardTest.InertController.TcvMotorDriveTestViewModel _inertControlAutoTestVm8;
 
         #endregion
+
+        /// <summary>
+        /// 检查目标节点是否属于根节点的子树（包含根节点本身）
+        /// </summary>
+        private static bool IsInProjectSubtree(ProjectItem root, ProjectItem target)
+        {
+            if (root == null || target == null) return false;
+            if (root == target) return true;
+            if (root.Children == null) return false;
+            foreach (var child in root.Children)
+                if (IsInProjectSubtree(child, target)) return true;
+            return false;
+        }
 
         private static bool IsSingleBoardTestTaskNode(ProjectItem projectItem)
         {
@@ -642,6 +656,15 @@ namespace MeasureControl.Views.Common
         {
             if (sender is TreeViewItem treeViewItem && treeViewItem.DataContext is ProjectItem projectItem)
             {
+                // 自动测试期间：屏蔽测试板子树之外的右键菜单
+                if (_viewModel?.IsAutoTestRunning == true && _activeTestProjectItem != null
+                    && !IsInProjectSubtree(_activeTestProjectItem, projectItem))
+                {
+                    treeViewItem.ContextMenu = null;
+                    e.Handled = true;
+                    return;
+                }
+
                 if (_viewModel?.IsFixedDemoMode == true)
                 {
                     var parentTreeViewItem = FindParent<TreeViewItem>(treeViewItem);
@@ -650,7 +673,7 @@ namespace MeasureControl.Views.Common
                         && (string.Equals(parentProjectItem.Type, "test_tasks", StringComparison.OrdinalIgnoreCase)
                             || string.Equals(parentProjectItem.Name, "测试任务", StringComparison.OrdinalIgnoreCase));
 
-                    // Demo 模式下：只放开“测试任务”文件夹下的单板节点右键菜单，其它节点一律禁用
+                    // Demo 模式下：只放开"测试任务"文件夹下的单板节点右键菜单，其它节点一律禁用
                     if (!(IsSingleBoardTestTaskNode(projectItem) && isUnderTestTasksFolder))
                     {
                         treeViewItem.ContextMenu = null;
@@ -1061,6 +1084,7 @@ namespace MeasureControl.Views.Common
                 }
 
                 _selectedSingleBoardAutoTestItems = new HashSet<string>(selectedItems, StringComparer.OrdinalIgnoreCase);
+                _activeTestProjectItem = projectItem;
                 await RunFuelBoardMultiVoltageTestAsync(boardName, selectedItems).ConfigureAwait(true);
                 return;
             }
@@ -1138,6 +1162,7 @@ namespace MeasureControl.Views.Common
                 return;
             }
 
+            _activeTestProjectItem = projectItem;
             await RunSingleBoardStepsAsync(boardName, boardType, steps).ConfigureAwait(true);
         }
 
@@ -1155,7 +1180,7 @@ namespace MeasureControl.Views.Common
             EventHandler ownerActivatedHandler = null;
             EventHandler ownerDeactivatedHandler = null;
 
-            var originalIsEnabled = IsEnabled;
+            var mainVm1 = DataContext as MainWindowViewModel;
             var anyFailed = false;
             var shouldNotifyCompletion = false;
             string completionMessage = null;
@@ -1166,8 +1191,13 @@ namespace MeasureControl.Views.Common
                 PrepareSingleBoardReport(boardName);
                 AppendSingleBoardReportLine($"START | {boardName} | {boardType}");
 
-                // 整板自动测试期间禁用主窗口操作
-                IsEnabled = false;
+                // 整板自动测试期间：锁定树导航，内容区保持可交互
+                if (mainVm1 != null) mainVm1.IsAutoTestRunning = true;
+
+                // 自动导航到测试单板第一个测试项（确保当前页面是该单板页）
+                var firstTestItem1 = _activeTestProjectItem?.Children?.FirstOrDefault();
+                if (firstTestItem1 != null && _viewModel?.TreeItemDoubleClickCommand?.CanExecute(firstTestItem1) == true)
+                    _viewModel.TreeItemDoubleClickCommand.Execute(firstTestItem1);
 
                 vm = new TestProgressDialogViewModel
                 {
@@ -1433,7 +1463,9 @@ namespace MeasureControl.Views.Common
                 }
 
                 // 恢复主窗口操作
-                IsEnabled = originalIsEnabled;
+                if (mainVm1 != null) mainVm1.IsAutoTestRunning = false;
+                try { _eventAggregator.GetEvent<Events.GlobalBatchTestEndedEvent>().Publish(); } catch { }
+                _activeTestProjectItem = null;
 
                 if (shouldNotifyCompletion && !string.IsNullOrWhiteSpace(completionMessage))
                 {
@@ -1596,7 +1628,6 @@ namespace MeasureControl.Views.Common
                 }),
                 ("通道ID测试", async ct =>
                 {
-                    await EnsureHydraulicPowerOnAsync(ct).ConfigureAwait(false);
                     return await vm62ChannelId.RunOnceAsync(ct).ConfigureAwait(false);
                 }),
                 ("二次电源测试", async ct =>
@@ -1626,17 +1657,14 @@ namespace MeasureControl.Views.Common
                 }),
                 ("离散量采集测试", async ct =>
                 {
-                    await EnsureHydraulicPowerOnAsync(ct).ConfigureAwait(false);
                     return await vm67.RunOnceAsync(ct).ConfigureAwait(false);
                 }),
                 ("离散量输出测试", async ct =>
                 {
-                    await EnsureHydraulicPowerOnAsync(ct).ConfigureAwait(false);
                     return await vm68.RunOnceAsync(ct).ConfigureAwait(false);
                 }),
                 ("通讯模块测试", async ct =>
                 {
-                    await EnsureHydraulicPowerOnAsync(ct).ConfigureAwait(false);
                     return await vm69.RunOnceAsync(ct).ConfigureAwait(false);
                 }),
             };
@@ -1813,16 +1841,19 @@ namespace MeasureControl.Views.Common
             };
         }
 
-        private (string Name, Func<CancellationToken, Task<string>> Run)[] BuildFuelSteps(double voltage = 28.0)
+        private (string Name, Func<CancellationToken, Task<string>> Run)[] BuildFuelSteps(double voltage = 28.0, bool isFirstRound = true)
         {
-            _fuelAutoTestVm1 = ContainerLocator.Container.Resolve<PowerImpedanceTestViewModel>();
-            _fuelAutoTestVm2 = ContainerLocator.Container.Resolve<SecondaryPowerTestViewModel>();
-            _fuelAutoTestVm3 = ContainerLocator.Container.Resolve<LowVoltageAlarmTestViewModel>();
-            _fuelAutoTestVm4 = ContainerLocator.Container.Resolve<TemperatureAcquisitionTestViewModel>();
-            _fuelAutoTestVm5 = ContainerLocator.Container.Resolve<DiscreteInputTestViewModel>();
-            _fuelAutoTestVm6 = ContainerLocator.Container.Resolve<DiscreteOutputTestViewModel>();
-            _fuelAutoTestVm7 = ContainerLocator.Container.Resolve<RS422CommunicationFunctionTestViewModel>();
-            _fuelAutoTestVm8 = ContainerLocator.Container.Resolve<RS422SelfCheckTestViewModel>();
+            if (isFirstRound)
+            {
+                _fuelAutoTestVm1 = ContainerLocator.Container.Resolve<PowerImpedanceTestViewModel>();
+                _fuelAutoTestVm2 = ContainerLocator.Container.Resolve<SecondaryPowerTestViewModel>();
+                _fuelAutoTestVm3 = ContainerLocator.Container.Resolve<LowVoltageAlarmTestViewModel>();
+                _fuelAutoTestVm4 = ContainerLocator.Container.Resolve<TemperatureAcquisitionTestViewModel>();
+                _fuelAutoTestVm5 = ContainerLocator.Container.Resolve<DiscreteInputTestViewModel>();
+                _fuelAutoTestVm6 = ContainerLocator.Container.Resolve<DiscreteOutputTestViewModel>();
+                _fuelAutoTestVm7 = ContainerLocator.Container.Resolve<RS422CommunicationFunctionTestViewModel>();
+                _fuelAutoTestVm8 = ContainerLocator.Container.Resolve<RS422SelfCheckTestViewModel>();
+            }
 
             var Vm1 = _fuelAutoTestVm1;
             var Vm2 = _fuelAutoTestVm2;
@@ -1849,6 +1880,12 @@ namespace MeasureControl.Views.Common
             {
                 ("电源阻抗测试", async ct =>
                 {
+                    if (!isFirstRound)
+                    {
+                        // 复用18V阻抗结果，跳过重测
+                        await EnsurePowerOnAsync(ct).ConfigureAwait(false);
+                        return Vm1?.OverallResult ?? "--";
+                    }
                     var result = await Vm1.RunOnceAsync(ct);
                     bool impedancePass = string.Equals(result, "PASS", StringComparison.OrdinalIgnoreCase) ||
                                         string.Equals(result, "\u5408\u683c", StringComparison.OrdinalIgnoreCase);
@@ -1881,7 +1918,12 @@ namespace MeasureControl.Views.Common
                 ("离散量输出功能测试", async ct =>
                 {
                     await EnsurePowerOnAsync(ct).ConfigureAwait(false);
-                    return await Vm6.RunOnceAsync(ct);
+                    Vm6.SelectedSupplyVoltage = voltage;
+                    string r6 = !isFirstRound
+                        ? await Vm6.RunStepCOnlyAsync(ct)
+                        : await Vm6.RunOnceAsync(ct);
+                    isPoweredOn = false; // 离散量输出测试强制下电，后续测试需重新上电
+                    return r6;
                 }),
                 ("RS422通信功能测试", async ct =>
                 {
@@ -1907,7 +1949,7 @@ namespace MeasureControl.Views.Common
             EventHandler ownerActivatedHandler = null;
             EventHandler ownerDeactivatedHandler = null;
 
-            var originalIsEnabled = IsEnabled;
+            var mainVm2 = DataContext as MainWindowViewModel;
             bool anyFailed = false;
             bool shouldNotifyCompletion = false;
             string completionMessage = null;
@@ -1922,7 +1964,12 @@ namespace MeasureControl.Views.Common
                 PrepareSingleBoardReport(boardName);
                 AppendSingleBoardReportLine($"START | {boardName} | 加放油单板 | 三档电压测试");
 
-                IsEnabled = false;
+                if (mainVm2 != null) mainVm2.IsAutoTestRunning = true;
+
+                // 自动导航到测试单板第一个测试项
+                var firstTestItem2 = _activeTestProjectItem?.Children?.FirstOrDefault();
+                if (firstTestItem2 != null && _viewModel?.TreeItemDoubleClickCommand?.CanExecute(firstTestItem2) == true)
+                    _viewModel.TreeItemDoubleClickCommand.Execute(firstTestItem2);
 
                 var templateSteps = BuildFuelSteps();
                 int stepsPerRound = templateSteps.Count(s => selectedItems.Contains(s.Name, StringComparer.OrdinalIgnoreCase));
@@ -1969,7 +2016,9 @@ namespace MeasureControl.Views.Common
                 for (int vi = 0; vi < voltages.Length && !globalAbort; vi++)
                 {
                     double voltage = voltages[vi];
-                    var steps = BuildFuelSteps(voltage);
+                    // 每档开始前重置电源状态，确保本档以正确电压重新上电
+                    try { ContainerLocator.Container.Resolve<IBoardPowerService>()?.SetPoweredState(false); } catch { }
+                    var steps = BuildFuelSteps(voltage, isFirstRound: vi == 0);
                     var filteredSteps = steps.Where(s => selectedItems.Contains(s.Name, StringComparer.OrdinalIgnoreCase)).ToArray();
 
                     AppendSingleBoardReportLine($"ROUND | {voltage:G}V");
@@ -2021,6 +2070,17 @@ namespace MeasureControl.Views.Common
                     }
 
                     snapshots[vi] = SnapshotFuelVms(voltage, roundResults[vi], roundAborted);
+
+                    // 每档结束后物理下电 CH1，确保下一档以新电压干净上电
+                    try
+                    {
+                        var hps = ContainerLocator.Container.Resolve<IBoardPowerService>();
+                        if (hps != null && hps.IsPowered)
+                            await hps.PowerOffAsync(token).ConfigureAwait(true);
+                        else
+                            hps?.SetPoweredState(false);
+                    }
+                    catch { }
                 }
 
                 _fuelSnapshot17V = snapshots[0];
@@ -2080,7 +2140,9 @@ namespace MeasureControl.Views.Common
                 try { if (ownerDeactivatedHandler != null) Deactivated -= ownerDeactivatedHandler; } catch { }
                 try { progressDialog?.Close(); } catch { }
 
-                IsEnabled = originalIsEnabled;
+                if (mainVm2 != null) mainVm2.IsAutoTestRunning = false;
+                try { _eventAggregator.GetEvent<Events.GlobalBatchTestEndedEvent>().Publish(); } catch { }
+                _activeTestProjectItem = null;
 
                 if (shouldNotifyCompletion && !string.IsNullOrWhiteSpace(completionMessage))
                     try { ReMessageBox.Show(completionMessage, "提示", MessageBoxButton.OK, MessageBoxImage.Information); } catch { }
@@ -4188,24 +4250,23 @@ namespace MeasureControl.Views.Common
                     {
                         if (snap.Vm6_J6.HasValue || snap.Vm6_StepA != null)
                         {
-                            SetExcelCellValue(cells, 14 + ro, valueCol, FormatNullableNumber(snap.Vm6_J6));
-                            SetExcelCellValue(cells, 15 + ro, valueCol, FormatNullableNumber(snap.Vm6_J7));
-                            SetExcelCellValue(cells, 16 + ro, valueCol, FormatNullableNumber(snap.Vm6_J8));
-                            SetExcelCellValue(cells, 17 + ro, valueCol, FormatNullableNumber(snap.Vm6_J9));
-                            SetExcelCellValue(cells, 18 + ro, valueCol, FormatNullableNumber(snap.Vm6_J10));
-                            SetExcelCellValue(cells, 19 + ro, valueCol, FormatNullableNumber(snap.Vm6_J11));
-                            SetExcelCellValue(cells, 20 + ro, valueCol, FormatNullableNumber(snap.Vm6_J12));
-                            SetExcelCellValue(cells, 21 + ro, valueCol, FormatNullableNumber(snap.Vm6_J13));
-                            SetExcelCellValue(cells, 14 + ro, singleResultCol, NormalizeFuelResult(snap.Vm6_StepA));
-                            SetExcelCellValue(cells, 22 + ro, valueCol, FormatNullableNumber(snap.Vm6_OJ6));
-                            SetExcelCellValue(cells, 23 + ro, valueCol, FormatNullableNumber(snap.Vm6_OJ7));
-                            SetExcelCellValue(cells, 24 + ro, valueCol, FormatNullableNumber(snap.Vm6_OJ8));
-                            SetExcelCellValue(cells, 25 + ro, valueCol, FormatNullableNumber(snap.Vm6_OJ9));
-                            SetExcelCellValue(cells, 26 + ro, valueCol, FormatNullableNumber(snap.Vm6_OJ10));
-                            SetExcelCellValue(cells, 27 + ro, valueCol, FormatNullableNumber(snap.Vm6_OJ11));
-                            SetExcelCellValue(cells, 28 + ro, valueCol, FormatNullableNumber(snap.Vm6_OJ12));
-                            SetExcelCellValue(cells, 29 + ro, valueCol, FormatNullableNumber(snap.Vm6_OJ13));
-                            SetExcelCellValue(cells, 22 + ro, singleResultCol, NormalizeFuelResult(snap.Vm6_StepB));
+                            // 接地阻抗测试各点值 + 单项结果（<10Ω → PASS）
+                            var gndVals = new double?[] { snap.Vm6_J6, snap.Vm6_J7, snap.Vm6_J8, snap.Vm6_J9, snap.Vm6_J10, snap.Vm6_J11, snap.Vm6_J12, snap.Vm6_J13 };
+                            for (int gi = 0; gi < 8; gi++)
+                            {
+                                SetExcelCellValue(cells, 14 + ro + gi, valueCol, FormatNullableNumber(gndVals[gi]));
+                                var gr = gndVals[gi].HasValue ? (gndVals[gi].Value < 10.0 ? "PASS" : "FAIL") : "--";
+                                SetExcelCellValue(cells, 14 + ro + gi, singleResultCol, gr);
+                            }
+                            // 开路阻抗测试各点值 + 单项结果（>100000Ω → PASS）
+                            var openVals = new double?[] { snap.Vm6_OJ6, snap.Vm6_OJ7, snap.Vm6_OJ8, snap.Vm6_OJ9, snap.Vm6_OJ10, snap.Vm6_OJ11, snap.Vm6_OJ12, snap.Vm6_OJ13 };
+                            for (int oi = 0; oi < 8; oi++)
+                            {
+                                SetExcelCellValue(cells, 22 + ro + oi, valueCol, FormatNullableNumber(openVals[oi]));
+                                var or2 = openVals[oi].HasValue ? (openVals[oi].Value > 100000.0 ? "PASS" : "FAIL") : "--";
+                                SetExcelCellValue(cells, 22 + ro + oi, singleResultCol, or2);
+                            }
+                            // J14 电压测试
                             SetExcelCellValue(cells, 30 + ro, valueCol, FormatNullableNumber(snap.Vm6_J14V));
                             SetExcelCellValue(cells, 30 + ro, singleResultCol, NormalizeFuelResult(snap.Vm6_StepC));
                             SetOverall(14 + ro, NormalizeFuelResult(snap.Vm6_Overall));
@@ -4214,20 +4275,18 @@ namespace MeasureControl.Views.Common
                         else
                         {
                             FillUntestedCells(cells, 14 + ro, valueCol, 21 + ro);
+                            FillUntestedCells(cells, 14 + ro, singleResultCol, 21 + ro);
                             FillUntestedCells(cells, 22 + ro, valueCol, 30 + ro);
-                            SetExcelCellValue(cells, 14 + ro, singleResultCol, "--");
-                            SetExcelCellValue(cells, 22 + ro, singleResultCol, "--");
-                            SetExcelCellValue(cells, 30 + ro, singleResultCol, "--");
+                            FillUntestedCells(cells, 22 + ro, singleResultCol, 30 + ro);
                             SetOverall(14 + ro, "未测试");
                         }
                     }
                     else
                     {
                         FillUntestedCells(cells, 14 + ro, valueCol, 21 + ro);
+                        FillUntestedCells(cells, 14 + ro, singleResultCol, 21 + ro);
                         FillUntestedCells(cells, 22 + ro, valueCol, 30 + ro);
-                        SetExcelCellValue(cells, 14 + ro, singleResultCol, "--");
-                        SetExcelCellValue(cells, 22 + ro, singleResultCol, "--");
-                        SetExcelCellValue(cells, 30 + ro, singleResultCol, "--");
+                        FillUntestedCells(cells, 22 + ro, singleResultCol, 30 + ro);
                         SetOverall(14 + ro, "未测试");
                     }
 
