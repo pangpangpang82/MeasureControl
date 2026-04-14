@@ -92,9 +92,9 @@ namespace MeasureControl.Services
             {
                 await api.ConnectAsync(IpAddress, cancellationToken).ConfigureAwait(false);
                 await api.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, cancellationToken).ConfigureAwait(false);
-                IsPowered = false;
                 PoweredBoardType = null;
                 PoweredVoltage = 0;
+                IsPowered = false;
             }
             finally
             {

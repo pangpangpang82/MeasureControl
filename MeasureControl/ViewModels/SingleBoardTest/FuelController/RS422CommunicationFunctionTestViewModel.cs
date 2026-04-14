@@ -374,6 +374,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 {
                     using var powerCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
                     await hpsCheck.PowerOnAsync("加放油单板", selectedVoltage, powerCts.Token).ConfigureAwait(false);
+                    AddLog("等待电源稳定（800ms）...");
+                    await Task.Delay(500, powerCts.Token).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -466,6 +468,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 {
                     using var powerCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
                     await hpsCheck.PowerOnAsync("加放油单板", selectedVoltage, powerCts.Token).ConfigureAwait(false);
+                    AddLog("等待电源稳定（800ms）...");
+                    await Task.Delay(500, powerCts.Token).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {

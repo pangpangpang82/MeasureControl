@@ -399,6 +399,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 {
                     using var powerCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
                     await hpsCheck.PowerOnAsync("加放油单板", selectedVoltage, powerCts.Token).ConfigureAwait(false);
+                    AddLog("等待电源稳定（800ms）...");
+                    await Task.Delay(800, powerCts.Token).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -492,6 +494,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 {
                     using var powerCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
                     await hpsCheck.PowerOnAsync("加放油单板", selectedVoltage, powerCts.Token).ConfigureAwait(false);
+                    AddLog("等待电源稳定（800ms）...");
+                    await Task.Delay(800, powerCts.Token).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -1055,7 +1059,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                 AddLog("正在初始化HI8435...");
                 await _fpga.InitHi8435AfterConnectAsync(token);
-                await Task.Delay(50, token);
+                await Task.Delay(300, token);
                 AddLog("HI8435初始化完成");
 
                 _fpga.StartAsyncReceive(AddLog);
