@@ -204,7 +204,10 @@
                                     HorizontalAlignment="Left"
                                     VerticalAlignment="Center"
                                     Orientation="Horizontal">
-                                    <Button Margin="15,0,0,0" Command="{Binding ConnectChassisCommand}">
+                                    <Button
+                                        Margin="15,0,0,0"
+                                        Command="{Binding ConnectChassisCommand}"
+                                        Visibility="Collapsed">
                                         <Border Padding="1">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
@@ -226,7 +229,10 @@
                                         </Border>
                                     </Button>
 
-                                    <Button Margin="15,0,0,0" Command="{Binding DisconnectChassisCommand}">
+                                    <Button
+                                        Margin="15,0,0,0"
+                                        Command="{Binding DisconnectChassisCommand}"
+                                        Visibility="Collapsed">
                                         <Border Padding="1">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
@@ -248,7 +254,10 @@
                                         </Border>
                                     </Button>
 
-                                    <Button Margin="15,0,0,0" Command="{Binding EthernetConnectCommand}">
+                                    <Button
+                                        Margin="15,0,0,0"
+                                        Command="{Binding EthernetConnectCommand}"
+                                        Visibility="Collapsed">
                                         <Border Padding="1">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
@@ -270,7 +279,10 @@
                                         </Border>
                                     </Button>
 
-                                    <Button Margin="15,0,0,0" Command="{Binding UsbConnectCommand}">
+                                    <Button
+                                        Margin="15,0,0,0"
+                                        Command="{Binding UsbConnectCommand}"
+                                        Visibility="Collapsed">
                                         <Border Padding="1">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
@@ -292,7 +304,10 @@
                                         </Border>
                                     </Button>
 
-                                    <Button Margin="15,0,0,0" Command="{Binding SerialConnectCommand}">
+                                    <Button
+                                        Margin="15,0,0,0"
+                                        Command="{Binding SerialConnectCommand}"
+                                        Visibility="Collapsed">
                                         <Border Padding="1">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
