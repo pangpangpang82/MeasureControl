@@ -687,7 +687,7 @@ namespace MeasureControl.Drivers
                             Debug.WriteLine($"[MTX532Driver] 已生成新缓冲区 {i + 1}/3 (使用新参数)");
                         }
                     }
-                    Debug.WriteLine($"[MTX532Driver] ✅ 新参数将在约 {_continuousBufferSeconds * 3:F3} 秒后在示波器上显示");
+                    Debug.WriteLine($"[MTX532Driver] 新参数将在约 {_continuousBufferSeconds * 3:F3} 秒后在示波器上显示");
                 }
             }
 
@@ -719,7 +719,7 @@ namespace MeasureControl.Drivers
                 }
             }
 
-            Debug.WriteLine($"[MTX532Driver] ✅ 通道 {channelId} 配置成功: Waveform={cfg.Waveform}, Offset={cfg.Offset}V, Amplitude={cfg.Amplitude}V, Frequency={cfg.Frequency}Hz");
+            Debug.WriteLine($"[MTX532Driver] 通道 {channelId} 配置成功: Waveform={cfg.Waveform}, Offset={cfg.Offset}V, Amplitude={cfg.Amplitude}V, Frequency={cfg.Frequency}Hz");
             return await Task.FromResult(true);
         }
 
@@ -1064,7 +1064,7 @@ namespace MeasureControl.Drivers
                     switch (cfg.Waveform)
                     {
                         case WaveformType.Sine:
-                            // ✅ 使用相位累加器，保证相位连续
+                            // 使用相位累加器，保证相位连续
                             lock (_phaseLock)
                             {
                                 value = cfg.Offset + cfg.Amplitude *
@@ -1357,7 +1357,7 @@ namespace MeasureControl.Drivers
                 // 清空缓冲区队列
                 while (_bufferQueue.TryDequeue(out _)) { }
 
-                // ✅ 清理相位累加器
+                // 清理相位累加器
                 lock (_phaseLock)
                 {
                     _phaseAccumulators.Clear();

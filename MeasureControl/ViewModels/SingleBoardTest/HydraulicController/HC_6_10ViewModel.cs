@@ -407,15 +407,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 IsAutoTestInitializing = false;
                 IsAutoTestRunning = true;
 
-                _testBenchPassed = await ReceiveAndCheckTank2ZeroAsync(cancellationToken).ConfigureAwait(false);
-                TestBenchTank2Text = _testBenchPassed ? "pass" : "fail";
+                var (tank2Passed, tank2Value) = await ReceiveAndCheckTank2ZeroAsync(cancellationToken).ConfigureAwait(false);
+                _testBenchPassed = tank2Passed;
+                TestBenchTank2Text = tank2Value.HasValue ? $"0x{tank2Value.Value:X2}" : "无数据";
                 Log($"测试台接收结果: {(_testBenchPassed ? "pass" : "fail")}");
 
                 await DrainArincBufferAsync(cancellationToken).ConfigureAwait(false);
                 await SendControlBoardTank1SetCommandAsync(cancellationToken).ConfigureAwait(false);
                 await Task.Delay(PostSwitchRxFlushDelayMs, cancellationToken).ConfigureAwait(false);
-                _controlBoardPassed = await ReceiveAndCheckTank1Quantity30Async(cancellationToken).ConfigureAwait(false);
-                ControlBoardTank1Text = _controlBoardPassed ? "pass" : "fail";
+                var (tank1Passed, tank1Qty) = await ReceiveAndCheckTank1Quantity30Async(cancellationToken).ConfigureAwait(false);
+                _controlBoardPassed = tank1Passed;
+                ControlBoardTank1Text = tank1Qty.HasValue ? $"{tank1Qty.Value:0}" : "无数据";
                 Log($"控制板接收结果: {(_controlBoardPassed ? "pass" : "fail")}");
 
                 await FinalizeTestAsync().ConfigureAwait(false);
@@ -436,12 +438,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        private async Task<bool> ReceiveAndCheckTank2ZeroAsync(CancellationToken cancellationToken)
+        private async Task<(bool Passed, byte? ReceivedValue)> ReceiveAndCheckTank2ZeroAsync(CancellationToken cancellationToken)
         {
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 var deadline = DateTime.UtcNow.AddMilliseconds(CanReceiveTimeoutMs);
+                byte? lastReceivedValue = null;
                 while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
                 {
                     var frames = await _canApi.ReceiveFramesBatchAsync(CanRxChannelIndex, maxFrames: 100, timeout: 0.1, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -451,16 +454,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                             continue;
 
                         var byteValue = frame.Data[ExpectedByteIndexTank2];
+                        lastReceivedValue = byteValue;
                         Log($"收到CAN帧 ID=0x{frame.FrameId:X3}, Byte[{ExpectedByteIndexTank2}]=0x{byteValue:X2}");
                         if (byteValue == ExpectedTank2ZeroValue)
-                            return true;
+                            return (true, byteValue);
                     }
 
                     await Task.Delay(50, cancellationToken).ConfigureAwait(false);
                 }
 
                 Log($"超时: 未在{CanReceiveTimeoutMs}ms内接收到ID=0x{ExpectedCanIdTank2:X3}且Byte[{ExpectedByteIndexTank2}]=0的CAN消息");
-                return false;
+                return (false, lastReceivedValue);
             }
             finally
             {
@@ -489,7 +493,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Log($"已发送CAN帧 ID=0x{ControlBoardSetTank1CanId:X3}, Data={BitConverter.ToString(ControlBoardSetTank1Payload).Replace("-", " ")}");
         }
 
-        private async Task<bool> ReceiveAndCheckTank1Quantity30Async(CancellationToken cancellationToken)
+        private async Task<(bool Passed, double? ReceivedQuantity)> ReceiveAndCheckTank1Quantity30Async(CancellationToken cancellationToken)
         {
             if (_arinc == null)
                 throw new InvalidOperationException("ARINC429板卡未初始化，无法校验1号油箱油量");
@@ -498,6 +502,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             try
             {
                 var deadline = DateTime.UtcNow.AddMilliseconds(CanReceiveTimeoutMs);
+                double? lastQuantity = null;
                 while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
                 {
                     var words = await _arinc.ReadRxWordsAsync(ArincRxChannelIndex, maxCount: 512, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -511,16 +516,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         if (!quantity.HasValue)
                             continue;
 
+                        lastQuantity = quantity.Value;
                         Log($"收到429油量: Label={QtyLabelDec}, SDI={sdi:00}, Value={quantity.Value:0}");
                         if (Math.Abs(quantity.Value - ExpectedTank1Quantity) < 0.5)
-                            return true;
+                            return (true, quantity.Value);
                     }
 
                     await Task.Delay(50, cancellationToken).ConfigureAwait(false);
                 }
 
                 Log($"超时: 未在{CanReceiveTimeoutMs}ms内接收到429 Label173 SDI=01 且1号油量={ExpectedTank1Quantity}");
-                return false;
+                return (false, lastQuantity);
             }
             finally
             {

@@ -992,7 +992,7 @@ namespace MeasureControl.ViewModels.TestTask.CardCATPanel
                     if (!TryParseDouble(cfg.FrequencyText, out var freq))
                         return false;
 
-                    // ✅ 正确的范围检查：
+                    // 正确的范围检查：
                     // 高电平 = offset + amp，必须 ≤ 10V
                     // 低电平 = offset - amp，必须 ≥ -10V
                     var highLevel = offset + amp;

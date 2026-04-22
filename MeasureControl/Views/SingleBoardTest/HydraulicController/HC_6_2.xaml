@@ -1,285 +1,228 @@
-﻿<UserControl x:Class="MeasureControl.Views.SingleBoardTest.HydraulicController.HC_6_2"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:local="clr-namespace:MeasureControl.Views.SingleBoardTest.HydraulicController"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             d:DesignHeight="550"
-             d:DesignWidth="970"
-             mc:Ignorable="d">
-    <Grid x:Name="RootGrid"
-          Background="White"
-          Focusable="True"
-          PreviewMouseDown="RootGrid_PreviewMouseDown">
+﻿<UserControl
+    x:Class="MeasureControl.Views.SingleBoardTest.HydraulicController.HC_6_2"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:MeasureControl.Views.SingleBoardTest.HydraulicController"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    d:DesignHeight="550"
+    d:DesignWidth="970"
+    mc:Ignorable="d">
+    <Grid
+        x:Name="RootGrid"
+        Background="White"
+        Focusable="True"
+        PreviewMouseDown="RootGrid_PreviewMouseDown">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="0.8*" />
                 <RowDefinition Height="6*" />
                 <RowDefinition Height="1.2*" />
             </Grid.RowDefinitions>
-            <Border x:Name="Test_name"
-                    Grid.Row="0"
-                    Margin="8,8,8,4"
-                    Background="White"
-                    BorderBrush="#D9D9D9"
-                    BorderThickness="1.5"
-                    CornerRadius="8">
+            <Border
+                x:Name="Test_name"
+                Grid.Row="0"
+                Margin="8,8,8,4"
+                Background="White"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1.5"
+                CornerRadius="8">
                 <Grid>
-                    <TextBlock Width="300"
-                               Margin="10,0,0,0"
-                               HorizontalAlignment="Left"
-                               VerticalAlignment="Center"
-                               FontSize="24"
-                               FontWeight="Bold"
-                               Text="通道ID测试" />
-                    <StackPanel HorizontalAlignment="Right"
-                                Orientation="Horizontal">
-                        <Button Width="100"
-                                Height="32"
-                                Margin="0,0,20,0"
-                                VerticalAlignment="Center"
-                                BorderThickness="0"
-                                Command="{Binding ManualTestCommand}"
-                                IsEnabled="{Binding CanStartManualTest, FallbackValue=True}"
-                                Visibility="Collapsed">
+                    <TextBlock
+                        Width="300"
+                        Margin="10,0,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        FontSize="24"
+                        FontWeight="Bold"
+                        Text="通道ID测试" />
+                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                        <Button
+                            Width="100"
+                            Height="32"
+                            Margin="0,0,20,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding ManualTestCommand}"
+                            IsEnabled="{Binding CanStartManualTest, FallbackValue=True}"
+                            Visibility="Collapsed">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border x:Name="border"
-                                            Background="#3b82f6"
-                                            CornerRadius="6">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#3b82f6"
+                                        CornerRadius="6">
                                         <StackPanel Orientation="Horizontal">
-                                            <Image x:Name="DeviceImage"
-                                                   Width="15"
-                                                   Height="15"
-                                                   Margin="5,0,5,0"
-                                                   Source="/Resources/Logo/hand_w.png" />
-                                            <TextBlock x:Name="DeviceAction"
-                                                       Margin="0,0,5,0"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="16"
-                                                       Foreground="White"
-                                                       Text="手动测试" />
+                                            <Image
+                                                x:Name="DeviceImage"
+                                                Width="15"
+                                                Height="15"
+                                                Margin="5,0,5,0"
+                                                Source="/Resources/Logo/hand_w.png" />
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="16"
+                                                Foreground="White"
+                                                Text="手动测试" />
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
-                                        <DataTrigger Binding="{Binding IsManualTestRunning}"
-                                                     Value="False">
-                                            <Setter Property="Tag"
-                                                    Value="False" />
+                                        <DataTrigger Binding="{Binding IsManualTestRunning}" Value="False">
+                                            <Setter Property="Tag" Value="False" />
                                         </DataTrigger>
 
-                                        <DataTrigger Binding="{Binding IsManualTestInitializing}"
-                                                     Value="True">
-                                            <Setter Property="Tag"
-                                                    Value="Init" />
+                                        <DataTrigger Binding="{Binding IsManualTestInitializing}" Value="True">
+                                            <Setter Property="Tag" Value="Init" />
                                         </DataTrigger>
 
-                                        <DataTrigger Binding="{Binding IsManualTestStopping}"
-                                                     Value="True">
-                                            <Setter Property="Tag"
-                                                    Value="Stopping" />
-                                            <Setter TargetName="DeviceAction"
-                                                    Property="Text"
-                                                    Value="停止测试" />
+                                        <DataTrigger Binding="{Binding IsManualTestStopping}" Value="True">
+                                            <Setter Property="Tag" Value="Stopping" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
                                         </DataTrigger>
 
-                                        <DataTrigger Binding="{Binding IsManualTestRunning}"
-                                                     Value="True">
-                                            <Setter Property="Tag"
-                                                    Value="True" />
-                                            <Setter TargetName="border"
-                                                    Property="Background"
-                                                    Value="#ef4444" />
-                                            <Setter TargetName="DeviceAction"
-                                                    Property="Text"
-                                                    Value="停止测试" />
+                                        <DataTrigger Binding="{Binding IsManualTestRunning}" Value="True">
+                                            <Setter Property="Tag" Value="True" />
+                                            <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
                                         </DataTrigger>
 
                                         <!--  2. 未连接 + 悬停  -->
                                         <MultiTrigger>
                                             <MultiTrigger.Conditions>
-                                                <Condition Property="Tag"
-                                                           Value="False" />
-                                                <Condition Property="IsMouseOver"
-                                                           Value="True" />
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsMouseOver" Value="True" />
                                             </MultiTrigger.Conditions>
-                                            <Setter TargetName="border"
-                                                    Property="Background"
-                                                    Value="#2563eb" />
+                                            <Setter TargetName="border" Property="Background" Value="#2563eb" />
                                         </MultiTrigger>
 
                                         <!--  3. 未连接 + 按下  -->
                                         <MultiTrigger>
                                             <MultiTrigger.Conditions>
-                                                <Condition Property="Tag"
-                                                           Value="False" />
-                                                <Condition Property="IsPressed"
-                                                           Value="True" />
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsPressed" Value="True" />
                                             </MultiTrigger.Conditions>
-                                            <Setter TargetName="border"
-                                                    Property="Background"
-                                                    Value="#2563eb" />
+                                            <Setter TargetName="border" Property="Background" Value="#2563eb" />
                                         </MultiTrigger>
 
                                         <!--  4. 已连接 + 悬停（优先级更高，放在后面）  -->
                                         <MultiTrigger>
                                             <MultiTrigger.Conditions>
-                                                <Condition Property="Tag"
-                                                           Value="True" />
-                                                <Condition Property="IsMouseOver"
-                                                           Value="True" />
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsMouseOver" Value="True" />
                                             </MultiTrigger.Conditions>
-                                            <Setter TargetName="border"
-                                                    Property="Background"
-                                                    Value="#b91c1c" />
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
                                         </MultiTrigger>
 
                                         <!--  5. 已连接 + 按下  -->
                                         <MultiTrigger>
                                             <MultiTrigger.Conditions>
-                                                <Condition Property="Tag"
-                                                           Value="True" />
-                                                <Condition Property="IsPressed"
-                                                           Value="True" />
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsPressed" Value="True" />
                                             </MultiTrigger.Conditions>
-                                            <Setter TargetName="border"
-                                                    Property="Background"
-                                                    Value="#b91c1c" />
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
                                         </MultiTrigger>
 
                                         <!--  6. 禁用状态（最高优先级）  -->
-                                        <Trigger Property="IsEnabled"
-                                                 Value="False">
-                                            <Setter TargetName="border"
-                                                    Property="Background"
-                                                    Value="#9ca3af" />
-                                            <Setter Property="Cursor"
-                                                    Value="Arrow" />
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            <Setter Property="Cursor" Value="Arrow" />
                                         </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
                             </Button.Template>
                         </Button>
-                        <Button Width="100"
-                                Height="32"
-                                Margin="0,0,30,0"
-                                VerticalAlignment="Center"
-                                BorderThickness="0"
-                                Command="{Binding AutoTestCommand}"
-                                IsEnabled="{Binding CanStartAutoTest, FallbackValue=True}">
+                        <Button
+                            Width="100"
+                            Height="32"
+                            Margin="0,0,30,0"
+                            VerticalAlignment="Center"
+                            BorderThickness="0"
+                            Command="{Binding AutoTestCommand}"
+                            IsEnabled="{Binding CanStartAutoTest, FallbackValue=True}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border x:Name="border"
-                                            Background="#22c55e"
-                                            CornerRadius="6">
+                                    <Border
+                                        x:Name="border"
+                                        Background="#22c55e"
+                                        CornerRadius="6">
                                         <StackPanel Orientation="Horizontal">
-                                            <Image x:Name="DeviceImage"
-                                                   Width="15"
-                                                   Height="15"
-                                                   Margin="5,0,5,0"
-                                                   Source="/Resources/Logo/auto.png" />
-                                            <TextBlock x:Name="DeviceAction"
-                                                       Margin="0,0,5,0"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="16"
-                                                       Foreground="White"
-                                                       Text="自动测试" />
+                                            <Image
+                                                x:Name="DeviceImage"
+                                                Width="15"
+                                                Height="15"
+                                                Margin="5,0,5,0"
+                                                Source="/Resources/Logo/auto.png" />
+                                            <TextBlock
+                                                x:Name="DeviceAction"
+                                                Margin="0,0,5,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="16"
+                                                Foreground="White"
+                                                Text="自动测试" />
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
-                                        <DataTrigger Binding="{Binding IsAutoTestRunning}"
-                                                     Value="False">
-                                            <Setter Property="Tag"
-                                                    Value="False" />
+                                        <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="False">
+                                            <Setter Property="Tag" Value="False" />
                                         </DataTrigger>
 
-                                        <DataTrigger Binding="{Binding IsAutoTestInitializing}"
-                                                     Value="True">
-                                            <Setter Property="Tag"
-                                                    Value="Init" />
+                                        <DataTrigger Binding="{Binding IsAutoTestInitializing}" Value="True">
+                                            <Setter Property="Tag" Value="Init" />
                                         </DataTrigger>
 
-                                        <DataTrigger Binding="{Binding IsAutoTestStopping}"
-                                                     Value="True">
-                                            <Setter Property="Tag"
-                                                    Value="Stopping" />
-                                            <Setter TargetName="DeviceAction"
-                                                    Property="Text"
-                                                    Value="停止测试" />
+                                        <DataTrigger Binding="{Binding IsAutoTestStopping}" Value="True">
+                                            <Setter Property="Tag" Value="Stopping" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
                                         </DataTrigger>
 
-                                        <DataTrigger Binding="{Binding IsAutoTestRunning}"
-                                                     Value="True">
-                                            <Setter Property="Tag"
-                                                    Value="True" />
-                                            <Setter TargetName="border"
-                                                    Property="Background"
-                                                    Value="#ef4444" />
-                                            <Setter TargetName="DeviceAction"
-                                                    Property="Text"
-                                                    Value="停止测试" />
+                                        <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="True">
+                                            <Setter Property="Tag" Value="True" />
+                                            <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                            <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
                                         </DataTrigger>
 
                                         <!--  2. 未连接 + 悬停  -->
                                         <MultiTrigger>
                                             <MultiTrigger.Conditions>
-                                                <Condition Property="Tag"
-                                                           Value="False" />
-                                                <Condition Property="IsMouseOver"
-                                                           Value="True" />
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsMouseOver" Value="True" />
                                             </MultiTrigger.Conditions>
-                                            <Setter TargetName="border"
-                                                    Property="Background"
-                                                    Value="#15803d" />
+                                            <Setter TargetName="border" Property="Background" Value="#15803d" />
                                         </MultiTrigger>
 
                                         <!--  3. 未连接 + 按下  -->
                                         <MultiTrigger>
                                             <MultiTrigger.Conditions>
-                                                <Condition Property="Tag"
-                                                           Value="False" />
-                                                <Condition Property="IsPressed"
-                                                           Value="True" />
+                                                <Condition Property="Tag" Value="False" />
+                                                <Condition Property="IsPressed" Value="True" />
                                             </MultiTrigger.Conditions>
-                                            <Setter TargetName="border"
-                                                    Property="Background"
-                                                    Value="#15803d" />
+                                            <Setter TargetName="border" Property="Background" Value="#15803d" />
                                         </MultiTrigger>
 
                                         <!--  4. 已连接 + 悬停（优先级更高，放在后面）  -->
                                         <MultiTrigger>
                                             <MultiTrigger.Conditions>
-                                                <Condition Property="Tag"
-                                                           Value="True" />
-                                                <Condition Property="IsMouseOver"
-                                                           Value="True" />
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsMouseOver" Value="True" />
                                             </MultiTrigger.Conditions>
-                                            <Setter TargetName="border"
-                                                    Property="Background"
-                                                    Value="#b91c1c" />
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
                                         </MultiTrigger>
 
                                         <!--  5. 已连接 + 按下  -->
                                         <MultiTrigger>
                                             <MultiTrigger.Conditions>
-                                                <Condition Property="Tag"
-                                                           Value="True" />
-                                                <Condition Property="IsPressed"
-                                                           Value="True" />
+                                                <Condition Property="Tag" Value="True" />
+                                                <Condition Property="IsPressed" Value="True" />
                                             </MultiTrigger.Conditions>
-                                            <Setter TargetName="border"
-                                                    Property="Background"
-                                                    Value="#b91c1c" />
+                                            <Setter TargetName="border" Property="Background" Value="#b91c1c" />
                                         </MultiTrigger>
 
                                         <!--  6. 禁用状态（最高优先级）  -->
-                                        <Trigger Property="IsEnabled"
-                                                 Value="False">
-                                            <Setter TargetName="border"
-                                                    Property="Background"
-                                                    Value="#9ca3af" />
-                                            <Setter Property="Cursor"
-                                                    Value="Arrow" />
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                            <Setter Property="Cursor" Value="Arrow" />
                                         </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
@@ -289,90 +232,87 @@
 
                 </Grid>
             </Border>
-            <Border Grid.Row="1"
-                    Margin="8,4,8,4"
-                    Background="White"
-                    BorderBrush="#D9D9D9"
-                    BorderThickness="1.5"
-                    CornerRadius="8">
+            <Border
+                Grid.Row="1"
+                Margin="8,4,8,4"
+                Background="White"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1.5"
+                CornerRadius="8">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1.6*" />
                         <ColumnDefinition Width="1*" />
                     </Grid.ColumnDefinitions>
-                    <Grid Grid.Column="0"
-                          VerticalAlignment="Center">
+                    <Grid Grid.Column="0" VerticalAlignment="Center">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        <StackPanel Grid.Row="0"
-                                    Height="180"
-                                    Margin="10"
-                                    VerticalAlignment="Center"
-                                    Orientation="Vertical">
-                            <TextBlock FontSize="20"
-                                       FontWeight="Bold"
-                                       Text="控制通道A识别" />
+                        <StackPanel
+                            Grid.Row="0"
+                            Height="180"
+                            Margin="10"
+                            VerticalAlignment="Center"
+                            Orientation="Vertical">
+                            <TextBlock
+                                FontSize="20"
+                                FontWeight="Bold"
+                                Text="控制通道A识别" />
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Margin="20"
-                                           FontSize="16"
-                                           Text="针脚99接地，针脚100为开路：" />
-                                <Border Width="100"
-                                        Height="28"
-                                        Margin="10,0,0,0"
+                                <TextBlock
+                                    Margin="20"
+                                    FontSize="16"
+                                    Text="针脚99接地，针脚100为开路：" />
+                                <Border
+                                    Width="100"
+                                    Height="28"
+                                    Margin="10,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="5,0,1,0"
                                         VerticalAlignment="Center"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                    <TextBlock Margin="5,0,1,0"
-                                               VerticalAlignment="Center"
-                                               FontSize="15"
-                                               Text="{Binding Resistance14Text, TargetNullValue=---, FallbackValue=---}" />
+                                        FontSize="15"
+                                        Text="{Binding Resistance14Text, TargetNullValue=---, FallbackValue=---}" />
                                 </Border>
-                                <Button Width="50"
-                                        Height="28"
-                                        Margin="15,0,0,0"
-                                        Visibility="Collapsed"
-                                        VerticalAlignment="Center"
-                                        BorderThickness="0"
-                                        Command="{Binding Measure14Command}"
-                                        IsEnabled="{Binding CanMeasure14, FallbackValue=False}">
+                                <Button
+                                    Width="50"
+                                    Height="28"
+                                    Margin="15,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding Measure14Command}"
+                                    IsEnabled="{Binding CanMeasure14, FallbackValue=False}"
+                                    Visibility="Collapsed">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border"
-                                                    Background="#3b82f6"
-                                                    CornerRadius="4">
-                                                <StackPanel HorizontalAlignment="Center"
-                                                            Orientation="Horizontal">
-                                                    <TextBlock x:Name="DeviceAction"
-                                                               HorizontalAlignment="Center"
-                                                               VerticalAlignment="Center"
-                                                               FontSize="14"
-                                                               Foreground="White"
-                                                               Text="测量" />
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="4">
+                                                <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                    <TextBlock
+                                                        x:Name="DeviceAction"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="14"
+                                                        Foreground="White"
+                                                        Text="测量" />
                                                 </StackPanel>
                                             </Border>
                                             <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver"
-                                                         Value="True">
-                                                    <Setter TargetName="border"
-                                                            Property="Background"
-                                                            Value="#1d4ed8" />
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
                                                 </Trigger>
-                                                <Trigger Property="IsPressed"
-                                                         Value="True">
-                                                    <Setter TargetName="border"
-                                                            Property="Background"
-                                                            Value="#1d4ed8" />
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
                                                 </Trigger>
-                                                <Trigger Property="IsEnabled"
-                                                         Value="False">
-                                                    <Setter TargetName="border"
-                                                            Property="Background"
-                                                            Value="#9ca3af" />
-                                                    <Setter Property="Cursor"
-                                                            Value="Arrow" />
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -381,73 +321,70 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <StackPanel Grid.Row="1"
-                                    Height="180"
-                                    Margin="10"
-                                    VerticalAlignment="Center"
-                                    Orientation="Vertical">
-                            <TextBlock FontSize="20"
-                                       FontWeight="Bold"
-                                       Text="控制通道B测试" />
+                        <StackPanel
+                            Grid.Row="1"
+                            Height="180"
+                            Margin="10"
+                            VerticalAlignment="Center"
+                            Orientation="Vertical">
+                            <TextBlock
+                                FontSize="20"
+                                FontWeight="Bold"
+                                Text="控制通道B测试" />
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Margin="20"
-                                           FontSize="16"
-                                           Text="针脚99为开路，针脚100接地：" />
-                                <Border Width="100"
-                                        Height="28"
-                                        Margin="10,0,0,0"
+                                <TextBlock
+                                    Margin="20"
+                                    FontSize="16"
+                                    Text="针脚99为开路，针脚100接地：" />
+                                <Border
+                                    Width="100"
+                                    Height="28"
+                                    Margin="10,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="#D9D9D9"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock
+                                        Margin="5,0,1,0"
                                         VerticalAlignment="Center"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                    <TextBlock Margin="5,0,1,0"
-                                               VerticalAlignment="Center"
-                                               FontSize="15"
-                                               Text="{Binding Resistance182Text, TargetNullValue=---, FallbackValue=---}" />
+                                        FontSize="15"
+                                        Text="{Binding Resistance182Text, TargetNullValue=---, FallbackValue=---}" />
                                 </Border>
-                                <Button Width="50"
-                                        Height="28"
-                                        Margin="15,0,0,0"
-                                        VerticalAlignment="Center"
-                                        BorderThickness="0"
-                                        Visibility="Collapsed"
-                                        Command="{Binding Measure182Command}"
-                                        IsEnabled="{Binding CanMeasure182, FallbackValue=False}">
+                                <Button
+                                    Width="50"
+                                    Height="28"
+                                    Margin="15,0,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding Measure182Command}"
+                                    IsEnabled="{Binding CanMeasure182, FallbackValue=False}"
+                                    Visibility="Collapsed">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border"
-                                                    Background="#3b82f6"
-                                                    CornerRadius="4">
-                                                <StackPanel HorizontalAlignment="Center"
-                                                            Orientation="Horizontal">
-                                                    <TextBlock x:Name="DeviceAction"
-                                                               HorizontalAlignment="Center"
-                                                               VerticalAlignment="Center"
-                                                               FontSize="14"
-                                                               Foreground="White"
-                                                               Text="测量" />
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="4">
+                                                <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                    <TextBlock
+                                                        x:Name="DeviceAction"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="14"
+                                                        Foreground="White"
+                                                        Text="测量" />
                                                 </StackPanel>
                                             </Border>
                                             <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver"
-                                                         Value="True">
-                                                    <Setter TargetName="border"
-                                                            Property="Background"
-                                                            Value="#1d4ed8" />
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
                                                 </Trigger>
-                                                <Trigger Property="IsPressed"
-                                                         Value="True">
-                                                    <Setter TargetName="border"
-                                                            Property="Background"
-                                                            Value="#1d4ed8" />
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
                                                 </Trigger>
-                                                <Trigger Property="IsEnabled"
-                                                         Value="False">
-                                                    <Setter TargetName="border"
-                                                            Property="Background"
-                                                            Value="#9ca3af" />
-                                                    <Setter Property="Cursor"
-                                                            Value="Arrow" />
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -456,154 +393,144 @@
                             </StackPanel>
                         </StackPanel>
                     </Grid>
-                    <Grid Grid.Column="1"
-                          VerticalAlignment="Center">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="auto" />
-                            <RowDefinition Height="auto" />
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Grid.Column="1"
-                                    Margin="10,10,0,10"
-                                    Orientation="Horizontal">
-                            <TextBlock VerticalAlignment="Center"
-                                       FontSize="20"
-                                       FontWeight="Bold"
-                                       Text="测试信息" />
-                            <Button Width="80"
+                    <Border
+                        Grid.Column="1"
+                        Margin="5"
+                        Background="#f8fafc"
+                        BorderBrush="#e2e8f0"
+                        BorderThickness="1"
+                        CornerRadius="6">
+                        <Grid VerticalAlignment="Center">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="auto" />
+                                <RowDefinition Height="auto" />
+                            </Grid.RowDefinitions>
+                            <StackPanel
+                                Grid.Column="1"
+                                Margin="10,10,0,5"
+                                Orientation="Horizontal">
+                                <TextBlock
+                                    Margin="0,5,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="20"
+                                    FontWeight="Bold"
+                                    Text="测试日志" />
+                                <Button
+                                    Width="80"
                                     Height="32"
-                                    Margin="180,5,0,0"
+                                    Margin="170,5,0,0"
                                     VerticalAlignment="Center"
                                     BorderThickness="0"
                                     Command="{Binding ClearLogCommand}">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="border"
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border
+                                                x:Name="border"
                                                 Background="#3b82f6"
                                                 CornerRadius="4">
-                                            <StackPanel HorizontalAlignment="Center"
-                                                        Orientation="Horizontal">
-                                                <TextBlock x:Name="DeviceAction"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"
-                                                           FontSize="15"
-                                                           Foreground="White"
-                                                           Text="清除内容" />
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver"
-                                                     Value="True">
-                                                <Setter TargetName="border"
-                                                        Property="Background"
-                                                        Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed"
-                                                     Value="True">
-                                                <Setter TargetName="border"
-                                                        Property="Background"
-                                                        Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsEnabled"
-                                                     Value="False">
-                                                <Setter TargetName="border"
-                                                        Property="Background"
-                                                        Value="#9ca3af" />
-                                                <Setter Property="Cursor"
-                                                        Value="Arrow" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </StackPanel>
-                        <Border Grid.Row="1"
+                                                <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                    <TextBlock
+                                                        x:Name="DeviceAction"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="15"
+                                                        Foreground="White"
+                                                        Text="清除内容" />
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                            <Border
+                                Grid.Row="1"
                                 Grid.RowSpan="5"
                                 Grid.Column="1"
-                                Width="350"
+                                Width="340"
                                 Height="360"
-                                Margin="0,0,5,0"
+                                Margin="5,0,5,5"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1.5"
                                 CornerRadius="4">
-                            <ListBox Margin="5"
-                                     BorderThickness="0"
-                                     ItemsSource="{Binding Logs}"
-                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                     ScrollViewer.VerticalScrollBarVisibility="Auto">
-                                <ListBox.Resources>
-                                    <Style BasedOn="{StaticResource SimpleScrollViewerStyle}"
-                                           TargetType="ScrollViewer" />
-                                </ListBox.Resources>
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock FontSize="12"
-                                                   Text="{Binding}"
-                                                   TextWrapping="Wrap" />
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                        </Border>
+                                <ListBox
+                                    Margin="5"
+                                    BorderThickness="0"
+                                    ItemsSource="{Binding Logs}"
+                                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                    ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                    <ListBox.Resources>
+                                        <Style BasedOn="{StaticResource SimpleScrollViewerStyle}" TargetType="ScrollViewer" />
+                                    </ListBox.Resources>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock
+                                                FontSize="12"
+                                                Text="{Binding}"
+                                                TextWrapping="Wrap" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
 
-                    </Grid>
-
+                        </Grid>
+                    </Border>
                 </Grid>
             </Border>
-            <Border Grid.Row="2"
-                    Margin="8,4,8,8"
-                    Background="White"
-                    BorderBrush="#D9D9D9"
-                    BorderThickness="1.5"
-                    CornerRadius="8">
+            <Border
+                Grid.Row="2"
+                Margin="8,4,8,8"
+                Background="White"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1.5"
+                CornerRadius="8">
                 <Grid Grid.Row="2">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="1.5*" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0"
-                               Margin="10,0,0,0"
-                               VerticalAlignment="Center"
-                               FontSize="18"
-                               FontWeight="Bold"
-                               Text="{Binding CurrentTestResult, StringFormat=测试结果：{0}, TargetNullValue=测试结果：--, FallbackValue=测试结果：--}">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Foreground"
-                                        Value="Black" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding CurrentTestResult}"
-                                                 Value="合格">
-                                        <Setter Property="Foreground"
-                                                Value="#16a34a" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding CurrentTestResult}"
-                                                 Value="不合格">
-                                        <Setter Property="Foreground"
-                                                Value="#dc2626" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
                     <Grid Grid.Row="1">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition />
                             <ColumnDefinition />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0"
-                                   Margin="20,0,0,0"
-                                   VerticalAlignment="Center"
-                                   FontSize="14"
-                                   FontWeight="Bold"
-                                   Text="{Binding PreviousTestTime, StringFormat=上次测试时间：{0}, TargetNullValue=上次测试时间：--, FallbackValue=上次测试时间：--}" />
-                        <TextBlock Grid.Column="1"
-                                   Margin="30,0,0,0"
-                                   VerticalAlignment="Center"
-                                   FontSize="14"
-                                   FontWeight="Bold"
-                                   Text="{Binding PreviousTestResult, StringFormat=上次测试结果：{0}, TargetNullValue=上次测试结果：--, FallbackValue=上次测试结果：--}" />
+                        <TextBlock
+                            Grid.Row="0"
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="20"
+                            FontWeight="Bold"
+                            Text="{Binding CurrentTestResult, StringFormat=测试结果：{0}, TargetNullValue=测试结果：--, FallbackValue=测试结果：--}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="Black" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CurrentTestResult}" Value="合格">
+                                            <Setter Property="Foreground" Value="#16a34a" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding CurrentTestResult}" Value="不合格">
+                                            <Setter Property="Foreground" Value="#dc2626" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock
+                            Grid.Column="1"
+                            Margin="20,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="20"
+                            FontWeight="Bold"
+                            Text="{Binding PreviousTestTime, StringFormat=测试时间：{0}, TargetNullValue=测试时间：--, FallbackValue=测试时间：--}" />
                     </Grid>
                 </Grid>
             </Border>

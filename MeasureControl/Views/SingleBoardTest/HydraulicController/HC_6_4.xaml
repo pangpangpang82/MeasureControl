@@ -660,94 +660,101 @@
                         </StackPanel>
                     </Grid>
 
-                    <Grid Grid.Column="1" VerticalAlignment="Center">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="auto" />
-                            <RowDefinition Height="auto" />
-                        </Grid.RowDefinitions>
-
-                        <StackPanel
-                            Grid.Column="1"
-                            Margin="10,10,0,10"
-                            Orientation="Horizontal">
-                            <TextBlock
+                    <Border
+                        Grid.Column="1"
+                        Margin="5"
+                        Background="#f8fafc"
+                        BorderBrush="#e2e8f0"
+                        BorderThickness="1"
+                        CornerRadius="6">
+                        <Grid VerticalAlignment="Center">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="auto" />
+                                <RowDefinition Height="auto" />
+                            </Grid.RowDefinitions>
+                            <StackPanel
+                                Grid.Column="1"
+                                Margin="10,10,0,5"
+                                Orientation="Horizontal">
+                                <TextBlock
+                                    Margin="0,5,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="20"
+                                    FontWeight="Bold"
+                                    Text="测试日志" />
+                                <Button
+                                    Width="80"
+                                    Height="32"
+                                    Margin="170,5,0,0"
+                                    VerticalAlignment="Center"
+                                    BorderThickness="0"
+                                    Command="{Binding ClearLogCommand}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border
+                                                x:Name="border"
+                                                Background="#3b82f6"
+                                                CornerRadius="4">
+                                                <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                    <TextBlock
+                                                        x:Name="DeviceAction"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="15"
+                                                        Foreground="White"
+                                                        Text="清除内容" />
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                    <Setter Property="Cursor" Value="Arrow" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                            <Border
+                                Grid.Row="1"
+                                Grid.RowSpan="5"
+                                Grid.Column="1"
+                                Width="340"
+                                Height="360"
+                                Margin="5,0,5,5"
+                                HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
-                                FontSize="20"
-                                FontWeight="Bold"
-                                Text="测试信息" />
-                            <Button
-                                Width="80"
-                                Height="32"
-                                Margin="180,5,0,0"
-                                VerticalAlignment="Center"
-                                BorderThickness="0"
-                                Command="{Binding ClearLogCommand}">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border
-                                            x:Name="border"
-                                            Background="#3b82f6"
-                                            CornerRadius="4">
-                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                <TextBlock
-                                                    x:Name="DeviceAction"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    FontSize="15"
-                                                    Foreground="White"
-                                                    Text="清除内容" />
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsEnabled" Value="False">
-                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                <Setter Property="Cursor" Value="Arrow" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </StackPanel>
-                        <Border
-                            Grid.Row="1"
-                            Grid.RowSpan="5"
-                            Grid.Column="1"
-                            Width="350"
-                            Height="360"
-                            Margin="0,0,5,0"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1.5"
-                            CornerRadius="4">
-                            <ListBox
-                                Margin="5"
-                                BorderThickness="0"
-                                ItemsSource="{Binding Logs}"
-                                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                ScrollViewer.VerticalScrollBarVisibility="Auto">
-                                <ListBox.Resources>
-                                    <Style BasedOn="{StaticResource SimpleScrollViewerStyle}" TargetType="ScrollViewer" />
-                                </ListBox.Resources>
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock
-                                            FontSize="12"
-                                            Text="{Binding}"
-                                            TextWrapping="Wrap" />
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                        </Border>
+                                BorderBrush="#D9D9D9"
+                                BorderThickness="1.5"
+                                CornerRadius="4">
+                                <ListBox
+                                    Margin="5"
+                                    BorderThickness="0"
+                                    ItemsSource="{Binding Logs}"
+                                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                    ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                    <ListBox.Resources>
+                                        <Style BasedOn="{StaticResource SimpleScrollViewerStyle}" TargetType="ScrollViewer" />
+                                    </ListBox.Resources>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock
+                                                FontSize="12"
+                                                Text="{Binding}"
+                                                TextWrapping="Wrap" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
 
-                    </Grid>
-
+                        </Grid>
+                    </Border>
                 </Grid>
             </Border>
             <Border
@@ -758,50 +765,39 @@
                 BorderThickness="1.5"
                 CornerRadius="8">
                 <Grid Grid.Row="2">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="1.5*" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <TextBlock
-                        Grid.Row="0"
-                        Margin="10,0,0,0"
-                        VerticalAlignment="Center"
-                        FontSize="18"
-                        FontWeight="Bold"
-                        Text="{Binding CurrentTestResult, StringFormat=测试结果：{0}, TargetNullValue=测试结果：--, FallbackValue=测试结果：--}">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="Black" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding CurrentTestResult}" Value="合格">
-                                        <Setter Property="Foreground" Value="#16a34a" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding CurrentTestResult}" Value="不合格">
-                                        <Setter Property="Foreground" Value="#dc2626" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
                     <Grid Grid.Row="1">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition />
                             <ColumnDefinition />
                         </Grid.ColumnDefinitions>
                         <TextBlock
-                            Grid.Column="0"
-                            Margin="20,0,0,0"
+                            Grid.Row="0"
+                            Margin="10,0,0,0"
                             VerticalAlignment="Center"
-                            FontSize="14"
+                            FontSize="20"
                             FontWeight="Bold"
-                            Text="{Binding PreviousTestTime, StringFormat=上次测试时间：{0}, TargetNullValue=上次测试时间：--, FallbackValue=上次测试时间：--}" />
+                            Text="{Binding CurrentTestResult, StringFormat=测试结果：{0}, TargetNullValue=测试结果：--, FallbackValue=测试结果：--}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="Black" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CurrentTestResult}" Value="合格">
+                                            <Setter Property="Foreground" Value="#16a34a" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding CurrentTestResult}" Value="不合格">
+                                            <Setter Property="Foreground" Value="#dc2626" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                         <TextBlock
                             Grid.Column="1"
-                            Margin="30,0,0,0"
+                            Margin="20,0,0,0"
                             VerticalAlignment="Center"
-                            FontSize="14"
+                            FontSize="20"
                             FontWeight="Bold"
-                            Text="{Binding PreviousTestResult, StringFormat=上次测试结果：{0}, TargetNullValue=上次测试结果：--, FallbackValue=上次测试结果：--}" />
+                            Text="{Binding PreviousTestTime, StringFormat=测试时间：{0}, TargetNullValue=测试时间：--, FallbackValue=测试时间：--}" />
                     </Grid>
                 </Grid>
             </Border>

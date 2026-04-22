@@ -2797,8 +2797,8 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 5, 5, hc62ChannelIdExecuted ? vm62ChannelId.Resistance14Text : "--");
                         SetExcelCellValue(cells, 6, 5, hc62ChannelIdExecuted ? vm62ChannelId.Resistance182Text : "--");
 
-                        SetExcelCellValue(cells, 5, 6, hc62ChannelIdExecuted ? (string.Equals(vm62ChannelId.Resistance14Text, "通道A", StringComparison.OrdinalIgnoreCase) ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 6, 6, hc62ChannelIdExecuted ? (string.Equals(vm62ChannelId.Resistance182Text, "通道B", StringComparison.OrdinalIgnoreCase) ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 5, 6, hc62ChannelIdExecuted ? (string.Equals(vm62ChannelId.Resistance14Text, "0x01", StringComparison.OrdinalIgnoreCase) ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 6, 6, hc62ChannelIdExecuted ? (string.Equals(vm62ChannelId.Resistance182Text, "0x02", StringComparison.OrdinalIgnoreCase) ? "合格" : "不合格") : "--");
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G5:G6" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
@@ -3178,8 +3178,8 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 121, 5, hc69Executed ? vm69.TestBenchTank2Text : "--");
                         SetExcelCellValue(cells, 122, 5, hc69Executed ? vm69.ControlBoardTank1Text : "--");
 
-                        SetExcelCellValue(cells, 121, 6, hc69Executed ? (string.Equals(vm69.TestBenchTank2Text, "pass", StringComparison.OrdinalIgnoreCase) ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 122, 6, hc69Executed ? (string.Equals(vm69.ControlBoardTank1Text, "pass", StringComparison.OrdinalIgnoreCase) ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 121, 6, hc69Executed ? (string.Equals(vm69.TestBenchTank2Text, "0x00", StringComparison.OrdinalIgnoreCase) ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 122, 6, hc69Executed ? (double.TryParse(vm69.ControlBoardTank1Text, out var parsedTank1Qty) && Math.Abs(parsedTank1Qty - 30.0) < 0.5 ? "合格" : "不合格") : "--");
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G121:G122" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
