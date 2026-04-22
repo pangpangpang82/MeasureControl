@@ -41,7 +41,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         //private const int RelayGroundDoIndex = 26;
         private const int Relay485DoIndex = 28;
 
-        // 测试通过阈值：绝缘电阻 ≥ 500Ω 为合格
+        // 测试通过阈值：绝缘电阻 ≥ 500Ω 为PASS
         private const double PassThresholdOhm = 500.0;
 
         private const string DmmTriggerDelayCommand= "TRIG:DEL 0.01";
@@ -577,7 +577,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 var pass = pass14 && pass182;
 
                 await FinalizeIfBothMeasuredAsync(stopAfterFinalize: true, isAutoMode: true).ConfigureAwait(false);
-                return pass ? "合格" : "不合格";
+                return pass ? "PASS" : "FAIL";
             }
             catch (OperationCanceledException)
             {
@@ -1171,11 +1171,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var pass = pass14 && pass182;
 
             Log($"判据: R14>{PassThresholdOhm:0}Ω && R182>{PassThresholdOhm:0}Ω");
-            Log($"针脚1-4={Resistance14Text} => {(pass14 ? "合格" : "不合格")}");
-            Log($"针脚1-82={Resistance182Text} => {(pass182 ? "合格" : "不合格")}");
+            Log($"针脚1-4={Resistance14Text} => {(pass14 ? "PASS" : "FAIL")}");
+            Log($"针脚1-82={Resistance182Text} => {(pass182 ? "PASS" : "FAIL")}");
 
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            var resultText = pass ? "合格" : "不合格";
+            var resultText = pass ? "PASS" : "FAIL";
             CurrentTestResult = resultText;
             PreviousTestTime = now;
             PreviousTestResult = resultText;

@@ -28,7 +28,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
     /// 1) 给被测板供电 28V。
     /// 2) 将程控电阻 RO0/RO1 同时设置为指定电阻（点1/点2/点3）。
     /// 3) 从 ARINC429 接收温度 Label=175(oct)（十进制 125）数据，分别统计 SDI0 与 SDI1。
-    /// 4) 每路采集 5 帧有效数据取平均值，并与阈值范围比对，给出“合格/不合格”。
+    /// 4) 每路采集 5 帧有效数据取平均值，并与阈值范围比对，给出“PASS/FAIL”。
     /// </summary>
     public class HC_6_4ViewModel : BindableBase
     {
@@ -346,7 +346,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// <summary>
         /// 整板串行自动测试入口。
         /// 由外部(整板自动测试)调用，支持 await 等待完成，并通过 CancellationToken 实现"立即停止当前测量"。
-        /// 返回值仅为"合格/不合格"。
+        /// 返回值仅为"PASS/FAIL"。
         /// </summary>
         public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
         {
@@ -672,7 +672,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         /// <summary>
         /// 自动测试流程
-        /// 自动按点1->点2->点3顺序设置电阻并接收温度，三点都满足判据则“合格”。
+        /// 自动按点1->点2->点3顺序设置电阻并接收温度，三点都满足判据则“PASS”。
         /// </summary>
         private async Task OnAutoTestAsync()
         {
@@ -1093,7 +1093,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var pass = p1 && p2 && p3;
 
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            var resultText = pass ? "合格" : "不合格";
+            var resultText = pass ? "PASS" : "FAIL";
             CurrentTestResult = resultText;
             PreviousTestTime = now;
             PreviousTestResult = resultText;
@@ -1661,6 +1661,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Logs.Add(line);
         }
 
-        private static string FormatBool(bool value) => value ? "合格" : "不合格";
+        private static string FormatBool(bool value) => value ? "PASS" : "FAIL";
     }
 }

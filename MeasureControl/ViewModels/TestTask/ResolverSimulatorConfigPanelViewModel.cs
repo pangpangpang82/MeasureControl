@@ -1997,7 +1997,7 @@ namespace MeasureControl.ViewModels.TestTask
                             return;
                         }
 
-                        Debug.WriteLine($"[Resolver板卡] ✅ 静态角度输出初始化成功");
+                        Debug.WriteLine($"[Resolver板卡] 静态角度输出初始化成功");
                         ReMessageBox.Show($"通道 {chIndex} 角度输出已启动", "成功");
                         return;
                     }
@@ -2407,7 +2407,7 @@ namespace MeasureControl.ViewModels.TestTask
 
                     if (vaRms < 0.1 && vbRms < 0.1)
                     {
-                        Debug.WriteLine($"[Resolver板卡] ❌ 严重问题：Va和Vb都没有输出信号！");
+                        Debug.WriteLine($"[Resolver板卡] 严重问题：Va和Vb都没有输出信号！");
                         ReMessageBox.Show($"通道 {channelConfig.ChannelIndex} 严重问题：Va和Vb都没有输出信号！请检查硬件连接和参数设置。", "错误");
                     }
                     else if (Math.Abs(vaRms - Math.Abs(expectedVa)) > 0.1 || Math.Abs(vbRms - Math.Abs(expectedVb)) > 0.1)
@@ -2416,12 +2416,12 @@ namespace MeasureControl.ViewModels.TestTask
                     }
                     else
                     {
-                        Debug.WriteLine($"[Resolver板卡] ✅ 输出信号正常，与理论值匹配");
+                        Debug.WriteLine($"[Resolver板卡] 输出信号正常，与理论值匹配");
                     }
                 }
                 else
                 {
-                    Debug.WriteLine($"[Resolver板卡] ❌ 无法测量输出信号，状态码: {status}");
+                    Debug.WriteLine($"[Resolver板卡] 无法测量输出信号，状态码: {status}");
                 }
             }
             catch (Exception ex)

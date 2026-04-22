@@ -28,7 +28,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
     /// 1) 给被测板供电 28V。
     /// 2) MTX532 的 AO1/AO2/AO3 同时输出指定电压（点1: 0.5V, 点2: 7.17V, 点3: 3.0V）。
     /// 3) 从 ARINC429 接收压力 Label=174(oct)（十进制 124）数据，分别统计 SDI0/1/2（对应 SYS1/2/3）。
-    /// 4) 每路采集 5 帧有效数据取平均值，并与阈值范围比对，给出“合格/不合格”。
+    /// 4) 每路采集 5 帧有效数据取平均值，并与阈值范围比对，给出“PASS/FAIL”。
     /// </summary>
     public class HC_6_5ViewModel : BindableBase
     {
@@ -324,7 +324,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// <summary>
         /// 整板串行自动测试入口。
         /// 由外部(整板自动测试)调用，支持 await 等待完成，并通过 CancellationToken 实现“立即停止当前测量”。
-        /// 返回值仅为“合格/不合格”。
+        /// 返回值仅为“PASS/FAIL”。
         /// </summary>
         public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
         {
@@ -1004,7 +1004,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Check("P3-SYS2", _p3Sys2, P3Min, P3Max);
             Check("P3-SYS3", _p3Sys3, P3Min, P3Max);
 
-            var resultText = failures.Count == 0 ? "合格" : "不合格";
+            var resultText = failures.Count == 0 ? "PASS" : "FAIL";
             CurrentTestResult = resultText;
             PreviousTestTime = now;
             PreviousTestResult = resultText;
@@ -1013,11 +1013,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             if (failures.Count == 0)
             {
-                Log("自动判定: 合格 (三档位三路压力均在范围内)");
+                Log("自动判定: PASS (三档位三路压力均在范围内)");
             }
             else
             {
-                Log("自动判定: 不合格");
+                Log("自动判定: FAIL");
                 foreach (var f in failures)
                 {
                     Log($"判据不满足: {f}");

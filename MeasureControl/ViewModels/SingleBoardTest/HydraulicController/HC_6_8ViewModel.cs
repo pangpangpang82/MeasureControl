@@ -784,7 +784,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var groundPass = _passedGround && ReportPins.All(p => IsPinPass(p, true));
             var openPass = _passedOpen && ReportPins.All(p => IsPinPass(p, false));
             var success = groundPass && openPass;
-            var resultText = success ? "合格" : "不合格";
+            var resultText = success ? "PASS" : "FAIL";
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
             CurrentTestResult = resultText;
@@ -795,14 +795,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             SaveTestResultToProject();
 
             if (!groundPass)
-                Log("接地测试: 不合格");
+                Log("接地测试: FAIL");
             else
-                Log("接地测试: 合格");
+                Log("接地测试: PASS");
 
             if (!openPass)
-                Log("接开测试: 不合格");
+                Log("接开测试: FAIL");
             else
-                Log("接开测试: 合格");
+                Log("接开测试: PASS");
 
             Log($"测试结果: {resultText}");
 

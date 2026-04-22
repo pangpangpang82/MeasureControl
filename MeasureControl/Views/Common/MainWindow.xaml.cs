@@ -1623,7 +1623,7 @@ namespace MeasureControl.Views.Common
                         await hps.PowerOffAsync(ct).ConfigureAwait(false);
                     var result = await vm61.RunOnceAsync(ct).ConfigureAwait(false);
                     if (!string.Equals(result, "PASS", StringComparison.OrdinalIgnoreCase))
-                        throw new HydraulicAbortException("电源阻抗测试不合格，已终止后续测试");
+                        throw new HydraulicAbortException("电源阻抗测试FAIL，已终止后续测试");
                     return result;
                 }),
                 ("通道ID测试", async ct =>
@@ -1887,11 +1887,10 @@ namespace MeasureControl.Views.Common
                         return Vm1?.OverallResult ?? "--";
                     }
                     var result = await Vm1.RunOnceAsync(ct);
-                    bool impedancePass = string.Equals(result, "PASS", StringComparison.OrdinalIgnoreCase) ||
-                                        string.Equals(result, "\u5408\u683c", StringComparison.OrdinalIgnoreCase);
+                    bool impedancePass = string.Equals(result, "PASS", StringComparison.OrdinalIgnoreCase);
                     if (!impedancePass)
-                        throw new HydraulicAbortException("\u7535\u6e90\u963b\u6297\u6d4b\u8bd5\u4e0d\u5408\u683c\uff0c\u5df2\u7ec8\u6b62\u540e\u7eed\u6d4b\u8bd5");
-                    // 电源阻抗测试合格后上电，供后续测试使用
+                        throw new HydraulicAbortException("电源阻抗测试FAIL，已终止后续测试");
+                    // 电源阻抗测试PASS后上电，供后续测试使用
                     await EnsurePowerOnAsync(ct).ConfigureAwait(false);
                     return result;
                 }),
@@ -2052,7 +2051,7 @@ namespace MeasureControl.Views.Common
                             globalAbort = true;
                             progressVm.IsFailed = true;
                             progressVm.ConfirmStopOnClose = false;
-                            progressVm.StatusText = $"阻抗测试不合格，已终止全部测试";
+                            progressVm.StatusText = $"阻抗测试FAIL，已终止全部测试";
                             break;
                         }
                         catch (Exception ex)
@@ -2130,7 +2129,7 @@ namespace MeasureControl.Views.Common
                 {
                     progressVm.IsFailed = true;
                     progressVm.ConfirmStopOnClose = false;
-                    progressVm.StatusText = string.IsNullOrWhiteSpace(abortMessage) ? "已取消" : "阻抗测试不合格，已终止";
+                    progressVm.StatusText = string.IsNullOrWhiteSpace(abortMessage) ? "已取消" : "阻抗测试FAIL，已终止";
                 }
             }
             finally
@@ -2767,8 +2766,8 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 3, 5, hc61Executed ? vm61.Resistance14Text : "--");
                         SetExcelCellValue(cells, 4, 5, hc61Executed ? vm61.Resistance182Text : "--");
 
-                        SetExcelCellValue(cells, 3, 6, hc61Executed ? (vm61.IsResistance14Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 4, 6, hc61Executed ? (vm61.IsResistance182Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 3, 6, hc61Executed ? (vm61.IsResistance14Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 4, 6, hc61Executed ? (vm61.IsResistance182Pass ? "PASS" : "FAIL") : "--");
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G3:G4" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
@@ -2797,8 +2796,8 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 5, 5, hc62ChannelIdExecuted ? vm62ChannelId.Resistance14Text : "--");
                         SetExcelCellValue(cells, 6, 5, hc62ChannelIdExecuted ? vm62ChannelId.Resistance182Text : "--");
 
-                        SetExcelCellValue(cells, 5, 6, hc62ChannelIdExecuted ? (string.Equals(vm62ChannelId.Resistance14Text, "通道A", StringComparison.OrdinalIgnoreCase) ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 6, 6, hc62ChannelIdExecuted ? (string.Equals(vm62ChannelId.Resistance182Text, "通道B", StringComparison.OrdinalIgnoreCase) ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 5, 6, hc62ChannelIdExecuted ? (string.Equals(vm62ChannelId.Resistance14Text, "0x01", StringComparison.OrdinalIgnoreCase) ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 6, 6, hc62ChannelIdExecuted ? (string.Equals(vm62ChannelId.Resistance182Text, "0x02", StringComparison.OrdinalIgnoreCase) ? "PASS" : "FAIL") : "--");
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G5:G6" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
@@ -2828,9 +2827,9 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 8, 5, hc62Executed ? FormatNullableNumber(vm62.Voltage15VValue) : "--");
                         SetExcelCellValue(cells, 9, 5, hc62Executed ? FormatNullableNumber(vm62.VoltageM15VValue) : "--");
 
-                        SetExcelCellValue(cells, 7, 6, hc62Executed ? (vm62.IsVoltage5VPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 8, 6, hc62Executed ? (vm62.IsVoltage15VPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 9, 6, hc62Executed ? (vm62.IsVoltageM15VPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 7, 6, hc62Executed ? (vm62.IsVoltage5VPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 8, 6, hc62Executed ? (vm62.IsVoltage15VPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 9, 6, hc62Executed ? (vm62.IsVoltageM15VPass ? "PASS" : "FAIL") : "--");
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G7:G9" });
                         var hc62Result = GetSingleBoardStepResult("二次电源测试", vm62.CurrentTestResult);
@@ -2861,12 +2860,12 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 14, 5, hc63Executed ? FormatNullableNumber(vm63.Temp3Value) : "--");
                         SetExcelCellValue(cells, 15, 5, hc63Executed ? FormatNullableNumber(vm63.Temp3BValue) : "--");
 
-                        SetExcelCellValue(cells, 10, 6, hc63Executed ? (vm63.IsTemp1Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 11, 6, hc63Executed ? (vm63.IsTemp1BPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 12, 6, hc63Executed ? (vm63.IsTemp2Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 13, 6, hc63Executed ? (vm63.IsTemp2BPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 14, 6, hc63Executed ? (vm63.IsTemp3Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 15, 6, hc63Executed ? (vm63.IsTemp3BPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 10, 6, hc63Executed ? (vm63.IsTemp1Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 11, 6, hc63Executed ? (vm63.IsTemp1BPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 12, 6, hc63Executed ? (vm63.IsTemp2Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 13, 6, hc63Executed ? (vm63.IsTemp2BPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 14, 6, hc63Executed ? (vm63.IsTemp3Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 15, 6, hc63Executed ? (vm63.IsTemp3BPass ? "PASS" : "FAIL") : "--");
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G10:G15" });
                         var hc63Result = GetSingleBoardStepResult("温度采集测试", vm63.CurrentTestResult);
@@ -2900,15 +2899,15 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 23, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint3Sys2Value) : "--");
                         SetExcelCellValue(cells, 24, 5, hc64Executed ? FormatNullableNumber(vm64.PressurePoint3Sys3Value) : "--");
 
-                        SetExcelCellValue(cells, 16, 6, hc64Executed ? (vm64.IsPressurePoint1Sys1Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 17, 6, hc64Executed ? (vm64.IsPressurePoint1Sys2Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 18, 6, hc64Executed ? (vm64.IsPressurePoint1Sys3Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 19, 6, hc64Executed ? (vm64.IsPressurePoint2Sys1Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 20, 6, hc64Executed ? (vm64.IsPressurePoint2Sys2Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 21, 6, hc64Executed ? (vm64.IsPressurePoint2Sys3Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 22, 6, hc64Executed ? (vm64.IsPressurePoint3Sys1Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 23, 6, hc64Executed ? (vm64.IsPressurePoint3Sys2Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 24, 6, hc64Executed ? (vm64.IsPressurePoint3Sys3Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 16, 6, hc64Executed ? (vm64.IsPressurePoint1Sys1Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 17, 6, hc64Executed ? (vm64.IsPressurePoint1Sys2Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 18, 6, hc64Executed ? (vm64.IsPressurePoint1Sys3Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 19, 6, hc64Executed ? (vm64.IsPressurePoint2Sys1Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 20, 6, hc64Executed ? (vm64.IsPressurePoint2Sys2Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 21, 6, hc64Executed ? (vm64.IsPressurePoint2Sys3Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 22, 6, hc64Executed ? (vm64.IsPressurePoint3Sys1Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 23, 6, hc64Executed ? (vm64.IsPressurePoint3Sys2Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 24, 6, hc64Executed ? (vm64.IsPressurePoint3Sys3Pass ? "PASS" : "FAIL") : "--");
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G16:G24" });
                         var hc64Result = GetSingleBoardStepResult("压力传感器信号采集测试", vm64.CurrentTestResult);
@@ -2953,26 +2952,26 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 41, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys210mAValue) : "--");
                         SetExcelCellValue(cells, 42, 5, hc65Executed ? FormatNullableNumber(vm65.DptSys310mAValue) : "--");
 
-                        SetExcelCellValue(cells, 25, 6, hc65Executed ? (vm65.IsDptEdp24mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 26, 6, hc65Executed ? (vm65.IsDptEmp2B4mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 27, 6, hc65Executed ? (vm65.IsDptEmp3B4mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 28, 6, hc65Executed ? (vm65.IsDptSys14mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 29, 6, hc65Executed ? (vm65.IsDptSys24mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 30, 6, hc65Executed ? (vm65.IsDptSys34mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 25, 6, hc65Executed ? (vm65.IsDptEdp24mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 26, 6, hc65Executed ? (vm65.IsDptEmp2B4mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 27, 6, hc65Executed ? (vm65.IsDptEmp3B4mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 28, 6, hc65Executed ? (vm65.IsDptSys14mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 29, 6, hc65Executed ? (vm65.IsDptSys24mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 30, 6, hc65Executed ? (vm65.IsDptSys34mAPass ? "PASS" : "FAIL") : "--");
 
-                        SetExcelCellValue(cells, 31, 6, hc65Executed ? (vm65.IsDptEdp2A20mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 32, 6, hc65Executed ? (vm65.IsDptEmp2B20mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 33, 6, hc65Executed ? (vm65.IsDptEmp3B20mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 34, 6, hc65Executed ? (vm65.IsDptSys120mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 35, 6, hc65Executed ? (vm65.IsDptSys220mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 36, 6, hc65Executed ? (vm65.IsDptSys320mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 31, 6, hc65Executed ? (vm65.IsDptEdp2A20mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 32, 6, hc65Executed ? (vm65.IsDptEmp2B20mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 33, 6, hc65Executed ? (vm65.IsDptEmp3B20mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 34, 6, hc65Executed ? (vm65.IsDptSys120mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 35, 6, hc65Executed ? (vm65.IsDptSys220mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 36, 6, hc65Executed ? (vm65.IsDptSys320mAPass ? "PASS" : "FAIL") : "--");
 
-                        SetExcelCellValue(cells, 37, 6, hc65Executed ? (vm65.IsDptEdp2A10mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 38, 6, hc65Executed ? (vm65.IsDptEmp2B10mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 39, 6, hc65Executed ? (vm65.IsDptEmp3B10mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 40, 6, hc65Executed ? (vm65.IsDptSys110mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 41, 6, hc65Executed ? (vm65.IsDptSys210mAPass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 42, 6, hc65Executed ? (vm65.IsDptSys310mAPass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 37, 6, hc65Executed ? (vm65.IsDptEdp2A10mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 38, 6, hc65Executed ? (vm65.IsDptEmp2B10mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 39, 6, hc65Executed ? (vm65.IsDptEmp3B10mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 40, 6, hc65Executed ? (vm65.IsDptSys110mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 41, 6, hc65Executed ? (vm65.IsDptSys210mAPass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 42, 6, hc65Executed ? (vm65.IsDptSys310mAPass ? "PASS" : "FAIL") : "--");
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G25:G42" });
                         var hc65Result = GetSingleBoardStepResult("压差传感器信号采集测试", vm65.CurrentTestResult);
@@ -3007,16 +3006,16 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 51, 5, hc66Executed ? vm66.PointHighSys1Text : "--");
                         SetExcelCellValue(cells, 52, 5, hc66Executed ? vm66.PointHighSys2Text : "--");
 
-                        SetExcelCellValue(cells, 43, 6, hc66Executed ? (vm66.IsPin3031Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 44, 6, hc66Executed ? (vm66.IsPin3334Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 45, 6, hc66Executed ? (vm66.IsPin3031Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 46, 6, hc66Executed ? (vm66.IsPin3334Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 47, 6, hc66Executed ? (vm66.IsPointLowSys1Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 48, 6, hc66Executed ? (vm66.IsPointLowSys2Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 49, 6, hc66Executed ? (vm66.IsPointMidSys1Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 50, 6, hc66Executed ? (vm66.IsPointMidSys2Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 51, 6, hc66Executed ? (vm66.IsPointHighSys1Pass ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 52, 6, hc66Executed ? (vm66.IsPointHighSys2Pass ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 43, 6, hc66Executed ? (vm66.IsPin3031Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 44, 6, hc66Executed ? (vm66.IsPin3334Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 45, 6, hc66Executed ? (vm66.IsPin3031Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 46, 6, hc66Executed ? (vm66.IsPin3334Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 47, 6, hc66Executed ? (vm66.IsPointLowSys1Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 48, 6, hc66Executed ? (vm66.IsPointLowSys2Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 49, 6, hc66Executed ? (vm66.IsPointMidSys1Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 50, 6, hc66Executed ? (vm66.IsPointMidSys2Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 51, 6, hc66Executed ? (vm66.IsPointHighSys1Pass ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 52, 6, hc66Executed ? (vm66.IsPointHighSys2Pass ? "PASS" : "FAIL") : "--");
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G43:G52" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);
@@ -3079,14 +3078,14 @@ namespace MeasureControl.Views.Common
                         {
                             var row = 53 + i;
                             SetExcelCellValue(cells, row, 5, hc67Executed ? hc67GroundValues[i] : "--");
-                            SetExcelCellValue(cells, row, 6, hc67Executed ? (hc67GroundPasses[i] ? "合格" : "不合格") : "--");
+                            SetExcelCellValue(cells, row, 6, hc67Executed ? (hc67GroundPasses[i] ? "PASS" : "FAIL") : "--");
                         }
 
                         for (var i = 0; i < hc67OpenValues.Length; i++)
                         {
                             var row = 80 + i;
                             SetExcelCellValue(cells, row, 5, hc67Executed ? hc67OpenValues[i] : "--");
-                            SetExcelCellValue(cells, row, 6, hc67Executed ? (hc67OpenPasses[i] ? "合格" : "不合格") : "--");
+                            SetExcelCellValue(cells, row, 6, hc67Executed ? (hc67OpenPasses[i] ? "PASS" : "FAIL") : "--");
                         }
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G53:G106" });
@@ -3141,14 +3140,14 @@ namespace MeasureControl.Views.Common
                         {
                             var row = 107 + i;
                             SetExcelCellValue(cells, row, 5, hc68Executed ? hc68OpenValues[i] : "--");
-                            SetExcelCellValue(cells, row, 6, hc68Executed ? (hc68OpenPasses[i] ? "合格" : "不合格") : "--");
+                            SetExcelCellValue(cells, row, 6, hc68Executed ? (hc68OpenPasses[i] ? "PASS" : "FAIL") : "--");
                         }
 
                         for (var i = 0; i < hc68CloseValues.Length; i++)
                         {
                             var row = 114 + i;
                             SetExcelCellValue(cells, row, 5, hc68Executed ? hc68CloseValues[i] : "--");
-                            SetExcelCellValue(cells, row, 6, hc68Executed ? (hc68ClosePasses[i] ? "合格" : "不合格") : "--");
+                            SetExcelCellValue(cells, row, 6, hc68Executed ? (hc68ClosePasses[i] ? "PASS" : "FAIL") : "--");
                         }
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G107:G120" });
@@ -3178,8 +3177,8 @@ namespace MeasureControl.Views.Common
                         SetExcelCellValue(cells, 121, 5, hc69Executed ? vm69.TestBenchTank2Text : "--");
                         SetExcelCellValue(cells, 122, 5, hc69Executed ? vm69.ControlBoardTank1Text : "--");
 
-                        SetExcelCellValue(cells, 121, 6, hc69Executed ? (string.Equals(vm69.TestBenchTank2Text, "pass", StringComparison.OrdinalIgnoreCase) ? "合格" : "不合格") : "--");
-                        SetExcelCellValue(cells, 122, 6, hc69Executed ? (string.Equals(vm69.ControlBoardTank1Text, "pass", StringComparison.OrdinalIgnoreCase) ? "合格" : "不合格") : "--");
+                        SetExcelCellValue(cells, 121, 6, hc69Executed ? (string.Equals(vm69.TestBenchTank2Text, "0x00", StringComparison.OrdinalIgnoreCase) ? "PASS" : "FAIL") : "--");
+                        SetExcelCellValue(cells, 122, 6, hc69Executed ? (double.TryParse(vm69.ControlBoardTank1Text, out var parsedTank1Qty) && Math.Abs(parsedTank1Qty - 30.0) < 0.5 ? "PASS" : "FAIL") : "--");
 
                         range = sheet.GetType().InvokeMember("Range", BindingFlags.GetProperty, null, sheet, new object[] { "G121:G122" });
                         range.GetType().InvokeMember("Merge", BindingFlags.InvokeMethod, null, range, null);

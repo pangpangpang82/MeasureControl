@@ -390,10 +390,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await FlushCanRxBufferAsync(_manualCts.Token).ConfigureAwait(false);
                 await Task.Delay(PostSwitchRxFlushDelayMs, _manualCts.Token).ConfigureAwait(false);
                 
-                var result = await ReceiveAndCheckChannelAsync(ExpectedCanIdChannelA, ExpectedByteIndexChannelA, ExpectedValueChannelA, _manualCts.Token).ConfigureAwait(false);
+                var (resultA2, receivedValueA2) = await ReceiveAndCheckChannelAsync(ExpectedCanIdChannelA, ExpectedByteIndexChannelA, ExpectedValueChannelA, _manualCts.Token).ConfigureAwait(false);
                 
-                _channelAResult = result ? "通道A" : "识别失败";
-                Resistance14Text = _channelAResult;
+                _channelAResult = resultA2 ? "通道A" : "识别失败";
+                Resistance14Text = receivedValueA2.HasValue ? $"0x{receivedValueA2.Value:X2}" : "无数据";
                 
                 Log($"通道A测试结果: {_channelAResult}");
                 CanMeasure14 = false;
@@ -419,10 +419,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await FlushCanRxBufferAsync(_manualCts.Token).ConfigureAwait(false);
                 await Task.Delay(PostSwitchRxFlushDelayMs, _manualCts.Token).ConfigureAwait(false);
                 
-                var result = await ReceiveAndCheckChannelAsync(ExpectedCanIdChannelB, ExpectedByteIndexChannelB, ExpectedValueChannelB, _manualCts.Token).ConfigureAwait(false);
+                var (resultB2, receivedValueB2) = await ReceiveAndCheckChannelAsync(ExpectedCanIdChannelB, ExpectedByteIndexChannelB, ExpectedValueChannelB, _manualCts.Token).ConfigureAwait(false);
                 
-                _channelBResult = result ? "通道B" : "识别失败";
-                Resistance182Text = _channelBResult;
+                _channelBResult = resultB2 ? "通道B" : "识别失败";
+                Resistance182Text = receivedValueB2.HasValue ? $"0x{receivedValueB2.Value:X2}" : "无数据";
                 
                 Log($"通道B测试结果: {_channelBResult}");
                 CanMeasure182 = false;
@@ -537,9 +537,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await FlushCanRxBufferAsync(cancellationToken).ConfigureAwait(false);
                 await Task.Delay(PostSwitchRxFlushDelayMs, cancellationToken).ConfigureAwait(false);
                 
-                var resultA = await ReceiveAndCheckChannelAsync(ExpectedCanIdChannelA, ExpectedByteIndexChannelA, ExpectedValueChannelA, cancellationToken).ConfigureAwait(false);
+                var (resultA, receivedA) = await ReceiveAndCheckChannelAsync(ExpectedCanIdChannelA, ExpectedByteIndexChannelA, ExpectedValueChannelA, cancellationToken).ConfigureAwait(false);
                 _channelAResult = resultA ? "通道A" : "识别失败";
-                Resistance14Text = _channelAResult;
+                Resistance14Text = receivedA.HasValue ? $"0x{receivedA.Value:X2}" : "无数据";
                 Log($"通道A测试结果: {_channelAResult}");
                 
                 await Task.Delay(300, cancellationToken).ConfigureAwait(false);
@@ -551,9 +551,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await FlushCanRxBufferAsync(cancellationToken).ConfigureAwait(false);
                 await Task.Delay(PostSwitchRxFlushDelayMs, cancellationToken).ConfigureAwait(false);
                 
-                var resultB = await ReceiveAndCheckChannelAsync(ExpectedCanIdChannelB, ExpectedByteIndexChannelB, ExpectedValueChannelB, cancellationToken).ConfigureAwait(false);
+                var (resultB, receivedB) = await ReceiveAndCheckChannelAsync(ExpectedCanIdChannelB, ExpectedByteIndexChannelB, ExpectedValueChannelB, cancellationToken).ConfigureAwait(false);
                 _channelBResult = resultB ? "通道B" : "识别失败";
-                Resistance182Text = _channelBResult;
+                Resistance182Text = receivedB.HasValue ? $"0x{receivedB.Value:X2}" : "无数据";
                 Log($"通道B测试结果: {_channelBResult}");
                 
                 await FinalizeTestAsync().ConfigureAwait(false);
@@ -575,12 +575,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
         
-        private async Task<bool> ReceiveAndCheckChannelAsync(uint expectedCanId, byte expectedByteIndex, byte expectedValue, CancellationToken cancellationToken)
+        private async Task<(bool Passed, byte? ReceivedValue)> ReceiveAndCheckChannelAsync(uint expectedCanId, byte expectedByteIndex, byte expectedValue, CancellationToken cancellationToken)
         {
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 var deadline = DateTime.UtcNow.AddMilliseconds(CanReceiveTimeoutMs);
+                byte? lastReceivedValue = null;
                 
                 while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
                 {
@@ -591,11 +592,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         if (frame.FrameId == expectedCanId && frame.DataLength > expectedByteIndex)
                         {
                             var byteValue = frame.Data[expectedByteIndex];
+                            lastReceivedValue = byteValue;
                             Log($"收到CAN帧 ID=0x{frame.FrameId:X3}, Byte[{expectedByteIndex}]=0x{byteValue:X2}");
                             
                             if (byteValue == expectedValue)
                             {
-                                return true;
+                                return (true, byteValue);
                             }
                         }
                     }
@@ -604,12 +606,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 }
                 
                 Log($"超时: 未在{CanReceiveTimeoutMs}ms内接收到预期的CAN消息");
-                return false;
+                return (false, lastReceivedValue);
             }
             catch (Exception ex)
             {
                 Log($"CAN接收异常: {ex.Message}");
-                return false;
+                return (false, null);
             }
             finally
             {
@@ -822,7 +824,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var pass = passA && passB;
             
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            var resultText = pass ? "合格" : "不合格";
+            var resultText = pass ? "PASS" : "FAIL";
             
             CurrentTestResult = resultText;
             PreviousTestTime = now;
@@ -832,8 +834,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             
             SaveTestResultToProject();
             
-            Log($"通道A识别: {(passA ? "合格" : "不合格")} ({_channelAResult})");
-            Log($"通道B识别: {(passB ? "合格" : "不合格")} ({_channelBResult})");
+            Log($"通道A识别: {(passA ? "PASS" : "FAIL")} ({_channelAResult})");
+            Log($"通道B识别: {(passB ? "PASS" : "FAIL")} ({_channelBResult})");
             Log($"测试结果: {resultText}");
             
             if (IsManualTestRunning)

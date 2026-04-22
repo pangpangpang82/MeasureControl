@@ -838,7 +838,7 @@
                             VerticalAlignment="Center"
                             FontSize="16"
                             FontWeight="Bold"
-                            Text="综合结果：" />
+                            Text="测试结果：" />
                         <Border
                             Margin="10,0"
                             Padding="15,5"
@@ -878,12 +878,14 @@
                         <TextBlock
                             Margin="20,0,5,0"
                             VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="上次测试时间：" />
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Text="测试时间：" />
                         <TextBlock
                             VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="{Binding LastTestTime}" />
+                                   FontSize="16"
+                                   FontWeight="Bold"
+                                   Text="{Binding LastTestTime}" />
                     </StackPanel>
                 </Grid>
             </Border>
