@@ -537,7 +537,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task FinalizeTestAsync()
         {
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            var resultText = _testBenchPassed && _controlBoardPassed ? "合格" : "不合格";
+            var resultText = _testBenchPassed && _controlBoardPassed ? "PASS" : "FAIL";
 
             CurrentTestResult = resultText;
             PreviousTestTime = now;

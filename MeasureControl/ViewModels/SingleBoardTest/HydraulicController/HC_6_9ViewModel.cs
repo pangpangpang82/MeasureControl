@@ -29,7 +29,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
     /// 2) 开路测试：不发送指令，测量 Pin9-15 对地阻抗（应为高阻，>100kΩ）。
     /// 3) 通路测试：通过 ARINC429 发送"输出有效"指令（Label=65oct），
     ///    再测量 Pin9-15 对地阻抗（应为低阻，<10Ω）.
-    /// 4) 所有针脚都满足判据则“合格”。
+    /// 4) 所有针脚都满足判据则“PASS”。
     /// </summary>
     public class HC_6_9ViewModel : BindableBase
     {
@@ -90,8 +90,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const double OpenCircuitCurrentThresholdA = 1e-6;
 
         // 阻抗判据
-        private const double OpenPassThresholdOhm = 100_000.0;   // 开路阻抗阈值：>100kΩ 为合格
-        private const double ClosePassThresholdOhm = 10.0;       // 通路阻抗阈值：<10Ω 为合格
+        private const double OpenPassThresholdOhm = 100_000.0;   // 开路阻抗阈值：>100kΩ 为PASS
+        private const double ClosePassThresholdOhm = 10.0;       // 通路阻抗阈值：<10Ω 为PASS
 
         private readonly SemaphoreSlim _measureLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _relayLock = new SemaphoreSlim(1, 1);
@@ -358,7 +358,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         /// <summary>
         /// 整板串行自动测试入口。
         /// 由外部(整板自动测试)调用，支持 await 等待完成，并通过 CancellationToken 实现“立即停止当前测量”。
-        /// 返回值仅为“合格/不合格”。
+        /// 返回值仅为“PASS/FAIL”。
         /// </summary>
         public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
         {
@@ -523,7 +523,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         /// <summary>
         /// 自动测试流程
-        /// 自动依次执行通路测试和开路测试，所有针脚都满足判据则“合格”。
+        /// 自动依次执行通路测试和开路测试，所有针脚都满足判据则“PASS”。
         /// </summary>
         private async Task OnAutoTestAsync()
         {
@@ -1377,7 +1377,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var pass = openPass && closePass;
 
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            var resultText = pass ? "合格" : "不合格";
+            var resultText = pass ? "PASS" : "FAIL";
             CurrentTestResult = resultText;
             PreviousTestTime = now;
             PreviousTestResult = resultText;

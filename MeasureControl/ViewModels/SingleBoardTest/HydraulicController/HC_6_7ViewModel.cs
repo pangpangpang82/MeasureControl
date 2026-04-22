@@ -767,7 +767,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!IsManualTestRunning || _manualAborted)
                 return;
 
-            Log($"{point.Name}: 自定义区间测量完成，结果={(pass ? "合格" : "不合格")}，可继续测量");
+            Log($"{point.Name}: 自定义区间测量完成，结果={(pass ? "PASS" : "FAIL")}，可继续测量");
         }
 
         private async Task OnMeasureExcitation2Async()
@@ -915,7 +915,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                     && frequency.Value >= ExcitationFreqMinHz && frequency.Value <= ExcitationFreqMaxHz
                     && voltage.Value >= ExcitationVoltMinVrms && voltage.Value <= ExcitationVoltMaxVrms;
 
-                Log($"{title}: 频率={(frequency.HasValue ? frequency.Value.ToString("0.0") : "--")}Hz, 电压={(voltage.HasValue ? voltage.Value.ToString("0.00") : "--")}Vrms, 结果={(pass ? "合格" : "不合格")}");
+                Log($"{title}: 频率={(frequency.HasValue ? frequency.Value.ToString("0.0") : "--")}Hz, 电压={(voltage.HasValue ? voltage.Value.ToString("0.00") : "--")}Vrms, 结果={(pass ? "PASS" : "FAIL")}");
                 return pass;
             }
             catch (OperationCanceledException)
@@ -1051,7 +1051,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 var avg2 = samples[3].Average();
 
                 var pass = IsQuantityInRange(avg1, point) && IsQuantityInRange(avg2, point);
-                Log($"{point.Name}: 2号系统油量={avg1:0}%, 3号系统油量={avg2:0}%, 判定范围=[{point.Min:0.###},{point.Max:0.###}]%, 结果={(pass ? "合格" : "不合格")}");
+                Log($"{point.Name}: 2号系统油量={avg1:0}%, 3号系统油量={avg2:0}%, 判定范围=[{point.Min:0.###},{point.Max:0.###}]%, 结果={(pass ? "PASS" : "FAIL")}");
                 return pass;
             }
             catch (OperationCanceledException)
@@ -1222,7 +1222,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!(_measuredExc1 && _measuredExc2 && _measuredLow && _measuredMid && _measuredHigh))
                 return;
 
-            var resultText = (_passedExc1 && _passedExc2 && _passedLow && _passedMid && _passedHigh) ? "合格" : "不合格";
+            var resultText = (_passedExc1 && _passedExc2 && _passedLow && _passedMid && _passedHigh) ? "PASS" : "FAIL";
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
             CurrentTestResult = resultText;

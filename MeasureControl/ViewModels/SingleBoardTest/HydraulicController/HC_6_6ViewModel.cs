@@ -940,7 +940,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                             return true;
                         }
 
-                        Log($"{title}: 判定不合格，压差值: {string.Join(", ", outOfRangeChannels)}，判据范围[{range.Value.min:0.##}, {range.Value.max:0.##}]");
+                        Log($"{title}: 判定FAIL，压差值: {string.Join(", ", outOfRangeChannels)}，判据范围[{range.Value.min:0.##}, {range.Value.max:0.##}]");
                         return false;
                     }
 
@@ -1066,7 +1066,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             if (!(_measured4mA && _measured20mA && _measured10mA))
                 return;
 
-            var resultText = (_passed4mA && _passed20mA && _passed10mA) ? "合格" : "不合格";
+            var resultText = (_passed4mA && _passed20mA && _passed10mA) ? "PASS" : "FAIL";
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
             CurrentTestResult = resultText;

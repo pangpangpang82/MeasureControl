@@ -824,7 +824,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var pass = passA && passB;
             
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            var resultText = pass ? "合格" : "不合格";
+            var resultText = pass ? "PASS" : "FAIL";
             
             CurrentTestResult = resultText;
             PreviousTestTime = now;
@@ -834,8 +834,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             
             SaveTestResultToProject();
             
-            Log($"通道A识别: {(passA ? "合格" : "不合格")} ({_channelAResult})");
-            Log($"通道B识别: {(passB ? "合格" : "不合格")} ({_channelBResult})");
+            Log($"通道A识别: {(passA ? "PASS" : "FAIL")} ({_channelAResult})");
+            Log($"通道B识别: {(passB ? "PASS" : "FAIL")} ({_channelBResult})");
             Log($"测试结果: {resultText}");
             
             if (IsManualTestRunning)

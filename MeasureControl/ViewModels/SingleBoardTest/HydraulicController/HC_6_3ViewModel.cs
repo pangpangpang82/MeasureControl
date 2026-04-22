@@ -71,7 +71,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private const int SamplesPerMeasure = 1;
         private const int SampleTimeoutMs = 5000;
 
-        // 电压合格范围（允许偏差 ±1.5%）
+        // 电压PASS范围（允许偏差 ±1.5%）
         private const double Min5V = 4.82;
         private const double Max5V = 5.18;
         private const double Min15V = 14.47;
@@ -846,7 +846,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             var pass = pass5 && pass15 && passM15;
 
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            var resultText = pass ? "合格" : "不合格";
+            var resultText = pass ? "PASS" : "FAIL";
 
             CurrentTestResult = resultText;
             PreviousTestTime = now;
@@ -1257,6 +1257,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             Logs.Add(line);
         }
 
-        private static string FormatBool(bool value) => value ? "合格" : "不合格";
+        private static string FormatBool(bool value) => value ? "PASS" : "FAIL";
     }
 }
