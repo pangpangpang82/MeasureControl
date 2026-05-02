@@ -787,6 +787,26 @@ namespace MeasureControl.Views.Common
                         };
 
                         contextMenu.Items.Add(startTestMenuItem);
+
+                        // 发布单板右键菜单构建事件，供脚本测试等外挂功能注入菜单项。
+                        // 订阅者不存在时（功能注释关闭）此处无任何副作用。
+                        try
+                        {
+                            var menuStyle = this.Resources["CustomMenuItemStyle"] as Style;
+                            var injected = new System.Collections.Generic.List<MenuItem>();
+                            _eventAggregator?.GetEvent<Events.BoardContextMenuBuildingEvent>()?.Publish(new Events.BoardContextMenuBuildingEventArgs
+                            {
+                                BoardType = boardType,
+                                ProjectItem = projectItem,
+                                MenuItems = injected,
+                                MenuItemStyle = menuStyle,
+                            });
+                            foreach (var mi in injected)
+                            {
+                                if (mi != null) contextMenu.Items.Add(mi);
+                            }
+                        }
+                        catch { /* 不影响原有右键菜单逻辑 */ }
                     }
 
                     // 单板节点右键菜单仅显示“启动测试”
