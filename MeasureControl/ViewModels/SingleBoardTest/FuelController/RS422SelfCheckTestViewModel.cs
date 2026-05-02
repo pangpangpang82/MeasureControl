@@ -29,6 +29,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private const double ComponentCurrentLimit = 3.0;
 
         private static readonly byte[] DefaultTxData = { 0xAA, 0x55 };
+        private byte[][] _scriptTxDataPerStep;
+
+        private byte[] GetStepTxData(int stepIndex)
+        {
+            if (_scriptTxDataPerStep != null && stepIndex < _scriptTxDataPerStep.Length
+                && _scriptTxDataPerStep[stepIndex] != null)
+                return _scriptTxDataPerStep[stepIndex];
+            return _scriptTxData ?? DefaultTxData;
+        }
 
         private const string TxPin1 = "CRM_PIN9";
         private const string TxPin2 = "CRM_PIN10";
@@ -56,6 +65,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isPowerOn;
         private bool _powerManagedExternally;
         private bool _forceCleanupPowerOff;
+        private byte[] _scriptTxData;
         private string _powerStatus = "已下电";
 
         private bool _rs422LoopModeEnabled;
@@ -539,6 +549,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
+        /// <summary>脚本测试专用：所有步骤使用同一 TX 字节运行测试。</summary>
+        public async Task RunWithScriptTxDataAsync(byte[] txData, CancellationToken cancellationToken)
+        {
+            _forceCleanupPowerOff = true;
+            _scriptTxData = txData;
+            _scriptTxDataPerStep = null;
+            try
+            {
+                await RunOnceAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                _scriptTxData = null;
+            }
+        }
+
+        /// <summary>脚本测试专用：各步骤使用独立 TX 字节（A/B 对应索引 0/1）。</summary>
+        public async Task RunWithScriptPerStepTxDataAsync(byte[][] perStepTxData, CancellationToken cancellationToken)
+        {
+            _forceCleanupPowerOff = true;
+            _scriptTxDataPerStep = perStepTxData;
+            _scriptTxData = null;
+            try
+            {
+                await RunOnceAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                _scriptTxDataPerStep = null;
+            }
+        }
+
         private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token)
         {
             AddLog("========== 自动测试开始 ==========");
@@ -835,8 +877,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 try
                 {
                     AddLog("步骤a: CRM_PIN9发送0xAA55 → CRM_PIN19回读（内部回环）");
-                    AddLog($"[FPGA] UART0(SCI1) 自检 TX: 0x{string.Join(" ", DefaultTxData.Select(b => b.ToString("X2")))}");
-                    var rx = await _fpga.UartTxRxAsync(0, DefaultTxData, token);
+                    var stepATx = GetStepTxData(0);
+                    AddLog($"[FPGA] UART0(SCI1) 自检 TX: 0x{string.Join("", stepATx.Select(b => b.ToString("X2")))}");
+                    var rx = await _fpga.UartTxRxAsync(0, stepATx, token);
                     AddLog($"[FPGA] UART0(SCI1) 自检 RX: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
                     SetStepResultAndRx("a", rx);
                     return;
@@ -864,8 +907,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 try
                 {
                     AddLog("步骤b: CRM_PIN10发送0xAA55 → CRM_PIN20回读（内部回环）");
-                    AddLog($"[FPGA] UART1(SCI2) 自检 TX: 0x{string.Join(" ", DefaultTxData.Select(b => b.ToString("X2")))}");
-                    var rx = await _fpga.UartTxRxAsync(1, DefaultTxData, token);
+                    var stepBTx = GetStepTxData(1);
+                    AddLog($"[FPGA] UART1(SCI2) 自检 TX: 0x{string.Join("", stepBTx.Select(b => b.ToString("X2")))}");
+                    var rx = await _fpga.UartTxRxAsync(1, stepBTx, token);
                     AddLog($"[FPGA] UART1(SCI2) 自检 RX: 0x{string.Join(" ", rx.Select(b => b.ToString("X2")))}");
                     SetStepResultAndRx("b", rx);
                     return;
@@ -883,8 +927,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private void SetStepResultAndRx(string step, byte[] rx)
         {
-            var rxHex = rx == null ? "--" : ("0x" + string.Join(" ", rx.Select(b => b.ToString("X2"))));
-            bool pass = rx != null && rx.SequenceEqual(DefaultTxData);
+            int idx = step == "a" ? 0 : 1;
+            byte[] expected = GetStepTxData(idx);
+            var rxHex = rx == null ? "--" : ("0x" + string.Join("", rx.Select(b => b.ToString("X2"))));
+            bool pass = rx != null && rx.SequenceEqual(expected);
 
             Application.Current?.Dispatcher?.Invoke(() =>
             {

@@ -65,22 +65,6 @@ namespace MeasureControl.Services.ScriptTest
                         try { range.Merge(); } catch { /* 已合并/受保护 */ }
                     }
 
-                    // 颜色提示（PASS=绿, FAIL=红, 异常=黄）
-                    if (fcRes != null)
-                    {
-                        XLColor color = null;
-                        switch (fcRes.Status)
-                        {
-                            case FcResultStatus.Pass: color = XLColor.LightGreen; break;
-                            case FcResultStatus.Fail: color = XLColor.LightSalmon; break;
-                            case FcResultStatus.Exception: color = XLColor.LightYellow; break;
-                            case FcResultStatus.Cancelled: color = XLColor.LightGray; break;
-                        }
-                        if (color != null)
-                        {
-                            try { firstCell.Style.Fill.BackgroundColor = color; } catch { }
-                        }
-                    }
                 }
 
                 wb.Save();

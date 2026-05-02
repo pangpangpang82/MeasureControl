@@ -32,6 +32,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private static readonly byte[] DefaultTxData = { 0xAA, 0x55 };
 
         // FPGA透传命令帧：AA 55 03 01 AA 55（命令0x01=UART0 TX透传，数据=AA 55）
+        private byte[][] _scriptTxDataPerStep;
+
+        private byte[] GetStepTxData(int stepIndex)
+        {
+            if (_scriptTxDataPerStep != null && stepIndex < _scriptTxDataPerStep.Length
+                && _scriptTxDataPerStep[stepIndex] != null)
+                return _scriptTxDataPerStep[stepIndex];
+            return _scriptTxData ?? DefaultTxData;
+        }
+
         private static readonly byte[] FpgaTxFrameUart0 = { 0xAA, 0x55, 0x03, 0x01, 0xAA, 0x55 };
         // FPGA透传命令帧：AA 55 03 02 AA 55（命令0x02=UART1 TX透传，数据=AA 55）
         private static readonly byte[] FpgaTxFrameUart1 = { 0xAA, 0x55, 0x03, 0x02, 0xAA, 0x55 };
@@ -59,6 +69,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isPowerOn;
         private bool _powerManagedExternally;
         private bool _forceCleanupPowerOff;
+        private byte[] _scriptTxData;
         private string _powerStatus = "已下电";
 
         private bool _rs422LoopModeEnabled;
@@ -568,6 +579,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
+        /// <summary>脚本测试专用：所有步骤使用同一 TX 字节运行测试。</summary>
+        public async Task RunWithScriptTxDataAsync(byte[] txData, CancellationToken cancellationToken)
+        {
+            _forceCleanupPowerOff = true;
+            _scriptTxData = txData;
+            _scriptTxDataPerStep = null;
+            try
+            {
+                await RunOnceAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                _scriptTxData = null;
+            }
+        }
+
+        /// <summary>脚本测试专用：各步骤使用独立 TX 字节（A/B/C/D 对应索引 0/1/2/3）。</summary>
+        public async Task RunWithScriptPerStepTxDataAsync(byte[][] perStepTxData, CancellationToken cancellationToken)
+        {
+            _forceCleanupPowerOff = true;
+            _scriptTxDataPerStep = perStepTxData;
+            _scriptTxData = null;
+            try
+            {
+                await RunOnceAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                _scriptTxDataPerStep = null;
+            }
+        }
+
         private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token)
         {
             AddLog("========== 自动测试开始 ==========");
@@ -932,13 +975,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                     // 通过TCP向FPGA发送透传命令
                     AddLog($"[TCP→FPGA] 发送UART0透传命令: {BitConverter.ToString(FpgaTxFrameUart0).Replace("-", " ")}");
-                    await _fpga.UartTxOnlyAsync(0, DefaultTxData, token);
+                    var stepATx = GetStepTxData(0);
+                    await _fpga.UartTxOnlyAsync(0, stepATx, token);
 
                     // 等待422串口接收产品回传的数据
                     AddLog($"[422串口] 等待 {Rs422SerialClient.DefaultPortName1} 接收产品回传数据...");
-                    var rx = await _serial1.WaitForDataAfterAsync(sendTime, DefaultTxData.Length, 3000, token);
+                    var rx = await _serial1.WaitForDataAfterAsync(sendTime, stepATx.Length, 3000, token);
 
-                    if (rx != null && rx.Length >= DefaultTxData.Length)
+                    if (rx != null && rx.Length >= stepATx.Length)
                     {
                         AddLog($"[422串口] {Rs422SerialClient.DefaultPortName1} 接收: 0x{BitConverter.ToString(rx).Replace("-", " ")}");
                         SetStepResultAndRx("a", rx);
@@ -979,13 +1023,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
                     // 通过TCP向FPGA发送透传命令
                     AddLog($"[TCP→FPGA] 发送UART1透传命令: {BitConverter.ToString(FpgaTxFrameUart1).Replace("-", " ")}");
-                    await _fpga.UartTxOnlyAsync(1, DefaultTxData, token);
+                    var stepBTx = GetStepTxData(1);
+                    await _fpga.UartTxOnlyAsync(1, stepBTx, token);
 
                     // 等待422串口接收产品回传的数据
                     AddLog($"[422串口] 等待 {Rs422SerialClient.DefaultPortName2} 接收产品回传数据...");
-                    var rx = await _serial2.WaitForDataAfterAsync(sendTime, DefaultTxData.Length, 3000, token);
+                    var rx = await _serial2.WaitForDataAfterAsync(sendTime, stepBTx.Length, 3000, token);
 
-                    if (rx != null && rx.Length >= DefaultTxData.Length)
+                    if (rx != null && rx.Length >= stepBTx.Length)
                     {
                         AddLog($"[422串口] {Rs422SerialClient.DefaultPortName2} 接收: 0x{BitConverter.ToString(rx).Replace("-", " ")}");
                         SetStepResultAndRx("b", rx);
@@ -1025,8 +1070,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     var sendTime = DateTime.UtcNow;
 
                     // 通过422串口向产品发送数据
-                    AddLog($"[422串口] {Rs422SerialClient.DefaultPortName1} 发送: 0x{BitConverter.ToString(DefaultTxData).Replace("-", " ")}");
-                    await _serial1.SendAsync(DefaultTxData, token);
+                    var stepCTx = GetStepTxData(2);
+                    AddLog($"[422串口] {Rs422SerialClient.DefaultPortName1} 发送: 0x{BitConverter.ToString(stepCTx).Replace("-", " ")}");
+                    await _serial1.SendAsync(stepCTx, token);
 
                     // 等待FPGA异步接收中获取命令0x01的响应数据
                     AddLog("[TCP←FPGA] 等待FPGA异步接收UART0回传数据...");
@@ -1041,9 +1087,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         if (frames != null && frames.Count > 0)
                         {
                             var latestFrame = frames[frames.Count - 1];
-                            if (latestFrame.Payload != null && latestFrame.Payload.Length >= DefaultTxData.Length)
+                            if (latestFrame.Payload != null && latestFrame.Payload.Length >= stepCTx.Length)
                             {
-                                rx = latestFrame.Payload.Take(DefaultTxData.Length).ToArray();
+                                rx = latestFrame.Payload.Take(stepCTx.Length).ToArray();
                                 AddLog($"[TCP←FPGA] UART0接收: 0x{BitConverter.ToString(rx).Replace("-", " ")}");
                                 break;
                             }
@@ -1090,8 +1136,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     var sendTime = DateTime.UtcNow;
 
                     // 通过422串口向产品发送数据
-                    AddLog($"[422串口] {Rs422SerialClient.DefaultPortName2} 发送: 0x{BitConverter.ToString(DefaultTxData).Replace("-", " ")}");
-                    await _serial2.SendAsync(DefaultTxData, token);
+                    var stepDTx = GetStepTxData(3);
+                    AddLog($"[422串口] {Rs422SerialClient.DefaultPortName2} 发送: 0x{BitConverter.ToString(stepDTx).Replace("-", " ")}");
+                    await _serial2.SendAsync(stepDTx, token);
 
                     // 等待FPGA异步接收中获取命令0x02的响应数据
                     AddLog("[TCP←FPGA] 等待FPGA异步接收UART1回传数据...");
@@ -1106,9 +1153,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                         if (frames != null && frames.Count > 0)
                         {
                             var latestFrame = frames[frames.Count - 1];
-                            if (latestFrame.Payload != null && latestFrame.Payload.Length >= DefaultTxData.Length)
+                            if (latestFrame.Payload != null && latestFrame.Payload.Length >= stepDTx.Length)
                             {
-                                rx = latestFrame.Payload.Take(DefaultTxData.Length).ToArray();
+                                rx = latestFrame.Payload.Take(stepDTx.Length).ToArray();
                                 AddLog($"[TCP←FPGA] UART1接收: 0x{BitConverter.ToString(rx).Replace("-", " ")}");
                                 break;
                             }
@@ -1141,8 +1188,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
 
         private void SetStepResultAndRx(string step, byte[] rx)
         {
-            var rxHex = rx == null ? "--" : ("0x" + string.Join(" ", rx.Select(b => b.ToString("X2"))));
-            bool pass = rx != null && rx.SequenceEqual(DefaultTxData);
+            int idx = step == "a" ? 0 : step == "b" ? 1 : step == "c" ? 2 : 3;
+            byte[] expected = GetStepTxData(idx);
+            var rxHex = rx == null ? "--" : ("0x" + string.Join("", rx.Select(b => b.ToString("X2"))));
+            bool pass = rx != null && rx.SequenceEqual(expected);
 
             Application.Current?.Dispatcher?.Invoke(() =>
             {

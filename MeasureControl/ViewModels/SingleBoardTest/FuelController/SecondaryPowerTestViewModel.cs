@@ -157,6 +157,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private bool _isAutoTestStopping;
 
         private bool _useSimulatedDmm;                                             // DMM不可用时走仿真测量
+        private double? _scriptPowerVoltage;                                       // 脚本测试专用：覆盖 ComponentVoltage
 
         #endregion
 
@@ -768,6 +769,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
+        /// <summary>脚本测试专用：在指定电压上电，测量+5V电压后下电，返回测量值。</summary>
+        public async Task<double?> RunWithScriptVoltageAsync(double powerVoltage, CancellationToken cancellationToken)
+        {
+            _forceCleanupPowerOff = true;
+            _scriptPowerVoltage = powerVoltage;
+            try
+            {
+                await RunOnceAsync(cancellationToken).ConfigureAwait(false);
+                return VoltageValue;
+            }
+            finally
+            {
+                _scriptPowerVoltage = null;
+            }
+        }
+
         private async Task<string> ExecuteAutoTestAsync(CancellationToken token)
         {
             AddLog("自动测试开始");
@@ -858,10 +875,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     _powerSupply1 ??= new PowerSupplySocketApi();
                     if (!_powerSupply1.IsConnected)
                         await _powerSupply1.ConnectAsync(PowerSupply1IpAddress, timeoutCts.Token);
-                    await _powerSupply1.ApplyAsync(PowerSupplyChannel.CH1, ComponentVoltage, ComponentCurrentLimit, timeoutCts.Token);
+                    double applyVoltage = _scriptPowerVoltage ?? ComponentVoltage;
+                    await _powerSupply1.ApplyAsync(PowerSupplyChannel.CH1, applyVoltage, ComponentCurrentLimit, timeoutCts.Token);
                     await _powerSupply1.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, timeoutCts.Token);
-                    AddLog($"{PowerSupply1IpAddress} CH1 {ComponentVoltage:F0}V已开启");
-                    hps?.SetPoweredState(true, "加放油单板", ComponentVoltage);
+                    AddLog($"{PowerSupply1IpAddress} CH1 {applyVoltage:F0}V已开启");
+                    hps?.SetPoweredState(true, "加放油单板", applyVoltage);
                     Application.Current?.Dispatcher?.Invoke(() => { IsPowerOn = true; PowerStatus = "已上电"; });
                 }
 

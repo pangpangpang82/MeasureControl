@@ -70,6 +70,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         private CancellationTokenSource _testCts;
         private bool _disposed;
         private bool _hardwareInitialized;
+        private double? _scriptPowerVoltage;
         private bool _useSimulation = true;
         private FpgaIoClient _fpga;
         private bool _fpgaConnected;
@@ -99,6 +100,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         
         // 开路测试结果（bank0[0:6] + bank1[0:6]）
         private readonly int[] _openTestResults = new int[DiscreteInputSimulation.TotalChannelCount];
+
+        public int[] GroundedChannelResults => _groundedTestResults;
+        public int[] OpenChannelResults => _openTestResults;
 
         #endregion
 
@@ -594,6 +598,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
+        /// <summary>脚本测试专用：在指定电压上电，执行接地+开路测试后下电。</summary>
+        public async Task RunWithScriptVoltageAsync(double powerVoltage, CancellationToken cancellationToken)
+        {
+            _forceCleanupPowerOff = true;
+            _scriptPowerVoltage = powerVoltage;
+            try
+            {
+                await RunOnceAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                _scriptPowerVoltage = null;
+            }
+        }
+
         private async Task<string> ExecuteAutoTestCoreAsync(CancellationToken token)
         {
             AddLog("========== 自动测试开始 ==========");
@@ -1035,11 +1054,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                     _powerSupply ??= new PowerSupplySocketApi();
                     if (!_powerSupply.IsConnected)
                         await _powerSupply.ConnectAsync(PowerSupplyIpAddress, token).ConfigureAwait(false);
-                    await _powerSupply.ApplyAsync(PowerSupplyChannel.CH1, PowerSupplyVoltageV, PowerSupplyCurrentA, token).ConfigureAwait(false);
+                    double applyVoltage = _scriptPowerVoltage ?? PowerSupplyVoltageV;
+                    await _powerSupply.ApplyAsync(PowerSupplyChannel.CH1, applyVoltage, PowerSupplyCurrentA, token).ConfigureAwait(false);
                     await _powerSupply.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token).ConfigureAwait(false);
                     _powerSupplyOn = true;
-                    AddLog($"电源CH1已上电（{PowerSupplyVoltageV}V / {PowerSupplyCurrentA}A）");
-                    hps?.SetPoweredState(true, "加放油单板", PowerSupplyVoltageV);
+                    AddLog($"电源CH1已上电（{applyVoltage}V / {PowerSupplyCurrentA}A）");
+                    hps?.SetPoweredState(true, "加放油单板", applyVoltage);
                     await Task.Delay(600, token).ConfigureAwait(false);
                 }
                 catch (Exception ex)

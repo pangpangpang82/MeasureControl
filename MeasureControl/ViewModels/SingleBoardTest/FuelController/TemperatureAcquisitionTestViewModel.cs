@@ -109,6 +109,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
         #region 状态字段
 
         private bool _hardwareInitialized;                                         // 硬件是否已初始化
+        private double? _scriptPowerVoltage;                                       // 脚本测试专用：覆盖 ComponentVoltage
         private bool _fpgaConnected;                                               // FPGA TCP是否已连接
         private CancellationTokenSource _opCts;                                    // 操作取消令牌源
         private SubscriptionToken _projectSavingToken;                             // 项目保存事件订阅令牌
@@ -559,6 +560,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             }
         }
 
+        /// <summary>脚本测试专用：在指定电压上电，读取温度后下电，返回温度值。</summary>
+        public async Task<double?> RunWithScriptVoltageAsync(double powerVoltage, CancellationToken cancellationToken)
+        {
+            _forceCleanupPowerOff = true;
+            _scriptPowerVoltage = powerVoltage;
+            try
+            {
+                await RunOnceAsync(cancellationToken).ConfigureAwait(false);
+                return TemperatureValue;
+            }
+            finally
+            {
+                _scriptPowerVoltage = null;
+            }
+        }
+
         private async Task<string> ExecuteAutoTestAsync(CancellationToken token)
         {
             AddLog("自动测试开始");
@@ -661,7 +678,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
                 _powerManagedExternally = false;
                 AddLog("正在上组件28V电...");
                 await ApplyPower28VAsync(token);
-                hps?.SetPoweredState(true, "加放油单板", ComponentVoltage);
+                hps?.SetPoweredState(true, "加放油单板", _scriptPowerVoltage ?? ComponentVoltage);
             }
 
             // ========== 步骤2：连接FPGA TCP服务器 ==========
@@ -780,9 +797,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.FuelController
             if (!_powerSupply1.IsConnected)
                 await _powerSupply1.ConnectAsync(PowerSupply1IpAddress, token);
 
-            await _powerSupply1.ApplyAsync(PowerSupplyChannel.CH1, ComponentVoltage, ComponentCurrentLimit, token);
+            double applyVoltage = _scriptPowerVoltage ?? ComponentVoltage;
+            await _powerSupply1.ApplyAsync(PowerSupplyChannel.CH1, applyVoltage, ComponentCurrentLimit, token);
             await _powerSupply1.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token);
-            AddLog($"{PowerSupply1IpAddress} CH1 {ComponentVoltage:F0}V已开启");
+            AddLog($"{PowerSupply1IpAddress} CH1 {applyVoltage:F0}V已开启");
 
             Application.Current?.Dispatcher?.Invoke(() =>
             {

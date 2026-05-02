@@ -111,6 +111,23 @@ namespace MeasureControl.Services.ScriptTest
 
                 summary.FcResults.Add(result);
                 Log($"{group.TestId} 结果: {result.ToCellText()}");
+
+                // FC1 门控：不合格则取消所有后续测试
+                if (string.Equals(group.TestId, "FC1", StringComparison.OrdinalIgnoreCase)
+                    && result.Status != FcResultStatus.Pass)
+                {
+                    Log("FC1 测试不合格，终止后续所有测试项");
+                    summary.Cancelled = true;
+                    foreach (var remaining in doc.Groups)
+                    {
+                        if (!summary.FcResults.Exists(r => r.TestId == remaining.TestId))
+                        {
+                            summary.FcResults.Add(new FcRunResult { TestId = remaining.TestId, Status = FcResultStatus.Cancelled });
+                            foreach (var row in remaining.Rows) row.OutputValue = "--";
+                        }
+                    }
+                    break;
+                }
             }
 
             // ---- 写回副本
