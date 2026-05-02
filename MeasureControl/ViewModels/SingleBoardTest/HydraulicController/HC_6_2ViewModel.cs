@@ -333,7 +333,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 MessageBoxResult cycleResult = MessageBoxResult.No;
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    cycleResult = MessageBox.Show(
+                    cycleResult = ReMessageBox.Show(
                         "该测试项需要下电后重新上电，是否继续执行？",
                         "需要重新上电",
                         MessageBoxButton.YesNo,
@@ -467,7 +467,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 MessageBoxResult cycleResult = MessageBoxResult.No;
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    cycleResult = MessageBox.Show(
+                    cycleResult = ReMessageBox.Show(
                         "该测试项需要下电后重新上电，是否继续执行？",
                         "需要重新上电",
                         MessageBoxButton.YesNo,
@@ -847,6 +847,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private void ResetMeasurementState()
         {
             CurrentTestResult = "--";
+            PreviousTestTime = "--";
             _channelAResult = null;
             _channelBResult = null;
             Resistance14Text = "--";

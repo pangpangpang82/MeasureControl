@@ -13,6 +13,8 @@ using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
 using Prism.Events;
 using Prism.Ioc;
+using MeasureControl.Views.Dialogs;
+using System.Runtime.CompilerServices;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 {
@@ -51,7 +53,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private CancellationTokenSource _manualCts;
         private CancellationTokenSource _autoCts;
 
-        private IDmmApi _dmm;
+        private IDmmApi _dmmSocket;
         private IPowerSupplyApi _auxPower;
 
         private readonly IPxiChassisService _pxiChassisService;
@@ -447,6 +449,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             CanMeasure = false;
 
             CurrentTestResult = "--";
+            PreviousTestTime = "--";
 
             _resistance14 = null;
             _resistance182 = null;
@@ -462,7 +465,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 MessageBoxResult powerOffResult = MessageBoxResult.No;
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    powerOffResult = MessageBox.Show(
+                    powerOffResult = ReMessageBox.Show(
                         "该测试项需要先下电，是否继续执行？",
                         "需要下电",
                         MessageBoxButton.YesNo,
@@ -513,6 +516,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             CanMeasure = false;
 
             CurrentTestResult = "--";
+            PreviousTestTime = "--";
 
             _resistance14 = null;
             _resistance182 = null;
@@ -534,9 +538,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                 await EnsureRelay485Async(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-                _dmm ??= new DmmSocketApi();
-                await _dmm.ConnectAsync(DmmIpAddress, cancellationToken).ConfigureAwait(false);
-                await ConfigureDmmAsync(cancellationToken).ConfigureAwait(false);
+                using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                connectCts.CancelAfter(6000);
+                await ConnectDmmAsync(DmmIpAddress, connectCts.Token).ConfigureAwait(false);
 
                 IsAutoTestInitializing = false;
 
@@ -662,6 +666,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             IsManualTestStopping = false;
             CanMeasure = false;
             CurrentTestResult = "--";
+            PreviousTestTime = "--";
 
             _manualAborted = false;
             _measured14 = false;
@@ -683,7 +688,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 MessageBoxResult powerOffResult = MessageBoxResult.No;
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    powerOffResult = MessageBox.Show(
+                    powerOffResult = ReMessageBox.Show(
                         "该测试项需要先下电，是否继续执行？",
                         "需要下电",
                         MessageBoxButton.YesNo,
@@ -706,9 +711,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                 await EnsureRelay485Async(on: true, cancellationToken: _manualCts.Token).ConfigureAwait(false);
 
-                _dmm ??= new DmmSocketApi();
-                await _dmm.ConnectAsync(DmmIpAddress, _manualCts.Token).ConfigureAwait(false);
-                await ConfigureDmmAsync(_manualCts.Token).ConfigureAwait(false);
+                using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(_manualCts.Token);
+                connectCts.CancelAfter(6000);
+                await ConnectDmmAsync(DmmIpAddress, connectCts.Token).ConfigureAwait(false);
 
                 IsManualTestInitializing = false;
                 CanMeasure = true;
@@ -762,10 +767,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                if (_dmm != null)
-                {
-                    await _dmm.DisconnectAsync().ConfigureAwait(false);
-                }
+                await CleanupDmmSocketAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -831,10 +833,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                if (_dmm != null)
-                {
-                    await _dmm.DisconnectAsync().ConfigureAwait(false);
-                }
+                await CleanupDmmSocketAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1027,12 +1026,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                 await Task.Delay(500, cancellationToken).ConfigureAwait(false);
 
-                // 使用万用表测量电阻（超时时间 8 秒）
+                // 使用万用表测量电阻（超时时间 15 秒，高阻路径 auto-range 需要足够换档时间）
                 DmmReading reading = null;
                 try
                 {
-                    reading = await _dmm.ReadOnceAsync(DmmMeasureMode.RES, new DmmReadOptions { TimeoutMilliseconds = 8000 }, cancellationToken)
-                        .ConfigureAwait(false);
+                    using var dmmCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    dmmCts.CancelAfter(15000);
+                    reading = await DmmReadResistanceAsync(dmmCts.Token).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -1131,12 +1131,82 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             return $"{value:0.000} Ω";
         }
 
+        private async Task CleanupDmmSocketAsync()
+        {
+            var socket = _dmmSocket;
+            _dmmSocket = null;
+
+            if (socket == null) return;
+
+            try
+            {
+                if (socket.IsConnected)
+                    await Task.WhenAny(socket.DisconnectAsync(CancellationToken.None), Task.Delay(3000)).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log($"万用表断开异常: {ex.Message}");
+            }
+
+            try
+            {
+                await Task.WhenAny(socket.DisposeAsync().AsTask(), Task.Delay(3000)).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log($"万用表释放异常: {ex.Message}");
+            }
+        }
+
         private async Task ConfigureDmmAsync(CancellationToken cancellationToken)
         {
-            if (_dmm == null)
+            if (_dmmSocket == null)
                 return;
 
-            await _dmm.SendAsync(DmmTriggerDelayCommand, cancellationToken).ConfigureAwait(false);
+            await _dmmSocket.SendAsync("*CLS", cancellationToken).ConfigureAwait(false);
+            await _dmmSocket.SendAsync(DmmTriggerDelayCommand, cancellationToken).ConfigureAwait(false);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private async Task ConnectDmmAsync(string ipAddress, CancellationToken token)
+        {
+            if (string.IsNullOrWhiteSpace(ipAddress))
+                throw new InvalidOperationException("万用表IP地址为空");
+
+            _dmmSocket ??= new DmmSocketApi();
+
+            try
+            {
+                if (!_dmmSocket.IsConnected)
+                    await _dmmSocket.ConnectAsync(ipAddress, token).ConfigureAwait(false);
+
+                await ConfigureDmmAsync(token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                await CleanupDmmSocketAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"万用表首次连接失败，准备重建连接: {ex.Message}");
+                await CleanupDmmSocketAsync().ConfigureAwait(false);
+
+                _dmmSocket = new DmmSocketApi();
+                await _dmmSocket.ConnectAsync(ipAddress, token).ConfigureAwait(false);
+                await ConfigureDmmAsync(token).ConfigureAwait(false);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private async Task<DmmReading> DmmReadResistanceAsync(CancellationToken token)
+        {
+            await ConnectDmmAsync(DmmIpAddress, token).ConfigureAwait(false);
+
+            return await _dmmSocket.ReadOnceAsync(
+                DmmMeasureMode.RES,
+                new DmmReadOptions { TimeoutMilliseconds = 15000 },
+                token).ConfigureAwait(false);
         }
 
         private async Task DisconnectAllMatrixRoutesAsync()

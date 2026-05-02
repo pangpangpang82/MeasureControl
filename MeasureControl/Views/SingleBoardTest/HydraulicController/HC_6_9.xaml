@@ -783,27 +783,35 @@
                             <ColumnDefinition />
                             <ColumnDefinition />
                         </Grid.ColumnDefinitions>
-                        <TextBlock
+                        <StackPanel
                             Grid.Row="0"
                             Margin="10,0,0,0"
                             VerticalAlignment="Center"
-                            FontSize="20"
-                            FontWeight="Bold"
-                            Text="{Binding CurrentTestResult, StringFormat=测试结果：{0}, TargetNullValue=测试结果：--, FallbackValue=测试结果：--}">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="Black" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding CurrentTestResult}" Value="合格">
-                                            <Setter Property="Foreground" Value="#16a34a" />
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding CurrentTestResult}" Value="不合格">
-                                            <Setter Property="Foreground" Value="#dc2626" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
+                            Orientation="Horizontal">
+                            <TextBlock
+                                FontSize="20"
+                                FontWeight="Bold"
+                                Foreground="Black"
+                                Text="测试结果：" />
+                            <TextBlock
+                                FontSize="20"
+                                FontWeight="Bold"
+                                Text="{Binding CurrentTestResult, TargetNullValue=--, FallbackValue=--}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="Black" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding CurrentTestResult}" Value="PASS">
+                                                <Setter Property="Foreground" Value="#16a34a" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding CurrentTestResult}" Value="FAIL">
+                                                <Setter Property="Foreground" Value="#dc2626" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
                         <TextBlock
                             Grid.Column="1"
                             Margin="20,0,0,0"

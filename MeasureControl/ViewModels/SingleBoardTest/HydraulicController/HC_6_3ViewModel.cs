@@ -813,6 +813,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private void ResetMeasurementState()
         {
             CurrentTestResult = "--";
+            PreviousTestTime = "--";
             CanMeasure = false;
             _manualAborted = false;
 

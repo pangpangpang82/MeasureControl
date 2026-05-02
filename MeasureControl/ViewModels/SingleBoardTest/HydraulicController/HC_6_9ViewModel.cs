@@ -450,6 +450,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             IsManualTestInitializing = true;
             IsManualTestStopping = false;
             CurrentTestResult = "--";
+            PreviousTestTime = "--";
             CanMeasure = false;
             _manualAborted = false;
             _measuredOpen = false;
@@ -468,7 +469,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 MessageBoxResult cycleResult = MessageBoxResult.No;
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    cycleResult = MessageBox.Show(
+                    cycleResult = ReMessageBox.Show(
                         "该测试项需要下电后重新上电，是否继续执行？",
                         "需要重新上电",
                         MessageBoxButton.YesNo,
@@ -546,6 +547,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             IsAutoTestInitializing = true;
             IsAutoTestStopping = false;
             CurrentTestResult = "--";
+            PreviousTestTime = "--";
             CanMeasure = false;
             _manualAborted = false;
             _measuredOpen = false;
@@ -564,7 +566,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 MessageBoxResult cycleResult = MessageBoxResult.No;
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    cycleResult = MessageBox.Show(
+                    cycleResult = ReMessageBox.Show(
                         "该测试项需要下电后重新上电，是否继续执行？",
                         "需要重新上电",
                         MessageBoxButton.YesNo,
@@ -618,6 +620,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
         {
+            PreviousTestTime = "--";
             CanMeasure = false;
             _manualAborted = false;
             _measuredOpen = false;

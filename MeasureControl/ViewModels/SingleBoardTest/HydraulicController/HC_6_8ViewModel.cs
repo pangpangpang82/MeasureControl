@@ -465,7 +465,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 MessageBoxResult cycleResult = MessageBoxResult.No;
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    cycleResult = MessageBox.Show(
+                    cycleResult = ReMessageBox.Show(
                         "该测试项需要先下电再上电，是否继续执行？",
                         "需要重新上电",
                         MessageBoxButton.YesNo,
@@ -498,6 +498,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureMtx532Async(_manualCts.Token).ConfigureAwait(false);
                 await EnsureArincRxAsync(_manualCts.Token).ConfigureAwait(false);
                 await StartAtpRequestAsync(_manualCts.Token).ConfigureAwait(false);
+                await ApplyGroundingAsync(_manualCts.Token).ConfigureAwait(false);
                 await EnsurePowerAsync(_manualCts.Token).ConfigureAwait(false);
 
                 IsManualTestInitializing = false;
@@ -540,7 +541,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 MessageBoxResult cycleResult = MessageBoxResult.No;
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    cycleResult = MessageBox.Show(
+                    cycleResult = ReMessageBox.Show(
                         "该测试项需要先下电再上电，是否继续执行？",
                         "需要重新上电",
                         MessageBoxButton.YesNo,
@@ -603,6 +604,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
                 await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
                 await StartAtpRequestAsync(cancellationToken).ConfigureAwait(false);
+                await ApplyGroundingAsync(cancellationToken).ConfigureAwait(false);
                 await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
 
                 IsAutoTestInitializing = false;
@@ -917,6 +919,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private void ResetMeasurementState()
         {
             CurrentTestResult = "--";
+            PreviousTestTime = "--";
             CanMeasure = false;
             _manualAborted = false;
             _measuredGround = false;
@@ -1156,7 +1159,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task ApplyOpenAsync(CancellationToken cancellationToken)
         {
-            await _jy7131.WriteDoBitmaskAsync(0u, cancellationToken).ConfigureAwait(false);
+            await _jy7131.WriteDoBitmaskAsync(1u << 25, cancellationToken).ConfigureAwait(false);
 
             await Task.Delay(RelaySettleDelayMs, cancellationToken).ConfigureAwait(false);
         }

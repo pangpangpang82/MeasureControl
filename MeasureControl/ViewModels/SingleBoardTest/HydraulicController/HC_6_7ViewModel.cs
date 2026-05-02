@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Globalization;
 using MeasureControl.Views.Dialogs;
+using System.Runtime.CompilerServices;
 using MeasureControl.Events;
 using MeasureControl.Models;
 using MeasureControl.Models.Devices;
@@ -70,7 +71,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private CancellationTokenSource _manualCts;
         private CancellationTokenSource _autoCts;
 
-        private IDmmApi _dmm;
+        private IDmmApi _dmmSocket;
         private IPowerSupplyApi _power;
         private IArt4229Api _arinc;
         private IJy7131Api _jy7131;
@@ -574,6 +575,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             IsManualTestInitializing = true;
             IsManualTestStopping = false;
             CurrentTestResult = "--";
+            PreviousTestTime = "--";
             _manualAborted = false;
 
             _manualCts?.Cancel();
@@ -622,6 +624,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             IsAutoTestInitializing = true;
             IsAutoTestStopping = false;
             CurrentTestResult = "--";
+            PreviousTestTime = "--";
             _manualAborted = false;
             Log("开始自动测试");
             Log("正在初始化设备...");
@@ -655,6 +658,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
         private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
         {
+            PreviousTestTime = "--";
             await EnsureRelay485Async(true, cancellationToken).ConfigureAwait(false);
             await EnsureGroundDoAsync(true, cancellationToken).ConfigureAwait(false);
             await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
@@ -859,7 +863,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await EnsureDmmAsync(cancellationToken).ConfigureAwait(false);
+                using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                connectCts.CancelAfter(6000);
+                await ConnectDmmAsync(DmmIpAddress, connectCts.Token).ConfigureAwait(false);
 
                 if (_lvdt != null)
                 {
@@ -876,15 +882,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 await Task.Delay(FreqModeSettleMs, cancellationToken).ConfigureAwait(false);
 
                 // ③ 再读电压
-                var voltageReading = await _dmm.ReadOnceAsync(
+                using var acvCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                acvCts.CancelAfter(8000);
+                var voltageReading = await DmmReadOnceAsync(
                     DmmMeasureMode.ACV,
                     new DmmReadOptions { TimeoutMilliseconds = 8000 },
-                    cancellationToken).ConfigureAwait(false);
+                    acvCts.Token).ConfigureAwait(false);
 
                 // ① 先读频率
                 //var frequencyReading = 12;
                 await Task.Delay(FreqModeSettleMs, cancellationToken).ConfigureAwait(false);
-                var frequencyReading = await _dmm.ReadOnceAsync(
+                using var freqCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                freqCts.CancelAfter(10000);
+                var frequencyReading = await DmmReadOnceAsync(
                     DmmMeasureMode.FREQ,
                     new DmmReadOptions
                     {
@@ -892,13 +902,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                         FrequencyRangeIndex = 10,          // ← 改为10(V)，不是档位索引
                         FrequencyApertureSeconds = 0.1
                     },
-                    cancellationToken).ConfigureAwait(false);
+                    freqCts.Token).ConfigureAwait(false);
 
                 // ② FREQ读完后等一下，再切ACV档
                 await Task.Delay(FreqModeSettleMs, cancellationToken).ConfigureAwait(false);
 
                 //// ③ 再读电压
-                //var voltageReading = await _dmm.ReadOnceAsync(
+                //var voltageReading = await _dmmSocket.ReadOnceAsync(
                 //    DmmMeasureMode.ACV,
                 //    new DmmReadOptions { TimeoutMilliseconds = 8000 },
                 //    cancellationToken).ConfigureAwait(false);
@@ -1194,24 +1204,52 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             try { await matrix.DisconnectNodesAsync("I4", "O2", MatrixSlotExcitationCommon, MatrixIpAddress).ConfigureAwait(false); } catch { }
         }
 
-        private async Task EnsureDmmAsync(CancellationToken cancellationToken)
-        {
-            _dmm ??= new DmmSocketApi();
-            if (!_dmm.IsConnected)
-            {
-                await _dmm.ConnectAsync(DmmIpAddress, cancellationToken).ConfigureAwait(false);
-            }
-
-            await ConfigureDmmAsync(cancellationToken).ConfigureAwait(false);
-        }
-
         private async Task ConfigureDmmAsync(CancellationToken cancellationToken)
         {
-            if (_dmm == null)
+            if (_dmmSocket == null)
                 return;
 
-            await _dmm.SendAsync("*CLS", cancellationToken).ConfigureAwait(false);
-            await _dmm.SendAsync(DmmTriggerDelayCommand, cancellationToken).ConfigureAwait(false);
+            await _dmmSocket.SendAsync("*CLS", cancellationToken).ConfigureAwait(false);
+            await _dmmSocket.SendAsync(DmmTriggerDelayCommand, cancellationToken).ConfigureAwait(false);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private async Task ConnectDmmAsync(string ipAddress, CancellationToken token)
+        {
+            if (string.IsNullOrWhiteSpace(ipAddress))
+                throw new InvalidOperationException("万用表IP地址为空");
+
+            _dmmSocket ??= new DmmSocketApi();
+
+            try
+            {
+                if (!_dmmSocket.IsConnected)
+                    await _dmmSocket.ConnectAsync(ipAddress, token).ConfigureAwait(false);
+
+                await ConfigureDmmAsync(token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                await CleanupDmmSocketAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"万用表首次连接失败，准备重建连接: {ex.Message}");
+                await CleanupDmmSocketAsync().ConfigureAwait(false);
+
+                _dmmSocket = new DmmSocketApi();
+                await _dmmSocket.ConnectAsync(ipAddress, token).ConfigureAwait(false);
+                await ConfigureDmmAsync(token).ConfigureAwait(false);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private async Task<DmmReading> DmmReadOnceAsync(DmmMeasureMode mode, DmmReadOptions options, CancellationToken token)
+        {
+            await ConnectDmmAsync(DmmIpAddress, token).ConfigureAwait(false);
+
+            return await _dmmSocket.ReadOnceAsync(mode, options, token).ConfigureAwait(false);
         }
 
         private async Task TryFinalizeAsync()
@@ -1274,7 +1312,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 await RunCleanupExclusiveAsync(async () =>
                 {
-                    await CleanupDmmAsync().ConfigureAwait(false);
+                    await CleanupDmmSocketAsync().ConfigureAwait(false);
                     await DisconnectAllExcitationMatrixRoutesAsync().ConfigureAwait(false);
                     await CleanupPowerAsync().ConfigureAwait(false);
                     await CleanupLvdtAsync().ConfigureAwait(false);
@@ -1317,7 +1355,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 await RunCleanupExclusiveAsync(async () =>
                 {
-                    await CleanupDmmAsync().ConfigureAwait(false);
+                    await CleanupDmmSocketAsync().ConfigureAwait(false);
                     await DisconnectAllExcitationMatrixRoutesAsync().ConfigureAwait(false);
                     await CleanupPowerAsync().ConfigureAwait(false);
                     await CleanupLvdtAsync().ConfigureAwait(false);
@@ -1720,14 +1758,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        private async Task CleanupDmmAsync()
+        private async Task CleanupDmmSocketAsync()
         {
-            if (_dmm == null)
-                return;
+            var socket = _dmmSocket;
+            _dmmSocket = null;
 
-            try { await _dmm.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-            try { await _dmm.DisposeAsync().ConfigureAwait(false); } catch { }
-            _dmm = null;
+            if (socket == null) return;
+
+            try
+            {
+                if (socket.IsConnected)
+                    await Task.WhenAny(socket.DisconnectAsync(CancellationToken.None), Task.Delay(3000)).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log($"万用表断开异常: {ex.Message}");
+            }
+
+            try
+            {
+                await Task.WhenAny(socket.DisposeAsync().AsTask(), Task.Delay(3000)).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log($"万用表释放异常: {ex.Message}");
+            }
         }
 
         private async Task CleanupLvdtAsync()

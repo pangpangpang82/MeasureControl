@@ -542,6 +542,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             IsManualTestInitializing = true;
             IsManualTestStopping = false;
             CurrentTestResult = "--";
+            PreviousTestTime = "--";
             CanMeasure = false;
             _manualAborted = false;
             _measured4mA = false;
@@ -599,6 +600,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             IsAutoTestInitializing = true;
             IsAutoTestStopping = false;
             CurrentTestResult = "--";
+            PreviousTestTime = "--";
             CanMeasure = false;
             _manualAborted = false;
             _measured4mA = false;
@@ -671,6 +673,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private async Task<string> ExecuteAutoTestAsync(CancellationToken cancellationToken)
         {
             CurrentTestResult = "--";
+            PreviousTestTime = "--";
             CanMeasure = false;
             _manualAborted = false;
             _measured4mA = false;

@@ -337,7 +337,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 MessageBoxResult cycleResult = MessageBoxResult.No;
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
-                    cycleResult = MessageBox.Show(
+                    cycleResult = ReMessageBox.Show(
                         "该测试项需要下电后重新上电，是否继续执行？",
                         "需要重新上电",
                         MessageBoxButton.YesNo,
@@ -409,7 +409,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
                 var (tank2Passed, tank2Value) = await ReceiveAndCheckTank2ZeroAsync(cancellationToken).ConfigureAwait(false);
                 _testBenchPassed = tank2Passed;
-                TestBenchTank2Text = tank2Value.HasValue ? $"0x{tank2Value.Value:X2}" : "无数据";
+                TestBenchTank2Text = tank2Value.HasValue ? $"{tank2Value.Value}" : "无数据";
                 Log($"测试台接收结果: {(_testBenchPassed ? "pass" : "fail")}");
 
                 await DrainArincBufferAsync(cancellationToken).ConfigureAwait(false);
@@ -551,6 +551,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private void ResetMeasurementState()
         {
             CurrentTestResult = "--";
+            PreviousTestTime = "--";
             TestBenchTank2Text = "---";
             ControlBoardTank1Text = "---";
             _testBenchPassed = false;
