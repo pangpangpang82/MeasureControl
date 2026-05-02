@@ -119,6 +119,27 @@
     <Reference Include="Costura, Version=6.0.0.0, Culture=neutral, PublicKeyToken=9919ef960d84173d, processorArchitecture=MSIL">
       <HintPath>..\packages\Costura.Fody.6.0.0\lib\netstandard2.0\Costura.dll</HintPath>
     </Reference>
+    <Reference Include="ClosedXML">
+      <HintPath>..\packages\ClosedXML.0.105.0\lib\netstandard2.0\ClosedXML.dll</HintPath>
+    </Reference>
+    <Reference Include="ClosedXML.Parser">
+      <HintPath>..\packages\ClosedXML.Parser.2.0.0\lib\netstandard2.0\ClosedXML.Parser.dll</HintPath>
+    </Reference>
+    <Reference Include="DocumentFormat.OpenXml">
+      <HintPath>..\packages\DocumentFormat.OpenXml.3.1.1\lib\net46\DocumentFormat.OpenXml.dll</HintPath>
+    </Reference>
+    <Reference Include="DocumentFormat.OpenXml.Framework">
+      <HintPath>..\packages\DocumentFormat.OpenXml.Framework.3.1.1\lib\net46\DocumentFormat.OpenXml.Framework.dll</HintPath>
+    </Reference>
+    <Reference Include="ExcelNumberFormat">
+      <HintPath>..\packages\ExcelNumberFormat.1.1.0\lib\netstandard2.0\ExcelNumberFormat.dll</HintPath>
+    </Reference>
+    <Reference Include="RBush">
+      <HintPath>..\packages\RBush.Signed.4.0.0\lib\net47\RBush.dll</HintPath>
+    </Reference>
+    <Reference Include="SixLabors.Fonts">
+      <HintPath>..\packages\SixLabors.Fonts.1.0.0\lib\netstandard2.0\SixLabors.Fonts.dll</HintPath>
+    </Reference>
     <Reference Include="DryIoc, Version=4.7.7.0, Culture=neutral, PublicKeyToken=dfbf2bd50fcf7768, processorArchitecture=MSIL">
       <HintPath>..\packages\DryIoc.dll.4.7.7\lib\net45\DryIoc.dll</HintPath>
     </Reference>
@@ -441,6 +462,11 @@
     <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputTestView.xaml.cs">
       <DependentUpon>A28vOc400mADiscreteOutputTestView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\ScriptTest\ScriptTestDialog.xaml.cs">
+      <DependentUpon>ScriptTestDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Services\ScriptTest\Plugins\IScriptTestPlugin.cs" />
+    <Compile Include="Services\ScriptTest\Plugins\FuelControllerScriptTestPlugin.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">
@@ -1423,6 +1449,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\SingleBoardTest\BoardTest.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\ScriptTest\ScriptTestDialog.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

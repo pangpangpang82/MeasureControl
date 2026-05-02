@@ -79,6 +79,25 @@ namespace MeasureControl.Events
         public string ParentChassisName { get; set; }
     }
 
+    /// <summary>
+    /// 单板节点右键菜单构建事件。订阅者可向 MenuItems 列表追加菜单项。
+    /// 由 MainWindow 在为单板测试任务节点构建右键菜单时发布。
+    /// （供脚本测试等临时性外挂功能使用，订阅者不存在时无影响。）
+    /// </summary>
+    public class BoardContextMenuBuildingEvent : PubSubEvent<BoardContextMenuBuildingEventArgs>
+    {
+    }
+
+    public sealed class BoardContextMenuBuildingEventArgs
+    {
+        public string BoardType { get; set; }
+        public ProjectItem ProjectItem { get; set; }
+        /// <summary>订阅者向此列表添加 MenuItem 即可注入菜单项。</summary>
+        public System.Collections.Generic.IList<System.Windows.Controls.MenuItem> MenuItems { get; set; }
+        /// <summary>主窗口资源中的 CustomMenuItemStyle，方便订阅者保持视觉一致。</summary>
+        public System.Windows.Style MenuItemStyle { get; set; }
+    }
+
     #endregion
 
     #region Floating Window Events

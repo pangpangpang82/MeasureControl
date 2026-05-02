@@ -263,6 +263,13 @@ namespace MeasureControl
             containerRegistry.Register<ReMessageBox>();
             // 注册对话框
             containerRegistry.RegisterDialog<TestStartDialog, TestStartDialogViewModel>();
+
+            // ====== 临时性甲方需求：脚本测试功能（不在合同范围内）======
+            // 注释下面这一行即可彻底关闭脚本测试功能：
+            //   - 单板节点右键菜单不会出现"脚本测试…"
+            //   - 不会注册任何脚本测试相关 Service / Runner
+            // 关闭后对原有"启动测试""单项测试"等功能 0 影响。
+            MeasureControl.Helpers.ScriptTest.ScriptTestFeature.Register(containerRegistry);
         }
     }
 }
