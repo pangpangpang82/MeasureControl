@@ -465,8 +465,21 @@
     <Compile Include="Views\ScriptTest\ScriptTestDialog.xaml.cs">
       <DependentUpon>ScriptTestDialog.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Services\ScriptTest\IScriptTestService.cs" />
+    <Compile Include="Services\ScriptTest\Judgements\IJudgement.cs" />
+    <Compile Include="Services\ScriptTest\Models\FuelControllerScriptTemplate.cs" />
+    <Compile Include="Services\ScriptTest\Models\HydraulicControllerScriptTemplate.cs" />
+    <Compile Include="Services\ScriptTest\Models\ScriptModels.cs" />
     <Compile Include="Services\ScriptTest\Plugins\IScriptTestPlugin.cs" />
     <Compile Include="Services\ScriptTest\Plugins\FuelControllerScriptTestPlugin.cs" />
+    <Compile Include="Services\ScriptTest\Plugins\HydraulicControllerScriptTestPlugin.cs" />
+    <Compile Include="Services\ScriptTest\Runners\IFcRunner.cs" />
+    <Compile Include="Services\ScriptTest\Runners\FuelControllerStubRunners.cs" />
+    <Compile Include="Services\ScriptTest\Runners\HydraulicControllerStubRunners.cs" />
+    <Compile Include="Services\ScriptTest\ScriptParser.cs" />
+    <Compile Include="Services\ScriptTest\ScriptResultWriter.cs" />
+    <Compile Include="Services\ScriptTest\ScriptTestService.cs" />
+    <Compile Include="Services\ScriptTest\ScriptValidator.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">
