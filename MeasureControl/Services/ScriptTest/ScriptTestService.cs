@@ -64,6 +64,8 @@ namespace MeasureControl.Services.ScriptTest
 
             // ---- 逐 FC 执行
             var ctx = new RunFcContext(cancellationToken, Log, Progress);
+            try
+            {
             foreach (var group in doc.Groups)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -140,6 +142,13 @@ namespace MeasureControl.Services.ScriptTest
             catch (Exception ex)
             {
                 Log($"写入结果副本失败: {ex.Message}");
+            }
+            } // end try (FC 执行循环)
+            finally
+            {
+                // ---- 收尾下电（无论正常完成/中止/异常均执行，使用 None 保证下电不被取消）
+                try { await plugin.TeardownAsync(Log, CancellationToken.None).ConfigureAwait(false); }
+                catch (Exception ex) { Log($"Teardown 异常: {ex.Message}"); }
             }
 
             summary.OverallPass = !summary.Cancelled

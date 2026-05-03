@@ -119,6 +119,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _pointHighSys2Text = "--";
         private string _customRangeSys1Text = "--";
         private string _customRangeSys2Text = "--";
+        private double? _scriptQtySys1;
+        private double? _scriptQtySys2;
         private string _manualRangeLowInput = "28";
         private string _manualRangeHighInput = "32";
 
@@ -316,6 +318,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _pin3031FreqText, value);
         }
 
+        public double? Pin3031FreqValue => TryParseMeasurementValue(_pin3031FreqText, "Hz", out var v1) ? v1 : (double?)null;
+
         public bool IsPin3031FreqPass => TryParseMeasurementValue(_pin3031FreqText, "Hz", out var value)
             && value >= ExcitationFreqMinHz
             && value <= ExcitationFreqMaxHz;
@@ -328,6 +332,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _pin3031VoltText, value);
         }
 
+        public double? Pin3031VoltValue => TryParseMeasurementValue(_pin3031VoltText, "Vrms", out var v2) ? v2 : (double?)null;
+
         public bool IsPin3031VoltPass => TryParseMeasurementValue(_pin3031VoltText, "Vrms", out var value)
             && value >= ExcitationVoltMinVrms
             && value <= ExcitationVoltMaxVrms;
@@ -337,6 +343,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             get => _pin3334FreqText;
             private set => SetProperty(ref _pin3334FreqText, value);
         }
+
+        public double? Pin3334FreqValue => TryParseMeasurementValue(_pin3334FreqText, "Hz", out var v3) ? v3 : (double?)null;
 
         public bool IsPin3334FreqPass => TryParseMeasurementValue(_pin3334FreqText, "Hz", out var value)
             && value >= ExcitationFreqMinHz
@@ -349,6 +357,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             get => _pin3334VoltText;
             private set => SetProperty(ref _pin3334VoltText, value);
         }
+
+        public double? Pin3334VoltValue => TryParseMeasurementValue(_pin3334VoltText, "Vrms", out var v4) ? v4 : (double?)null;
 
         public bool IsPin3334VoltPass => TryParseMeasurementValue(_pin3334VoltText, "Vrms", out var value)
             && value >= ExcitationVoltMinVrms
@@ -413,6 +423,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             get => _customRangeSys2Text;
             private set => SetProperty(ref _customRangeSys2Text, value);
         }
+
+        public double? ScriptQtySys1Value => _scriptQtySys1;
+
+        public double? ScriptQtySys2Value => _scriptQtySys2;
 
         public string ManualRangeLowInput
         {
@@ -511,6 +525,160 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
                 _autoCts?.Dispose();
                 _autoCts = null;
+            }
+        }
+
+        public async Task RunWithScriptLvdtAsync(double va1, double vb1, double va2, double vb2, CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning)
+                await StopAutoTestAsync().ConfigureAwait(false);
+            if (IsManualTestRunning)
+                await StopManualTestAsync().ConfigureAwait(false);
+
+            _autoCts?.Cancel();
+            _autoCts?.Dispose();
+            _autoCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                await ExecuteScriptLvdtTestAsync(va1, vb1, va2, vb2, _autoCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                IsAutoTestInitializing = false;
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
+
+        private async Task ExecuteScriptLvdtTestAsync(double va1, double vb1, double va2, double vb2, CancellationToken cancellationToken)
+        {
+            _scriptQtySys1 = null;
+            _scriptQtySys2 = null;
+            CustomRangeSys1Text = "--";
+            CustomRangeSys2Text = "--";
+            IsAutoTestInitializing = true;
+            IsAutoTestStopping = false;
+            PreviousTestTime = "--";
+            Log($"脚本LVDT测试: Sys1(Va={va1:0.##}V Vb={vb1:0.##}V), Sys2(Va={va2:0.##}V Vb={vb2:0.##}V)");
+
+            try
+            {
+                await EnsureRelay485Async(true, cancellationToken).ConfigureAwait(false);
+                await EnsureGroundDoAsync(true, cancellationToken).ConfigureAwait(false);
+                await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = true;
+
+                _passedExc1 = await MeasureExcitationAsync("针脚30/31", LvdtSys1Channel, (f, v) =>
+                {
+                    Pin3031FreqText = f;
+                    Pin3031VoltText = v;
+                }, cancellationToken).ConfigureAwait(false);
+                if (!IsAutoTestRunning) return;
+                _measuredExc1 = true;
+
+                _passedExc2 = await MeasureExcitationAsync("针脚33/34", LvdtSys2Channel, (f, v) =>
+                {
+                    Pin3334FreqText = f;
+                    Pin3334VoltText = v;
+                }, cancellationToken).ConfigureAwait(false);
+                if (!IsAutoTestRunning) return;
+                _measuredExc2 = true;
+
+                await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
+
+                await MeasureQuantityWithVaVbAsync(va1, vb1, va2, vb2, (sdi, text) =>
+                {
+                    if (sdi == 2) CustomRangeSys1Text = text;
+                    else if (sdi == 3) CustomRangeSys2Text = text;
+                }, cancellationToken).ConfigureAwait(false);
+
+                await StopAutoTestAsync().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                Log("脚本LVDT测试已停止");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"脚本LVDT测试异常: {ex.Message}");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        private async Task<bool> MeasureQuantityWithVaVbAsync(
+            double va1, double vb1, double va2, double vb2,
+            Action<byte, string> setText,
+            CancellationToken cancellationToken)
+        {
+            if (!IsAutoTestRunning && !IsManualTestRunning)
+            {
+                Log("脚本油量测试: 当前未处于测试状态");
+                return false;
+            }
+
+            await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (_lvdt == null)
+                    throw new InvalidOperationException("LVDT设备未初始化");
+
+                Log($"脚本油量: 设置 Sys1(Va={va1:0.##}V Vb={vb1:0.##}V), Sys2(Va={va2:0.##}V Vb={vb2:0.##}V)");
+                await _lvdt.SetVaVbAsync(LvdtSys1Channel, va1, vb1, cancellationToken).ConfigureAwait(false);
+                await _lvdt.SetVaVbAsync(LvdtSys2Channel, va2, vb2, cancellationToken).ConfigureAwait(false);
+                await _lvdt.StartAsync(LvdtSys1Channel, cancellationToken).ConfigureAwait(false);
+                await _lvdt.StartAsync(LvdtSys2Channel, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(LvdtSettleMs, cancellationToken).ConfigureAwait(false);
+                await DrainArincBufferAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(PostSwitchRxFlushMs, cancellationToken).ConfigureAwait(false);
+
+                var samples = new Dictionary<byte, List<double>>
+                {
+                    [2] = new List<double>(SamplesPerMeasure),
+                    [3] = new List<double>(SamplesPerMeasure)
+                };
+                var assignedText = new HashSet<byte>();
+                var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
+                while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
+                {
+                    var words = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 512, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+                    if (words != null)
+                        foreach (var w in words)
+                        {
+                            _arinc.ParseRawWord(w.Data429, out var label, out var sdi, out var data19, out var ssm);
+                            if (!IsExpectedLabel(label) || ssm != SsmNormal || (sdi != 2 && sdi != 3)) continue;
+                            var value = DecodeQuantity(data19);
+                            if (!value.HasValue) continue;
+                            var list = samples[sdi];
+                            if (list.Count >= SamplesPerMeasure) continue;
+                            list.Add(value.Value);
+                            if (list.Count >= SamplesPerMeasure && !assignedText.Contains(sdi))
+                            {
+                                var avg = list.Average();
+                                setText(sdi, $"{avg:0} %");
+                                assignedText.Add(sdi);
+                                if (sdi == 2) _scriptQtySys1 = avg;
+                                else if (sdi == 3) _scriptQtySys2 = avg;
+                                Log($"脚本油量: SDI={sdi}, 均値={avg:0}%");
+                            }
+                        }
+                    if (samples.Values.All(x => x.Count >= SamplesPerMeasure)) break;
+                    await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+                }
+
+                if (samples[2].Count < SamplesPerMeasure) { setText(2, "超时"); Log("脚本油量 Sys1 超时"); }
+                if (samples[3].Count < SamplesPerMeasure) { setText(3, "超时"); Log("脚本油量 Sys2 超时"); }
+                return samples[2].Count >= SamplesPerMeasure && samples[3].Count >= SamplesPerMeasure;
+            }
+            finally
+            {
+                _measureLock.Release();
             }
         }
 

@@ -2,9 +2,14 @@
 // 加放油控制器脚本测试插件。
 // 配置来源：FuelControllerScriptTemplate（行数模板 + POWER_IN 档位）。
 // ============================================================================
+using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using MeasureControl.Services;
 using MeasureControl.Services.ScriptTest.Models;
 using MeasureControl.Services.ScriptTest.Runners;
+using Prism.Ioc;
 
 namespace MeasureControl.Services.ScriptTest.Plugins
 {
@@ -32,6 +37,29 @@ namespace MeasureControl.Services.ScriptTest.Plugins
                 new Fc7StubRunner(),
                 new Fc8StubRunner(),
             };
+        }
+
+        public async Task TeardownAsync(Action<string> log, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var pwr = ContainerLocator.Container.Resolve<IBoardPowerService>();
+                if (pwr?.IsPowered == true)
+                {
+                    log?.Invoke("[FC Teardown] 加放油控制器 脚本测试完成，正在下电...");
+                    await pwr.PowerOffAsync(CancellationToken.None).ConfigureAwait(false);
+                    log?.Invoke("[FC Teardown] 下电完成");
+                }
+                else
+                {
+                    pwr?.SetPoweredState(false);
+                    log?.Invoke("[FC Teardown] 加放油控制器 电源已处于未上电状态");
+                }
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke($"[FC Teardown] 下电异常: {ex.Message}");
+            }
         }
     }
 }

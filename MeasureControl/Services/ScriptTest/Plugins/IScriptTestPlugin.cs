@@ -5,7 +5,10 @@
 //   - 提供 Runner 工厂。
 // 新增板卡只需实现本接口并在 ScriptTestFeature 中注册，即可出现在右键菜单里。
 // ============================================================================
+using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using MeasureControl.Services.ScriptTest.Models;
 using MeasureControl.Services.ScriptTest.Runners;
 
@@ -33,5 +36,12 @@ namespace MeasureControl.Services.ScriptTest.Plugins
 
         /// <summary>为一次脚本运行创建 Runner 集合（TestId → Runner）。</summary>
         IReadOnlyList<IFcRunner> CreateRunners();
+
+        /// <summary>
+        /// 所有测试项执行完毕（含中止/异常）后调用，用于下电/资源清理。
+        /// 实现中应捕获自身异常，不向上抛出。
+        /// 使用 CancellationToken.None 以保证即使测试被取消也能执行下电。
+        /// </summary>
+        Task TeardownAsync(Action<string> log, CancellationToken cancellationToken);
     }
 }

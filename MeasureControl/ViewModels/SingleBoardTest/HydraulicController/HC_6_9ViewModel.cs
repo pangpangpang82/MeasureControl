@@ -392,6 +392,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public string PreviousTestTime { get => _previousTestTime; private set => SetProperty(ref _previousTestTime, value); }
         public string PreviousTestResult { get => _previousTestResult; private set => SetProperty(ref _previousTestResult, value); }
 
+        public double? GetOpenPinValue(int pin) =>
+            _openValuesByPin.TryGetValue(pin, out var v) ? v : null;
+
+        public double? GetClosePinValue(int pin) =>
+            _closeValuesByPin.TryGetValue(pin, out var v) ? v : null;
+
         public string OpenPin9Text { get => _openPin9Text; private set => SetProperty(ref _openPin9Text, value); }
         public string OpenPin10Text { get => _openPin10Text; private set => SetProperty(ref _openPin10Text, value); }
         public string OpenPin11Text { get => _openPin11Text; private set => SetProperty(ref _openPin11Text, value); }

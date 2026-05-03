@@ -42,29 +42,32 @@ namespace MeasureControl.Services.ScriptTest
 
                 foreach (var group in doc.Groups)
                 {
-                    // 每行回填"输出值"
+                    var fcRes = Array.Find(fcResults, r => r != null && r.TestId == group.TestId);
+                    bool groupAbnormal = fcRes != null
+                        && fcRes.Status != FcResultStatus.Pass
+                        && fcRes.Status != FcResultStatus.Fail;
+                    string abnormalText = groupAbnormal ? fcRes.ToCellText() : null;
+
+                    // 每行独立回填"输出值"和"测试结果"
                     foreach (var row in group.Rows)
                     {
                         ws.Cell(row.RowNumber, ScriptColumns.OutputValue).Value = row.OutputValue ?? string.Empty;
+
+                        string rowResult;
+                        if (abnormalText != null)
+                            rowResult = abnormalText;
+                        else if (row.Pass == true)
+                            rowResult = "PASS";
+                        else if (row.Pass == false)
+                            rowResult = "FAIL";
+                        else
+                            rowResult = "--";
+
+                        var cell = ws.Cell(row.RowNumber, ScriptColumns.TestResult);
+                        cell.Value = rowResult;
+                        cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                        cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
                     }
-
-                    // FC 首行回填"测试结果"，并合并到末行
-                    var fcRes = Array.Find(fcResults, r => r != null && r.TestId == group.TestId);
-                    var resultText = fcRes != null ? fcRes.ToCellText() : "--";
-
-                    var firstCell = ws.Cell(group.FirstRowNumber, ScriptColumns.TestResult);
-                    firstCell.Value = resultText;
-                    firstCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                    firstCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-                    firstCell.Style.Alignment.WrapText = true;
-
-                    if (group.LastRowNumber > group.FirstRowNumber)
-                    {
-                        var range = ws.Range(group.FirstRowNumber, ScriptColumns.TestResult,
-                                             group.LastRowNumber, ScriptColumns.TestResult);
-                        try { range.Merge(); } catch { /* 已合并/受保护 */ }
-                    }
-
                 }
 
                 wb.Save();

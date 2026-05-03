@@ -120,6 +120,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private double? _p1Sys1;
         private double? _p1Sys2;
         private double? _p1Sys3;
+        private double? _scriptPressureSys1;
+        private double? _scriptPressureSys2;
+        private double? _scriptPressureSys3;
         private double? _p2Sys1;
         private double? _p2Sys2;
         private double? _p2Sys3;
@@ -354,6 +357,125 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        public async Task RunWithScriptVoltagesAsync(double v1, double v2, double v3, CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning)
+                await StopAutoTestAsync().ConfigureAwait(false);
+            if (IsManualTestRunning)
+                await StopManualTestAsync().ConfigureAwait(false);
+
+            _autoCts?.Cancel();
+            _autoCts?.Dispose();
+            _autoCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                await ExecuteScriptVoltagesTestAsync(v1, v2, v3, _autoCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                IsAutoTestInitializing = false;
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
+
+        private async Task ExecuteScriptVoltagesTestAsync(double v1, double v2, double v3, CancellationToken cancellationToken)
+        {
+            _scriptPressureSys1 = null;
+            _scriptPressureSys2 = null;
+            _scriptPressureSys3 = null;
+            IsAutoTestInitializing = true;
+            IsAutoTestStopping = false;
+            CanMeasure = false;
+            Log($"脚本压力测试: SYS1={v1:0.##}V, SYS2={v2:0.##}V, SYS3={v3:0.##}V");
+
+            try
+            {
+                await EnsureRelay485Async(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await EnsureGroundDoAsync(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+                await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
+                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = true;
+
+                CustomPressureSys1Text = "--";
+                CustomPressureSys2Text = "--";
+                CustomPressureSys3Text = "--";
+                await MeasurePointAllSystemsIndependentAsync(v1, v2, v3,
+                    setSys1: t => CustomPressureSys1Text = t,
+                    setSys2: t => CustomPressureSys2Text = t,
+                    setSys3: t => CustomPressureSys3Text = t,
+                    setV1: val => _scriptPressureSys1 = val,
+                    setV2: val => _scriptPressureSys2 = val,
+                    setV3: val => _scriptPressureSys3 = val,
+                    cancellationToken).ConfigureAwait(false);
+
+                await StopAutoTestAsync().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                Log("脚本压力测试已停止");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"脚本压力测试异常: {ex.Message}");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        private async Task<bool> MeasurePointAllSystemsIndependentAsync(
+            double v1, double v2, double v3,
+            Action<string> setSys1, Action<string> setSys2, Action<string> setSys3,
+            Action<double?> setV1, Action<double?> setV2, Action<double?> setV3,
+            CancellationToken cancellationToken)
+        {
+            if (!IsAutoTestRunning && !IsManualTestRunning)
+            {
+                Log("脚本分系统压力: 当前未处于测试状态");
+                return false;
+            }
+
+            await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await SetAo012IndependentAsync(v1, v2, v3, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(AoSettleMs, cancellationToken).ConfigureAwait(false);
+                _ = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await Task.Delay(PostSwitchRxFlushMs, cancellationToken).ConfigureAwait(false);
+
+                return await MeasureAllSystemsAsync(
+                    "脚本分系统",
+                    setSys1, setSys2, setSys3,
+                    setV1, setV2, setV3,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                _measureLock.Release();
+            }
+        }
+
+        private async Task SetAo012IndependentAsync(double v1, double v2, double v3, CancellationToken cancellationToken)
+        {
+            if (_mtx532 == null || !_mtx532.IsConnected)
+                throw new InvalidOperationException("MTX532未连接");
+
+            await _mtx532.WriteOnceDcAsync(new System.Collections.Generic.Dictionary<string, double>
+            {
+                ["AO0"] = v1,
+                ["AO1"] = 0.0,
+                ["AO2"] = v2,
+                ["AO3"] = 0.0,
+                ["AO4"] = v3,
+                ["AO5"] = 0.0,
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
         public string LastTestTime
         {
             get => _lastTestTime;
@@ -449,6 +571,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             get => _customSys3Text;
             private set => SetProperty(ref _customSys3Text, value);
         }
+
+        public double? ScriptPressureSys1Value => _scriptPressureSys1;
+
+        public double? ScriptPressureSys2Value => _scriptPressureSys2;
+
+        public double? ScriptPressureSys3Value => _scriptPressureSys3;
 
         public string CustomVoltageInput
         {

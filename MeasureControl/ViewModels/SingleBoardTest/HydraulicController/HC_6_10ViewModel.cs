@@ -258,6 +258,138 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        public async Task RunWithScriptQuantityAsync(int qty, CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning)
+                await StopAutoTestAsync().ConfigureAwait(false);
+            if (IsManualTestRunning)
+                await StopManualTestAsync().ConfigureAwait(false);
+
+            _autoCts?.Cancel();
+            _autoCts?.Dispose();
+            _autoCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                await ExecuteScriptQuantityTestAsync(qty, _autoCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                IsAutoTestInitializing = false;
+                IsAutoTestStopping = false;
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
+
+        private async Task ExecuteScriptQuantityTestAsync(int qty, CancellationToken cancellationToken)
+        {
+            ResetMeasurementState();
+            Log($"\u811a\u672cCAN\u6d4b\u8bd5: \u53d1\u9001\u6cb9\u91cf\u8bbe\u5b9a\u503c={qty}");
+
+            try
+            {
+                await EnsureRelay485Async(true, cancellationToken).ConfigureAwait(false);
+                await EnsureCanAsync(cancellationToken).ConfigureAwait(false);
+                await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+                await EnsureLvdtAsync(cancellationToken).ConfigureAwait(false);
+                await ApplyQuantityOutputsAsync(0.0, cancellationToken).ConfigureAwait(false);
+                await SetChannelBConfigAsync(cancellationToken).ConfigureAwait(false);
+                await RestartBoardPowerAsync(cancellationToken).ConfigureAwait(false);
+                await FlushCanRxBufferAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(PostSwitchRxFlushDelayMs, cancellationToken).ConfigureAwait(false);
+
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = true;
+
+                var (tank2Passed, tank2Value) = await ReceiveAndCheckTank2ZeroAsync(cancellationToken).ConfigureAwait(false);
+                _testBenchPassed = tank2Passed;
+                TestBenchTank2Text = tank2Value.HasValue ? $"{tank2Value.Value}" : "\u65e0\u6570\u636e";
+                Log($"\u6d4b\u8bd5\u53f0\u63a5\u6536\u7ed3\u679c: {(_testBenchPassed ? "pass" : "fail")}");
+
+                await DrainArincBufferAsync(cancellationToken).ConfigureAwait(false);
+                await SendControlBoardTank1WithQtyAsync(qty, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(PostSwitchRxFlushDelayMs, cancellationToken).ConfigureAwait(false);
+                var (tank1Passed, tank1Qty) = await ReceiveAndCheckTank1QuantityAsync(qty, cancellationToken).ConfigureAwait(false);
+                _controlBoardPassed = tank1Passed;
+                ControlBoardTank1Text = tank1Qty.HasValue ? $"{tank1Qty.Value:0}" : "\u65e0\u6570\u636e";
+                Log($"\u63a7\u5236\u677f\u63a5\u6536\u7ed3\u679c: {(_controlBoardPassed ? "pass" : "fail")}");
+
+                await FinalizeTestAsync().ConfigureAwait(false);
+                await StopAutoTestAsync().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                Log("\u811a\u672cCAN\u6d4b\u8bd5\u5df2\u505c\u6b62");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"\u811a\u672cCAN\u6d4b\u8bd5\u5f02\u5e38: {ex.Message}");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        private async Task SendControlBoardTank1WithQtyAsync(int qty, CancellationToken cancellationToken)
+        {
+            if (_canApi == null)
+                throw new InvalidOperationException("CAN\u677f\u5361\u672a\u521d\u59cb\u5316");
+
+            var payload = new byte[] { 0xA2, 0xC8, 0x00, (byte)qty, 0x00, 0x1C, 0x54, 0x00 };
+            var frame = new CanFrame
+            {
+                FrameId = ControlBoardSetTank1CanId,
+                IsExtendedId = false,
+                IsRemoteFrame = false,
+                DataLength = (byte)payload.Length,
+                Data = payload
+            };
+
+            var sent = await _canApi.SendFrameAsync(CanRxChannelIndex, frame, 0.2, cancellationToken).ConfigureAwait(false);
+            if (!sent)
+                throw new InvalidOperationException($"CAN\u53d1\u9001\u5931\u8d25: ID=0x{ControlBoardSetTank1CanId:X3}");
+
+            Log($"\u5df2\u53d1\u9001CAN\u5e27 ID=0x{ControlBoardSetTank1CanId:X3}, Qty={qty}, Data={BitConverter.ToString(payload).Replace("-", " ")}");
+        }
+
+        private async Task<(bool Passed, double? ReceivedQuantity)> ReceiveAndCheckTank1QuantityAsync(int expectedQty, CancellationToken cancellationToken)
+        {
+            if (_arinc == null)
+                throw new InvalidOperationException("ARINC429\u677f\u5361\u672a\u521d\u59cb\u5316");
+
+            await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var deadline = DateTime.UtcNow.AddMilliseconds(CanReceiveTimeoutMs);
+                double? lastQuantity = null;
+                while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
+                {
+                    var words = await _arinc.ReadRxWordsAsync(ArincRxChannelIndex, maxCount: 512, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    foreach (var word in words)
+                    {
+                        _arinc.ParseRawWord(word.Data429, out var label, out var sdi, out var data19, out var ssm);
+                        if (!IsExpectedQuantityLabel(label) || ssm != SsmNormal || sdi != ExpectedTank1Sdi)
+                            continue;
+                        var quantity = DecodeQuantity(data19);
+                        if (!quantity.HasValue) continue;
+                        lastQuantity = quantity.Value;
+                        Log($"\u6536\u5230429\u6cb9\u91cf: Label={QtyLabelDec}, SDI={sdi:00}, Value={quantity.Value:0}");
+                        if (Math.Abs(quantity.Value - expectedQty) < 0.5)
+                            return (true, quantity.Value);
+                    }
+                    await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+                }
+                Log($"\u8d85\u65f6: \u672a\u5728{CanReceiveTimeoutMs}ms\u5185\u6536\u5230429 Label173 SDI=01 \u4e14\u6cb9\u91cf={expectedQty}");
+                return (false, lastQuantity);
+            }
+            finally
+            {
+                _measureLock.Release();
+            }
+        }
+
         private void LoadLastTestResultFromProject()
         {
             if (_historyLoaded)

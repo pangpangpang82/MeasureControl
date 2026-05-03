@@ -944,12 +944,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
-        private string GetGroundPinText(int pin)
+        public string GetGroundPinText(int pin)
         {
             return _groundPinTexts.TryGetValue(pin, out var value) ? value : "--";
         }
 
-        private string GetOpenPinText(int pin)
+        public string GetOpenPinText(int pin)
         {
             return _openPinTexts.TryGetValue(pin, out var value) ? value : "--";
         }

@@ -36,7 +36,7 @@ namespace MeasureControl.Helpers.ScriptTest
 
             // ---- 注册支持脚本测试的板型插件。新增板型在此追加即可。 ----
             RegisterPlugin(new FuelControllerScriptTestPlugin());
-            // 例如后续液压板：RegisterPlugin(new HydraulicScriptTestPlugin());
+            RegisterPlugin(new HydraulicControllerScriptTestPlugin());
 
             // 无状态调度器，所有板型共用同一单例。
             containerRegistry.RegisterSingleton<IScriptTestService, ScriptTestService>();

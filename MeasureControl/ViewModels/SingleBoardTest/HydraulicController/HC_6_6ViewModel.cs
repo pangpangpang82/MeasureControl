@@ -145,6 +145,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private string _dptEmp2BCustommAText = "--";
         private string _dptEmp3BCustommAText = "--";
         private string _dptSys1CustommAText = "--";
+        private double? _scriptDptEdp2;
+        private double? _scriptDptEmp2B;
+        private double? _scriptDptEmp3B;
+        private double? _scriptDptRf2;
+        private double? _scriptDptSys2;
+        private double? _scriptDptSys3;
         private string _dptSys2CustommAText = "--";
         private string _dptSys3CustommAText = "--";
         private string _customCurrentInput = "10.0";
@@ -459,6 +465,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         public bool IsDptSys210mAPass => IsWithinRange(DptSys210mAValue ?? double.MinValue, Range10mAMin, Range10mAMax) && DptSys210mAValue.HasValue;
         public bool IsDptSys310mAPass => IsWithinRange(DptSys310mAValue ?? double.MinValue, Range10mAMin, Range10mAMax) && DptSys310mAValue.HasValue;
 
+        public double? ScriptDptEdp2Value => _scriptDptEdp2;
+        public double? ScriptDptEmp2BValue => _scriptDptEmp2B;
+        public double? ScriptDptEmp3BValue => _scriptDptEmp3B;
+        public double? ScriptDptRf2Value => _scriptDptRf2;
+        public double? ScriptDptSys2Value => _scriptDptSys2;
+        public double? ScriptDptSys3Value => _scriptDptSys3;
+
         public async Task<string> RunOnceAsync(CancellationToken cancellationToken)
         {
             if (IsAutoTestRunning)
@@ -480,6 +493,147 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
                 _autoCts?.Dispose();
                 _autoCts = null;
             }
+        }
+
+        public async Task RunWithScriptCurrentsAsync(double[] currents, CancellationToken cancellationToken)
+        {
+            if (currents == null || currents.Length != 6)
+                throw new ArgumentException("脚本压差测试需要 6 个电流输入值", nameof(currents));
+
+            if (IsAutoTestRunning)
+                await StopAutoTestAsync().ConfigureAwait(false);
+            if (IsManualTestRunning)
+                await StopManualTestAsync().ConfigureAwait(false);
+
+            _autoCts?.Cancel();
+            _autoCts?.Dispose();
+            _autoCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                await ExecuteScriptCurrentsTestAsync(currents, _autoCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
+
+        private async Task ExecuteScriptCurrentsTestAsync(double[] currents, CancellationToken cancellationToken)
+        {
+            _scriptDptEdp2 = null;
+            _scriptDptEmp2B = null;
+            _scriptDptEmp3B = null;
+            _scriptDptRf2 = null;
+            _scriptDptSys2 = null;
+            _scriptDptSys3 = null;
+            IsAutoTestStopping = false;
+            CanMeasure = false;
+            Log($"脚本压差测试: EDP2={currents[0]:0.#}mA EMP2B={currents[1]:0.#}mA EMP3B={currents[2]:0.#}mA RF2={currents[3]:0.#}mA SYS2={currents[4]:0.#}mA SYS3={currents[5]:0.#}mA");
+
+            try
+            {
+                await EnsureRelay485Async(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await EnsureGroundDoAsync(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+                await EnsureMtx532Async(cancellationToken).ConfigureAwait(false);
+                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+                IsAutoTestRunning = true;
+
+                foreach (var ch in DptChannels) SetCustomCurrent(ch.SlotKey, "--");
+                await MeasureGroupScriptAsync(currents, cancellationToken).ConfigureAwait(false);
+
+                await StopAutoTestAsync().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                Log("脚本压差测试已停止");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"脚本压差测试异常: {ex.Message}");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        private async Task<bool> MeasureGroupScriptAsync(double[] currents, CancellationToken cancellationToken)
+        {
+            if (!IsAutoTestRunning)
+                return false;
+
+            var voltages = new double[currents.Length];
+            for (var i = 0; i < currents.Length; i++)
+                voltages[i] = ConvertCurrentToVoltage(currents[i]);
+
+            await _measureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await SetAo67891011IndependentAsync(voltages, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(AoSettleMs, cancellationToken).ConfigureAwait(false);
+                await DrainArincBufferAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(PostSwitchRxFlushMs, cancellationToken).ConfigureAwait(false);
+
+                var samples = new Dictionary<string, List<double>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["EDP2"] = new List<double>(SamplesPerMeasure),
+                    ["EMP2B"] = new List<double>(SamplesPerMeasure),
+                    ["EMP3B"] = new List<double>(SamplesPerMeasure),
+                    ["RF2"] = new List<double>(SamplesPerMeasure),
+                    ["SYS2"] = new List<double>(SamplesPerMeasure),
+                    ["SYS3"] = new List<double>(SamplesPerMeasure),
+                };
+
+                var deadline = DateTime.UtcNow.AddMilliseconds(SampleTimeoutMs);
+                while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadline)
+                {
+                    var words = await _arinc.ReadRxWordsAsync(RxChannelIndex, maxCount: 512, enableTimeTag: false, enableRateAdaption: false, cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+                    foreach (var w in words)
+                    {
+                        _arinc.ParseRawWord(w.Data429, out var label, out var wordSdi, out var data19, out var ssm);
+                        var definition = ResolveChannel(label, wordSdi);
+                        if (definition == null || ssm != SsmNormal) continue;
+                        var value = DecodeValue(data19);
+                        if (!value.HasValue) continue;
+                        var list = samples[definition.SlotKey];
+                        if (list.Count >= SamplesPerMeasure) continue;
+                        list.Add(value.Value);
+                        SetCustomCurrent(definition.SlotKey, $"{value.Value:0.0} {PressureUnit}");
+                    }
+                    if (samples.Values.All(l => l.Count >= SamplesPerMeasure))
+                        break;
+                    await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+                }
+
+                if (samples["EDP2"].Count > 0) _scriptDptEdp2 = samples["EDP2"].Average();
+                if (samples["EMP2B"].Count > 0) _scriptDptEmp2B = samples["EMP2B"].Average();
+                if (samples["EMP3B"].Count > 0) _scriptDptEmp3B = samples["EMP3B"].Average();
+                if (samples["RF2"].Count > 0) _scriptDptRf2 = samples["RF2"].Average();
+                if (samples["SYS2"].Count > 0) _scriptDptSys2 = samples["SYS2"].Average();
+                if (samples["SYS3"].Count > 0) _scriptDptSys3 = samples["SYS3"].Average();
+
+                Log($"脚本压差测试完成: EDP2={_scriptDptEdp2:0.0} EMP2B={_scriptDptEmp2B:0.0} EMP3B={_scriptDptEmp3B:0.0} RF2={_scriptDptRf2:0.0} SYS2={_scriptDptSys2:0.0} SYS3={_scriptDptSys3:0.0}");
+                return true;
+            }
+            finally
+            {
+                _measureLock.Release();
+            }
+        }
+
+        private async Task SetAo67891011IndependentAsync(double[] voltages, CancellationToken cancellationToken)
+        {
+            if (_mtx532 == null || !_mtx532.IsConnected)
+                throw new InvalidOperationException("MTX532未连接");
+
+            var outputs = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < AoChannels.Length && i < voltages.Length; i++)
+                outputs[AoChannels[i]] = voltages[i];
+            await _mtx532.WriteOnceDcAsync(outputs, cancellationToken).ConfigureAwait(false);
         }
 
         private void LoadLastTestResultFromProject()

@@ -609,6 +609,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             private set => SetProperty(ref _resistance182Text, value);
         }
 
+        public double? Resistance14Value => _resistance14;
+
+        public double? Resistance182Value => _resistance182;
+
         public bool IsResistance14Pass => _resistance14.HasValue && _resistance14.Value > PassThresholdOhm;
 
         public bool IsResistance182Pass => _resistance182.HasValue && _resistance182.Value > PassThresholdOhm;

@@ -125,6 +125,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
         private double? _temp1B;
         private double? _temp2B;
         private double? _temp3B;
+        private double? _scriptTemp2;
+        private double? _scriptTemp3;
 
         public HC_6_4ViewModel(IPxiChassisService pxiChassisService, ISingleBoardTestContextService singleBoardTestContext, IBoardPowerService hydraulicPowerService)
         {
@@ -376,6 +378,85 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             }
         }
 
+        public async Task RunWithScriptResistancesAsync(double res2, double res3, CancellationToken cancellationToken)
+        {
+            if (IsAutoTestRunning)
+                await StopAutoTestAsync().ConfigureAwait(false);
+            if (IsManualTestRunning)
+                await StopManualTestAsync().ConfigureAwait(false);
+
+            _autoCts?.Cancel();
+            _autoCts?.Dispose();
+            _autoCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            try
+            {
+                await ExecuteScriptResistancesTestAsync(res2, res3, _autoCts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                IsAutoTestInitializing = false;
+                _autoCts?.Dispose();
+                _autoCts = null;
+            }
+        }
+
+        private async Task ExecuteScriptResistancesTestAsync(double res2, double res3, CancellationToken cancellationToken)
+        {
+            _scriptTemp2 = null;
+            _scriptTemp3 = null;
+            IsAutoTestInitializing = true;
+            IsAutoTestStopping = false;
+            CanMeasure = false;
+            Log($"脚本温度测试: RTD2={res2:0.#}Ω, RTD3={res3:0.#}Ω");
+
+            try
+            {
+                await EnsureRelay485Async(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await EnsureGroundDoAsync(on: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await EnsureArincRxAsync(cancellationToken).ConfigureAwait(false);
+                await EnsurePowerAsync(cancellationToken).ConfigureAwait(false);
+                await EnsureResistanceAsync(cancellationToken).ConfigureAwait(false);
+                IsAutoTestInitializing = false;
+                IsAutoTestRunning = true;
+
+                await MeasurePointAsync(
+                        $"脚本RTD2({res2:0.#}Ω)", res2,
+                        setTextA: t => TempCustomText = t,
+                        setValueA: v => _scriptTemp2 = v,
+                        setTextB: t => { },
+                        setValueB: v => { },
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (!IsAutoTestRunning)
+                    return;
+                await Task.Delay(80, cancellationToken).ConfigureAwait(false);
+
+                await MeasurePointAsync(
+                        $"脚本RTD3({res3:0.#}Ω)", res3,
+                        setTextA: t => { },
+                        setValueA: v => { },
+                        setTextB: t => TempCustomBText = t,
+                        setValueB: v => _scriptTemp3 = v,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                await StopAutoTestAsync().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                Log("脚本温度测试已停止");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log($"脚本温度测试异常: {ex.Message}");
+                await StopAutoTestAsync().ConfigureAwait(false);
+                throw;
+            }
+        }
+
         public string Temp1Text
         {
             get => _temp1Text;
@@ -423,6 +504,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             get => _tempCustomBText;
             private set => SetProperty(ref _tempCustomBText, value);
         }
+
+        public double? ScriptTemp2Value => _scriptTemp2;
+
+        public double? ScriptTemp3Value => _scriptTemp3;
 
         public string CustomResistanceInput
         {
