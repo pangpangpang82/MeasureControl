@@ -769,14 +769,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             Log("手动测试停止/结束，正在断开设备...");
 
-            try
-            {
-                await CleanupDmmSocketAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Log($"手动测试结束时断开万用表失败: {ex.Message}");
-            }
+            // DMM 与辅助电源和继电器/矩阵/JY7131 相互独立，并行清理以缩短停止等待时间
+            var dmmTask = CleanupDmmSocketAsync();
+            var auxPowerTask = CleanupAuxPowerAsync();
 
             try
             {
@@ -802,13 +797,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            try
-            {
-                await CleanupAuxPowerAsync().ConfigureAwait(false);
-            }
-            catch
-            {
-            }
+            try { await dmmTask.ConfigureAwait(false); }
+            catch (Exception ex) { Log($"手动测试结束时断开万用表失败: {ex.Message}"); }
+            try { await auxPowerTask.ConfigureAwait(false); } catch { }
 
             IsManualTestRunning = false;
             IsManualTestInitializing = false;
@@ -833,16 +824,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             {
             }
 
-            Log("自动测试停止/结束，正在设备...");
+            Log("自动测试停止/结束，正在断开设备...");
 
-            try
-            {
-                await CleanupDmmSocketAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Log($"自动测试结束时断开万用表失败: {ex.Message}");
-            }
+            // DMM 与辅助电源和继电器/矩阵/JY7131 相互独立，并行清理以缩短停止等待时间
+            var dmmTask = CleanupDmmSocketAsync();
+            var auxPowerTask = CleanupAuxPowerAsync();
 
             try
             {
@@ -862,13 +848,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             await CleanupJy7131Async().ConfigureAwait(false);
 
-            try
-            {
-                await CleanupAuxPowerAsync().ConfigureAwait(false);
-            }
-            catch
-            {
-            }
+            try { await dmmTask.ConfigureAwait(false); }
+            catch (Exception ex) { Log($"自动测试结束时断开万用表失败: {ex.Message}"); }
+            try { await auxPowerTask.ConfigureAwait(false); } catch { }
 
             IsAutoTestRunning = false;
             IsAutoTestInitializing = false;
@@ -1145,7 +1127,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
             try
             {
                 if (socket.IsConnected)
-                    await Task.WhenAny(socket.DisconnectAsync(CancellationToken.None), Task.Delay(3000)).ConfigureAwait(false);
+                    await Task.WhenAny(socket.DisconnectAsync(CancellationToken.None), Task.Delay(1500)).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1154,7 +1136,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             try
             {
-                await Task.WhenAny(socket.DisposeAsync().AsTask(), Task.Delay(3000)).ConfigureAwait(false);
+                await Task.WhenAny(socket.DisposeAsync().AsTask(), Task.Delay(1500)).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
