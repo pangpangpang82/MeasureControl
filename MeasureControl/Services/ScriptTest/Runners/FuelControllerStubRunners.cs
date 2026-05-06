@@ -83,7 +83,7 @@ namespace MeasureControl.Services.ScriptTest.Runners
         }
     }
 
-    // ─── FC5: 离散量采集功能测试（参数化供电电压，28行：14接地+14开路，EQ BOOL判据） ──
+    // ─── FC5: 离散量采集功能测试（固定28V上电，28行：前14行接地+后14行开路，EQ BOOL判据） ──
     internal sealed class Fc5StubRunner : IFcRunner
     {
         public string TestId => "FC5";
@@ -91,12 +91,8 @@ namespace MeasureControl.Services.ScriptTest.Runners
         public async Task<FcRunResult> RunAsync(FcGroup group, RunFcContext ctx)
         {
             ctx.Log($"[{TestId}] 离散量采集功能测试 开始");
-            var powerRow = group.Rows.FirstOrDefault(r =>
-                string.Equals(r.InputSignal, "POWER_IN", StringComparison.OrdinalIgnoreCase));
-            if (powerRow == null || !FcRunnerHelpers.TryParseDouble(powerRow.InputValueRaw, out double voltage))
-                throw new InvalidOperationException($"[{TestId}] 找不到有效的 POWER_IN 电压");
-
-            ctx.Log($"[{TestId}]   供电电压: {voltage}V");
+            const double voltage = 28.0;
+            ctx.Log($"[{TestId}]   供电电压: {voltage}V（固定）");
             FcRunnerHelpers.ClearBoardPowerState(ctx);
             var vm = ContainerLocator.Container.Resolve<DiscreteInputTestViewModel>();
             await vm.RunWithScriptVoltageAsync(voltage, ctx.CancellationToken).ConfigureAwait(false);
