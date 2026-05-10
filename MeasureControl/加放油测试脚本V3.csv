@@ -13,7 +13,7 @@ FC3,低电压告警功能测试,组件POWER_IN上电，供电电压从17V开始�
 FC4,温度采集功能,组件POWER_IN供电，按照DS18B20U+T&R规格书解析CRM_PIN7的信号并记录。,POWER_IN,CRM_PIN7,V,RANGE,℃,18,"15,45",,,,
 FC5,离散量采集功能测试,"组件POWER_IN供电。
 30J连接器中的开关信号DO_VDC提供[0，2V]电压输入时，采集通道结果Bank0[0:6]，Bank1[0:6]；
-",POWER_IN,Bank0[0],V,EQ,BOOL,18,1,,,,
+",--,Bank0[0],V,EQ,BOOL,--,1,,,,
 ,,,,Bank0[1],,EQ,BOOL,,1,,,,
 ,,,,Bank0[2],,EQ,BOOL,,1,,,,
 ,,,,Bank0[3],,EQ,BOOL,,1,,,,
