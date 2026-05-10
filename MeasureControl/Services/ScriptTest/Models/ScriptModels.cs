@@ -66,15 +66,25 @@ namespace MeasureControl.Services.ScriptTest.Models
     }
 
     /// <summary>
-    /// 一个 FC 组（如 FC1/FC5）。包含若干判据行。
+    /// 一个 FC 组（如 FC1/HC4）。包含若干判据行。
+    /// 同一 TestId 可在脚本中多次出现（每次使用不同输入值），由 InstanceIndex 区分。
     /// </summary>
     public sealed class FcGroup
     {
-        /// <summary>FC 编号，例如 "FC1"。</summary>
+        /// <summary>FC 基础编号，例如 "HC4"。同一 TestId 可在脚本中多次出现。</summary>
         public string TestId { get; set; }
 
-        /// <summary>测试项名称（如"电源阻抗测试"）。</summary>
+        /// <summary>测试项名称（如"温度采集测试"）。</summary>
         public string TestItem { get; set; }
+
+        /// <summary>相同 TestId 第几次出现（1-based）。首次出现为 1。</summary>
+        public int InstanceIndex { get; set; } = 1;
+
+        /// <summary>
+        /// 唯一组键，用于结果匹配和日志显示。
+        /// 单实例时等于 TestId（如 "HC4"），多实例时追加序号（如 "HC4[2]"）。
+        /// </summary>
+        public string GroupKey => InstanceIndex <= 1 ? TestId : $"{TestId}[{InstanceIndex}]";
 
         /// <summary>FC 在 xlsx 中第一行的行号（1-based），用于回填"测试结果"列。</summary>
         public int FirstRowNumber { get; set; }

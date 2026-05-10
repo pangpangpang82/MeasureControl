@@ -71,7 +71,7 @@ namespace MeasureControl.Services.ScriptTest
                 if (cancellationToken.IsCancellationRequested)
                 {
                     summary.Cancelled = true;
-                    summary.FcResults.Add(new FcRunResult { TestId = group.TestId, Status = FcResultStatus.Cancelled });
+                    summary.FcResults.Add(new FcRunResult { TestId = group.GroupKey, Status = FcResultStatus.Cancelled });
                     foreach (var row in group.Rows) { row.OutputValue = "--"; }
                     continue;
                 }
@@ -79,26 +79,27 @@ namespace MeasureControl.Services.ScriptTest
                 FcRunResult result;
                 if (!runners.TryGetValue(group.TestId, out var runner))
                 {
-                    result = new FcRunResult { TestId = group.TestId, Status = FcResultStatus.Exception, Message = $"未注册 Runner: {group.TestId}" };
+                    result = new FcRunResult { TestId = group.GroupKey, Status = FcResultStatus.Exception, Message = $"未注册 Runner: {group.TestId}" };
                     foreach (var row in group.Rows) { row.OutputValue = "--"; }
                 }
                 else
                 {
-                    Progress($"开始执行 {group.TestId} {group.TestItem}");
+                    Progress($"开始执行 {group.GroupKey} {group.TestItem}");
                     try
                     {
                         result = await runner.RunAsync(group, ctx).ConfigureAwait(false);
+                        result.TestId = group.GroupKey; // 补丁为唯一键，支持同一 TestId 多实例
                     }
                     catch (OperationCanceledException)
                     {
                         summary.Cancelled = true;
-                        result = new FcRunResult { TestId = group.TestId, Status = FcResultStatus.Cancelled };
+                        result = new FcRunResult { TestId = group.GroupKey, Status = FcResultStatus.Cancelled };
                         foreach (var row in group.Rows) { row.OutputValue = "--"; }
                     }
                     catch (Exception ex)
                     {
-                        Log($"{group.TestId} 测试异常: {ex.Message}");
-                        result = new FcRunResult { TestId = group.TestId, Status = FcResultStatus.Exception, Message = ex.Message };
+                        Log($"{group.GroupKey} 测试异常: {ex.Message}");
+                        result = new FcRunResult { TestId = group.GroupKey, Status = FcResultStatus.Exception, Message = ex.Message };
                         foreach (var row in group.Rows) { row.OutputValue = "--"; }
                     }
                 }
@@ -112,20 +113,20 @@ namespace MeasureControl.Services.ScriptTest
                 }
 
                 summary.FcResults.Add(result);
-                Log($"{group.TestId} 结果: {result.ToCellText()}");
+                Log($"{group.GroupKey} 结果: {result.ToCellText()}");
 
                 // FC1/HC1 门控：不合格则取消所有后续测试
                 if ((string.Equals(group.TestId, "FC1", StringComparison.OrdinalIgnoreCase) ||
                      string.Equals(group.TestId, "HC1", StringComparison.OrdinalIgnoreCase))
                     && result.Status != FcResultStatus.Pass)
                 {
-                    Log($"{group.TestId} 测试不合格，终止后续所有测试项");
+                    Log($"{group.GroupKey} 测试不合格，终止后续所有测试项");
                     summary.Cancelled = true;
                     foreach (var remaining in doc.Groups)
                     {
-                        if (!summary.FcResults.Exists(r => r.TestId == remaining.TestId))
+                        if (!summary.FcResults.Exists(r => r.TestId == remaining.GroupKey))
                         {
-                            summary.FcResults.Add(new FcRunResult { TestId = remaining.TestId, Status = FcResultStatus.Cancelled });
+                            summary.FcResults.Add(new FcRunResult { TestId = remaining.GroupKey, Status = FcResultStatus.Cancelled });
                             foreach (var row in remaining.Rows) row.OutputValue = "--";
                         }
                     }

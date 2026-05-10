@@ -42,7 +42,7 @@ namespace MeasureControl.Services.ScriptTest
 
                 foreach (var group in doc.Groups)
                 {
-                    var fcRes = Array.Find(fcResults, r => r != null && r.TestId == group.TestId);
+                    var fcRes = Array.Find(fcResults, r => r != null && r.TestId == group.GroupKey);
                     bool groupAbnormal = fcRes != null
                         && fcRes.Status != FcResultStatus.Pass
                         && fcRes.Status != FcResultStatus.Fail;

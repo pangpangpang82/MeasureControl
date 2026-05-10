@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using ClosedXML.Excel;
 using MeasureControl.Services.ScriptTest.Models;
 
@@ -82,40 +83,63 @@ namespace MeasureControl.Services.ScriptTest
                 }
                 if (issues.Count > 0) return null;
 
-                // L4: 按模板逐 FC 解析行
+                // L4: 动态解析 — 按 xlsx 实际 TestId 顺序，支持任意排列和重复次数
+                var specMap = _specs.ToDictionary(s => s.TestId, s => s, StringComparer.OrdinalIgnoreCase);
+                var instanceCount = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                 int row = ScriptColumns.FirstDataRow;
+                int maxRow = ws.LastRowUsed()?.RowNumber() ?? (ScriptColumns.FirstDataRow - 1);
                 string fwdInputSignal = null, fwdInputUnit = null, fwdInputValue = null;
 
-                foreach (var spec in _specs)
+                while (row <= maxRow)
                 {
-                    var group = new FcGroup
-                    {
-                        TestId = spec.TestId,
-                        TestItem = spec.TestItem,
-                        FirstRowNumber = row,
-                    };
+                    var testId = GetCellTrim(ws, row, ScriptColumns.TestId);
 
-                    // 第一行的"测试编号"必须等于 spec.TestId（防止结构错位）
-                    var firstId = GetCellTrim(ws, row, ScriptColumns.TestId);
-                    if (!string.Equals(firstId, spec.TestId, StringComparison.OrdinalIgnoreCase))
+                    if (string.IsNullOrEmpty(testId))
+                    {
+                        row++;
+                        continue;
+                    }
+
+                    if (!specMap.TryGetValue(testId, out var spec))
                     {
                         issues.Add(new ValidationIssue
                         {
                             RowNumber = row,
                             Column = "A",
-                            Message = $"期望 {spec.TestId}，实际='{firstId}'。可能行数结构与模板不一致"
+                            Message = $"未知的测试编号: '{testId}'（合法值: {string.Join(", ", specMap.Keys)}）"
                         });
                         return null;
                     }
 
-                    // FC 第一行重置 forward-fill 上下文
-                    fwdInputSignal = NormalizeOrNull(GetCellTrim(ws, row, ScriptColumns.InputSignal));
-                    fwdInputUnit = NormalizeOrNull(GetCellTrim(ws, row, ScriptColumns.InputUnit));
-                    fwdInputValue = NormalizeOrNull(GetCellTrim(ws, row, ScriptColumns.InputValue));
+                    instanceCount.TryGetValue(testId, out int prev);
+                    int instance = prev + 1;
+                    instanceCount[testId] = instance;
+
+                    var group = new FcGroup
+                    {
+                        TestId = testId,
+                        TestItem = spec.TestItem,
+                        InstanceIndex = instance,
+                        FirstRowNumber = row,
+                    };
+
+                    fwdInputSignal = null;
+                    fwdInputUnit = null;
+                    fwdInputValue = null;
 
                     for (int i = 0; i < spec.RowCount; i++)
                     {
                         int r = row + i;
+                        if (r > maxRow)
+                        {
+                            issues.Add(new ValidationIssue
+                            {
+                                RowNumber = r,
+                                Column = "A",
+                                Message = $"{group.GroupKey} 需要 {spec.RowCount} 行，但脚本在第 {r - 1} 行已结束"
+                            });
+                            return null;
+                        }
 
                         var inSig = GetCellTrim(ws, r, ScriptColumns.InputSignal);
                         var inUnit = GetCellTrim(ws, r, ScriptColumns.InputUnit);
@@ -145,7 +169,7 @@ namespace MeasureControl.Services.ScriptTest
                             {
                                 RowNumber = r,
                                 Column = "E",
-                                Message = $"{spec.TestId} 的输出信号为空"
+                                Message = $"{group.GroupKey} 的输出信号为空"
                             });
                         }
                         if (string.IsNullOrEmpty(rowModel.JudgementType))
@@ -154,7 +178,7 @@ namespace MeasureControl.Services.ScriptTest
                             {
                                 RowNumber = r,
                                 Column = "G",
-                                Message = $"{spec.TestId} 的判据类型为空"
+                                Message = $"{group.GroupKey} 的判据类型为空"
                             });
                         }
 
@@ -166,16 +190,9 @@ namespace MeasureControl.Services.ScriptTest
                     row += spec.RowCount;
                 }
 
-                // 校验脚本没有"多余"的行（除空白行外不应出现下一个 FC 编号）
-                var trailingId = GetCellTrim(ws, row, ScriptColumns.TestId);
-                if (!string.IsNullOrEmpty(trailingId))
+                if (doc.Groups.Count == 0)
                 {
-                    issues.Add(new ValidationIssue
-                    {
-                        RowNumber = row,
-                        Column = "A",
-                        Message = $"脚本超出模板预期行数，发现额外的测试编号='{trailingId}'"
-                    });
+                    issues.Add(new ValidationIssue { Message = "脚本不包含任何测试项（数据从第3行起）" });
                 }
             }
 
@@ -194,6 +211,5 @@ namespace MeasureControl.Services.ScriptTest
             }
         }
 
-        private static string NormalizeOrNull(string s) => string.IsNullOrEmpty(s) ? null : s;
     }
 }
