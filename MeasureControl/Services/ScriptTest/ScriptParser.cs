@@ -127,18 +127,47 @@ namespace MeasureControl.Services.ScriptTest
                     fwdInputUnit = null;
                     fwdInputValue = null;
 
+                    // nextRow = 正常完成后 row 推进到的位置；groupSkipped = 该组是否因结构异常被跳过
+                    int nextRow = row + spec.RowCount;
+                    bool groupSkipped = false;
+
                     for (int i = 0; i < spec.RowCount; i++)
                     {
                         int r = row + i;
+
+                        // 行数不足：文件提前结束 → 跳过该组，继续外层循环（退出 while）
                         if (r > maxRow)
                         {
                             issues.Add(new ValidationIssue
                             {
                                 RowNumber = r,
                                 Column = "A",
-                                Message = $"{group.GroupKey} 需要 {spec.RowCount} 行，但脚本在第 {r - 1} 行已结束"
+                                Message = $"{group.GroupKey} 需要 {spec.RowCount} 行，但脚本在第 {r - 1} 行已结束，已跳过该测试项",
+                                IsFatal = false
                             });
-                            return null;
+                            groupSkipped = true;
+                            nextRow = maxRow + 1;
+                            break;
+                        }
+
+                        // 行数不足：第 2+ 行出现了不同的 TestId → 跳过该组，从该行重新解析
+                        if (i > 0)
+                        {
+                            var midId = GetCellTrim(ws, r, ScriptColumns.TestId);
+                            if (!string.IsNullOrEmpty(midId) &&
+                                !string.Equals(midId, testId, StringComparison.OrdinalIgnoreCase))
+                            {
+                                issues.Add(new ValidationIssue
+                                {
+                                    RowNumber = row,
+                                    Column = "A",
+                                    Message = $"{group.GroupKey} 行数不足（第 {r} 行出现新测试编号 '{midId}'），已跳过该测试项",
+                                    IsFatal = false
+                                });
+                                groupSkipped = true;
+                                nextRow = r; // 从该行重新开始解析
+                                break;
+                            }
                         }
 
                         var inSig = GetCellTrim(ws, r, ScriptColumns.InputSignal);
@@ -185,9 +214,12 @@ namespace MeasureControl.Services.ScriptTest
                         group.Rows.Add(rowModel);
                     }
 
-                    group.LastRowNumber = row + spec.RowCount - 1;
-                    doc.Groups.Add(group);
-                    row += spec.RowCount;
+                    row = nextRow;
+                    if (!groupSkipped)
+                    {
+                        group.LastRowNumber = row - 1;
+                        doc.Groups.Add(group);
+                    }
                 }
 
                 if (doc.Groups.Count == 0)
@@ -196,7 +228,7 @@ namespace MeasureControl.Services.ScriptTest
                 }
             }
 
-            return issues.Count == 0 ? doc : null;
+            return issues.Any(i => i.IsFatal) ? null : doc;
         }
 
         private static string GetCellTrim(IXLWorksheet ws, int row, int col)

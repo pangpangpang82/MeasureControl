@@ -42,7 +42,9 @@ namespace MeasureControl.Services.ScriptTest
             if (parseIssues != null && parseIssues.Count > 0)
             {
                 summary.LoadingIssues.AddRange(parseIssues);
-                return summary;
+                if (parseIssues.Any(i => i.IsFatal))
+                    return summary;
+                foreach (var w in parseIssues) Log($"[跳过] {w.Message}");
             }
             if (doc == null)
             {
@@ -80,6 +82,12 @@ namespace MeasureControl.Services.ScriptTest
                 if (!runners.TryGetValue(group.TestId, out var runner))
                 {
                     result = new FcRunResult { TestId = group.GroupKey, Status = FcResultStatus.Exception, Message = $"未注册 Runner: {group.TestId}" };
+                    foreach (var row in group.Rows) { row.OutputValue = "--"; }
+                }
+                else if (group.Rows.Any(r2 => string.IsNullOrEmpty(r2.InputValueRaw)))
+                {
+                    Log($"{group.GroupKey} 存在空输入值，跳过该测试项");
+                    result = new FcRunResult { TestId = group.GroupKey, Status = FcResultStatus.Skipped };
                     foreach (var row in group.Rows) { row.OutputValue = "--"; }
                 }
                 else

@@ -174,6 +174,8 @@ namespace MeasureControl.Services.ScriptTest.Models
         public int? RowNumber { get; set; }      // 出问题的行号（如有）
         public string Column { get; set; }        // 出问题的列名（如有）
         public string Message { get; set; }       // 错误描述
+        /// <summary>true（默认）= 致命错误，脚本无法执行；false = 警告，跳过该测试项后继续执行。</summary>
+        public bool IsFatal { get; set; } = true;
 
         public override string ToString()
         {
