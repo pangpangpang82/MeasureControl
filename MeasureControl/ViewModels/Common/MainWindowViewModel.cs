@@ -28,6 +28,7 @@ using Prism.Regions;
 using Prism.Services.Dialogs;
 using DialogServiceAlias = MeasureControl.Services.DialogService;
 using MeasureControl.ViewModels.IcdConfig;
+using MeasureControl.ViewModels.SingleBoardTest;
 using MeasureControl.Helpers.SelfInspection;
 using MeasureControl.Services.HardwareApis;
 using MeasureControl.Views.Dialogs;
@@ -1613,6 +1614,16 @@ namespace MeasureControl.ViewModels.Common
         {
             try
             {
+                if (IsCurrentManualTestHardwareBusy())
+                {
+                    ReMessageBox.Show(
+                        "检测到当前单项测试仍在运行，请先点击当前测试项的“停止测试”，释放硬件资源后再操作上电/下电。",
+                        "请先停止测试",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+
                 if (!IsBoardPowered)
                 {
                     var dlg = new PowerBoardSelectDialog();
@@ -1651,6 +1662,15 @@ namespace MeasureControl.ViewModels.Common
                     if (confirm != MessageBoxResult.Yes) return;
 
                     var wasHydraulic = string.Equals(_boardPowerService.PoweredBoardType, "液压单板", System.StringComparison.OrdinalIgnoreCase);
+                    if (IsCurrentManualTestHardwareBusy())
+                    {
+                        ReMessageBox.Show(
+                            "检测到当前单项测试仍在运行，请先点击当前测试项的“停止测试”，释放硬件资源后再操作上电/下电。",
+                            "请先停止测试",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                        return;
+                    }
                     await _boardPowerService.PowerOffAsync();
                     // 仅液压单板需要关闭 JY7131 DO25
                     if (wasHydraulic)
@@ -1663,6 +1683,40 @@ namespace MeasureControl.ViewModels.Common
             {
                 ReMessageBox.Show($"操作程控电源失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private bool IsCurrentManualTestHardwareBusy()
+        {
+            if (!_regionManager.Regions.ContainsRegionWithName("MainRegion"))
+            {
+                return false;
+            }
+
+            var region = _regionManager.Regions["MainRegion"];
+            var activeView = region.ActiveViews.FirstOrDefault();
+            if (activeView is not FrameworkElement element || element.DataContext == null)
+            {
+                return false;
+            }
+
+            if (element.DataContext is IManualTestHardwareBusyAware busyAware)
+            {
+                return busyAware.IsManualTestHardwareBusy;
+            }
+
+            var vm = element.DataContext;
+            var vmType = vm.GetType();
+            return GetBoolProperty(vm, vmType, "IsManualTestRunning")
+                   || GetBoolProperty(vm, vmType, "IsManualTestInitializing")
+                   || GetBoolProperty(vm, vmType, "IsManualTestStopping");
+        }
+
+        private static bool GetBoolProperty(object instance, Type instanceType, string propertyName)
+        {
+            var property = instanceType.GetProperty(propertyName);
+            return property?.PropertyType == typeof(bool)
+                   && property.GetValue(instance) is bool value
+                   && value;
         }
 
         private async Task SetHydraulicAuxDoAsync(bool on, CancellationToken cancellationToken)
