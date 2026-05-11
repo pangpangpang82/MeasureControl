@@ -1665,7 +1665,7 @@ namespace MeasureControl.ViewModels.Common
                     if (IsCurrentManualTestHardwareBusy())
                     {
                         ReMessageBox.Show(
-                            "检测到当前单项测试仍在运行，请先点击当前测试项的“停止测试”，释放硬件资源后再操作上电/下电。",
+                            "存在测试项在运行，请先“停止测试”，再操作上/下电。",
                             "请先停止测试",
                             MessageBoxButton.OK,
                             MessageBoxImage.Warning);
