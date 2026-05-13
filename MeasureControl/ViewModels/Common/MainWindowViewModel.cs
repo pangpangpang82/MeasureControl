@@ -1651,6 +1651,20 @@ namespace MeasureControl.ViewModels.Common
                     if (confirm != MessageBoxResult.Yes) return;
 
                     var wasHydraulic = string.Equals(_boardPowerService.PoweredBoardType, "液压单板", System.StringComparison.OrdinalIgnoreCase);
+
+                    // 液压单板下电前，先通知所有正在运行的测试项停止并等待其完成，
+                    // 避免 SetHydraulicAuxDoAsync 创建的新 Jy7131Api 实例与测试项
+                    // 正在使用的实例同时操作同一块 JY7131 硬件导致冲突。
+                    if (wasHydraulic)
+                    {
+                        var stopArgs = new RequestStopHydraulicTestsEventArgs();
+                        _eventAggregator.GetEvent<RequestStopHydraulicTestsEvent>().Publish(stopArgs);
+                        if (stopArgs.StopTasks.Count > 0)
+                        {
+                            await Task.WhenAll(stopArgs.StopTasks).ConfigureAwait(false);
+                        }
+                    }
+
                     await _boardPowerService.PowerOffAsync();
                     // 仅液压单板需要关闭 JY7131 DO25
                     if (wasHydraulic)
