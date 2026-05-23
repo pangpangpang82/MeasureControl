@@ -136,6 +136,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.HydraulicController
 
             ResetMeasurementState();
             LoadLastTestResultFromProject();
+            SubscribeStopEvent();
+        }
+
+        private void SubscribeStopEvent()
+        {
+            var ea = ContainerLocator.Container?.Resolve(typeof(IEventAggregator)) as IEventAggregator;
+            ea?.GetEvent<RequestStopHydraulicTestsEvent>().Subscribe(OnRequestStopAllTests);
+        }
+
+        private void OnRequestStopAllTests(RequestStopHydraulicTestsEventArgs args)
+        {
+            if (_isManualTestRunning || _isManualTestInitializing)
+                args.StopTasks.Add(StopManualTestAsync());
+            if (_isAutoTestRunning || _isAutoTestInitializing)
+                args.StopTasks.Add(StopAutoTestAsync());
         }
 
         public DelegateCommand ManualTestCommand { get; }
