@@ -25,7 +25,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
 
-        private static readonly byte[] TestCommandTemplate8 = { 0x23, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] TestCommandTemplate8 = { 0x23, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
         private const double VoltageLowerLimit = 3.0;
         private const double VoltageUpperLimit = 3.6;
@@ -370,23 +370,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private void UpdateTestCommandDisplayText()
         {
-            UpdateTestCommandXxFromNibbles();
-            var xx = string.IsNullOrWhiteSpace(TestCommandXx) ? "--" : TestCommandXx.Trim().ToUpperInvariant();
-            TestCommandDisplayText = $"0x23 01 01 {xx} 00 00 00 00";
+            TestCommandDisplayText = "0x23 02 01 01 00 00 00 00";
         }
 
         private byte[] BuildTestCommand8OrNull(out string error)
         {
-            if (!TryParseHexByte(TestCommandXx, out var xx))
-            {
-                error = "测试指令XX无效，应为2位16进制（00~FF）";
-                return null;
-            }
-
             error = null;
-            var cmd = (byte[])TestCommandTemplate8.Clone();
-            cmd[3] = xx;
-            return cmd;
+            return (byte[])TestCommandTemplate8.Clone();
         }
 
         private void UpdateTestCommandXxFromNibbles()

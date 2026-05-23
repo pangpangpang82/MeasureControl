@@ -9,6 +9,12 @@
     d:DesignWidth="970"
     mc:Ignorable="d">
     <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Styles/ScrollBarStyles.xaml" />
+                <ResourceDictionary Source="/Styles/ComboBoxStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </UserControl.Resources>
 
     <Grid
@@ -276,7 +282,7 @@
                                     </Border>
 
                                     <Border
-                                        Width="220"
+                                        Width="320"
                                         Height="28"
                                         Margin="10,0,0,0"
                                         VerticalAlignment="Center"
@@ -408,7 +414,7 @@
                                     </Border>
 
                                     <Border
-                                        Width="220"
+                                        Width="380"
                                         Height="28"
                                         Margin="10,0,0,0"
                                         VerticalAlignment="Center"
@@ -416,12 +422,56 @@
                                         BorderThickness="1"
                                         Background="AliceBlue"
                                         CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
+                                        <StackPanel
+                                            Margin="4,0"
                                             VerticalAlignment="Center"
                                             HorizontalAlignment="Center"
-                                            FontSize="12"
-                                            Text="0x23 01 02 01 00 00 00 00" />
+                                            Orientation="Horizontal">
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                Text="0x23 01 01 " />
+
+                                            <ComboBox
+                                                Width="58"
+                                                Height="22"
+                                                Margin="0,0,0,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                ItemsSource="{Binding HexNibbles}"
+                                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                                                SelectedValuePath="."
+                                                SelectedValue="{Binding TestCommandXxHighNibble, Mode=TwoWay}">
+                                                <ComboBox.Style>
+                                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
+                                                        <Setter Property="Opacity" Value="1" />
+                                                    </Style>
+                                                </ComboBox.Style>
+                                            </ComboBox>
+
+                                            <ComboBox
+                                                Width="58"
+                                                Height="22"
+                                                Margin="0,0,0,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                ItemsSource="{Binding HexNibbles}"
+                                                ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
+                                                SelectedValuePath="."
+                                                SelectedValue="{Binding TestCommandXxLowNibble, Mode=TwoWay}">
+                                                <ComboBox.Style>
+                                                    <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
+                                                        <Setter Property="Opacity" Value="1" />
+                                                    </Style>
+                                                </ComboBox.Style>
+                                            </ComboBox>
+
+                                            <TextBlock
+                                                Margin="4,0,0,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                Text=" 00 00 00 00" />
+                                        </StackPanel>
                                     </Border>
 
                                     <Button

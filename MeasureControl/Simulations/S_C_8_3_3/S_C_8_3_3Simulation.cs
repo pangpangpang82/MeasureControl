@@ -9,20 +9,34 @@ namespace MeasureControl.Simulations.S_C_8_3_3
 {
     public sealed class S_C_8_3_3Simulation : ARINC429SimulationBase
     {
-        private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-        private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
-        private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        private static readonly byte[] EnterAtpCommand8 = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] EnterAtpOk8 = { 0x30, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExitAtpCommand8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExitAtpOk8 = { 0x30, 0x02, 0x02, 0x02, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] SArinc429In02Command8 = { 0x13, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] SArinc429In02OkPrefix4 = { 0x13, 0x02, 0x02, 0x02 };
 
         private static readonly byte[] TestData4 = { 0x01, 0x01, 0x01, 0x01 };
 
-        private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
-        private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
+        private static readonly byte[] BenchTxFragmentLabels = { 0x8C, 0x4C, 0xCC, 0x2C };
+        private static readonly byte[] ProductTxFragmentLabels = { 0x90, 0x50, 0xD0, 0x30 };
 
         private readonly MultiLabelCommandAssembler _cmdAssembler = new MultiLabelCommandAssembler(BenchTxFragmentLabels);
+
+        private static byte[] SwapPairs8(byte[] data8)
+        {
+            if (data8 == null || data8.Length != 8)
+                return data8;
+
+            var b = new byte[8];
+            for (int i = 0; i < 8; i += 2)
+            {
+                b[i] = data8[i + 1];
+                b[i + 1] = data8[i];
+            }
+            return b;
+        }
 
         private ushort? _dataPart0;
         private ushort? _dataPart1;
@@ -67,7 +81,8 @@ namespace MeasureControl.Simulations.S_C_8_3_3
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送: tx={txIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
 
-            await SendMultiLabelFrameOnChannelAsync(txIndex, BenchTxFragmentLabels, command8, log, token);
+            var swapped = SwapPairs8(command8);
+            await SendMultiLabelFrameOnChannelAsync(txIndex, BenchTxFragmentLabels, swapped, log, token);
         }
 
         public async Task SendBenchData4Async(string benchTxChannel, byte[] data4, Action<string> log, CancellationToken token)
@@ -242,14 +257,14 @@ namespace MeasureControl.Simulations.S_C_8_3_3
                     if (cmd8.SequenceEqual(EnterAtpCommand8))
                     {
                         log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP -> 回复OK");
-                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, EnterAtpOk8, log, token);
+                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, SwapPairs8(EnterAtpOk8), log, token);
                         continue;
                     }
 
                     if (cmd8.SequenceEqual(ExitAtpCommand8))
                     {
                         log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP -> 回复OK");
-                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, ExitAtpOk8, log, token);
+                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, SwapPairs8(ExitAtpOk8), log, token);
                         continue;
                     }
 
@@ -262,7 +277,7 @@ namespace MeasureControl.Simulations.S_C_8_3_3
                         resp8[7] = 0x80;
 
                         log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到S_ARINC429_IN02 -> 回传缓存数据 resp8={FormatBytes(resp8)}");
-                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, resp8, log, token);
+                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, SwapPairs8(resp8), log, token);
                         continue;
                     }
                 }
@@ -321,8 +336,8 @@ namespace MeasureControl.Simulations.S_C_8_3_3
                 cmd8 = new byte[8];
                 for (int j = 0; j < 4; j++)
                 {
-                    cmd8[j * 2] = (byte)((_parts[j] >> 8) & 0xFF);
-                    cmd8[j * 2 + 1] = (byte)(_parts[j] & 0xFF);
+                    cmd8[j * 2] = (byte)(_parts[j] & 0xFF);
+                    cmd8[j * 2 + 1] = (byte)((_parts[j] >> 8) & 0xFF);
                 }
 
                 _mask = 0;

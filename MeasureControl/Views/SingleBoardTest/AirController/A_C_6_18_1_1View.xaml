@@ -402,7 +402,7 @@
                             </Border>
 
                             <Border
-                                Width="320"
+                                Width="220"
                                 Height="28"
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
@@ -410,56 +410,12 @@
                                 BorderBrush="#D9D9D9"
                                 BorderThickness="1"
                                 CornerRadius="3">
-                                <StackPanel
-                                    Margin="4,0"
-                                    VerticalAlignment="Center"
+                                <TextBlock
+                                    Margin="1"
                                     HorizontalAlignment="Center"
-                                    Orientation="Horizontal">
-                                    <TextBlock
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="0x23 01 01 " />
-
-                                    <ComboBox
-                                        Width="58"
-                                        Height="22"
-                                        Margin="0,0,0,0"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                        ItemsSource="{Binding HexNibbles}"
-                                        SelectedValuePath="."
-                                        SelectedValue="{Binding TestCommandXxHighNibble, Mode=TwoWay}">
-                                        <ComboBox.Style>
-                                            <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                                <Setter Property="Opacity" Value="1" />
-                                            </Style>
-                                        </ComboBox.Style>
-                                    </ComboBox>
-
-                                    <ComboBox
-                                        Width="58"
-                                        Height="22"
-                                        Margin="0,0,0,0"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
-                                        ItemsSource="{Binding HexNibbles}"
-                                        SelectedValuePath="."
-                                        SelectedValue="{Binding TestCommandXxLowNibble, Mode=TwoWay}">
-                                        <ComboBox.Style>
-                                            <Style BasedOn="{StaticResource CustomComboBoxStyle}" TargetType="ComboBox">
-                                                <Setter Property="Opacity" Value="1" />
-                                            </Style>
-                                        </ComboBox.Style>
-                                    </ComboBox>
-
-                                    <TextBlock
-                                        Margin="4,0,0,0"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text=" 00 00 00 00" />
-                                </StackPanel>
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="0x23 02 01 01 00 00 00 00" />
                             </Border>
 
                             <Button
