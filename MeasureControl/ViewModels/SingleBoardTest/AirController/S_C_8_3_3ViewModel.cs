@@ -19,10 +19,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const string FixedTxChannel = "429_CH2";
         private const string FixedRxChannel = "429_CH0";
 
-        private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-        private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
-        private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        private static readonly byte[] EnterAtpCommand8 = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] EnterAtpOk8 = { 0x30, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExitAtpCommand8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExitAtpOk8 = { 0x30, 0x02, 0x02, 0x02, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] SArinc429In02Command8 = { 0x13, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] SArinc429In02OkPrefix4 = { 0x13, 0x02, 0x02, 0x02 };
@@ -468,7 +468,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     var resp8 = await _simulation.WaitBenchResponse8Async(
                         TestRxChannel,
-                        b => b != null && b.Length == 8 && b[0] == SArinc429In02OkPrefix4[0] && b[1] == SArinc429In02OkPrefix4[1] && b[2] == SArinc429In02OkPrefix4[2] && b[3] == SArinc429In02OkPrefix4[3],
+                        b => b != null && b.SequenceEqual(ExpectedReceiveResp8),
                         timeoutMs: 1200,
                         log: msg => AddLog(msg),
                         token: token);
@@ -642,7 +642,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     var rx8 = await _simulation.WaitBenchResponse8Async(
                         TestRxChannel,
-                        b => b != null && b.Length == 8 && b[0] == SArinc429In02OkPrefix4[0] && b[1] == SArinc429In02OkPrefix4[1] && b[2] == SArinc429In02OkPrefix4[2] && b[3] == SArinc429In02OkPrefix4[3],
+                        b => b != null && b.SequenceEqual(ExpectedReceiveResp8),
                         timeoutMs: 1200,
                         log: msg => AddLog(msg),
                         token: token);
