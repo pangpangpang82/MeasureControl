@@ -130,7 +130,8 @@ namespace MeasureControl.Simulations.S_C_8_3_1
             var labelAssembler = new MultiLabelCommandAssembler(ProductTxFragmentLabels);
             var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
             int rxLogCount = 0;
-            const int maxRxLog = 32;
+            const int maxRxLog = 8;
+            var validLabels = new HashSet<byte>(ProductTxFragmentLabels);
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
             {
@@ -142,21 +143,21 @@ namespace MeasureControl.Simulations.S_C_8_3_1
                         if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
                             continue;
 
+                        // 只处理指定 label 的数据
+                        if (!validLabels.Contains(rxLabel))
+                            continue;
+
                         if (EnableFrameLogging && rxLogCount < maxRxLog)
                         {
-                            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} recv raw=0x{item.Data429:X8} label=0x{rxLabel:X2} sdi={sdi} payload=0x{payload:X4}");
+                            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} recv label=0x{rxLabel:X2} payload=0x{payload:X4}");
                             rxLogCount++;
-                            if (rxLogCount == maxRxLog)
-                            {
-                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} recv日志已达上限({maxRxLog})，后续帧不再打印");
-                            }
                         }
 
                         if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
                         {
                             if (isExpected == null || isExpected(resp8))
                             {
-                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 labels={string.Join("/", ProductTxFragmentLabels.Select(b => $"0x{b:X2}"))} resp8={FormatBytes(resp8)}");
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 resp8={FormatBytes(resp8)}");
                                 return resp8;
                             }
                         }

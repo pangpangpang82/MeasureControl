@@ -1,5 +1,6 @@
 using MeasureControl.Services.HardwareApis;
 using MeasureControl.Services;
+using MeasureControl.Simulations.S_C_8_3_1;
 using Prism.Commands;
 using Prism.Mvvm;
 using System;
@@ -35,7 +36,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] Vbit15Prefix4 = { 0x01, 0x01, 0x01, 0x02 };
         private static readonly byte[] Vbit5Prefix4 = { 0x01, 0x01, 0x01, 0x03 };
 
-        private readonly AirSafety429Hardware _arinc = new AirSafety429Hardware();
+        private readonly S_C_8_3_1Simulation _arinc = new S_C_8_3_1Simulation();
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
@@ -480,6 +481,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：开始打开设备");
 
                 await EnsurePowerSupplyConnectedAsync(CancellationToken.None);
+                _arinc.IsRealProduct = true;
+                _arinc.ArincRate = 100000.0;
                 await _arinc.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：429板卡/电源已就绪");
@@ -575,6 +578,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：开始打开设备");
                 await EnsurePowerSupplyConnectedAsync(token);
+                _arinc.IsRealProduct = true;
+                _arinc.ArincRate = 100000.0;
                 await _arinc.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
                 if (IsSafetyChannelTest)
@@ -741,6 +746,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 LastTestTime = "--";
                 LastTestResult = "--";
                 await EnsurePowerSupplyConnectedAsync(token);
+                _arinc.IsRealProduct = true;
+                _arinc.ArincRate = 100000.0;
                 await _arinc.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
                 await RunSupplyVoltageScenarioAsync(supplyVoltage, currentUpperLimit, token, failures);
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
@@ -786,31 +793,34 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP重试 ({attempt}/{maxRetry})");
 
                     try { await _arinc.ClearRxFifoAsync(EnterAtpRxChannel); } catch { }
-                    await Task.Delay(30, token);
+                    await Task.Delay(20, token);
 
                     if (IsSafetyChannelTest)
                     {
-                        await _arinc.SendAirCommandOnlyAsync(
+                        await _arinc.SendBenchCommandOnlyAsync(
                             EnterAtpTxChannel,
                             AirSafetyAtpR,
                             msg => AddLog(msg),
                             token);
 
-                        resp = await _arinc.WaitAirResponseAsync(
+                        resp = await _arinc.WaitBenchResponse8Async(
                             EnterAtpRxChannel,
-                            b => b.SequenceEqual(AirSafetyAtpEnterOk),
+                            b => b != null && b.SequenceEqual(AirSafetyAtpEnterOk),
                             timeoutMs: 1500,
                             msg => AddLog(msg),
                             token);
                     }
                     else
                     {
-                        resp = await _arinc.SendBenchCommandAndWaitAsync(
+                        await _arinc.SendBenchCommandOnlyAsync(
                             EnterAtpTxChannel,
-                            EnterAtpRxChannel,
-                            DefaultLabel,
                             AtpR,
-                            b => b.SequenceEqual(AtpEnterOk),
+                            msg => AddLog(msg),
+                            token);
+
+                        resp = await _arinc.WaitBenchResponse8Async(
+                            EnterAtpRxChannel,
+                            b => b != null && b.SequenceEqual(AtpEnterOk),
                             timeoutMs: 1500,
                             msg => AddLog(msg),
                             token);
@@ -846,14 +856,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 ExitAtpRxDataText = "--";
 
                 try { await _arinc.ClearRxFifoAsync(ExitAtpRxChannel); } catch { }
-                await Task.Delay(50, token);
+                await Task.Delay(20, token);
 
-                var resp = await _arinc.SendBenchCommandAndWaitAsync(
+                await _arinc.SendBenchCommandOnlyAsync(
                     ExitAtpTxChannel,
-                    ExitAtpRxChannel,
-                    DefaultLabel,
                     AtpE,
-                    b => b.SequenceEqual(ExitOk),
+                    msg => AddLog(msg),
+                    token);
+
+                var resp = await _arinc.WaitBenchResponse8Async(
+                    ExitAtpRxChannel,
+                    b => b != null && b.SequenceEqual(ExitOk),
                     timeoutMs: 2000,
                     msg => AddLog(msg),
                     token);
@@ -880,25 +893,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：发送测试指令 {TestCommandName}");
                 try { await _arinc.ClearRxFifoAsync(TelemetryRxChannel); } catch { }
-                await Task.Delay(30, token);
+                await Task.Delay(20, token);
 
-                if (IsSafetyChannelTest)
-                {
-                    await _arinc.SendAirCommandOnlyAsync(
-                        SetVoltageTxChannel,
-                        GetTestCommandBytes(),
-                        msg => AddLog(msg),
-                        token);
-                }
-                else
-                {
-                    await _arinc.SendBenchCommandOnlyAsync(
-                        SetVoltageTxChannel,
-                        DefaultLabel,
-                        GetTestCommandBytes(),
-                        msg => AddLog(msg),
-                        token);
-                }
+                await _arinc.SendBenchCommandOnlyAsync(
+                    SetVoltageTxChannel,
+                    GetTestCommandBytes(),
+                    msg => AddLog(msg),
+                    token);
 
                 // 发送后立即开始接收，不要延时
                 token.ThrowIfCancellationRequested();
@@ -998,9 +999,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 EnterAtpRxDataText = "--";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：进入ATP，TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}, Label=0x{DefaultLabel:X2}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：进入ATP，TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}");
 
                 await EnsurePowerSupplyConnectedAsync(CancellationToken.None);
+                _arinc.IsRealProduct = true;
+                _arinc.ArincRate = 100000.0;
                 await _arinc.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
                 byte[] resp = null;
@@ -1011,31 +1014,37 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP重试 ({attempt}/{maxRetry})");
 
                     try { await _arinc.ClearRxFifoAsync(EnterAtpRxChannel); } catch { }
-                    await Task.Delay(30);
+                    await Task.Delay(20);
 
                     if (IsSafetyChannelTest)
                     {
-                        await _arinc.SendAirCommandOnlyAsync(
+                        await _arinc.SendBenchCommandOnlyAsync(
                             EnterAtpTxChannel,
                             AirSafetyAtpR,
                             msg => AddLog(msg),
                             CancellationToken.None);
 
-                        resp = await _arinc.WaitAirResponseAsync(
+                        resp = await _arinc.WaitBenchResponse8Async(
                             EnterAtpRxChannel,
-                            b => b.SequenceEqual(AirSafetyAtpEnterOk),
+                            b => b != null && b.SequenceEqual(AirSafetyAtpEnterOk),
                             timeoutMs: 1500,
                             msg => AddLog(msg),
                             CancellationToken.None);
                     }
                     else
                     {
-                        resp = await _arinc.SendBenchCommandAndWaitAsync(
-                            EnterAtpTxChannel, EnterAtpRxChannel,
-                            DefaultLabel, AtpR,
-                            b => b.SequenceEqual(AtpEnterOk),
+                        await _arinc.SendBenchCommandOnlyAsync(
+                            EnterAtpTxChannel,
+                            AtpR,
+                            msg => AddLog(msg),
+                            CancellationToken.None);
+
+                        resp = await _arinc.WaitBenchResponse8Async(
+                            EnterAtpRxChannel,
+                            b => b != null && b.SequenceEqual(AtpEnterOk),
                             timeoutMs: 1500,
-                            msg => AddLog(msg), CancellationToken.None);
+                            msg => AddLog(msg),
+                            CancellationToken.None);
                     }
                 }
 
@@ -1071,33 +1080,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _arincOpLock.WaitAsync();
             try
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：{TestCommandName}，TX={SetVoltageTxChannel}, RX={TelemetryRxChannel}, Label=0x{DefaultLabel:X2}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：{TestCommandName}，TX={SetVoltageTxChannel}, RX={TelemetryRxChannel}");
                 TelemetryRxDataText = "--";
                 TelemetryVoltageText = "--";
 
                 await EnsurePowerSupplyConnectedAsync(CancellationToken.None);
+                _arinc.IsRealProduct = true;
+                _arinc.ArincRate = 100000.0;
                 await _arinc.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
                 try { await _arinc.ClearRxFifoAsync(TelemetryRxChannel); } catch { }
-                await Task.Delay(30);
+                await Task.Delay(20);
 
-                if (IsSafetyChannelTest)
-                {
-                    await _arinc.SendAirCommandOnlyAsync(
-                        SetVoltageTxChannel,
-                        GetTestCommandBytes(),
-                        msg => AddLog(msg),
-                        CancellationToken.None);
-                }
-                else
-                {
-                    await _arinc.SendBenchCommandOnlyAsync(
-                        SetVoltageTxChannel,
-                        DefaultLabel,
-                        GetTestCommandBytes(),
-                        msg => AddLog(msg),
-                        CancellationToken.None);
-                }
+                await _arinc.SendBenchCommandOnlyAsync(
+                    SetVoltageTxChannel,
+                    GetTestCommandBytes(),
+                    msg => AddLog(msg),
+                    CancellationToken.None);
 
                 // 发送后立即开始接收，不要延时
                 if (IsSafetyChannelTest)
@@ -1193,20 +1192,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 ExitAtpRxDataText = "--";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：退出ATP，TX={ExitAtpTxChannel}, RX={ExitAtpRxChannel}, Label=0x{DefaultLabel:X2}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：退出ATP，TX={ExitAtpTxChannel}, RX={ExitAtpRxChannel}");
 
                 await EnsurePowerSupplyConnectedAsync(CancellationToken.None);
+                _arinc.IsRealProduct = true;
+                _arinc.ArincRate = 100000.0;
                 await _arinc.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
                 try { await _arinc.ClearRxFifoAsync(ExitAtpRxChannel); } catch { }
-                await Task.Delay(50);
+                await Task.Delay(20);
 
-                var resp = await _arinc.SendBenchCommandAndWaitAsync(
-                    ExitAtpTxChannel, ExitAtpRxChannel,
-                    DefaultLabel, AtpE,
-                    b => b.SequenceEqual(ExitOk),
+                await _arinc.SendBenchCommandOnlyAsync(
+                    ExitAtpTxChannel,
+                    AtpE,
+                    msg => AddLog(msg),
+                    CancellationToken.None);
+
+                var resp = await _arinc.WaitBenchResponse8Async(
+                    ExitAtpRxChannel,
+                    b => b != null && b.SequenceEqual(ExitOk),
                     timeoutMs: 2000,
-                    msg => AddLog(msg), CancellationToken.None);
+                    msg => AddLog(msg),
+                    CancellationToken.None);
 
                 if (resp == null)
                 {
@@ -1377,9 +1384,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (remainMs <= 0)
                     break;
 
-                var resp = await _arinc.WaitBenchResponseAsync(
+                var resp = await _arinc.WaitBenchResponse8Async(
                     TelemetryRxChannel,
-                    DefaultLabel,
                     IsAnyVbitPayload,
                     timeoutMs: Math.Min(500, remainMs),
                     log,
@@ -1402,22 +1408,44 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             Action<string> log,
             CancellationToken token)
         {
-            return await _arinc.WaitAirResponseAsync(
-                TelemetryRxChannel,
-                IsAirTelemetryVoltagePayload,
-                timeoutMs: Math.Max(200, timeoutMs),
-                log,
-                token);
+            var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(200, timeoutMs));
+
+            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
+            {
+                int remainingMs = (int)Math.Max(100, (deadline - DateTime.UtcNow).TotalMilliseconds);
+
+                var resp8 = await _arinc.WaitBenchResponse8Async(
+                    TelemetryRxChannel,
+                    null,  // 先不过滤，接收所有拼包完成的数据
+                    timeoutMs: remainingMs,
+                    log,
+                    token);
+
+                if (resp8 == null)
+                    continue;
+
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] 收到回采数据: 0x{FormatBytesHex(resp8)}");
+
+                // 检查是否是电压回采数据 (前缀 0x10 01 01 01 表示 S_28VSupply_Voltage01 响应)
+                if (IsAirTelemetryVoltagePayload(resp8))
+                    return resp8;
+
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] 数据前缀不匹配，继续等待...");
+            }
+
+            return null;
         }
 
         private static bool IsAirTelemetryVoltagePayload(byte[] frame)
         {
-            return frame != null
-                && frame.Length == 8
-                && frame[0] == 0x30
+            if (frame == null || frame.Length != 8)
+                return false;
+
+            // 回采数据前缀: 0x10 01 01 01 (S_28VSupply_Voltage01 响应)
+            // 或者 0x10 01 01 02/03 等变体
+            return frame[0] == 0x10
                 && frame[1] == 0x01
-                && frame[2] == 0x01
-                && frame[3] == 0x01;
+                && frame[2] == 0x01;
         }
 
         private static bool IsPrefix4(byte[] frame, byte[] prefix4)

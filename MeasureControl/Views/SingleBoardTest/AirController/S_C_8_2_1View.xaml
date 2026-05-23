@@ -22,35 +22,6 @@
             <Grid>
                 <TextBlock Width="360" Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="24" FontWeight="Bold" Text="8.2.1电源模块测试" />
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                    <Button Width="120" Height="32" Margin="0,0,20,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding ManualTestCommand}">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
-                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                        <Image Width="15" Height="15" Margin="5,0,5,0" Source="/Resources/Logo/hand_w.png" />
-                                        <TextBlock x:Name="DeviceAction" Margin="0,0,5,0" VerticalAlignment="Center" FontSize="16" Foreground="White" Text="手动测试" />
-                                    </StackPanel>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <DataTrigger Binding="{Binding IsManualTestRunning}" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#ef4444" />
-                                        <Setter TargetName="DeviceAction" Property="Text" Value="下电中" />
-                                    </DataTrigger>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                                    </Trigger>
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                                    </Trigger>
-                                    <Trigger Property="IsEnabled" Value="False">
-                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                        <Setter Property="Cursor" Value="Arrow" />
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-
                     <Button Width="100" Height="32" Margin="0,0,30,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding AutoTestCommand}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
@@ -98,23 +69,7 @@
 
                     <Border Grid.Row="0" Height="150" Margin="18" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="8">
                         <StackPanel Margin="18" VerticalAlignment="Center" Orientation="Vertical">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock VerticalAlignment="Center" FontSize="20" FontWeight="Bold" Text="32V供电测试" />
-                                <Button Width="80" Height="30" Margin="18,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Test32VCommand}">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
-                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="测试" />
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="border" Property="Background" Value="#1d4ed8" /></Trigger>
-                                                <Trigger Property="IsPressed" Value="True"><Setter TargetName="border" Property="Background" Value="#1d4ed8" /></Trigger>
-                                                <Trigger Property="IsEnabled" Value="False"><Setter TargetName="border" Property="Background" Value="#9ca3af" /></Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                </Button>
-                            </StackPanel>
+                            <TextBlock VerticalAlignment="Center" FontSize="20" FontWeight="Bold" Text="32V供电测试" />
                             <StackPanel Margin="0,14,0,0" Orientation="Vertical">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Width="110" VerticalAlignment="Center" FontSize="16" Text="回采电压值：" />
@@ -134,23 +89,7 @@
 
                     <Border Grid.Row="1" Height="150" Margin="18" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="8">
                         <StackPanel Margin="18" VerticalAlignment="Center" Orientation="Vertical">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock VerticalAlignment="Center" FontSize="20" FontWeight="Bold" Text="28V供电测试" />
-                                <Button Width="80" Height="30" Margin="18,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Test28VCommand}">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
-                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="测试" />
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="border" Property="Background" Value="#1d4ed8" /></Trigger>
-                                                <Trigger Property="IsPressed" Value="True"><Setter TargetName="border" Property="Background" Value="#1d4ed8" /></Trigger>
-                                                <Trigger Property="IsEnabled" Value="False"><Setter TargetName="border" Property="Background" Value="#9ca3af" /></Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                </Button>
-                            </StackPanel>
+                            <TextBlock VerticalAlignment="Center" FontSize="20" FontWeight="Bold" Text="28V供电测试" />
                             <StackPanel Margin="0,14,0,0" Orientation="Vertical">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Width="110" VerticalAlignment="Center" FontSize="16" Text="回采电压值：" />
