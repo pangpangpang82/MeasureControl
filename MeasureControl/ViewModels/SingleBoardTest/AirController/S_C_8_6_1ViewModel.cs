@@ -26,12 +26,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const byte DefaultLabel = 0x6A;
 
         private static readonly byte[] TestCommand = { 0x15, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] AtpR = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] AtpEnterOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-        private static readonly byte[] AtpE = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
-        private static readonly byte[] ExitOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
-        private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x02, 0x02 };
-        private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x02, 0x03 };
+        private static readonly byte[] AtpR = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] AtpEnterOk = { 0x30, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] AtpE = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExitOk = { 0x30, 0x02, 0x02, 0x02, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] TelemetryTemperaturePrefix = { 0x15, 0x01, 0x01, 0x02 };
+        private static readonly byte[] TelemetryRawPrefix = { 0x15, 0x01, 0x01, 0x03 };
 
         public S_C_8_6_1ViewModel()
         {
@@ -877,7 +877,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 if (temperature == null)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：缓存中无温度采集值(07 01 02 02)");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：缓存中无温度采集值(15 01 01 02)");
 
                     if (!_suppressResultUpdates)
                     {
@@ -908,9 +908,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     var rawHex = FormatData(rawData, rawData.Length);
                     if (TryParseBase6FromNibbles(rawData, out var rawBase6Decimal))
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] WAITS1温度原始数据(07 01 02 03) 后四字节(6进制)->10进制：{rawBase6Decimal}，Data={rawHex}");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] WAITS1温度原始数据(15 01 01 03) 后四字节(6进制)->10进制：{rawBase6Decimal}，Data={rawHex}");
                     else
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] WAITS1温度原始数据(07 01 02 03) Data={rawHex}");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] WAITS1温度原始数据(15 01 01 03) Data={rawHex}");
                 }
             }
             catch (Exception ex)
