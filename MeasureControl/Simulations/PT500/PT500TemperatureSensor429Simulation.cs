@@ -39,6 +39,8 @@ namespace MeasureControl.Simulations.PT500
 
         private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
         private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
+        private static readonly byte[] AirBenchTxFragmentLabels = { 0x8C, 0x4C, 0xCC, 0x2C };
+        private static readonly byte[] AirProductTxFragmentLabels = { 0x90, 0x50, 0xD0, 0x30 };
 
         public bool EnableFrameLogging { get; set; } = true;
 
@@ -295,6 +297,28 @@ namespace MeasureControl.Simulations.PT500
             await SendMultiFrameOnChannelAsync(txIndex, label, command8, log, token);
         }
 
+        public async Task SendAirCommandOnlyAsync(
+            string benchTxChannel,
+            byte[] command8,
+            Action<string> log,
+            CancellationToken token)
+        {
+            if (!_started || _arincDriver == null)
+                throw new InvalidOperationException("Simulation not started");
+            if (command8 == null || command8.Length != 8)
+                throw new ArgumentException("command8 must be 8 bytes", nameof(command8));
+
+            int txIndex = ParseChannelIndex(benchTxChannel);
+
+            bool openTxOk = await _arincDriver.OpenTxChannelAsync(txIndex);
+            if (!openTxOk)
+                throw new InvalidOperationException($"[SIM] TX通道打开失败: tx={txIndex}");
+
+            await _arincDriver.ConfigureTxChannelAsync(txIndex, ArincRate, sendMode: 0, parity: 1, wordFormat: 0);
+            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [AIR429] 发送: tx={txIndex}, labels={string.Join("/", AirBenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
+            await SendMultiFrameOnChannelAsync(txIndex, AirBenchTxFragmentLabels, command8, reversePayloadBytes: true, log, token);
+        }
+
         public async Task ClearRxFifoAsync(string benchRxChannel)
         {
             if (_arincDriver == null)
@@ -342,6 +366,50 @@ namespace MeasureControl.Simulations.PT500
                             if (isExpectedResponse == null || isExpectedResponse(resp8))
                             {
                                 log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 labels={string.Join("/", ProductTxFragmentLabels.Select(b => $"0x{b:X2}"))} resp8={FormatBytes(resp8)}");
+                                return resp8;
+                            }
+                        }
+                    }
+                }
+
+                await Task.Delay(10, token);
+            }
+
+            return null;
+        }
+
+        public async Task<byte[]> WaitAirResponseAsync(
+            string benchRxChannel,
+            Func<byte[], bool> isExpectedResponse,
+            int timeoutMs,
+            Action<string> log,
+            CancellationToken token)
+        {
+            if (!_started || _arincDriver == null)
+                throw new InvalidOperationException("Simulation not started");
+
+            int rxIndex = ParseChannelIndex(benchRxChannel);
+            MultiLabelCommandAssembler labelAssembler = new MultiLabelCommandAssembler(AirProductTxFragmentLabels, reversePayloadBytes: true);
+            var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
+
+            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
+            {
+                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
+                if (list != null && list.Count > 0)
+                {
+                    foreach (var item in list)
+                    {
+                        if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
+                            continue;
+
+                        if (sdi != 0)
+                            continue;
+
+                        if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
+                        {
+                            if (isExpectedResponse == null || isExpectedResponse(resp8))
+                            {
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [AIR429] RX={rxIndex} 拼包完成 labels={string.Join("/", AirProductTxFragmentLabels.Select(b => $"0x{b:X2}"))} resp8={FormatBytes(resp8)}");
                                 return resp8;
                             }
                         }
@@ -695,10 +763,15 @@ namespace MeasureControl.Simulations.PT500
         }
 
         private async Task SendMultiFrameOnChannelAsync(int txChannelIndex, byte label, byte[] payload8, Action<string> log, CancellationToken token)
+            => await SendMultiFrameOnChannelAsync(txChannelIndex, BenchTxFragmentLabels, payload8, reversePayloadBytes: false, log, token);
+
+        private async Task SendMultiFrameOnChannelAsync(int txChannelIndex, byte[] fragmentLabels, byte[] payload8, bool reversePayloadBytes, Action<string> log, CancellationToken token)
         {
             if (_arincDriver == null)
                 return;
             if (payload8 == null || payload8.Length != 8)
+                return;
+            if (fragmentLabels == null || fragmentLabels.Length < 4)
                 return;
 
             uint[] data429 = new uint[4];
@@ -706,8 +779,10 @@ namespace MeasureControl.Simulations.PT500
 
             for (byte frag = 0; frag < 4; frag++)
             {
-                ushort part = (ushort)((payload8[frag * 2] << 8) | payload8[frag * 2 + 1]);
-                byte fragLabel = BenchTxFragmentLabels[frag];
+                ushort part = reversePayloadBytes
+                    ? (ushort)((payload8[frag * 2 + 1] << 8) | payload8[frag * 2])
+                    : (ushort)((payload8[frag * 2] << 8) | payload8[frag * 2 + 1]);
+                byte fragLabel = fragmentLabels[frag];
                 uint word = BuildWord(fragLabel, 0, part);
                 data429[frag] = ApplyParity(word);
                 parity[frag] = 1;
@@ -730,7 +805,7 @@ namespace MeasureControl.Simulations.PT500
             }
             else if (EnableFrameLogging)
             {
-                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchTX={txChannelIndex} send labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))} payload8={FormatBytes(payload8)}");
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchTX={txChannelIndex} send labels={string.Join("/", fragmentLabels.Select(b => $"0x{b:X2}"))} payload8={FormatBytes(payload8)}");
             }
         }
 
@@ -850,6 +925,7 @@ namespace MeasureControl.Simulations.PT500
                 _benchRxStarted = false;
                 _benchTxChannelIndex = -1;
                 _benchRxChannelIndex = -1;
+                _started = false;
             }
         }
 
@@ -966,8 +1042,11 @@ namespace MeasureControl.Simulations.PT500
 
             private static readonly TimeSpan AssemblyTimeout = TimeSpan.FromMilliseconds(200);
 
-            public MultiLabelCommandAssembler(byte[] fragLabels)
+            private readonly bool _reversePayloadBytes;
+
+            public MultiLabelCommandAssembler(byte[] fragLabels, bool reversePayloadBytes = false)
             {
+                _reversePayloadBytes = reversePayloadBytes;
                 _labelToIndex = new Dictionary<byte, int>();
                 if (fragLabels != null)
                 {
@@ -999,8 +1078,16 @@ namespace MeasureControl.Simulations.PT500
                 cmd8 = new byte[8];
                 for (int j = 0; j < 4; j++)
                 {
-                    cmd8[j * 2] = (byte)((_parts[j] >> 8) & 0xFF);
-                    cmd8[j * 2 + 1] = (byte)(_parts[j] & 0xFF);
+                    if (_reversePayloadBytes)
+                    {
+                        cmd8[j * 2] = (byte)(_parts[j] & 0xFF);
+                        cmd8[j * 2 + 1] = (byte)((_parts[j] >> 8) & 0xFF);
+                    }
+                    else
+                    {
+                        cmd8[j * 2] = (byte)((_parts[j] >> 8) & 0xFF);
+                        cmd8[j * 2 + 1] = (byte)(_parts[j] & 0xFF);
+                    }
                 }
 
                 _mask = 0;

@@ -1662,7 +1662,15 @@ namespace MeasureControl.ViewModels.Common
                     if (confirm != MessageBoxResult.Yes) return;
 
                     var wasHydraulic = string.Equals(_boardPowerService.PoweredBoardType, "液压单板", System.StringComparison.OrdinalIgnoreCase);
-<<<<<<< HEAD
+                    if (IsCurrentManualTestHardwareBusy())
+                    {
+                        ReMessageBox.Show(
+                            "存在测试项在运行，请先“停止测试”，再操作上/下电。",
+                            "请先停止测试",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                        return;
+                    }
 
                     // 液压单板下电前，先通知所有正在运行的测试项停止并等待其完成，
                     // 避免 SetHydraulicAuxDoAsync 创建的新 Jy7131Api 实例与测试项
@@ -1677,17 +1685,6 @@ namespace MeasureControl.ViewModels.Common
                         }
                     }
 
-=======
-                    if (IsCurrentManualTestHardwareBusy())
-                    {
-                        ReMessageBox.Show(
-                            "存在测试项在运行，请先“停止测试”，再操作上/下电。",
-                            "请先停止测试",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Warning);
-                        return;
-                    }
->>>>>>> upstream/master
                     await _boardPowerService.PowerOffAsync();
                     // 仅液压单板需要关闭 JY7131 DO25
                     if (wasHydraulic)

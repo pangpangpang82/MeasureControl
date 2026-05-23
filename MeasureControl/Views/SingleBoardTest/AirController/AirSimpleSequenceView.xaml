@@ -259,14 +259,15 @@
                         </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Margin="5" Orientation="Horizontal">
-                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="1.向控制通道供电 32V" />
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="{Binding SupplyStepText}" />
+                        <ComboBox Width="80" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" ItemsSource="{Binding SupplyVoltageOptions}" SelectedItem="{Binding SelectedSupplyVoltage, Mode=TwoWay}" Visibility="{Binding IsCombinedVoltageSelectionTest, Converter={StaticResource BoolToVisibilityConverter}}" />
 
-                        <Button Width="70" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Supply32vCommand}">
+                        <Button Width="70" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding SupplySelectedVoltageCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
                                         <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                            <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="32V" />
+                                            <TextBlock x:Name="DeviceAction" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="上电" />
                                         </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
@@ -332,7 +333,7 @@
                                 <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxChannel}" />
                             </Border>
                             <Border Width="180" Height="28" Margin="10,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxData32Text}" />
+                                <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxDataText}" />
                             </Border>
                         </StackPanel>
                     </Grid>
@@ -365,21 +366,21 @@
                         </Button>
 
                         <Border Width="120" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" FontSize="12" Text="{Binding DmmVoltage32Text}" />
+                            <TextBlock Margin="1" FontSize="12" Text="{Binding DmmVoltageText}" />
                         </Border>
                         <Border Width="120" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" FontSize="12" Text="{Binding PowerSupplyMeasuredCurrent32Text}" />
+                            <TextBlock Margin="1" FontSize="12" Text="{Binding PowerSupplyMeasuredCurrentText}" />
                         </Border>
                     </StackPanel>
 
                     <StackPanel Grid.Row="3" Margin="5" Orientation="Horizontal">
-                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="4.发送指令 AB_28V_SUPPLY" />
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="{Binding TestCommandName, StringFormat=4.发送指令 {0}}" />
                         <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
                         <Border Width="100" Height="28" Margin="5,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
                             <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding SetVoltageTxChannel}" />
                         </Border>
                         <Border Width="180" Height="28" Margin="10,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x01 01 01 01 00 00 00 00" />
+                            <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding TestCommandBytesText}" />
                         </Border>
                         <Button Width="50" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding SendSetVoltageCommand}">
                             <Button.Template>
@@ -409,12 +410,12 @@
                     <StackPanel Grid.Row="4" Margin="5" Orientation="Horizontal">
                         <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="5.二次电源回采值(15V_VBIT/5V_VBIT)" />
                         <Border Width="430" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" Background="LightYellow" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" FontSize="12" Text="{Binding TelemetryVoltage32Text}" />
+                            <TextBlock Margin="1" FontSize="12" Text="{Binding TelemetryVoltageText}" />
                         </Border>
                     </StackPanel>
 
                     <StackPanel Grid.Row="5" Margin="5" Orientation="Horizontal">
-                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="6.断开控制通道供电" />
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="{Binding ChannelName, StringFormat=6.断开{0}供电}" />
                         <Button Width="70" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding PowerSupplyOutputOffCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
@@ -440,8 +441,8 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="6" Margin="5" Orientation="Horizontal">
-                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="7.向控制通道供电 28V" />
+                    <StackPanel Grid.Row="6" Margin="5" Orientation="Horizontal" Visibility="{Binding IsCombinedVoltageSelectionTest, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="{Binding ChannelName, StringFormat=7.向{0}供电 28V}" />
                         <Button Width="70" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Supply28vCommand}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
@@ -467,7 +468,7 @@
                         </Button>
                     </StackPanel>
 
-                    <Grid Grid.Row="7">
+                    <Grid Grid.Row="7" Visibility="{Binding IsCombinedVoltageSelectionTest, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*" />
                             <RowDefinition Height="*" />
@@ -518,7 +519,7 @@
                         </StackPanel>
                     </Grid>
 
-                    <StackPanel Grid.Row="8" Margin="5" Orientation="Horizontal">
+                    <StackPanel Grid.Row="8" Margin="5" Orientation="Horizontal" Visibility="{Binding IsCombinedVoltageSelectionTest, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                         <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="9.电源处电流值" />
 
                         <Button Width="70" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding ReadPowerSupplyMeasurementsCommand}">
@@ -553,14 +554,14 @@
                         </Border>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="9" Margin="5" Orientation="Horizontal">
-                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="10.发送指令 AB_28V_SUPPLY" />
+                    <StackPanel Grid.Row="9" Margin="5" Orientation="Horizontal" Visibility="{Binding IsCombinedVoltageSelectionTest, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="{Binding TestCommandName, StringFormat=10.发送指令 {0}}" />
                         <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="TX" />
                         <Border Width="100" Height="28" Margin="5,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
                             <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding SetVoltageTxChannel}" />
                         </Border>
                         <Border Width="180" Height="28" Margin="10,0,0,0" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x01 01 01 01 00 00 00 00" />
+                            <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding TestCommandBytesText}" />
                         </Border>
                         <Button Width="50" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding SendSetVoltageCommand}">
                             <Button.Template>
@@ -587,7 +588,7 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="10" Margin="5" Orientation="Horizontal">
+                    <StackPanel Grid.Row="10" Margin="5" Orientation="Horizontal" Visibility="{Binding IsCombinedVoltageSelectionTest, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                         <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="11.二次电源回采值(15V_VBIT/5V_VBIT)" />
                         <Border Width="430" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" Background="LightYellow" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
                             <TextBlock Margin="1" FontSize="12" Text="{Binding TelemetryVoltage28Text}" />

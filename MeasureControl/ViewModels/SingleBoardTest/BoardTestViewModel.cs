@@ -113,6 +113,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "7.5.8.1 B控制通道功率板WAIV力矩电机驱动测试", () => new A_C_7_5_8_1View() },
                 { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
                 { "6.2.1A控制通道供电测试", () => new AirSimpleSequenceView("6.2.1A控制通道供电测试") },
+                { "8.2.1电源模块测试", () => new S_C_8_2_1View() },
                 { "5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
                 { "6.3 5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
                 { "A控制通道功率板供电测试", () => new PowerBoardSupplyTestView("A", "A控制通道功率板供电测试") },
@@ -299,6 +300,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
                         { "8.1电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
+                        { "8.2.1电源模块测试", "\t a) 32V供电时，供电电流不大于0.94A；\r\n\t b) 28V供电时，供电电流不大于1.07A；\r\n\t c) 15V_VBIT回采值在[2.375，2.625]V范围内；\r\n\t d) 5V_VBIT回采值在[2.375，2.625]V范围内。" },
                         { "8.9.1 S通道J82/J83直流电机驱动模块速度控制测试", "\t a) 100%PWM：J82/J83/J82-J83 的 VMAX ∈ [17,32]V 为 PASS；\r\n\t b) 50%PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (50±1)% 为 PASS；\r\n\t c) 0%PWM：VMAX ≤ 1V 且 VMIN ≥ -1V 为 PASS；\r\n\t d) 自定义PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (设定值±1)% 为 PASS。" },
                         { "8.9.2 S通道J82/J83直流电机驱动模块方向控制测试", "\t a) PH高电平：J82-J83 电压极性为正，且电压绝对值在[17,32]V范围内为PASS；\r\n\t b) PH低电平：J82-J83 电压极性为负，且电压绝对值在[17,32]V范围内为PASS。" },
                         { "8.10.1 S通道J99/J100直流电机驱动模块速度控制测试", "\t a) 100%PWM：J99/J100/J99-J100 的 VMAX ∈ [17,32]V 为 PASS；\r\n\t b) 50%PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (50±1)% 为 PASS；\r\n\t c) 0%PWM：VMAX ≤ 1V 且 VMIN ≥ -1V 为 PASS；\r\n\t d) 自定义PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (设定值±1)% 为 PASS。" },
@@ -1049,6 +1051,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             else if (string.Equals(boardType, "空气安全板", StringComparison.OrdinalIgnoreCase))
             {
                 TestSequenceItems.Add(new TestSequenceItem("8.1电源对地阻抗测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.2.1电源模块测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.1 S安全通道ARINC429发送通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.2 S安全通道ARINC429接收通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.3 S安全通道ARINC429接收通道2测试"));
