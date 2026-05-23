@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
 using Prism.Events;
 using MeasureControl.Models;
@@ -1070,6 +1071,24 @@ namespace MeasureControl.Events
     /// </summary>
     public class TestRunningStateChangedEvent : PubSubEvent<bool>
     {
+    }
+
+    /// <summary>
+    /// 请求停止所有液压单板测试事件。
+    /// 由 MainWindowViewModel 在组件下电前发布，各 HC_6_* ViewModel 订阅。
+    /// 订阅者将自己的停止 Task 添加到 <see cref="RequestStopHydraulicTestsEventArgs.StopTasks"/> 中，
+    /// 发布者通过 Task.WhenAll 等待所有测试停止完成后再执行下电操作。
+    /// </summary>
+    public class RequestStopHydraulicTestsEvent : PubSubEvent<RequestStopHydraulicTestsEventArgs>
+    {
+    }
+
+    public sealed class RequestStopHydraulicTestsEventArgs
+    {
+        /// <summary>
+        /// 订阅者将停止测试的 Task 添加到此列表，发布者负责 await 这些 Task。
+        /// </summary>
+        public List<Task> StopTasks { get; } = new List<Task>();
     }
 
     #endregion
