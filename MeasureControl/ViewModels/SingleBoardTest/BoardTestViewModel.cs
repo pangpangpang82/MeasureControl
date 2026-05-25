@@ -131,6 +131,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "8.7.1S安全通道FWD_AVENTS1传感器测试", () => new S_C_8_7_1View() },
                 { "8.7.2S安全通道FWD_AVENTS2传感器测试", () => new S_C_8_7_2View() },
                 { "8.7.3S安全通道AFT_AVENTS传感器测试", () => new S_C_8_7_3View() },
+                { "8.9.9 S安全通道GND/OC型离散输出通道1输出测试", () => new S_C_8_9_9View() },
                 { "RS422通信测试", () => new RS422CommTabView() },
                 { "控制通道422发送测试", () => new RS422Control422TransmitTestView() },
                 { "控制通道422接收测试", () => new RS422Control422ReceiveTestView() },
@@ -1066,6 +1067,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("8.7.1S安全通道FWD_AVENTS1传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.7.2S安全通道FWD_AVENTS2传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.7.3S安全通道AFT_AVENTS传感器测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.9.9 S安全通道GND/OC型离散输出通道1输出测试"));
             }
             else if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
             {
