@@ -246,6 +246,7 @@
     <Compile Include="Events\**\*.cs" />
     <Compile Include="Models\**\*.cs" />
     <Compile Include="Services\**\*.cs" Exclude="Services\MatrixSwitchTcpServerAutoStartService.cs" />
+    <Compile Include="Services\AirSafety429Hardware.cs" />
     <Compile Include="Services\MatrixSwitchTcpServerAutoStartService.cs" />
     <Compile Include="Helpers\**\*.cs" />
     <Compile Include="Drivers\**\*.cs" />
@@ -1391,6 +1392,9 @@
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_3View.xaml.cs">
       <DependentUpon>S_C_8_3_3View.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_2_1View.xaml.cs">
+      <DependentUpon>S_C_8_2_1View.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml.cs">
       <DependentUpon>S_C_8_7_2View.xaml</DependentUpon>
     </Compile>
@@ -1430,6 +1434,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\SingleBoardTest\AirController\S_C_8_3_3View.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\S_C_8_2_1View.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
