@@ -14,6 +14,8 @@ namespace MeasureControl.Simulations.S_C_8_6_1
         private ART4229Driver _arincDriver;
         private readonly SemaphoreSlim _arincIoLock = new SemaphoreSlim(1, 1);
 
+        private int _benchRxActiveReaders;
+
         private int _benchTxChannelIndex = -1;
         private int _benchRxChannelIndex = -1;
         private bool _benchRxStarted;
@@ -28,17 +30,17 @@ namespace MeasureControl.Simulations.S_C_8_6_1
 
         private bool _started;
 
-        // WAITS1 协议命令定义 (与MIXTS相同，使用07 01 02前缀)
+        // WAITS1 协议命令定义
         private static readonly byte[] EnterAtpCommand = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
         private static readonly byte[] ExitAtpCommand = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
         private static readonly byte[] ExitAtpOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
-        private static readonly byte[] TemperatureTestCommand = { 0x07, 0x01, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x02, 0x02 };
-        private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x02, 0x03 };
+        private static readonly byte[] TemperatureTestCommand = { 0x15, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] TelemetryTemperaturePrefix = { 0x15, 0x01, 0x01, 0x02 };
+        private static readonly byte[] TelemetryRawPrefix = { 0x15, 0x01, 0x01, 0x03 };
 
-        private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
-        private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
+        private static readonly byte[] BenchTxFragmentLabels = { 0x8C, 0x4C, 0xCC, 0x2C };
+        private static readonly byte[] ProductTxFragmentLabels = { 0x90, 0x50, 0xD0, 0x30 };
 
         public bool EnableFrameLogging { get; set; } = true;
 
@@ -56,6 +58,20 @@ namespace MeasureControl.Simulations.S_C_8_6_1
         public Func<string> GetCurrentResistorGear { get; set; }
 
         public Func<string> GetCurrentAmbientTemperatureSelection { get; set; }
+
+        private static byte[] SwapPairs8(byte[] data8)
+        {
+            if (data8 == null || data8.Length != 8)
+                return data8;
+
+            var b = new byte[8];
+            for (int i = 0; i < 8; i += 2)
+            {
+                b[i] = data8[i + 1];
+                b[i + 1] = data8[i];
+            }
+            return b;
+        }
 
         public void StopTelemetryOutput()
         {
@@ -248,16 +264,18 @@ namespace MeasureControl.Simulations.S_C_8_6_1
             if (command8 == null || command8.Length != 8)
                 throw new ArgumentException("command8 must be 8 bytes", nameof(command8));
 
-            bool readyOk = await EnsureBenchChannelsAsync(benchTxChannel, benchRxChannel, log);
-            if (!readyOk)
-                throw new InvalidOperationException($"[SIM] bench通道未就绪：TX={benchTxChannel}, RX={benchRxChannel}");
-
             int txIndex = ParseChannelIndex(benchTxChannel);
             int rxIndex = ParseChannelIndex(benchRxChannel);
 
+            if (txIndex != _benchTxChannelIndex || rxIndex != _benchRxChannelIndex)
+                throw new InvalidOperationException($"[SIM] bench通道与StartAsync配置不一致：TX={txIndex}(expected={_benchTxChannelIndex}), RX={rxIndex}(expected={_benchRxChannelIndex})");
+
+            await StartBenchRxAsync(log);
+
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送: tx={txIndex}, rx={rxIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
 
-            await SendMultiFrameOnChannelAsync(txIndex, label, command8, log, token);
+            var swapped = SwapPairs8(command8);
+            await SendMultiLabelFrameOnChannelAsync(txIndex, BenchTxFragmentLabels, swapped, log, token);
 
             return await WaitBenchResponseAsync(
                 benchRxChannel,
@@ -282,15 +300,13 @@ namespace MeasureControl.Simulations.S_C_8_6_1
 
             int txIndex = ParseChannelIndex(benchTxChannel);
 
-            bool openTxOk = await _arincDriver.OpenTxChannelAsync(txIndex);
-            if (!openTxOk)
-                throw new InvalidOperationException($"[SIM] TX通道打开失败: tx={txIndex}");
-
-            await _arincDriver.ConfigureTxChannelAsync(txIndex, ArincRate, sendMode: 0, parity: 1, wordFormat: 0);
+            if (txIndex != _benchTxChannelIndex)
+                throw new InvalidOperationException($"[SIM] benchTX通道与StartAsync配置不一致：TX={txIndex}(expected={_benchTxChannelIndex})");
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送(仅发送): tx={txIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
 
-            await SendMultiFrameOnChannelAsync(txIndex, label, command8, log, token);
+            var swapped = SwapPairs8(command8);
+            await SendMultiLabelFrameOnChannelAsync(txIndex, BenchTxFragmentLabels, swapped, log, token);
         }
 
         public async Task ClearRxFifoAsync(string benchRxChannel)
@@ -299,12 +315,21 @@ namespace MeasureControl.Simulations.S_C_8_6_1
                 return;
 
             int rxIndex = ParseChannelIndex(benchRxChannel);
+
+            int readers = Interlocked.Increment(ref _benchRxActiveReaders);
             try
             {
-                await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false);
+                try
+                {
+                    await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false);
+                }
+                catch
+                {
+                }
             }
-            catch
+            finally
             {
+                Interlocked.Decrement(ref _benchRxActiveReaders);
             }
         }
 
@@ -319,21 +344,33 @@ namespace MeasureControl.Simulations.S_C_8_6_1
             if (!_started || _arincDriver == null)
                 throw new InvalidOperationException("Simulation not started");
 
+            int readers = Interlocked.Increment(ref _benchRxActiveReaders);
+            if (readers > 1)
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 警告：benchRX 读取存在并发(WaitBenchResponse)，activeReaders={readers}，可能发生抢帧");
+            try
+            {
+
             int rxIndex = ParseChannelIndex(benchRxChannel);
             MultiLabelCommandAssembler labelAssembler = new MultiLabelCommandAssembler(ProductTxFragmentLabels);
             var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
             int rxLogCount = 0;
             const int maxRxLog = 32;
+            var labelCounts = new Dictionary<byte, int>();
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
             {
-                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
+                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 1024, enableTimeTag: false, enableRateAdaption: false);
                 if (list != null && list.Count > 0)
                 {
                     foreach (var item in list)
                     {
                         if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
                             continue;
+
+                        if (labelCounts.TryGetValue(rxLabel, out var cnt))
+                            labelCounts[rxLabel] = cnt + 1;
+                        else
+                            labelCounts[rxLabel] = 1;
 
                         if (EnableFrameLogging)
                         {
@@ -359,10 +396,31 @@ namespace MeasureControl.Simulations.S_C_8_6_1
                     }
                 }
 
-                await Task.Delay(10, token);
+                await Task.Delay(5, token);
+            }
+
+            try
+            {
+                if (labelCounts.Count > 0)
+                {
+                    var top = labelCounts
+                        .OrderByDescending(kv => kv.Value)
+                        .Take(8)
+                        .Select(kv => $"0x{kv.Key:X2}({kv.Value})");
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 等待超时，期间收到labels(top8)={string.Join(", ", top)}");
+                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 期望labels={string.Join("/", ProductTxFragmentLabels.Select(b => $"0x{b:X2}"))}");
+                }
+            }
+            catch
+            {
             }
 
             return null;
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _benchRxActiveReaders);
+            }
         }
 
         public async Task<(byte[] Temperature, byte[] Raw)> WaitTelemetryAsync(
@@ -374,6 +432,12 @@ namespace MeasureControl.Simulations.S_C_8_6_1
             if (!_started || _arincDriver == null)
                 throw new InvalidOperationException("Simulation not started");
 
+            int readers = Interlocked.Increment(ref _benchRxActiveReaders);
+            if (readers > 1)
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 警告：benchRX 读取存在并发(WaitTelemetry)，activeReaders={readers}，可能发生抢帧");
+            try
+            {
+
             int rxIndex = ParseChannelIndex(benchRxChannel);
             byte[] temperature = null;
             byte[] raw = null;
@@ -382,7 +446,7 @@ namespace MeasureControl.Simulations.S_C_8_6_1
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
             {
-                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
+                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 1024, enableTimeTag: false, enableRateAdaption: false);
                 if (list != null && list.Count > 0)
                 {
                     foreach (var item in list)
@@ -409,10 +473,15 @@ namespace MeasureControl.Simulations.S_C_8_6_1
                 if (temperature != null && raw != null)
                     return (temperature, raw);
 
-                await Task.Delay(10, token);
+                await Task.Delay(5, token);
             }
 
             return (temperature, raw);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _benchRxActiveReaders);
+            }
         }
 
         public async Task StopAsync(Action<string> log)
@@ -573,7 +642,7 @@ namespace MeasureControl.Simulations.S_C_8_6_1
                     tempPayload[6] = (byte)((fracPart >> 8) & 0xFF);
                     tempPayload[7] = (byte)(fracPart & 0xFF);
 
-                    await SendMultiFrameResponseAsync(label, tempPayload, log, token);
+                    await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, SwapPairs8(tempPayload), log, token);
 
                     var rawPayload = new byte[8];
                     rawPayload[0] = TelemetryRawPrefix[0];
@@ -597,7 +666,7 @@ namespace MeasureControl.Simulations.S_C_8_6_1
                     }
 
                     await Task.Delay(50, token);
-                    await SendMultiFrameResponseAsync(label, rawPayload, log, token);
+                    await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, SwapPairs8(rawPayload), log, token);
 
                     await Task.Delay(200, token);
                 }
@@ -718,6 +787,48 @@ namespace MeasureControl.Simulations.S_C_8_6_1
             else if (EnableFrameLogging)
             {
                 log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchTX={txChannelIndex} send labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))} payload8={FormatBytes(payload8)}");
+            }
+        }
+
+        private async Task SendMultiLabelFrameOnChannelAsync(int txChannelIndex, byte[] fragLabels, byte[] payload8, Action<string> log, CancellationToken token)
+        {
+            if (_arincDriver == null)
+                return;
+            if (payload8 == null || payload8.Length != 8)
+                return;
+            if (fragLabels == null || fragLabels.Length < 4)
+                return;
+
+            uint[] data429 = new uint[4];
+            uint[] parity = new uint[4];
+
+            for (byte frag = 0; frag < 4; frag++)
+            {
+                ushort part = (ushort)((payload8[frag * 2] << 8) | payload8[frag * 2 + 1]);
+                byte fragLabel = fragLabels[frag];
+                uint word = BuildWord(fragLabel, 0, part);
+                data429[frag] = ApplyParity(word);
+                parity[frag] = 1;
+            }
+
+            await _arincIoLock.WaitAsync(token).ConfigureAwait(false);
+            bool ok;
+            try
+            {
+                ok = await _arincDriver.SendDataSingleAsync(txChannelIndex, data429, parity);
+            }
+            finally
+            {
+                _arincIoLock.Release();
+            }
+
+            if (!ok)
+            {
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 8字节发送失败: tx={txChannelIndex}");
+            }
+            else if (EnableFrameLogging)
+            {
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] tx={txChannelIndex} send labels={string.Join("/", fragLabels.Select(b => $"0x{b:X2}"))} payload8={FormatBytes(payload8)}");
             }
         }
 
@@ -947,7 +1058,7 @@ namespace MeasureControl.Simulations.S_C_8_6_1
             private DateTime _firstSeenUtc;
             private readonly Dictionary<byte, int> _labelToIndex;
 
-            private static readonly TimeSpan AssemblyTimeout = TimeSpan.FromMilliseconds(200);
+            private static readonly TimeSpan AssemblyTimeout = TimeSpan.FromMilliseconds(800);
 
             public MultiLabelCommandAssembler(byte[] fragLabels)
             {
@@ -983,8 +1094,8 @@ namespace MeasureControl.Simulations.S_C_8_6_1
                 cmd8 = new byte[8];
                 for (int j = 0; j < 4; j++)
                 {
-                    cmd8[j * 2] = (byte)((_parts[j] >> 8) & 0xFF);
-                    cmd8[j * 2 + 1] = (byte)(_parts[j] & 0xFF);
+                    cmd8[j * 2] = (byte)(_parts[j] & 0xFF);
+                    cmd8[j * 2 + 1] = (byte)((_parts[j] >> 8) & 0xFF);
                 }
 
                 _mask = 0;

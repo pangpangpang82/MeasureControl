@@ -314,7 +314,7 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 FontSize="12"
-                                Text="0x00 01 00 01 00 00 00 00" />
+                                Text="{Binding EnterAtpTxDataText}" />
                         </Border>
 
                         <Button
@@ -514,7 +514,7 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 FontSize="12"
-                                Text="0x15 01 01 01 00 00 00 00" />
+                                Text="{Binding ControllerTemperatureTestTxDataText}" />
                         </Border>
 
                         <Button
@@ -649,7 +649,7 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 FontSize="12"
-                                Text="0x00 02 00 01 00 00 00 01" />
+                                Text="{Binding ExitAtpTxDataText}" />
                         </Border>
 
                         <Button
