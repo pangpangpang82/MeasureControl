@@ -1044,6 +1044,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     var vpp = await QueryScopeDoubleAsync(":MEASure:ITEM? VPP", token).ConfigureAwait(false);
                     var duty = await QueryScopeDoubleAsync(":MEASure:ITEM? DUTY", token).ConfigureAwait(false);
 
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title} 测量值: DUTY={(duty.HasValue ? duty.Value.ToString("F2", CultureInfo.InvariantCulture) + "%" : "--")}, VMAX={(vmax.HasValue ? vmax.Value.ToString("F3", CultureInfo.InvariantCulture) : "--")}V, VPP={(vpp.HasValue ? vpp.Value.ToString("F3", CultureInfo.InvariantCulture) : "--")}V");
+
                     return new MeasurementResult
                     {
                         Title = title,

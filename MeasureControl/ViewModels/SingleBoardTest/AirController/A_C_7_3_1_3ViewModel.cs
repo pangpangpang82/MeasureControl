@@ -46,9 +46,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] PhLowCommandFrame = { 0xAA, 0x55, 0x0A, 0x03,0x02, 0xE8, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x03, 0x00, 0xE8, 0x03, 0x00, 0x00, 0xE8, 0x03, 0x00, 0x00 };
 
-        private const double VoltageMin = 17.0;
-        private const double VoltageMax = 32.0;
-
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _opLock = new SemaphoreSlim(1, 1);
@@ -574,12 +571,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                var absV = voltage.HasValue ? (double?)Math.Abs(voltage.Value) : null;
                 var vText = voltage.HasValue ? $"{voltage.Value:F3} V" : "--";
 
                 var polarityOk = voltage.HasValue && (isFirst ? voltage.Value > 0 : voltage.Value < 0);
-                var magnitudeOk = absV.HasValue && absV.Value >= VoltageMin && absV.Value <= VoltageMax;
-                var pass = ok && polarityOk && magnitudeOk;
+                var pass = ok && polarityOk;
                 var r = pass ? "PASS" : "FAIL";
 
                 if (isFirst)

@@ -246,6 +246,7 @@
     <Compile Include="Events\**\*.cs" />
     <Compile Include="Models\**\*.cs" />
     <Compile Include="Services\**\*.cs" Exclude="Services\MatrixSwitchTcpServerAutoStartService.cs" />
+    <Compile Include="Services\AirSafety429Hardware.cs" />
     <Compile Include="Services\MatrixSwitchTcpServerAutoStartService.cs" />
     <Compile Include="Helpers\**\*.cs" />
     <Compile Include="Drivers\**\*.cs" />
@@ -1011,6 +1012,7 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_7_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_7_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_7_3ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_9_9ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\BoardTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\DiscreteInputTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\FuelController\DiscreteOutputTestViewModel.cs" />
@@ -1391,11 +1393,17 @@
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_3_3View.xaml.cs">
       <DependentUpon>S_C_8_3_3View.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_2_1View.xaml.cs">
+      <DependentUpon>S_C_8_2_1View.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml.cs">
       <DependentUpon>S_C_8_7_2View.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_7_3View.xaml.cs">
       <DependentUpon>S_C_8_7_3View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_8_9_9View.xaml.cs">
+      <DependentUpon>S_C_8_9_9View.xaml</DependentUpon>
     </Compile>
     <Page Include="Views\SingleBoardTest\AirController\R_6_8_9View.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -1433,6 +1441,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Views\SingleBoardTest\AirController\S_C_8_2_1View.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="Views\SingleBoardTest\AirController\S_C_8_5_1View.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -1458,6 +1470,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\SingleBoardTest\AirController\S_C_8_7_3View.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\S_C_8_9_9View.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
