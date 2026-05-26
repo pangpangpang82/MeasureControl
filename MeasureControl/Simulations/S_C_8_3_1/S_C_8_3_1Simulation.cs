@@ -170,6 +170,67 @@ namespace MeasureControl.Simulations.S_C_8_3_1
             return null;
         }
 
+        /// <summary>
+        /// 等待两组8字节响应数据（用于同时接收15V_VBIT和5V_VBIT）
+        /// 产品一次性返回8帧数据，需要在一次读取中拼成两组
+        /// </summary>
+        public async Task<(byte[] Resp1, byte[] Resp2)> WaitBenchResponsePairAsync(
+            string benchRxChannel,
+            Func<byte[], bool> isFirst,
+            Func<byte[], bool> isSecond,
+            int timeoutMs,
+            Action<string> log,
+            CancellationToken token)
+        {
+            if (!_started || _arincDriver == null)
+                throw new InvalidOperationException("Simulation not started");
+
+            int rxIndex = ParseChannelIndex(benchRxChannel);
+            var labelAssembler = new MultiLabelCommandAssembler(ProductTxFragmentLabels);
+            var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
+            var validLabels = new HashSet<byte>(ProductTxFragmentLabels);
+
+            byte[] resp1 = null;
+            byte[] resp2 = null;
+
+            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline && (resp1 == null || resp2 == null))
+            {
+                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
+                if (list != null && list.Count > 0)
+                {
+                    foreach (var item in list)
+                    {
+                        if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
+                            continue;
+
+                        if (!validLabels.Contains(rxLabel))
+                            continue;
+
+                        if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
+                        {
+                            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 resp8={FormatBytes(resp8)}");
+
+                            if (resp1 == null && isFirst(resp8))
+                            {
+                                resp1 = resp8;
+                            }
+                            else if (resp2 == null && isSecond(resp8))
+                            {
+                                resp2 = resp8;
+                            }
+
+                            if (resp1 != null && resp2 != null)
+                                return (resp1, resp2);
+                        }
+                    }
+                }
+
+                await Task.Delay(10, token);
+            }
+
+            return (resp1, resp2);
+        }
+
         protected override async Task StartSimProductRxAsync(Action<string> log, CancellationToken token)
         {
             if (_arincDriver == null)

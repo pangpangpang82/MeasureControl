@@ -112,7 +112,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "7.5.7.1 B控制通道功率板FCV力矩电机驱动测试", () => new B_C_7_5_7_1View() },
                 { "7.5.8.1 B控制通道功率板WAIV力矩电机驱动测试", () => new A_C_7_5_8_1View() },
                 { "电源模块测试", () => new AirSimpleSequenceView("电源模块测试") },
-                { "6.2.1A控制通道供电测试", () => new AirSimpleSequenceView("6.2.1A控制通道供电测试") },
+                { "6.2.1A控制通道供电测试", () => new S_C_6_2View() },
                 { "8.2.1电源模块测试", () => new S_C_8_2_1View() },
                 { "5V传感器供电电压测试", () => new Pot5VSupplyTestView() },
                 { "6.3 5V传感器供电电压测试", () => new Pot5VSupplyTestView() },

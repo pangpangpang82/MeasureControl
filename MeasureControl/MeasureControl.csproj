@@ -908,6 +908,7 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\AC_6_4CanViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\AC_6_4ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\AirSimpleSequenceViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_6_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_1_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_2_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_10_3_1ViewModel.cs" />
@@ -1396,6 +1397,9 @@
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_2_1View.xaml.cs">
       <DependentUpon>S_C_8_2_1View.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\S_C_6_2View.xaml.cs">
+      <DependentUpon>S_C_6_2View.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_7_2View.xaml.cs">
       <DependentUpon>S_C_8_7_2View.xaml</DependentUpon>
     </Compile>
@@ -1442,6 +1446,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\SingleBoardTest\AirController\S_C_8_2_1View.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\S_C_6_2View.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
