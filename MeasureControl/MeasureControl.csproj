@@ -448,6 +448,12 @@
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_5_2_6View.xaml.cs">
       <DependentUpon>A_C_6_5_2_6View.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_6_1View.xaml.cs">
+      <DependentUpon>A_C_6_6_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_6_2View.xaml.cs">
+      <DependentUpon>A_C_6_6_2View.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_9_1_1View.xaml.cs">
       <DependentUpon>A_C_6_9_1_1View.xaml</DependentUpon>
     </Compile>
@@ -982,8 +988,6 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\B_C_7_5_5_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\B_C_7_5_6_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\B_C_7_5_7_1ViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\CanCommTestViewModel.cs" />
-    <Compile Include="ViewModels\SingleBoardTest\AirController\CanReceiveTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\GndOcDiscreteInputTestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\GndOcDiscreteOutputCh2TestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\GndOcDiscreteOutputCh3TestViewModel.cs" />
@@ -1008,6 +1012,8 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_3_3ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_5_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_5_2ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_6_1ViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A_C_6_6_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_6_1ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_6_2ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\S_C_8_7_1ViewModel.cs" />
@@ -1268,6 +1274,12 @@
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_5_2_6View.xaml.cs">
       <DependentUpon>A_C_6_5_2_6View.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_6_1View.xaml.cs">
+      <DependentUpon>A_C_6_6_1View.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A_C_6_6_2View.xaml.cs">
+      <DependentUpon>A_C_6_6_2View.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\A_C_6_9_1_1View.xaml.cs">
       <DependentUpon>A_C_6_9_1_1View.xaml</DependentUpon>
     </Compile>
@@ -1294,12 +1306,6 @@
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\AirSimpleSequenceView.xaml.cs">
       <DependentUpon>AirSimpleSequenceView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\CanCommTestView.xaml.cs">
-      <DependentUpon>CanCommTestView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SingleBoardTest\AirController\CanReceiveTestView.xaml.cs">
-      <DependentUpon>CanReceiveTestView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\GndOcDiscreteInputTestView.xaml.cs">
       <DependentUpon>GndOcDiscreteInputTestView.xaml</DependentUpon>
@@ -1458,6 +1464,14 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\SingleBoardTest\AirController\S_C_8_5_2View.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_6_1View.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A_C_6_6_2View.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
