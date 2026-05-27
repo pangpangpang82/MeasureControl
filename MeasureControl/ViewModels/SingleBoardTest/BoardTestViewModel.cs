@@ -43,7 +43,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "6.1电源对地阻抗检查", () => new PowerToGroundImpedanceTestView() },
                 { "8.1电源对地阻抗测试", () => new A_C_8_1View() },
                 { "7.1功率板电源对地阻抗测试", () => new A_C_7_1View() },
-                { "6.4控制通道光耦供电测试", () => new AC_6_4CommTabView() },
+                { "6.4控制通道光耦供电测试", () => new AC_6_4() },
                 { "6.14.1控制通道GND/OC离散输入通道输入测试", () => new GndOcDiscreteInputTestView() },
                 { "6.15.1.1GND/OC型离散输出通道3输出测试", () => new GndOcDiscreteOutputCh3TestView() },
                 { "6.15.1.2GND/OC型100mA离散输出通道2输出测试", () => new GndOcDiscreteOutputCh2TestView() },

@@ -25,7 +25,7 @@ namespace MeasureControl.Views.SingleBoardTest.AirController
         public AC_6_4()
         {
             InitializeComponent();
-            DataContext = ContainerLocator.Container.Resolve<AC_6_4ViewModel>();
+            DataContext = new AC_6_4ViewModel();
         }
 
         private void RootGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)

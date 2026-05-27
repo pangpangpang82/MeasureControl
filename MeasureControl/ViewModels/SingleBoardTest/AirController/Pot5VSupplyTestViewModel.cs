@@ -36,6 +36,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         // ATP和测试指令
         private static readonly byte[] AtpEnterCommand = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] AtpExitCommand = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] Ab5VPotSupplyCommand = { 0x01, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         // 回采值前缀（前4字节用于匹配）
         private static readonly byte[] PotSupVbitPrefix4 = { 0x01, 0x02, 0x01, 0x02 };
@@ -229,6 +230,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
                 }
 
+                // 步骤4：退出ATP模式
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤4：退出ATP模式");
+                await SendExitAtpAsync(token);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP指令已发送 0x{FormatBytesHex(AtpExitCommand)}");
+
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 LastTestResult = failures.Count == 0 ? "PASS" : "FAIL";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试汇总：{LastTestResult}");
@@ -263,6 +269,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             catch { }
 
             await _arinc.SendBenchCommandOnlyAsync(TxChannel, AtpEnterCommand, msg => AddLog(msg), token);
+            await Task.Delay(100, token);
+        }
+
+        private async Task SendExitAtpAsync(CancellationToken token)
+        {
+            try
+            {
+                await _arinc.ClearRxFifoAsync(RxChannel);
+            }
+            catch { }
+
+            await _arinc.SendBenchCommandOnlyAsync(TxChannel, AtpExitCommand, msg => AddLog(msg), token);
             await Task.Delay(100, token);
         }
 
@@ -381,36 +399,61 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task CleanupHardwareAsync()
         {
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 开始清理硬件资源...");
+
+            // 1. 发送退出ATP指令（确保产品退出测试模式）
+            try
+            {
+                await _arinc.SendBenchCommandOnlyAsync(TxChannel, AtpExitCommand, msg => { }, CancellationToken.None);
+                await Task.Delay(100);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 已发送退出ATP指令");
+            }
+            catch { }
+
+            // 2. 清空429接收缓冲区
             try
             {
                 await _arinc.ClearRxFifoAsync(RxChannel);
             }
             catch { }
 
+            // 3. 关闭429板卡
             try
             {
                 await _arinc.StopAsync(msg => AddLog(msg));
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 429板卡已关闭");
             }
             catch { }
 
-            // 断开矩阵开关
+            // 4. 断开矩阵开关节点并关闭板卡
             try
             {
                 var matrix = MatrixControlService.Instance;
                 await matrix.DisconnectNodesAsync(MatrixDmmRoute1.In, MatrixDmmRoute1.Out, MatrixDmmRoute1.Slot, MatrixIpAddress);
                 await matrix.DisconnectNodesAsync(MatrixDmmRoute2.In, MatrixDmmRoute2.Out, MatrixDmmRoute2.Slot, MatrixIpAddress);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关节点已断开");
             }
             catch { }
 
-            // 断开万用表
+            // 5. 万用表退出远程模式并断开连接
             try
             {
                 if (_dmmSocket?.IsConnected == true)
                 {
+                    // 发送退出远程模式命令
+                    try
+                    {
+                        await _dmmSocket.SendAsync(":SYST:LOC", CancellationToken.None);
+                    }
+                    catch { }
+
                     await _dmmSocket.DisconnectAsync(CancellationToken.None);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 万用表已退出远程模式并断开连接");
                 }
             }
             catch { }
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 硬件资源清理完成");
         }
     }
 }
