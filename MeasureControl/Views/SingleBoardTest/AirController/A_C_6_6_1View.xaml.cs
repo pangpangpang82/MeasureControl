@@ -6,12 +6,12 @@ using MeasureControl.ViewModels.SingleBoardTest.AirController;
 
 namespace MeasureControl.Views.SingleBoardTest.AirController
 {
-    public partial class CanReceiveTestView : UserControl
+    public partial class A_C_6_6_1View : UserControl
     {
-        public CanReceiveTestView()
+        public A_C_6_6_1View()
         {
             InitializeComponent();
-            DataContext = new CanReceiveTestViewModel();
+            DataContext = new A_C_6_6_1ViewModel();
         }
 
         private void RootGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)
