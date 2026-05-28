@@ -1287,9 +1287,6 @@ namespace MeasureControl.Simulations.R_6_8_7
             if (!TryParseTemperatureC(frameData, out temperatureC))
                 return false;
 
-            if (frameData[4] != 0x00 || frameData[5] != 0x00)
-                return false;
-
             try
             {
                 var gear = GetCurrentResistorGear?.Invoke();

@@ -21,7 +21,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
     {
         private const byte DefaultLabel = 0x6A;
 
-        private const string ResistorChannelId = "RO8";
+        private const string ResistorChannelId = "RO2";
 
         private static readonly byte[] AtpR = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] AtpE = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
@@ -54,7 +54,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             SendEnterAtpCommand = new DelegateCommand(async () => await OnSendEnterAtpAsync());
             SendSetControllerResistorCommand = new DelegateCommand(async () => await SendSetControllerResistorAsync(), () => !IsResistorMeasuring)
                 .ObservesProperty(() => IsResistorMeasuring);
-            TestControllerTemperatureCommand = new DelegateCommand(async () => await OnTestControllerTemperatureAsync());
+            TestControllerTemperatureCommand = new DelegateCommand(async () => await OnTestControllerTemperatureWithTelemetryAsync());
             SendExitAtpCommand = new DelegateCommand(async () => await OnSendExitAtpAsync());
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
@@ -74,6 +74,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private CancellationTokenSource _telemetryListeningCts;
         private Task _telemetryListeningTask;
+
+        private bool _enableTemperatureTelemetryListening;
 
         private byte[] _lastTemperatureTelemetryFrame;
         private byte[] _lastTemperatureRawFrame;
@@ -325,7 +327,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：429板卡已就绪");
 
-                StartTemperatureTelemetryListeningIfNeeded();
+                await StopTemperatureTelemetryListeningAsync();
             }
             catch (Exception ex)
             {
@@ -403,6 +405,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private void StartTemperatureTelemetryListeningIfNeeded()
         {
+            if (!_enableTemperatureTelemetryListening)
+                return;
             if (_telemetryListeningTask != null)
                 return;
             if (!IsManualTestRunning && !IsAutoTestRunning)
@@ -525,7 +529,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _simulation.GetCurrentAmbientTemperatureSelection = () => AmbientTemperatureSelection;
                 await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
 
-                StartTemperatureTelemetryListeningIfNeeded();
+                await StopTemperatureTelemetryListeningAsync();
 
                 var enteredAtpOk = await AutoEnterAtpAsync(token);
                 if (!enteredAtpOk)
@@ -868,7 +872,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             finally
             {
-                StartTemperatureTelemetryListeningIfNeeded();
+                await StopTemperatureTelemetryListeningAsync();
                 _arincOpLock.Release();
             }
         }
@@ -897,6 +901,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        private async Task OnTestControllerTemperatureWithTelemetryAsync()
+        {
+            await StopTemperatureTelemetryListeningAsync();
+            await OnTestControllerTemperatureAsync();
+            await OnTestTemperatureTelemetryAsync();
+        }
+
         private async Task OnTestTemperatureTelemetryAsync()
         {
             await _arincOpLock.WaitAsync();
@@ -913,54 +924,48 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 await StopTemperatureTelemetryListeningAsync();
 
-                try { await _simulation.ClearRxFifoAsync(TemperatureTelemetryRxChannel); } catch { }
-                await Task.Delay(20);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 等待温度遥测(不发送回采请求，超时800ms)...");
+                var (tempData, rawData) = await _simulation.WaitTelemetryAsync(
+                    TemperatureTelemetryRxChannel,
+                    timeoutMs: 800,
+                    log: msg => AddLog(msg),
+                    token: CancellationToken.None);
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送温度回采请求：{FormatData(TemperatureTelemetryCommand)}");
-                await _simulation.SendBenchCommandOnlyAsync(
-                    ControllerTemperatureTestTxChannel,
-                    DefaultLabel,
-                    TemperatureTelemetryCommand,
-                    msg => AddLog(msg),
-                    CancellationToken.None);
-
-                StartTemperatureTelemetryListeningIfNeeded();
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 已发送回采请求，等待温度遥测(超时2000ms)...");
-                var deadline = DateTime.UtcNow.AddMilliseconds(2000);
-                while (DateTime.UtcNow <= deadline)
+                if (tempData == null)
                 {
-                    if (LastTelemetryTemperatureC != null && _lastTemperatureTelemetryFrame != null)
-                        break;
-                    await Task.Delay(50);
+                    try { await _simulation.ClearRxFifoAsync(TemperatureTelemetryRxChannel); } catch { }
+                    await Task.Delay(20);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送温度回采请求：{FormatData(TemperatureTelemetryCommand)}");
+                    await _simulation.SendBenchCommandOnlyAsync(
+                        ControllerTemperatureTestTxChannel,
+                        DefaultLabel,
+                        TemperatureTelemetryCommand,
+                        msg => AddLog(msg),
+                        CancellationToken.None);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 已发送回采请求，等待温度遥测(超时2000ms)...");
+                    (tempData, rawData) = await _simulation.WaitTelemetryAsync(
+                        TemperatureTelemetryRxChannel,
+                        timeoutMs: 2000,
+                        log: msg => AddLog(msg),
+                        token: CancellationToken.None);
                 }
 
-                var tempData = _lastTemperatureTelemetryFrame;
-                var rawData = _lastTemperatureRawFrame;
-                var temperature = LastTelemetryTemperatureC;
-
-                if (tempData != null)
+                double? temperature = null;
+                if (tempData != null && TryParseTelemetryTemperature(tempData, out var tC))
+                {
+                    temperature = tC;
+                    LastTelemetryTemperatureC = tC;
+                    _lastTemperatureTelemetryFrame = tempData;
+                    _lastTemperatureRawFrame = rawData;
                     TemperatureTelemetryRxDataText = "0x" + FormatData(tempData);
+                }
 
                 if (temperature == null)
                 {
                     var elapsed = (int)Math.Max(0, (DateTime.UtcNow - t0).TotalMilliseconds);
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：{elapsed}ms内缓存中无温度采集值(07 01 07 02)");
-
-                    try
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 诊断：尝试直接读取RX并输出label统计/拼包日志(500ms窗口)...");
-                        await StopTemperatureTelemetryListeningAsync();
-                        await _simulation.WaitTelemetryAsync(
-                            TemperatureTelemetryRxChannel,
-                            timeoutMs: 500,
-                            log: msg => AddLog(msg),
-                            token: CancellationToken.None);
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 诊断读取异常：{ex.Message}");
-                    }
-
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：{elapsed}ms内未收到温度采集值(07 01 07 02)");
                     if (!_suppressResultUpdates)
                     {
                         LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
@@ -1093,6 +1098,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 var candidates = new uint[] { 1, 0, 2, 3, 4, 5, 6, 7 };
+                int foundCount = 0;
+                const int targetBoardIndex = 2; // 使用第2块电阻板卡
+
                 foreach (var logicalId in candidates)
                 {
                     if (enableLog)
@@ -1109,15 +1117,25 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     var ok = await driver.ConnectAsync();
                     if (ok)
                     {
-                        _resistorDriver = driver;
-                        if (enableLog)
-                            AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡已连接：ACTS6010 逻辑ID={logicalId}");
-                        return true;
+                        foundCount++;
+                        if (foundCount == targetBoardIndex)
+                        {
+                            _resistorDriver = driver;
+                            if (enableLog)
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡已连接：ACTS6010 逻辑ID={logicalId}（第{foundCount}块板卡）");
+                            return true;
+                        }
+                        else
+                        {
+                            if (enableLog)
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] 跳过第{foundCount}块板卡（逻辑ID={logicalId}），需要第{targetBoardIndex}块");
+                            await driver.DisconnectAsync();
+                        }
                     }
                 }
 
                 if (enableLog)
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡打开失败：ACTS6010 逻辑ID 0-7 均连接失败");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 电阻板卡打开失败：未找到第{targetBoardIndex}块ACTS6010板卡");
                 return false;
             }
             catch (Exception ex)
@@ -1214,12 +1232,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             finally
             {
-                try
-                {
-                    await DisconnectResistorAsync();
-                }
-                catch { }
-
                 IsResistorMeasuring = false;
             }
         }
