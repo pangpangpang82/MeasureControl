@@ -44,7 +44,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
     {
 
-        private const string FixedTxChannel = "429_CH0";
+        private const string FixedTxChannel = "429_CH5";
 
         private const string FixedRxChannel = "429_CH2";
 
@@ -55,9 +55,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
         private static readonly byte[] AbCkptVentsTemperature8 = { 0x07, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] TemperatureTelemetryTemplate8 = { 0x07, 0x02, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] TemperatureTelemetryRawTemplate8 = { 0x07, 0x02, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00 };
 
-        private static readonly byte[] PressureTelemetryPrefix4 = { 0x07, 0x02, 0x01, 0x02 };
-        private static readonly byte[] PressureTelemetryRawPrefix4 = { 0x07, 0x02, 0x01, 0x03 };
+        private static readonly byte[] TemperatureTelemetryPrefix4 = { 0x07, 0x02, 0x01, 0x02 };
+        private static readonly byte[] TemperatureTelemetryRawPrefix4 = { 0x07, 0x02, 0x01, 0x03 };
 
 
 
@@ -184,16 +186,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-        // 压力遥测持续监听（AC_6_4风格）
+        // 温度遥测持续监听（AC_6_4风格）
 
         private CancellationTokenSource _telemetryListeningCts;
 
         private Task _telemetryListeningTask;
 
-        private int _pressureTelemetrySeq;
+        private int _temperatureTelemetrySeq;
 
-        private byte[] _lastPressureTelemetryFrame;
-        private byte[] _lastPressureTelemetryRawFrame;
+        private byte[] _lastTemperatureTelemetryFrame;
+        private byte[] _lastTemperatureTelemetryRawFrame;
 
 
 
@@ -928,6 +930,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
+        private void EnsureOneGearSelected()
+        {
+            if (Gear1Checked || Gear2Checked || Gear3Checked)
+            {
+                if (Gear1Checked) CurrentGearIndex = 1;
+                else if (Gear2Checked) CurrentGearIndex = 2;
+                else if (Gear3Checked) CurrentGearIndex = 3;
+                return;
+            }
+
+            SelectGear(CurrentGearIndex <= 0 ? 1 : CurrentGearIndex);
+        }
+
+
         private void SyncVoltageGearToCurrentGear()
 
         {
@@ -969,101 +985,93 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
         private async Task OnSendControllerPressureTestAsync()
-
         {
-
             if (!IsManualTestRunning || IsBusy)
-
                 return;
-
-
 
             if (!IsInAtp)
-
             {
-
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 请先进入ATP模式");
-
                 return;
-
             }
 
-
-
             await _arincOpLock.WaitAsync();
-
             try
-
             {
-
                 IsBusy = true;
-
                 try
-
                 {
-
                     var token = CancellationToken.None;
+                    var gearIndex = CurrentGearIndex <= 0 ? 1 : CurrentGearIndex;
 
+                    PressureTelemetryValueText = "--";
+                    PressureTelemetryRxDataText = "--";
+                    PressureTelemetryRawRxDataText = "--";
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 准备发送AB_CKPTVENTS_Temperature：TX={ControllerPressureTestTxChannel}, RX={PressureTelemetryRxChannel}, 当前档位={gearIndex}, IsInAtp={IsInAtp}");
+                    StartTemperatureTelemetryListeningIfNeeded();
+
+                    var startSeq = Volatile.Read(ref _temperatureTelemetrySeq);
+                    Interlocked.Exchange(ref _lastTemperatureTelemetryFrame, null);
+                    Interlocked.Exchange(ref _lastTemperatureTelemetryRawFrame, null);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送前遥测状态：监听任务={(_telemetryListeningTask != null ? "已启动" : "未启动")}, startSeq={startSeq}");
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_CKPTVENTS_Temperature：TX={ControllerPressureTestTxChannel}, Data={FormatData(AbCkptVentsTemperature8)}");
 
                     await _simulation.SendBenchCommandOnlyAsync(ControllerPressureTestTxChannel, AbCkptVentsTemperature8, msg => AddLog(msg), token);
 
-                }
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 测试指令已发送，等待温度遥测：RX={PressureTelemetryRxChannel}, 编码模板=07 02 01 02 00 00 00 00, timeout=2000ms");
+                    var tel = await WaitNextTemperatureTelemetryFrameAsync(startSeq, timeoutMs: 2000, token: token);
+                    var currentSeq = Volatile.Read(ref _temperatureTelemetrySeq);
 
+                    if (tel == null)
+                    {
+                        SetLastTestResult("FAIL");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测超时：startSeq={startSeq}, currentSeq={currentSeq}, RX={PressureTelemetryRxChannel}, seq未增长，说明监听未收到产品回传温度帧。请检查产品是否在RX={PressureTelemetryRxChannel}回发label=0x90/0x50/0xD0/0x30且编码模板=07 02 01 02 00 00 00 00，并确认429接线/通道配置");
+                        return;
+                    }
+
+                    PressureTelemetryRxDataText = "0x" + FormatData(tel);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 收到温度遥测帧：Data={FormatData(tel)}, seq={currentSeq}");
+
+                    var rawData = Interlocked.CompareExchange(ref _lastTemperatureTelemetryRawFrame, null, null);
+                    if (rawData != null)
+                    {
+                        PressureTelemetryRawRxDataText = "0x" + FormatData(rawData);
+                        LogTemperatureRawData(rawData);
+                    }
+                    else
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 暂未收到原始遥测帧(07 02 01 03)");
+                    }
+
+                    if (!TryParseTelemetryTemperature(tel, out var temperature))
+                    {
+                        SetLastTestResult("FAIL");
+                        PressureTelemetryValueText = "--";
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测解析失败：Data={FormatData(tel)}");
+                        return;
+                    }
+
+                    PressureTelemetryValueText = temperature.ToString("0.####", CultureInfo.InvariantCulture);
+                    var pass = IsTemperatureQualified(gearIndex, temperature);
+                    SetLastTestResult(pass ? "PASS" : "FAIL");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采完成：档位{gearIndex}, 温度={temperature.ToString("0.####", CultureInfo.InvariantCulture)}, 判定={LastTestResult}");
+                }
                 finally
-
                 {
-
                     IsBusy = false;
-
                 }
-
             }
-
             catch (Exception ex)
-
             {
-
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器温度测试异常：{ex.Message}");
-
             }
-
             finally
-
             {
-
                 _arincOpLock.Release();
-
             }
-
         }
-
-
-
-        private void EnsureOneGearSelected()
-
-        {
-
-            if (Gear1Checked || Gear2Checked || Gear3Checked)
-
-            {
-
-                if (Gear1Checked) CurrentGearIndex = 1;
-
-                else if (Gear2Checked) CurrentGearIndex = 2;
-
-                else if (Gear3Checked) CurrentGearIndex = 3;
-
-                return;
-
-            }
-
-
-
-            SelectGear(CurrentGearIndex <= 0 ? 1 : CurrentGearIndex);
-
-        }
-
 
 
         private async Task OnSendExitAtpAsync()
@@ -1088,7 +1096,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 {
 
-                    await StopPressureTelemetryListeningAsync();
+                    await StopTemperatureTelemetryListeningAsync();
 
                     var token = CancellationToken.None;
 
@@ -1407,38 +1415,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             }
 
+            if (IsManualTestRunning)
+
+            {
+
+                MessageBox.Show("请先停止手动测试，再开始自动测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                return;
+
+            }
+
 
 
             _ = RunAutoTestAsync();
 
         }
-
-
-
-        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
-
-        {
-
-            try
-
-            {
-
-                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(IComponentPowerStateApi)) as IComponentPowerStateApi;
-
-                if (api != null)
-
-                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
-
-            }
-
-            catch
-
-            {
-
-            }
-
-        }
-
 
 
         private void OnToggleMtx532Hardware()
@@ -1543,8 +1534,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 IsManualTestRunning = true;
                 ResetDisplayState();
-                Interlocked.Exchange(ref _lastPressureTelemetryFrame, null);
-                Interlocked.Exchange(ref _lastPressureTelemetryRawFrame, null);
+                Interlocked.Exchange(ref _lastTemperatureTelemetryFrame, null);
+                Interlocked.Exchange(ref _lastTemperatureTelemetryRawFrame, null);
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：开始打开设备");
 
                 IsBusy = true;
@@ -1563,14 +1554,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
 
                     IsMtx532RealHardware = true;
-
-                    try
-                    {
-                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                        if (api != null)
-                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
-                    }
-                    catch { }
 
                     _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
@@ -1631,9 +1614,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-                    // 启动持续压力遥测监听（AC_6_4风格）
+                    // 启动持续温度遥测监听（AC_6_4风格）
 
-                    StartPressureTelemetryListeningIfNeeded();
+                    StartTemperatureTelemetryListeningIfNeeded();
 
                 }
 
@@ -1692,7 +1675,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsBusy = false;
                 }
             }
@@ -1709,6 +1691,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _autoTestLock.WaitAsync();
             try
             {
+                if (IsManualTestRunning)
+                    return;
+
                 if (IsBusy)
                     return;
 
@@ -1719,8 +1704,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     EnsureManualArincChannels();
                     ResetDisplayState();
                     _autoTestEnteredAtp = false;
-                    Interlocked.Exchange(ref _lastPressureTelemetryFrame, null);
-                    Interlocked.Exchange(ref _lastPressureTelemetryRawFrame, null);
+                    Interlocked.Exchange(ref _lastTemperatureTelemetryFrame, null);
+                    Interlocked.Exchange(ref _lastTemperatureTelemetryRawFrame, null);
 
                     _autoTestCts?.Cancel();
                     _autoTestCts?.Dispose();
@@ -1737,14 +1722,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
 
                     IsMtx532RealHardware = true;
-
-                    try
-                    {
-                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                        if (api != null)
-                            await api.ApplyComponent28VStateAsync(token);
-                    }
-                    catch { }
 
                     _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
@@ -1801,7 +1778,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         _autoTestEnteredAtp = false;
                     }
                     await ShutdownOpenedBoardsForTestEndAsync();
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsAutoTestRunning = false;
                     IsBusy = false;
                 }
@@ -1826,14 +1802,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：发送进入ATP");
             await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, EnterAtpCommand8, msg => AddLog(msg), token);
             IsInAtp = true;
-            StartPressureTelemetryListeningIfNeeded();
+            StartTemperatureTelemetryListeningIfNeeded();
             return true;
         }
 
         private async Task<bool> AutoExitAtpAsync(CancellationToken token)
         {
             AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：发送退出ATP");
-            try { await StopPressureTelemetryListeningAsync(); } catch { }
+            try { await StopTemperatureTelemetryListeningAsync(); } catch { }
             await _simulation.SendBenchCommandOnlyAsync(ExitAtpTxChannel, ExitAtpCommand8, msg => AddLog(msg), token);
             IsInAtp = false;
             return true;
@@ -1868,11 +1844,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：档位{gearIndex} AO5输出后等待稳定3s");
             await Task.Delay(TimeSpan.FromSeconds(3), token);
-            StartPressureTelemetryListeningIfNeeded();
+            StartTemperatureTelemetryListeningIfNeeded();
 
-            var startSeq = Volatile.Read(ref _pressureTelemetrySeq);
-            Interlocked.Exchange(ref _lastPressureTelemetryFrame, null);
-            Interlocked.Exchange(ref _lastPressureTelemetryRawFrame, null);
+            var startSeq = Volatile.Read(ref _temperatureTelemetrySeq);
+            Interlocked.Exchange(ref _lastTemperatureTelemetryFrame, null);
+            Interlocked.Exchange(ref _lastTemperatureTelemetryRawFrame, null);
 
             AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：发送AB_CKPTVENTS_Temperature");
 
@@ -1880,13 +1856,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：等待温度遥测(07 02 01 02)[持续监听]");
 
-            var tel = await WaitNextPressureTelemetryFrameAsync(startSeq, timeoutMs: 1500, token: token);
+            var tel = await WaitNextTemperatureTelemetryFrameAsync(startSeq, timeoutMs: 1500, token: token);
 
             if (tel == null)
 
             {
 
-                failures.Add($"档位{gearIndex}温度遥测超时");
+                failures.Add($"档位{gearIndex}温度遥测超时：RX={PressureTelemetryRxChannel}未收到label=0x90/0x50/0xD0/0x30、编码模板07 02 01 02 00 00 00 00的回传帧");
 
                 return;
 
@@ -1895,14 +1871,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
             PressureTelemetryRxDataText = "0x" + FormatData(tel);
-            var rawData = Interlocked.CompareExchange(ref _lastPressureTelemetryRawFrame, null, null);
+            var rawData = Interlocked.CompareExchange(ref _lastTemperatureTelemetryRawFrame, null, null);
             if (rawData != null)
             {
                 PressureTelemetryRawRxDataText = "0x" + FormatData(rawData);
-                LogPressureRawData(rawData);
+                LogTemperatureRawData(rawData);
             }
 
-            if (!TryParseTelemetryPressure(tel, out var pressureBar))
+            if (!TryParseTelemetryTemperature(tel, out var temperature))
 
             {
 
@@ -1916,16 +1892,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            PressureTelemetryValueText = pressureBar.ToString("0.####", CultureInfo.InvariantCulture);
+            PressureTelemetryValueText = temperature.ToString("0.####", CultureInfo.InvariantCulture);
 
 
 
 
-            if (!IsPressureQualified(gearIndex, pressureBar))
+            if (!IsTemperatureQualified(gearIndex, temperature))
 
             {
 
-                failures.Add($"档位{gearIndex}温度不通过：{pressureBar.ToString("0.####", CultureInfo.InvariantCulture)}℃");
+                failures.Add($"档位{gearIndex}温度不通过：{temperature.ToString("0.####", CultureInfo.InvariantCulture)}℃");
 
             }
 
@@ -2018,12 +1994,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动档位{gearIndex}：AO5输出后等待稳定3s");
                     await Task.Delay(TimeSpan.FromSeconds(3));
-                    StartPressureTelemetryListeningIfNeeded();
+                    StartTemperatureTelemetryListeningIfNeeded();
 
-                    var startSeq = Volatile.Read(ref _pressureTelemetrySeq);
+                    var startSeq = Volatile.Read(ref _temperatureTelemetrySeq);
 
-                    Interlocked.Exchange(ref _lastPressureTelemetryFrame, null);
-                    Interlocked.Exchange(ref _lastPressureTelemetryRawFrame, null);
+                    Interlocked.Exchange(ref _lastTemperatureTelemetryFrame, null);
+                    Interlocked.Exchange(ref _lastTemperatureTelemetryRawFrame, null);
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_CKPTVENTS_Temperature：TX={ControllerPressureTestTxChannel}");
 
@@ -2031,7 +2007,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 等待温度遥测：RX={PressureTelemetryRxChannel}[持续监听]");
 
-                    var tel = await WaitNextPressureTelemetryFrameAsync(startSeq, timeoutMs: 1500, token: token);
+                    var tel = await WaitNextTemperatureTelemetryFrameAsync(startSeq, timeoutMs: 1500, token: token);
 
                     if (tel == null)
 
@@ -2039,7 +2015,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                         SetLastTestResult("FAIL");
 
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测超时");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测超时：RX={PressureTelemetryRxChannel}未收到label=0x90/0x50/0xD0/0x30、编码模板07 02 01 02 00 00 00 00的回传帧，请检查产品回发/429接线/通道配置");
 
                         return;
 
@@ -2048,14 +2024,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
                     PressureTelemetryRxDataText = "0x" + FormatData(tel);
-                    var rawData = Interlocked.CompareExchange(ref _lastPressureTelemetryRawFrame, null, null);
+                    var rawData = Interlocked.CompareExchange(ref _lastTemperatureTelemetryRawFrame, null, null);
                     if (rawData != null)
                     {
                         PressureTelemetryRawRxDataText = "0x" + FormatData(rawData);
-                        LogPressureRawData(rawData);
+                        LogTemperatureRawData(rawData);
                     }
 
-                    if (!TryParseTelemetryPressure(tel, out var pressureBar))
+                    if (!TryParseTelemetryTemperature(tel, out var temperature))
 
                     {
 
@@ -2071,11 +2047,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-                    PressureTelemetryValueText = pressureBar.ToString("0.####", CultureInfo.InvariantCulture);
+                    PressureTelemetryValueText = temperature.ToString("0.####", CultureInfo.InvariantCulture);
 
 
 
-                    var pass = IsPressureQualified(gearIndex, pressureBar);
+                    var pass = IsTemperatureQualified(gearIndex, temperature);
 
                     SetLastTestResult(pass ? "PASS" : "FAIL");
 
@@ -2274,7 +2250,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             try
             {
-                await StopPressureTelemetryListeningAsync();
+                await StopTemperatureTelemetryListeningAsync();
             }
             catch (Exception ex)
             {
@@ -2576,11 +2552,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-        private static bool TryParseTelemetryPressure(byte[] frameData, out double pressure)
+        private static bool TryParseTelemetryTemperature(byte[] frameData, out double temperature)
 
         {
 
-            pressure = 0;
+            temperature = 0;
 
             if (frameData == null || frameData.Length < 8)
 
@@ -2588,14 +2564,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            if (!IsPrefix(frameData, PressureTelemetryPrefix4))
+            if (!IsPrefix(frameData, TemperatureTelemetryPrefix4))
 
                 return false;
             var raw = (ushort)((frameData[6] << 8) | frameData[7]);
 
             var signedRaw = unchecked((short)raw);
 
-            pressure = signedRaw * 0.01;
+            temperature = signedRaw * 0.01;
 
             return true;
 
@@ -2608,7 +2584,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             value = 0;
             if (frameData == null || frameData.Length < 8)
                 return false;
-            if (!IsPrefix(frameData, PressureTelemetryRawPrefix4))
+            if (!IsPrefix(frameData, TemperatureTelemetryRawPrefix4))
                 return false;
 
             for (var i = 4; i <= 7; i++)
@@ -2625,7 +2601,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return true;
         }
 
-        private void LogPressureRawData(byte[] rawData)
+        private void LogTemperatureRawData(byte[] rawData)
         {
             var rawHex = FormatData(rawData);
             if (TryParseBase6FromNibbles(rawData, out var rawBase6Decimal))
@@ -2633,7 +2609,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             else
                 AddLog($"[{DateTime.Now:HH:mm:ss}] AB_CKPTVENTS温度原始数据(07 02 01 03) Data={rawHex}");
         }
-        private static bool IsPressureQualified(int gearIndex, double pressureBar)
+        private static bool IsTemperatureQualified(int gearIndex, double temperature)
 
         {
 
@@ -2651,7 +2627,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             };
 
-            return pressureBar >= min && pressureBar <= max;
+            return temperature >= min && temperature <= max;
 
         }
 
@@ -2695,55 +2671,53 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-        #region 持续压力遥测监听 (AC_6_4风格)
+        #region 持续温度遥测监听 (AC_6_4风格)
 
 
 
-        private void StartPressureTelemetryListeningIfNeeded()
-
+        private void StartTemperatureTelemetryListeningIfNeeded()
         {
-
             if (_telemetryListeningTask != null)
-
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测监听已在运行：RX={PressureTelemetryRxChannel}, seq={Volatile.Read(ref _temperatureTelemetrySeq)}");
                 return;
+            }
 
             if (string.IsNullOrWhiteSpace(PressureTelemetryRxChannel))
-
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测监听未启动：RX通道为空");
                 return;
+            }
 
             if (!IsInAtp)
-
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测监听未启动：当前未进入ATP模式");
                 return;
+            }
 
             if (!IsManualTestRunning && !IsAutoTestRunning)
-
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测监听未启动：手动/自动测试均未运行");
                 return;
-
-
+            }
 
             _telemetryListeningCts?.Cancel();
-
             _telemetryListeningCts?.Dispose();
-
             _telemetryListeningCts = new CancellationTokenSource();
-
             var token = _telemetryListeningCts.Token;
+            var rxChannel = PressureTelemetryRxChannel;
 
-
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 准备启动温度遥测持续监听：RX={rxChannel}, IsManual={IsManualTestRunning}, IsAuto={IsAutoTestRunning}, IsInAtp={IsInAtp}");
 
             _telemetryListeningTask = Task.Run(async () =>
-
             {
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 启动温度遥测持续监听：RX={PressureTelemetryRxChannel}");
-
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 启动温度遥测持续监听：RX={rxChannel}");
                 while (!token.IsCancellationRequested)
-
                 {
                     try
                     {
                         var telemetry = await _simulation.WaitTelemetryAsync(
-                            PressureTelemetryRxChannel,
+                            rxChannel,
                             timeoutMs: 300,
                             msg => { },
                             token);
@@ -2751,15 +2725,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         var tel = telemetry.Temperature;
                         var raw = telemetry.Raw;
 
-                        if (tel != null && TryParseTelemetryPressure(tel, out var pressureBar))
+                        if (tel != null && TryParseTelemetryTemperature(tel, out var temperature))
                         {
                             var frameCopy = tel.ToArray();
                             var rawCopy = raw?.ToArray();
 
-                            Interlocked.Exchange(ref _lastPressureTelemetryFrame, frameCopy);
+                            Interlocked.Exchange(ref _lastTemperatureTelemetryFrame, frameCopy);
                             if (rawCopy != null)
-                                Interlocked.Exchange(ref _lastPressureTelemetryRawFrame, rawCopy);
-                            Interlocked.Increment(ref _pressureTelemetrySeq);
+                                Interlocked.Exchange(ref _lastTemperatureTelemetryRawFrame, rawCopy);
+                            var seq = Interlocked.Increment(ref _temperatureTelemetrySeq);
+
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测监听收到有效帧：seq={seq}, Temp={temperature.ToString("0.####", CultureInfo.InvariantCulture)}, Data={FormatData(frameCopy)}, Raw={(rawCopy != null ? FormatData(rawCopy) : "--")}");
 
                             var dispatcher = Application.Current?.Dispatcher;
                             if (dispatcher != null && !dispatcher.CheckAccess())
@@ -2769,7 +2745,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                                     PressureTelemetryRxDataText = "0x" + FormatData(frameCopy);
                                     if (rawCopy != null)
                                         PressureTelemetryRawRxDataText = "0x" + FormatData(rawCopy);
-                                    PressureTelemetryValueText = pressureBar.ToString("0.####", CultureInfo.InvariantCulture);
+                                    PressureTelemetryValueText = temperature.ToString("0.####", CultureInfo.InvariantCulture);
                                 }));
                             }
                             else
@@ -2777,45 +2753,37 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                                 PressureTelemetryRxDataText = "0x" + FormatData(frameCopy);
                                 if (rawCopy != null)
                                     PressureTelemetryRawRxDataText = "0x" + FormatData(rawCopy);
-                                PressureTelemetryValueText = pressureBar.ToString("0.####", CultureInfo.InvariantCulture);
+                                PressureTelemetryValueText = temperature.ToString("0.####", CultureInfo.InvariantCulture);
                             }
                         }
                         else
                         {
+                            if (tel != null)
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测监听收到帧但解析失败：Data={FormatData(tel)}");
+                            else if (raw != null)
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测监听仅收到原始帧：Raw={FormatData(raw)}");
 
                             await Task.Delay(30, token);
-
                         }
-
                     }
-
                     catch (OperationCanceledException)
-
                     {
-
                         break;
-
                     }
-
-                    catch
-
+                    catch (Exception ex)
                     {
-
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测监听异常：{ex.Message}");
                         try { await Task.Delay(100, token); } catch { break; }
-
                     }
-
                 }
 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 温度遥测监听已停止");
-
             }, token);
-
         }
 
 
 
-        private async Task StopPressureTelemetryListeningAsync()
+        private async Task StopTemperatureTelemetryListeningAsync()
 
         {
 
@@ -2867,7 +2835,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         }
 
-        private async Task<byte[]> WaitNextPressureTelemetryFrameAsync(int startSeq, int timeoutMs, CancellationToken token)
+        private async Task<byte[]> WaitNextTemperatureTelemetryFrameAsync(int startSeq, int timeoutMs, CancellationToken token)
 
         {
 
@@ -2877,11 +2845,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             {
 
-                if (Volatile.Read(ref _pressureTelemetrySeq) > startSeq)
+                if (Volatile.Read(ref _temperatureTelemetrySeq) > startSeq)
 
                 {
 
-                    var frame = Interlocked.CompareExchange(ref _lastPressureTelemetryFrame, null, null);
+                    var frame = Interlocked.CompareExchange(ref _lastTemperatureTelemetryFrame, null, null);
 
                     if (frame != null)
 

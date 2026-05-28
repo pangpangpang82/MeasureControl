@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -17,12 +17,14 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
         private static readonly byte[] ExitAtpCommand8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] PressureTestCommand8 = { 0x07, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] PressureTelemetryTemplate8 = { 0x07, 0x02, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] PressureTelemetryRawTemplate8 = { 0x07, 0x02, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] PressureTelemetryPrefix4 = { 0x07, 0x02, 0x01, 0x02 };
         private static readonly byte[] PressureTelemetryRawPrefix4 = { 0x07, 0x02, 0x01, 0x03 };
 
-        private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
-        private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
+        private static readonly byte[] BenchTxFragmentLabels = { 0x8C, 0x4C, 0xCC, 0x2C };
+        private static readonly byte[] ProductTxFragmentLabels = { 0x90, 0x50, 0xD0, 0x30 };
 
         public Func<int> GetCurrentGearIndex { get; set; }
 
@@ -147,10 +149,13 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
             var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
             byte[] temperature = null;
             byte[] raw = null;
+            int targetLabelCount = 0;
+            int assembleSuccessCount = 0;
+            int assembleFailureCount = 0;
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
             {
-                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
+                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 1024, enableTimeTag: false, enableRateAdaption: false);
                 if (list != null && list.Count > 0)
                 {
                     foreach (var item in list)
@@ -158,17 +163,30 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
                         if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
                             continue;
 
+                        if (ProductTxFragmentLabels.Contains(rxLabel))
+                            targetLabelCount++;
+
                         if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
                         {
-                            if (resp8.Length == 8 && temperature == null && IsPrefix(resp8, PressureTelemetryPrefix4))
+                            var normalizedTemperature = NormalizeFrame(resp8, PressureTelemetryPrefix4);
+                            var normalizedRaw = NormalizeFrame(resp8, PressureTelemetryRawPrefix4);
+
+                            if (normalizedTemperature != null && temperature == null)
                             {
-                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 温度遥测拼包完成：{FormatBytes(resp8)}");
-                                temperature = resp8;
+                                assembleSuccessCount++;
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 温度遥测拼包完成 targetLabels={targetLabelCount}, success={assembleSuccessCount}, failure={assembleFailureCount}：{FormatBytes(normalizedTemperature)}");
+                                temperature = normalizedTemperature;
                             }
-                            else if (resp8.Length == 8 && raw == null && IsPrefix(resp8, PressureTelemetryRawPrefix4))
+                            else if (normalizedRaw != null && raw == null)
                             {
-                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 原始数据拼包完成：{FormatBytes(resp8)}");
-                                raw = resp8;
+                                assembleSuccessCount++;
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 原始数据拼包完成 targetLabels={targetLabelCount}, success={assembleSuccessCount}, failure={assembleFailureCount}：{FormatBytes(normalizedRaw)}");
+                                raw = normalizedRaw;
+                            }
+                            else
+                            {
+                                assembleFailureCount++;
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 拼包完成但前缀不匹配 failure={assembleFailureCount}：{FormatBytes(resp8)}");
                             }
                         }
                     }
@@ -180,9 +198,9 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
                 await Task.Delay(10, token);
             }
 
+            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 温度遥测拼包等待结束 targetLabels={targetLabelCount}, success={assembleSuccessCount}, failure={assembleFailureCount}");
             return (temperature, raw);
         }
-
         protected override async Task StartSimProductRxAsync(Action<string> log, CancellationToken token)
         {
             if (_arincDriver == null)
@@ -213,15 +231,15 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
 
                             if (_rxLabelAssembler.TryAddFragment(label, payload, DateTime.UtcNow, out var cmd8) && cmd8 != null)
                             {
-                                if (cmd8.SequenceEqual(EnterAtpCommand8))
+                                if (IsSameFrame(cmd8, EnterAtpCommand8))
                                 {
                                     log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP");
                                 }
-                                else if (cmd8.SequenceEqual(ExitAtpCommand8))
+                                else if (IsSameFrame(cmd8, ExitAtpCommand8))
                                 {
                                     log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP");
                                 }
-                                else if (cmd8.SequenceEqual(PressureTestCommand8))
+                                else if (IsSameFrame(cmd8, PressureTestCommand8))
                                 {
                                     log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到温度测试命令 -> 启动周期遥测发送");
                                     StartTelemetryOutput();
@@ -265,11 +283,7 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
 
             var raw = (short)Math.Round(v / 0.01, MidpointRounding.AwayFromZero);
 
-            var payload = new byte[8];
-            payload[0] = PressureTelemetryPrefix4[0];
-            payload[1] = PressureTelemetryPrefix4[1];
-            payload[2] = PressureTelemetryPrefix4[2];
-            payload[3] = PressureTelemetryPrefix4[3];
+            var payload = PressureTelemetryTemplate8.ToArray();
 
             payload[4] = 0xFF;
             payload[5] = 0xFF;
@@ -281,11 +295,7 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
 
         private byte[] BuildPressureRawTelemetryPayload8()
         {
-            var payload = new byte[8];
-            payload[0] = PressureTelemetryRawPrefix4[0];
-            payload[1] = PressureTelemetryRawPrefix4[1];
-            payload[2] = PressureTelemetryRawPrefix4[2];
-            payload[3] = PressureTelemetryRawPrefix4[3];
+            var payload = PressureTelemetryRawTemplate8.ToArray();
 
             int rawValue;
             lock (_rand)
@@ -315,6 +325,29 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
                 _ => (-65.98, -64.02)
             };
         }
+
+        private static bool IsSameFrame(byte[] actual, byte[] expected)
+        {
+            if (actual == null || expected == null || actual.Length != expected.Length)
+                return false;
+            if (actual.SequenceEqual(expected))
+                return true;
+            var swapped = SwapPairs8(actual);
+            return swapped != null && swapped.SequenceEqual(expected);
+        }
+
+        private static byte[] NormalizeFrame(byte[] frame, byte[] prefix)
+        {
+            if (frame == null || frame.Length != 8)
+                return null;
+            if (IsPrefix(frame, prefix))
+                return frame;
+            var swapped = SwapPairs8(frame);
+            if (swapped != null && IsPrefix(swapped, prefix))
+                return swapped;
+            return null;
+        }
+
 
         private sealed class MultiLabelCommandAssembler
         {

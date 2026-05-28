@@ -330,6 +330,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return;
             }
 
+            if (IsManualTestRunning)
+            {
+                MessageBox.Show("请先停止手动测试，再开始自动测试。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
             _ = StartAutoTestAsync();
         }
 
@@ -739,6 +745,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _autoTestLock.WaitAsync();
             try
             {
+                if (IsManualTestRunning)
+                    return;
+
                 if (IsBusy)
                     return;
 
@@ -934,23 +943,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：{CurrentGearName} AO4输出后等待稳定3s");
             await Task.Delay(TimeSpan.FromSeconds(3), token);
-            await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, SFwdAventsMea028, msg => AddLog(msg), token);
 
+            StartTelemetryListeningIfNeeded();
             var startSeq = Volatile.Read(ref _telemetrySeq);
             Interlocked.Exchange(ref _lastPressureTelemetryFrame, null);
             Interlocked.Exchange(ref _lastTemperatureTelemetryFrame, null);
             Interlocked.Exchange(ref _lastTemperatureRawFrame, null);
+
+            await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, SFwdAventsMea028, msg => AddLog(msg), token);
 
             var maxWaitMs = 2000;
             var sw = Stopwatch.StartNew();
             byte[] tel = null;
             while (sw.ElapsedMilliseconds < maxWaitMs && !token.IsCancellationRequested)
             {
-                var frame = Interlocked.CompareExchange(ref _lastPressureTelemetryFrame, null, null);
-                if (frame != null)
+                if (Volatile.Read(ref _telemetrySeq) > startSeq)
                 {
-                    tel = frame;
-                    break;
+                    var frame = Interlocked.CompareExchange(ref _lastPressureTelemetryFrame, null, null);
+                    if (frame != null)
+                    {
+                        tel = frame;
+                        break;
+                    }
                 }
                 await Task.Delay(50, token);
             }
