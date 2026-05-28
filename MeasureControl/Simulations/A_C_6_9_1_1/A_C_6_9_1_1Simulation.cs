@@ -13,14 +13,13 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
         private readonly MultiLabelCommandAssembler _rxLabelAssembler = new MultiLabelCommandAssembler(BenchTxFragmentLabels);
         private readonly Random _rand = new Random();
 
-        private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-        private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
-        private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        private static readonly byte[] EnterAtpCommand8 = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExitAtpCommand8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] PressureTestCommand8 = { 0x07, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] PressureTelemetryPrefix4 = { 0x07, 0x02, 0x01, 0x02 };
+        private static readonly byte[] PressureTelemetryRawPrefix4 = { 0x07, 0x02, 0x01, 0x03 };
 
         private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
         private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
@@ -29,6 +28,20 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
 
         private CancellationTokenSource _telemetryCts;
         private Task _telemetryTask;
+
+        private static byte[] SwapPairs8(byte[] data8)
+        {
+            if (data8 == null || data8.Length != 8)
+                return data8;
+
+            var b = new byte[8];
+            for (int i = 0; i < 8; i += 2)
+            {
+                b[i] = data8[i + 1];
+                b[i + 1] = data8[i];
+            }
+            return b;
+        }
 
         public void StartTelemetryOutput()
         {
@@ -42,7 +55,10 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
                     try
                     {
                         var telemetry = BuildPressureTelemetryPayload8();
-                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, telemetry, null, token);
+                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, SwapPairs8(telemetry), null, token);
+                        var rawTelemetry = BuildPressureRawTelemetryPayload8();
+                        await Task.Delay(50, token);
+                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, SwapPairs8(rawTelemetry), null, token);
                         await Task.Delay(100, token); // 每100ms发送一次遥测
                     }
                     catch (OperationCanceledException)
@@ -76,7 +92,7 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送: tx={txIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
 
-            await SendMultiLabelFrameOnChannelAsync(txIndex, BenchTxFragmentLabels, command8, log, token);
+            await SendMultiLabelFrameOnChannelAsync(txIndex, BenchTxFragmentLabels, SwapPairs8(command8), log, token);
         }
 
         public async Task<byte[]> WaitBenchResponse8Async(string benchRxChannel, Func<byte[], bool> isExpected, int timeoutMs, Action<string> log, CancellationToken token)
@@ -117,12 +133,20 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
 
         public async Task<byte[]> WaitPressureTelemetryAsync(string benchRxChannel, int timeoutMs, Action<string> log, CancellationToken token)
         {
+            var result = await WaitTelemetryAsync(benchRxChannel, timeoutMs, log, token);
+            return result.Temperature;
+        }
+
+        public async Task<(byte[] Temperature, byte[] Raw)> WaitTelemetryAsync(string benchRxChannel, int timeoutMs, Action<string> log, CancellationToken token)
+        {
             if (!_started || _arincDriver == null)
                 throw new InvalidOperationException("Simulation not started");
 
             int rxIndex = ParseChannelIndex(benchRxChannel);
             var labelAssembler = new MultiLabelCommandAssembler(ProductTxFragmentLabels);
             var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
+            byte[] temperature = null;
+            byte[] raw = null;
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
             {
@@ -136,19 +160,27 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
 
                         if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
                         {
-                            if (resp8.Length == 8 && IsPrefix(resp8, PressureTelemetryPrefix4))
+                            if (resp8.Length == 8 && temperature == null && IsPrefix(resp8, PressureTelemetryPrefix4))
                             {
                                 log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 温度遥测拼包完成：{FormatBytes(resp8)}");
-                                return resp8;
+                                temperature = resp8;
+                            }
+                            else if (resp8.Length == 8 && raw == null && IsPrefix(resp8, PressureTelemetryRawPrefix4))
+                            {
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 原始数据拼包完成：{FormatBytes(resp8)}");
+                                raw = resp8;
                             }
                         }
                     }
                 }
 
+                if (temperature != null && raw != null)
+                    return (temperature, raw);
+
                 await Task.Delay(10, token);
             }
 
-            return null;
+            return (temperature, raw);
         }
 
         protected override async Task StartSimProductRxAsync(Action<string> log, CancellationToken token)
@@ -183,18 +215,17 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
                             {
                                 if (cmd8.SequenceEqual(EnterAtpCommand8))
                                 {
-                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP -> 回复OK");
-                                    await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, EnterAtpOk8, log, token);
+                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP");
                                 }
                                 else if (cmd8.SequenceEqual(ExitAtpCommand8))
                                 {
-                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP -> 回复OK");
-                                    await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, ExitAtpOk8, log, token);
+                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP");
                                 }
                                 else if (cmd8.SequenceEqual(PressureTestCommand8))
                                 {
                                     log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到温度测试命令 -> 启动周期遥测发送");
                                     StartTelemetryOutput();
+                                    await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, SwapPairs8(PressureTestCommand8), log, token);
                                 }
                             }
                         }
@@ -232,9 +263,7 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
                 v = min + _rand.NextDouble() * (max - min);
             }
 
-            short intPart = (short)(v < 0 ? Math.Ceiling(v) : Math.Floor(v));
-            int frac = (int)Math.Round(Math.Abs(v - intPart) * 10000.0, MidpointRounding.AwayFromZero);
-            frac = Math.Max(0, Math.Min(9999, frac));
+            var raw = (short)Math.Round(v / 0.01, MidpointRounding.AwayFromZero);
 
             var payload = new byte[8];
             payload[0] = PressureTelemetryPrefix4[0];
@@ -242,10 +271,36 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
             payload[2] = PressureTelemetryPrefix4[2];
             payload[3] = PressureTelemetryPrefix4[3];
 
-            payload[4] = (byte)((intPart >> 8) & 0xFF);
-            payload[5] = (byte)(intPart & 0xFF);
-            payload[6] = (byte)((frac >> 8) & 0xFF);
-            payload[7] = (byte)(frac & 0xFF);
+            payload[4] = 0xFF;
+            payload[5] = 0xFF;
+            payload[6] = (byte)((raw >> 8) & 0xFF);
+            payload[7] = (byte)(raw & 0xFF);
+
+            return payload;
+        }
+
+        private byte[] BuildPressureRawTelemetryPayload8()
+        {
+            var payload = new byte[8];
+            payload[0] = PressureTelemetryRawPrefix4[0];
+            payload[1] = PressureTelemetryRawPrefix4[1];
+            payload[2] = PressureTelemetryRawPrefix4[2];
+            payload[3] = PressureTelemetryRawPrefix4[3];
+
+            int rawValue;
+            lock (_rand)
+            {
+                rawValue = _rand.Next(0, 46656);
+            }
+
+            for (int i = 7; i >= 4; i--)
+            {
+                int lo = rawValue % 6;
+                rawValue /= 6;
+                int hi = rawValue % 6;
+                rawValue /= 6;
+                payload[i] = (byte)((hi << 4) | lo);
+            }
 
             return payload;
         }
@@ -304,8 +359,8 @@ namespace MeasureControl.Simulations.A_C_6_9_1_1
                 cmd8 = new byte[8];
                 for (int j = 0; j < 4; j++)
                 {
-                    cmd8[j * 2] = (byte)((_parts[j] >> 8) & 0xFF);
-                    cmd8[j * 2 + 1] = (byte)(_parts[j] & 0xFF);
+                    cmd8[j * 2] = (byte)(_parts[j] & 0xFF);
+                    cmd8[j * 2 + 1] = (byte)((_parts[j] >> 8) & 0xFF);
                 }
 
                 _mask = 0;
