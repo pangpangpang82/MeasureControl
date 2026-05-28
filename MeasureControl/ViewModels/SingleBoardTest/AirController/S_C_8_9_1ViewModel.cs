@@ -1034,6 +1034,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     {
                         AddLog($"FPGA复位: 发送 {FormatData(ResetToInitialCommandFrame)}");
                         await _fpga.WriteAsync(ResetToInitialCommandFrame, 0, ResetToInitialCommandFrame.Length, token).ConfigureAwait(false);
+                        await Task.Delay(500, token).ConfigureAwait(false);
                     }
                     catch { }
                 }
