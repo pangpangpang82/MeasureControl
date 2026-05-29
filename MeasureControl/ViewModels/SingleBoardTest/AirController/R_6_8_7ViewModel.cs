@@ -1039,7 +1039,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (!IsPrefix(frameData, TelemetryTemperaturePrefix))
                 return false;
 
-            var raw = (short)((frameData[6] << 8) | frameData[7]);
+            var raw = (frameData[4] << 24) | (frameData[5] << 16) | (frameData[6] << 8) | frameData[7];
             temperature = raw * 0.01;
             return true;
         }

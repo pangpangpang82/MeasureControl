@@ -1276,8 +1276,8 @@ namespace MeasureControl.Simulations.R_6_8_7
             if (!IsPrefix(frameData, TelemetryTemperaturePrefix))
                 return false;
 
-            var raw16 = unchecked((short)((frameData[6] << 8) | frameData[7]));
-            temperatureC = raw16 * 0.01;
+            var raw32 = (frameData[4] << 24) | (frameData[5] << 16) | (frameData[6] << 8) | frameData[7];
+            temperatureC = raw32 * 0.01;
             return true;
         }
 
@@ -1287,21 +1287,8 @@ namespace MeasureControl.Simulations.R_6_8_7
             if (!TryParseTemperatureC(frameData, out temperatureC))
                 return false;
 
-            try
-            {
-                var gear = GetCurrentResistorGear?.Invoke();
-                var ambient = GetCurrentAmbientTemperatureSelection?.Invoke();
-                if (!string.IsNullOrWhiteSpace(gear) && !string.IsNullOrWhiteSpace(ambient))
-                {
-                    var (min, max) = GetQualifiedTemperatureRange(gear, ambient);
-                    return temperatureC >= (min - 20.0) && temperatureC <= (max + 20.0);
-                }
-            }
-            catch
-            {
-            }
-
-            return temperatureC >= -150.0 && temperatureC <= 450.0;
+            // 只验证帧格式，不验证温度值范围，避免实际产品返回的温度超出预期范围时被误判为无效帧
+            return true;
         }
 
         private static bool IsValidRawTelemetryFrame(byte[] frameData)
