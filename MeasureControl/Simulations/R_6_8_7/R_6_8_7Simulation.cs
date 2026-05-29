@@ -13,6 +13,9 @@ namespace MeasureControl.Simulations.R_6_8_7
     {
         private ART4229Driver _arincDriver;
         private readonly SemaphoreSlim _arincIoLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _benchRxReadLock = new SemaphoreSlim(1, 1);
+
+        private int _benchRxActiveReaders;
 
         private int _benchTxChannelIndex = -1;
         private int _benchRxChannelIndex = -1;
@@ -29,16 +32,15 @@ namespace MeasureControl.Simulations.R_6_8_7
         private bool _started;
 
         // BTS 协议命令定义
-        private static readonly byte[] EnterAtpCommand = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] EnterAtpOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-        private static readonly byte[] ExitAtpCommand = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
-        private static readonly byte[] ExitAtpOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        private static readonly byte[] EnterAtpCommand = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExitAtpCommand = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] TemperatureTestCommand = { 0x07, 0x01, 0x07, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] TemperatureTelemetryCommand = { 0x07, 0x01, 0x07, 0x02, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x07, 0x02 };
         private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x07, 0x03 };
 
-        private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
-        private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
+        private static readonly byte[] BenchTxFragmentLabels = { 0x8C, 0x4C, 0xCC, 0x2C };
+        private static readonly byte[] ProductTxFragmentLabels = { 0x90, 0x50, 0xD0, 0x30 };
 
         public bool EnableFrameLogging { get; set; } = true;
 
@@ -62,6 +64,20 @@ namespace MeasureControl.Simulations.R_6_8_7
         /// 由 ViewModel 设置，用于仿真遥测时获取当前环境温度选择(10~50℃/其他)
         /// </summary>
         public Func<string> GetCurrentAmbientTemperatureSelection { get; set; }
+
+        private static byte[] SwapPairs8(byte[] data8)
+        {
+            if (data8 == null || data8.Length != 8)
+                return data8;
+
+            var b = new byte[8];
+            for (int i = 0; i < 8; i += 2)
+            {
+                b[i] = data8[i + 1];
+                b[i + 1] = data8[i];
+            }
+            return b;
+        }
 
         public void StopTelemetryOutput()
         {
@@ -254,12 +270,13 @@ namespace MeasureControl.Simulations.R_6_8_7
             if (command8 == null || command8.Length != 8)
                 throw new ArgumentException("command8 must be 8 bytes", nameof(command8));
 
-            bool readyOk = await EnsureBenchChannelsAsync(benchTxChannel, benchRxChannel, log);
-            if (!readyOk)
-                throw new InvalidOperationException($"[SIM] bench通道未就绪：TX={benchTxChannel}, RX={benchRxChannel}");
-
             int txIndex = ParseChannelIndex(benchTxChannel);
             int rxIndex = ParseChannelIndex(benchRxChannel);
+
+            if (txIndex != _benchTxChannelIndex || rxIndex != _benchRxChannelIndex)
+                throw new InvalidOperationException($"[SIM] bench通道与StartAsync配置不一致：TX={txIndex}(expected={_benchTxChannelIndex}), RX={rxIndex}(expected={_benchRxChannelIndex})");
+
+            await StartBenchRxAsync(log);
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送: tx={txIndex}, rx={rxIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
 
@@ -288,11 +305,8 @@ namespace MeasureControl.Simulations.R_6_8_7
 
             int txIndex = ParseChannelIndex(benchTxChannel);
 
-            bool openTxOk = await _arincDriver.OpenTxChannelAsync(txIndex);
-            if (!openTxOk)
-                throw new InvalidOperationException($"[SIM] TX通道打开失败: tx={txIndex}");
-
-            await _arincDriver.ConfigureTxChannelAsync(txIndex, ArincRate, sendMode: 0, parity: 1, wordFormat: 0);
+            if (txIndex != _benchTxChannelIndex)
+                throw new InvalidOperationException($"[SIM] benchTX通道与StartAsync配置不一致：TX={txIndex}(expected={_benchTxChannelIndex})");
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送(仅发送): tx={txIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
 
@@ -307,7 +321,23 @@ namespace MeasureControl.Simulations.R_6_8_7
             int rxIndex = ParseChannelIndex(benchRxChannel);
             try
             {
-                await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false);
+                int readers = Interlocked.Increment(ref _benchRxActiveReaders);
+                try
+                {
+                    await _benchRxReadLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    try
+                    {
+                        await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 4096, enableTimeTag: false, enableRateAdaption: false);
+                    }
+                    finally
+                    {
+                        _benchRxReadLock.Release();
+                    }
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref _benchRxActiveReaders);
+                }
             }
             catch
             {
@@ -325,50 +355,103 @@ namespace MeasureControl.Simulations.R_6_8_7
             if (!_started || _arincDriver == null)
                 throw new InvalidOperationException("Simulation not started");
 
+            int readers = Interlocked.Increment(ref _benchRxActiveReaders);
+            if (readers > 1)
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 警告：benchRX 读取存在并发(WaitBenchResponse)，activeReaders={readers}，可能发生抢帧");
+            try
+            {
             int rxIndex = ParseChannelIndex(benchRxChannel);
             MultiLabelCommandAssembler labelAssembler = new MultiLabelCommandAssembler(ProductTxFragmentLabels);
+            MultiLabelCommandAssembler labelAssemblerStable = new MultiLabelCommandAssembler(new byte[] { 0x90, 0x50, 0xD0, 0x30 });
+            MultiLabelCommandAssembler labelAssemblerBench = new MultiLabelCommandAssembler(BenchTxFragmentLabels);
             var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
             int rxLogCount = 0;
-            const int maxRxLog = 32;
+            const int maxRxLog = 2048;
+            int rxBatchId = 0;
+            var lastNoDataLogUtc = DateTime.MinValue;
+            var labelHistogram = new Dictionary<byte, int>();
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
             {
-                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
-                if (list != null && list.Count > 0)
+                await _benchRxReadLock.WaitAsync(token).ConfigureAwait(false);
+                try
                 {
-                    foreach (var item in list)
-                    {
-                        if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
-                            continue;
+                    var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 1024, enableTimeTag: false, enableRateAdaption: false);
 
-                        if (EnableFrameLogging)
+                    if (list != null && list.Count > 0)
+                    {
+                        foreach (var item in list)
                         {
-                            if (rxLogCount < maxRxLog)
+                            if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
+                                continue;
+
+                            if (labelHistogram.TryGetValue(rxLabel, out var cnt))
+                                labelHistogram[rxLabel] = cnt + 1;
+                            else
+                                labelHistogram[rxLabel] = 1;
+
+                            if (EnableFrameLogging)
                             {
-                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} recv raw=0x{item.Data429:X8} label=0x{rxLabel:X2} sdi={sdi} payload=0x{payload:X4}");
-                                rxLogCount++;
-                                if (rxLogCount == maxRxLog)
+                                if (rxLogCount < maxRxLog)
                                 {
-                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} recv日志已达上限({maxRxLog})，后续帧不再打印");
+                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} recv raw=0x{item.Data429:X8} label=0x{rxLabel:X2} sdi={sdi} payload=0x{payload:X4}");
+                                    rxLogCount++;
+                                    if (rxLogCount == maxRxLog)
+                                    {
+                                        log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} recv日志已达上限({maxRxLog})，后续帧不再打印");
+                                    }
                                 }
                             }
-                        }
 
-                        if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
-                        {
-                            if (isExpectedResponse == null || isExpectedResponse(resp8))
+                            if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
                             {
-                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 labels={string.Join("/", ProductTxFragmentLabels.Select(b => $"0x{b:X2}"))} resp8={FormatBytes(resp8)}");
-                                return resp8;
+                                if (isExpectedResponse == null || isExpectedResponse(resp8))
+                                {
+                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 labels={string.Join("/", ProductTxFragmentLabels.Select(b => $"0x{b:X2}"))} resp8={FormatBytes(resp8)}");
+                                    return resp8;
+                                }
+                            }
+
+                            if (labelAssemblerStable.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8Stable) && resp8Stable != null)
+                            {
+                                if (isExpectedResponse == null || isExpectedResponse(resp8Stable))
+                                {
+                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 labels=0x90/0x50/0xD0/0x30 resp8={FormatBytes(resp8Stable)}");
+                                    return resp8Stable;
+                                }
+                            }
+
+                            if (labelAssemblerBench.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8Bench) && resp8Bench != null)
+                            {
+                                if (isExpectedResponse == null || isExpectedResponse(resp8Bench))
+                                {
+                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))} resp8={FormatBytes(resp8Bench)}");
+                                    return resp8Bench;
+                                }
                             }
                         }
                     }
                 }
+                finally
+                {
+                    _benchRxReadLock.Release();
+                }
 
-                await Task.Delay(10, token);
+                await Task.Delay(5, token);
+            }
+
+            if (labelHistogram.Count > 0)
+            {
+                var summary = string.Join(", ", labelHistogram.OrderByDescending(kv => kv.Value).Take(12).Select(kv => $"0x{kv.Key:X2}:{kv.Value}"));
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 等待响应超时，label统计(top)={summary}");
             }
 
             return null;
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _benchRxActiveReaders);
+            }
         }
 
         /// <summary>
@@ -383,45 +466,314 @@ namespace MeasureControl.Simulations.R_6_8_7
             if (!_started || _arincDriver == null)
                 throw new InvalidOperationException("Simulation not started");
 
+            int readers = Interlocked.Increment(ref _benchRxActiveReaders);
+            if (readers > 1)
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 警告：benchRX 读取存在并发(WaitTelemetry)，activeReaders={readers}，可能发生抢帧");
+            try
+            {
+
             int rxIndex = ParseChannelIndex(benchRxChannel);
             byte[] temperature = null;
             byte[] raw = null;
-            MultiLabelCommandAssembler labelAssembler = new MultiLabelCommandAssembler(ProductTxFragmentLabels);
             var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
+            int rxLogCount = 0;
+            const int maxRxLog = 2048;
+            int rxBatchId = 0;
+            var lastNoDataLogUtc = DateTime.MinValue;
+            var labelHistogram = new Dictionary<byte, int>();
+
+            var stableLabels = new byte[] { 0x90, 0x50, 0xD0, 0x30 };
+            var legacyLabels = new byte[] { 0x09, 0x0A, 0x0B, 0x0C };
+            var windowFragments = new List<TelemetryFragment>(64);
+            var windowKeep = TimeSpan.FromMilliseconds(350);
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
             {
-                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
-                if (list != null && list.Count > 0)
+                await _benchRxReadLock.WaitAsync(token).ConfigureAwait(false);
+                try
                 {
-                    foreach (var item in list)
-                    {
-                        if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
-                            continue;
+                    var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 1024, enableTimeTag: false, enableRateAdaption: false);
 
-                        if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
+                    var nowUtc = DateTime.UtcNow;
+                    if (EnableFrameLogging)
+                    {
+                        rxBatchId++;
+                        int cnt = list?.Count ?? 0;
+                        if (cnt > 0)
                         {
-                            if (temperature == null && IsPrefix(resp8, TelemetryTemperaturePrefix))
-                            {
-                                temperature = resp8;
-                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 温度采集值拼包完成：{FormatBytes(resp8)}");
-                            }
-                            else if (raw == null && IsPrefix(resp8, TelemetryRawPrefix))
-                            {
-                                raw = resp8;
-                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 原始数据拼包完成：{FormatBytes(resp8)}");
-                            }
+                            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} recvBatch#{rxBatchId} count={cnt}");
+                        }
+                        else if ((nowUtc - lastNoDataLogUtc) > TimeSpan.FromMilliseconds(200))
+                        {
+                            lastNoDataLogUtc = nowUtc;
+                            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} recvBatch#{rxBatchId} count=0");
                         }
                     }
+
+                    if (windowFragments.Count > 0)
+                    {
+                        windowFragments.RemoveAll(f => (nowUtc - f.SeenUtc) > windowKeep);
+                        if (windowFragments.Count > 64)
+                            windowFragments.RemoveRange(0, windowFragments.Count - 64);
+                    }
+
+                    var burstFragments = new List<TelemetryFragment>(list?.Count ?? 0);
+
+                    if (list != null && list.Count > 0)
+                    {
+                        foreach (var item in list)
+                        {
+                            if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
+                                continue;
+
+                            var frag = new TelemetryFragment(rxLabel, payload, item.Data429, nowUtc);
+                            burstFragments.Add(frag);
+                            windowFragments.Add(frag);
+
+                            if (labelHistogram.TryGetValue(rxLabel, out var cnt))
+                                labelHistogram[rxLabel] = cnt + 1;
+                            else
+                                labelHistogram[rxLabel] = 1;
+
+                            if (EnableFrameLogging)
+                            {
+                                if (rxLogCount < maxRxLog)
+                                {
+                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} recvBatch#{rxBatchId} raw=0x{item.Data429:X8} label=0x{rxLabel:X2} sdi={sdi} payload=0x{payload:X4}");
+                                    rxLogCount++;
+                                    if (rxLogCount == maxRxLog)
+                                        log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} recv日志已达上限({maxRxLog})，后续帧不再打印");
+                                }
+                            }
+
+                        }
+                    }
+
+                    if (burstFragments.Count > 0)
+                    {
+                        TryExtractTelemetryFromFragments(burstFragments, ProductTxFragmentLabels, BenchTxFragmentLabels, stableLabels, legacyLabels, ref temperature, ref raw, log);
+                    }
+
+                    if (temperature == null || raw == null)
+                    {
+                        TryExtractTelemetryFromFragments(windowFragments, ProductTxFragmentLabels, BenchTxFragmentLabels, stableLabels, legacyLabels, ref temperature, ref raw, log);
+                    }
+                }
+                finally
+                {
+                    _benchRxReadLock.Release();
                 }
 
                 if (temperature != null && raw != null)
                     return (temperature, raw);
 
-                await Task.Delay(10, token);
+                await Task.Delay(5, token);
             }
 
+            if ((temperature == null || raw == null) && labelHistogram.Count > 0)
+            {
+                var summary = string.Join(", ", labelHistogram.OrderByDescending(kv => kv.Value).Take(12).Select(kv => $"0x{kv.Key:X2}:{kv.Value}"));
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 遥测等待超时，label统计(top)={summary}");
+            }
             return (temperature, raw);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _benchRxActiveReaders);
+            }
+        }
+
+        private readonly struct TelemetryFragment
+        {
+            public TelemetryFragment(byte label, ushort payload16, uint rawWord, DateTime seenUtc)
+            {
+                Label = label;
+                Payload16 = payload16;
+                RawWord = rawWord;
+                SeenUtc = seenUtc;
+            }
+
+            public byte Label { get; }
+            public ushort Payload16 { get; }
+            public uint RawWord { get; }
+            public DateTime SeenUtc { get; }
+        }
+
+        private static byte[] BuildCmd8FromParts(ushort[] parts)
+        {
+            if (parts == null || parts.Length < 4)
+                return null;
+            var cmd8 = new byte[8];
+            for (int j = 0; j < 4; j++)
+            {
+                cmd8[j * 2] = (byte)(parts[j] & 0xFF);
+                cmd8[j * 2 + 1] = (byte)((parts[j] >> 8) & 0xFF);
+            }
+            return cmd8;
+        }
+
+        private void TryExtractTelemetryFromFragments(
+            List<TelemetryFragment> fragments,
+            byte[] productLabels,
+            byte[] benchLabels,
+            byte[] stableLabels,
+            byte[] legacyLabels,
+            ref byte[] temperature,
+            ref byte[] raw,
+            Action<string> log)
+        {
+            if (fragments == null || fragments.Count == 0)
+                return;
+
+            if (temperature == null && TryFindTemperatureFrame(fragments, productLabels, out var tFrame, out var tParts, out var tC))
+            {
+                temperature = tFrame;
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 温度采集值拼包完成(labels={string.Join("/", productLabels.Select(b => $"0x{b:X2}"))}) frags={FormatFragments(productLabels, tParts)} Temp={tC:0.####}℃：{FormatBytes(tFrame)}");
+            }
+            if (raw == null && TryFindRawFrame(fragments, productLabels, out var rFrame, out var rParts))
+            {
+                raw = rFrame;
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 原始数据拼包完成(labels={string.Join("/", productLabels.Select(b => $"0x{b:X2}"))}) frags={FormatFragments(productLabels, rParts)}：{FormatBytes(rFrame)}");
+            }
+
+            if (temperature == null && TryFindTemperatureFrame(fragments, stableLabels, out tFrame, out tParts, out tC))
+            {
+                temperature = tFrame;
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 温度采集值拼包完成(labels=0x90/0x50/0xD0/0x30) frags={FormatFragments(stableLabels, tParts)} Temp={tC:0.####}℃：{FormatBytes(tFrame)}");
+            }
+            if (raw == null && TryFindRawFrame(fragments, stableLabels, out rFrame, out rParts))
+            {
+                raw = rFrame;
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 原始数据拼包完成(labels=0x90/0x50/0xD0/0x30) frags={FormatFragments(stableLabels, rParts)}：{FormatBytes(rFrame)}");
+            }
+
+            if (temperature == null && TryFindTemperatureFrame(fragments, benchLabels, out tFrame, out tParts, out tC))
+            {
+                temperature = tFrame;
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 温度采集值拼包完成(labels={string.Join("/", benchLabels.Select(b => $"0x{b:X2}"))}) frags={FormatFragments(benchLabels, tParts)} Temp={tC:0.####}℃：{FormatBytes(tFrame)}");
+            }
+            if (raw == null && TryFindRawFrame(fragments, benchLabels, out rFrame, out rParts))
+            {
+                raw = rFrame;
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 原始数据拼包完成(labels={string.Join("/", benchLabels.Select(b => $"0x{b:X2}"))}) frags={FormatFragments(benchLabels, rParts)}：{FormatBytes(rFrame)}");
+            }
+
+            if (temperature == null && TryFindTemperatureFrame(fragments, legacyLabels, out tFrame, out tParts, out tC))
+            {
+                temperature = tFrame;
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 温度采集值拼包完成(labels=0x09/0x0A/0x0B/0x0C) frags={FormatFragments(legacyLabels, tParts)} Temp={tC:0.####}℃：{FormatBytes(tFrame)}");
+            }
+            if (raw == null && TryFindRawFrame(fragments, legacyLabels, out rFrame, out rParts))
+            {
+                raw = rFrame;
+                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 原始数据拼包完成(labels=0x09/0x0A/0x0B/0x0C) frags={FormatFragments(legacyLabels, rParts)}：{FormatBytes(rFrame)}");
+            }
+        }
+
+        private bool TryFindTemperatureFrame(List<TelemetryFragment> fragments, byte[] labels, out byte[] frame8, out ushort[] partsSnapshot, out double tC)
+        {
+            frame8 = null;
+            partsSnapshot = null;
+            tC = 0;
+
+            if (!TryGetCandidates(fragments, labels, out var candidates))
+                return false;
+
+            for (int a = 0; a < candidates[0].Length; a++)
+            for (int b = 0; b < candidates[1].Length; b++)
+            for (int c = 0; c < candidates[2].Length; c++)
+            for (int d = 0; d < candidates[3].Length; d++)
+            {
+                var parts = new ushort[4];
+                parts[0] = candidates[0][a];
+                parts[1] = candidates[1][b];
+                parts[2] = candidates[2][c];
+                parts[3] = candidates[3][d];
+
+                var cmd8 = BuildCmd8FromParts(parts);
+                if (cmd8 == null)
+                    continue;
+
+                if (IsValidTemperatureTelemetryFrame(cmd8, out var tmp))
+                {
+                    frame8 = cmd8;
+                    partsSnapshot = parts;
+                    tC = tmp;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool TryFindRawFrame(List<TelemetryFragment> fragments, byte[] labels, out byte[] frame8, out ushort[] partsSnapshot)
+        {
+            frame8 = null;
+            partsSnapshot = null;
+
+            if (!TryGetCandidates(fragments, labels, out var candidates))
+                return false;
+
+            for (int a = 0; a < candidates[0].Length; a++)
+            for (int b = 0; b < candidates[1].Length; b++)
+            for (int c = 0; c < candidates[2].Length; c++)
+            for (int d = 0; d < candidates[3].Length; d++)
+            {
+                var parts = new ushort[4];
+                parts[0] = candidates[0][a];
+                parts[1] = candidates[1][b];
+                parts[2] = candidates[2][c];
+                parts[3] = candidates[3][d];
+
+                var cmd8 = BuildCmd8FromParts(parts);
+                if (cmd8 == null)
+                    continue;
+
+                if (IsValidRawTelemetryFrame(cmd8))
+                {
+                    frame8 = cmd8;
+                    partsSnapshot = parts;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryGetCandidates(List<TelemetryFragment> fragments, byte[] labels, out ushort[][] candidates)
+        {
+            candidates = null;
+            if (labels == null || labels.Length < 4)
+                return false;
+            if (fragments == null || fragments.Count == 0)
+                return false;
+
+            candidates = new ushort[4][];
+            for (int i = 0; i < 4; i++)
+            {
+                var label = labels[i];
+                var payloads = fragments
+                    .Where(f => f.Label == label)
+                    .Select(f => f.Payload16)
+                    .ToList();
+
+                if (payloads.Count == 0)
+                    return false;
+
+                int start = Math.Max(0, payloads.Count - 4);
+                var recent = payloads.GetRange(start, payloads.Count - start);
+                var uniq = new List<ushort>(recent.Count);
+                var seen = new HashSet<ushort>();
+                foreach (var p in recent)
+                {
+                    if (seen.Add(p))
+                        uniq.Add(p);
+                }
+
+                candidates[i] = uniq.ToArray();
+            }
+
+            return true;
         }
 
         public async Task StopAsync(Action<string> log)
@@ -503,19 +855,23 @@ namespace MeasureControl.Simulations.R_6_8_7
 
                                     if (cmd8.SequenceEqual(EnterAtpCommand))
                                     {
-                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP指令 -> 回复 ATP OK");
-                                        await SendMultiFrameResponseAsync(label, EnterAtpOk, log, token);
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP指令");
                                     }
                                     else if (cmd8.SequenceEqual(ExitAtpCommand))
                                     {
-                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP指令 -> 回复 EXIT OK");
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP指令");
                                         _telemetryEnabled = false;
-                                        await SendMultiFrameResponseAsync(label, ExitAtpOk, log, token);
                                     }
                                     else if (cmd8.SequenceEqual(TemperatureTestCommand))
                                     {
                                         log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到温度测试指令 -> 回复确认并开启遥测");
                                         await SendMultiFrameResponseAsync(label, TemperatureTestCommand, log, token);
+                                        _telemetryEnabled = true;
+                                        StartTelemetryLoopIfNeeded(label, log);
+                                    }
+                                    else if (cmd8.SequenceEqual(TemperatureTelemetryCommand))
+                                    {
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到温度回采指令 -> 开启遥测");
                                         _telemetryEnabled = true;
                                         StartTelemetryLoopIfNeeded(label, log);
                                     }
@@ -578,12 +934,9 @@ namespace MeasureControl.Simulations.R_6_8_7
                     tempPayload[2] = TelemetryTemperaturePrefix[2];
                     tempPayload[3] = TelemetryTemperaturePrefix[3];
 
-                    int intPart = (int)temperature;
-                    int fracPart = (int)(Math.Abs(temperature - intPart) * 10000);
-                    tempPayload[4] = (byte)((intPart >> 8) & 0xFF);
-                    tempPayload[5] = (byte)(intPart & 0xFF);
-                    tempPayload[6] = (byte)((fracPart >> 8) & 0xFF);
-                    tempPayload[7] = (byte)(fracPart & 0xFF);
+                    short tRaw = (short)Math.Round(temperature / 0.01, MidpointRounding.AwayFromZero);
+                    tempPayload[6] = (byte)((tRaw >> 8) & 0xFF);
+                    tempPayload[7] = (byte)(tRaw & 0xFF);
 
                     await SendMultiFrameResponseAsync(label, tempPayload, log, token);
 
@@ -662,12 +1015,14 @@ namespace MeasureControl.Simulations.R_6_8_7
             if (payload8 == null || payload8.Length != 8)
                 return;
 
+            var swapped = SwapPairs8(payload8);
+
             uint[] data429 = new uint[4];
             uint[] parity = new uint[4];
 
             for (byte frag = 0; frag < 4; frag++)
             {
-                ushort part = (ushort)((payload8[frag * 2] << 8) | payload8[frag * 2 + 1]);
+                ushort part = (ushort)((swapped[frag * 2] << 8) | swapped[frag * 2 + 1]);
                 byte fragLabel = ProductTxFragmentLabels[frag];
                 uint word = BuildWord(fragLabel, 0, part);
                 data429[frag] = ApplyParity(word);
@@ -702,12 +1057,14 @@ namespace MeasureControl.Simulations.R_6_8_7
             if (payload8 == null || payload8.Length != 8)
                 return;
 
+            var swapped = SwapPairs8(payload8);
+
             uint[] data429 = new uint[4];
             uint[] parity = new uint[4];
 
             for (byte frag = 0; frag < 4; frag++)
             {
-                ushort part = (ushort)((payload8[frag * 2] << 8) | payload8[frag * 2 + 1]);
+                ushort part = (ushort)((swapped[frag * 2] << 8) | swapped[frag * 2 + 1]);
                 byte fragLabel = BenchTxFragmentLabels[frag];
                 uint word = BuildWord(fragLabel, 0, part);
                 data429[frag] = ApplyParity(word);
@@ -911,6 +1268,48 @@ namespace MeasureControl.Simulations.R_6_8_7
             return true;
         }
 
+        private static bool TryParseTemperatureC(byte[] frameData, out double temperatureC)
+        {
+            temperatureC = 0;
+            if (frameData == null || frameData.Length < 8)
+                return false;
+            if (!IsPrefix(frameData, TelemetryTemperaturePrefix))
+                return false;
+
+            var raw32 = (frameData[4] << 24) | (frameData[5] << 16) | (frameData[6] << 8) | frameData[7];
+            temperatureC = raw32 * 0.01;
+            return true;
+        }
+
+        private bool IsValidTemperatureTelemetryFrame(byte[] frameData, out double temperatureC)
+        {
+            temperatureC = 0;
+            if (!TryParseTemperatureC(frameData, out temperatureC))
+                return false;
+
+            // 只验证帧格式，不验证温度值范围，避免实际产品返回的温度超出预期范围时被误判为无效帧
+            return true;
+        }
+
+        private static bool IsValidRawTelemetryFrame(byte[] frameData)
+        {
+            if (frameData == null || frameData.Length < 8)
+                return false;
+            if (!IsPrefix(frameData, TelemetryRawPrefix))
+                return false;
+
+            for (int i = 4; i <= 7; i++)
+            {
+                var b = frameData[i];
+                var hi = (b >> 4) & 0xF;
+                var lo = b & 0xF;
+                if (hi > 5 || lo > 5)
+                    return false;
+            }
+
+            return true;
+        }
+
         public static int ParseChannelIndex(string channel)
         {
             if (string.IsNullOrWhiteSpace(channel)) return -1;
@@ -958,6 +1357,23 @@ namespace MeasureControl.Simulations.R_6_8_7
             return string.Join(" ", bytes.Select(b => b.ToString("X2")));
         }
 
+        private static string FormatFragments(byte[] fragLabels, ushort[] parts)
+        {
+            if (fragLabels == null || parts == null)
+                return string.Empty;
+            var count = Math.Min(4, Math.Min(fragLabels.Length, parts.Length));
+            if (count <= 0)
+                return string.Empty;
+
+            return string.Join(", ", Enumerable.Range(0, count).Select(i =>
+            {
+                var p = parts[i];
+                var lo = (byte)(p & 0xFF);
+                var hi = (byte)((p >> 8) & 0xFF);
+                return $"0x{fragLabels[i]:X2}=0x{p:X4}({lo:X2} {hi:X2})";
+            }));
+        }
+
         private sealed class MultiLabelCommandAssembler
         {
             private readonly ushort[] _parts = new ushort[4];
@@ -965,7 +1381,7 @@ namespace MeasureControl.Simulations.R_6_8_7
             private DateTime _firstSeenUtc;
             private readonly Dictionary<byte, int> _labelToIndex;
 
-            private static readonly TimeSpan AssemblyTimeout = TimeSpan.FromMilliseconds(200);
+            private static readonly TimeSpan AssemblyTimeout = TimeSpan.FromMilliseconds(800);
 
             public MultiLabelCommandAssembler(byte[] fragLabels)
             {
@@ -981,7 +1397,13 @@ namespace MeasureControl.Simulations.R_6_8_7
 
             public bool TryAddFragment(byte label, ushort payload16, DateTime nowUtc, out byte[] cmd8)
             {
+                return TryAddFragment(label, payload16, nowUtc, out cmd8, out _);
+            }
+
+            public bool TryAddFragment(byte label, ushort payload16, DateTime nowUtc, out byte[] cmd8, out ushort[] partsSnapshot)
+            {
                 cmd8 = null;
+                partsSnapshot = null;
 
                 if (!_labelToIndex.TryGetValue(label, out var index))
                     return false;
@@ -998,11 +1420,13 @@ namespace MeasureControl.Simulations.R_6_8_7
                 if (_mask != 0b1111)
                     return false;
 
+                partsSnapshot = (ushort[])_parts.Clone();
+
                 cmd8 = new byte[8];
                 for (int j = 0; j < 4; j++)
                 {
-                    cmd8[j * 2] = (byte)((_parts[j] >> 8) & 0xFF);
-                    cmd8[j * 2 + 1] = (byte)(_parts[j] & 0xFF);
+                    cmd8[j * 2] = (byte)(_parts[j] & 0xFF);
+                    cmd8[j * 2 + 1] = (byte)((_parts[j] >> 8) & 0xFF);
                 }
 
                 _mask = 0;
