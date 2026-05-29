@@ -1,115 +1,134 @@
 using Prism.Commands;
+using Prism.Ioc;
 using Prism.Mvvm;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
-using System.IO.Ports;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using MeasureControl.Helpers;
-using MeasureControl.Simulations.AC_6_4;
-using SimGndOcState = MeasureControl.Simulations.AC_6_4.GndOcState;
+using MeasureControl.Models.Devices;
+using MeasureControl.Models.Devices.DeviceCategories;
+using MeasureControl.Services;
+using MeasureControl.Services.HardwareApis;
+using MeasureControl.Simulations.S_C_8_3_1;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public class GndOcDiscreteInputTestViewModel : BindableBase
     {
-        private const byte DefaultLabel = 0x6A;
-        private const string FixedTxChannel = "429_CH0";
-        private const string FixedRxChannel = "429_CH2";
+        private const string TxChannel = "429_CH5";
+        private const string RxChannel = "429_CH2";
 
-        private static readonly byte[] EnterAtpCommand = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] EnterAtpOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-        private static readonly byte[] ExitAtpCommand = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
-        private static readonly byte[] ExitAtpOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        // 程控电源配置
+        private const string PowerSupplyIpAddress = "192.168.1.15";
+        private const double PowerSupplyVoltage = 28.0;
+        private const double PowerSupplyCurrentLimit = 3.0;
+        private const int TestCommandIntervalMs = 300;
+        private const int TestCommandRetryCount = 2;
+        private const int TestCommandRetryDelayMs = 300;
 
-        private static readonly int[] DsiChannels =
+        // ATP指令 (label 61 62 63 64)
+        private static readonly byte[] AtpEnterCommand = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] AtpExitCommand = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
+
+        // 485继电器通道索引
+        // 通道3 (索引2): 用于接地/接开测试的离散输入切换
+        // 通道5 (索引4): 用于使能7131板卡的DO17-DO20，控制产品上电
+        private const int Relay485GndOcChannelIndex = 2;
+        private const int Relay485PowerChannelIndex = 4;
+
+        // 7131 DO通道
+        // DO9-DO12: 用于接地/接开测试的离散输入控制
+        // DO17 (API索引): 用于产品28V上电 (界面显示DO18)
+        private static readonly string[] DoChannelsGndOc = { "DO8", "DO9", "DO10", "DO11" };
+        private const string DoPowerChannel = "DO17";
+
+        private static readonly int[] TestPins = 
         {
-            0, 1, 2, 3, 5, 6, 7, 8, 9, 12,
-            13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-            23, 24, 25, 26, 27, 28, 29, 35, 36
+            11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+            73, 74, 76, 77, 78, 79, 80, 81, 82, 83,
+            136, 137, 138, 142,
+            198, 199, 200, 201, 204
         };
 
-        private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
+        // 针脚到DSI_GND通道的映射
+        private static readonly Dictionary<int, int> PinToDsiChannel = new Dictionary<int, int>
+        {
+            // J11-J20 -> DSI_GND奇数 (1,3,5,7,9,13,15,17,19,21)
+            { 11, 1 }, { 12, 3 }, { 13, 5 }, { 14, 7 }, { 15, 9 },
+            { 16, 13 }, { 17, 15 }, { 18, 17 }, { 19, 19 }, { 20, 21 },
+            // J73,J74,J76,J77,J78-J83 -> DSI_GND偶数 (0,2,6,8,12,14,16,18,20,22)
+            { 73, 0 }, { 74, 2 }, { 76, 6 }, { 77, 8 },
+            { 78, 12 }, { 79, 14 }, { 80, 16 }, { 81, 18 }, { 82, 20 }, { 83, 22 },
+            // J136,J137,J138,J142 -> DSI_GND偶数 (24,26,28,36)
+            { 136, 24 }, { 137, 26 }, { 138, 28 }, { 142, 36 },
+            // J198,J199,J200,J201,J204 -> DSI_GND奇数 (23,25,27,29,35)
+            { 198, 23 }, { 199, 25 }, { 200, 27 }, { 201, 29 }, { 204, 35 }
+        };
+
+        // DSI_GND通道到指令序号的映射 (去除4,10,11,30,31,32,33,34后按顺序编号)
+        private static readonly Dictionary<int, byte> DsiChannelToSeqId = new Dictionary<int, byte>
+        {
+            { 0, 0x01 }, { 1, 0x02 }, { 2, 0x03 }, { 3, 0x04 },
+            { 5, 0x05 }, { 6, 0x06 }, { 7, 0x07 }, { 8, 0x08 }, { 9, 0x09 },
+            { 12, 0x0A }, { 13, 0x0B }, { 14, 0x0C }, { 15, 0x0D },
+            { 16, 0x0E }, { 17, 0x0F }, { 18, 0x10 }, { 19, 0x11 },
+            { 20, 0x12 }, { 21, 0x13 }, { 22, 0x14 }, { 23, 0x15 },
+            { 24, 0x16 }, { 25, 0x17 }, { 26, 0x18 }, { 27, 0x19 },
+            { 28, 0x1A }, { 29, 0x1B }, { 35, 0x1C }, { 36, 0x1D }
+        };
+
+        private readonly S_C_8_3_1Simulation _arinc = new S_C_8_3_1Simulation();
         private readonly SemaphoreSlim _opLock = new SemaphoreSlim(1, 1);
+        private readonly object _testLock = new object();
 
-        private CancellationTokenSource _cts;
-        private readonly AC_6_4Simulation _simulation = new AC_6_4Simulation();
+        private readonly IPxiChassisService _pxiChassisService;
+        private IJy7131Api _jy7131Api;
+        private IPowerSupplyApi _powerSupply;
 
-        private string _title = "6.14.1控制通道GND/OC离散输入通道输入测试";
-        private bool _isManualTestRunning;
+        private CancellationTokenSource _autoCts;
+        private bool _isTestBusy;
+        private bool _isAutoTestRunning;
+
+        // 硬件状态标志
+        private bool _isRelay485PowerOn;    // 485继电器第5路（使能DO17-DO20）
+        private bool _isRelay485GndOcOn;    // 485继电器第3路（接地/接开切换）
+        private bool _isDoPowerOn;          // DO18上电状态
+        private bool _isDoGndOcOn;          // DO9-DO12接地/接开状态
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
+        private int _selectedTabIndex;
 
-        private string _enterAtpTxChannel = FixedTxChannel;
-        private string _enterAtpRxChannel = FixedRxChannel;
-
-        private string _testTxChannel = FixedTxChannel;
-        private string _testRxChannel = FixedRxChannel;
-
-        private string _exitAtpTxChannel = FixedTxChannel;
-        private string _exitAtpRxChannel = FixedRxChannel;
-
-        private string _enterAtpRxDataText = "--";
-        private string _testRxDataText = "--";
-        private string _exitAtpRxDataText = "--";
-
-        // 工装继电器配置（后端常量）
-        private const string RelayComPort = "COM35";      // 485继电器板串口
-        private const int RelayIndex = 0;                   // 继电器通道号
-        private const int RelaySettleDelayMs = 120;         // 切换后稳定延时
+        private readonly Dictionary<int, string> _groundPinTexts = new Dictionary<int, string>();
+        private readonly Dictionary<int, string> _openPinTexts = new Dictionary<int, string>();
 
         public GndOcDiscreteInputTestViewModel()
         {
-            ManualTestCommand = new DelegateCommand(OnManualTest);
+            _pxiChassisService = ContainerLocator.Container?.Resolve<IPxiChassisService>();
+
+            AutoTestCommand = new DelegateCommand(OnAutoTest);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
-            SendEnterAtpCommand = new DelegateCommand(async () => await SendEnterAtpAsync());
-            RunGroundOneKeyTestCommand = new DelegateCommand(async () => await RunOneKeyTestAsync(SimGndOcState.Gnd));
-            RunOpenOneKeyTestCommand = new DelegateCommand(async () => await RunOneKeyTestAsync(SimGndOcState.Oc));
-            SendExitAtpCommand = new DelegateCommand(async () => await SendExitAtpAsync());
-        }
-
-        private async Task SetExternalRelayAsync(int index, bool on, CancellationToken token)
-        {
-            var ports = SerialPort.GetPortNames() ?? Array.Empty<string>();
-            if (!ports.Any(p => string.Equals(p, RelayComPort, StringComparison.OrdinalIgnoreCase)))
+            foreach (var pin in TestPins)
             {
-                throw new IOException($"继电器串口不存在: {RelayComPort}。当前可用串口: {(ports.Length == 0 ? "(无)" : string.Join(", ", ports))}");
-            }
-
-            using (await SerialPortMutex.AcquireAsync(RelayComPort).ConfigureAwait(false))
-            {
-                token.ThrowIfCancellationRequested();
-                await Task.Run(() =>
-                {
-                    using var cli = new RelayModbusClient(RelayComPort, slave: 1, baud: 9600);
-                    cli.WriteSingleCoil((ushort)index, on);
-                }, token).ConfigureAwait(false);
+                _groundPinTexts[pin] = "---";
+                _openPinTexts[pin] = "---";
             }
         }
 
-        public string Title
-        {
-            get => _title;
-            set => SetProperty(ref _title, value);
-        }
+        public string Title => "6.14.1控制通道GND/OC离散输入通道输入测试";
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
 
-        public DelegateCommand ManualTestCommand { get; }
+        public DelegateCommand AutoTestCommand { get; }
         public DelegateCommand ClearLogCommand { get; }
-        public DelegateCommand SendEnterAtpCommand { get; }
-        public DelegateCommand RunGroundOneKeyTestCommand { get; }
-        public DelegateCommand RunOpenOneKeyTestCommand { get; }
-        public DelegateCommand SendExitAtpCommand { get; }
 
-        public bool IsManualTestRunning
+        public bool IsAutoTestRunning
         {
-            get => _isManualTestRunning;
-            set => SetProperty(ref _isManualTestRunning, value);
+            get => _isAutoTestRunning;
+            set => SetProperty(ref _isAutoTestRunning, value);
         }
 
         public string LastTestTime
@@ -124,443 +143,670 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             set => SetProperty(ref _lastTestResult, value);
         }
 
-        public string EnterAtpTxChannel
+        public int SelectedTabIndex
         {
-            get => _enterAtpTxChannel;
-            set => SetProperty(ref _enterAtpTxChannel, FixedTxChannel);
+            get => _selectedTabIndex;
+            set => SetProperty(ref _selectedTabIndex, value);
         }
 
-        public string EnterAtpRxChannel
-        {
-            get => _enterAtpRxChannel;
-            set => SetProperty(ref _enterAtpRxChannel, FixedRxChannel);
-        }
+        public string GroundJ11Text { get => _groundPinTexts[11]; set { _groundPinTexts[11] = value; RaisePropertyChanged(); } }
+        public string GroundJ12Text { get => _groundPinTexts[12]; set { _groundPinTexts[12] = value; RaisePropertyChanged(); } }
+        public string GroundJ13Text { get => _groundPinTexts[13]; set { _groundPinTexts[13] = value; RaisePropertyChanged(); } }
+        public string GroundJ14Text { get => _groundPinTexts[14]; set { _groundPinTexts[14] = value; RaisePropertyChanged(); } }
+        public string GroundJ15Text { get => _groundPinTexts[15]; set { _groundPinTexts[15] = value; RaisePropertyChanged(); } }
+        public string GroundJ16Text { get => _groundPinTexts[16]; set { _groundPinTexts[16] = value; RaisePropertyChanged(); } }
+        public string GroundJ17Text { get => _groundPinTexts[17]; set { _groundPinTexts[17] = value; RaisePropertyChanged(); } }
+        public string GroundJ18Text { get => _groundPinTexts[18]; set { _groundPinTexts[18] = value; RaisePropertyChanged(); } }
+        public string GroundJ19Text { get => _groundPinTexts[19]; set { _groundPinTexts[19] = value; RaisePropertyChanged(); } }
+        public string GroundJ20Text { get => _groundPinTexts[20]; set { _groundPinTexts[20] = value; RaisePropertyChanged(); } }
 
-        public string TestTxChannel
-        {
-            get => _testTxChannel;
-            set => SetProperty(ref _testTxChannel, FixedTxChannel);
-        }
+        public string GroundJ73Text { get => _groundPinTexts[73]; set { _groundPinTexts[73] = value; RaisePropertyChanged(); } }
+        public string GroundJ74Text { get => _groundPinTexts[74]; set { _groundPinTexts[74] = value; RaisePropertyChanged(); } }
+        public string GroundJ76Text { get => _groundPinTexts[76]; set { _groundPinTexts[76] = value; RaisePropertyChanged(); } }
+        public string GroundJ77Text { get => _groundPinTexts[77]; set { _groundPinTexts[77] = value; RaisePropertyChanged(); } }
+        public string GroundJ78Text { get => _groundPinTexts[78]; set { _groundPinTexts[78] = value; RaisePropertyChanged(); } }
+        public string GroundJ79Text { get => _groundPinTexts[79]; set { _groundPinTexts[79] = value; RaisePropertyChanged(); } }
+        public string GroundJ80Text { get => _groundPinTexts[80]; set { _groundPinTexts[80] = value; RaisePropertyChanged(); } }
+        public string GroundJ81Text { get => _groundPinTexts[81]; set { _groundPinTexts[81] = value; RaisePropertyChanged(); } }
+        public string GroundJ82Text { get => _groundPinTexts[82]; set { _groundPinTexts[82] = value; RaisePropertyChanged(); } }
+        public string GroundJ83Text { get => _groundPinTexts[83]; set { _groundPinTexts[83] = value; RaisePropertyChanged(); } }
 
-        public string TestRxChannel
-        {
-            get => _testRxChannel;
-            set => SetProperty(ref _testRxChannel, FixedRxChannel);
-        }
+        public string GroundJ136Text { get => _groundPinTexts[136]; set { _groundPinTexts[136] = value; RaisePropertyChanged(); } }
+        public string GroundJ137Text { get => _groundPinTexts[137]; set { _groundPinTexts[137] = value; RaisePropertyChanged(); } }
+        public string GroundJ138Text { get => _groundPinTexts[138]; set { _groundPinTexts[138] = value; RaisePropertyChanged(); } }
+        public string GroundJ142Text { get => _groundPinTexts[142]; set { _groundPinTexts[142] = value; RaisePropertyChanged(); } }
 
-        public string ExitAtpTxChannel
-        {
-            get => _exitAtpTxChannel;
-            set => SetProperty(ref _exitAtpTxChannel, FixedTxChannel);
-        }
+        public string GroundJ198Text { get => _groundPinTexts[198]; set { _groundPinTexts[198] = value; RaisePropertyChanged(); } }
+        public string GroundJ199Text { get => _groundPinTexts[199]; set { _groundPinTexts[199] = value; RaisePropertyChanged(); } }
+        public string GroundJ200Text { get => _groundPinTexts[200]; set { _groundPinTexts[200] = value; RaisePropertyChanged(); } }
+        public string GroundJ201Text { get => _groundPinTexts[201]; set { _groundPinTexts[201] = value; RaisePropertyChanged(); } }
+        public string GroundJ204Text { get => _groundPinTexts[204]; set { _groundPinTexts[204] = value; RaisePropertyChanged(); } }
 
-        public string ExitAtpRxChannel
-        {
-            get => _exitAtpRxChannel;
-            set => SetProperty(ref _exitAtpRxChannel, FixedRxChannel);
-        }
+        public string OpenJ11Text { get => _openPinTexts[11]; set { _openPinTexts[11] = value; RaisePropertyChanged(); } }
+        public string OpenJ12Text { get => _openPinTexts[12]; set { _openPinTexts[12] = value; RaisePropertyChanged(); } }
+        public string OpenJ13Text { get => _openPinTexts[13]; set { _openPinTexts[13] = value; RaisePropertyChanged(); } }
+        public string OpenJ14Text { get => _openPinTexts[14]; set { _openPinTexts[14] = value; RaisePropertyChanged(); } }
+        public string OpenJ15Text { get => _openPinTexts[15]; set { _openPinTexts[15] = value; RaisePropertyChanged(); } }
+        public string OpenJ16Text { get => _openPinTexts[16]; set { _openPinTexts[16] = value; RaisePropertyChanged(); } }
+        public string OpenJ17Text { get => _openPinTexts[17]; set { _openPinTexts[17] = value; RaisePropertyChanged(); } }
+        public string OpenJ18Text { get => _openPinTexts[18]; set { _openPinTexts[18] = value; RaisePropertyChanged(); } }
+        public string OpenJ19Text { get => _openPinTexts[19]; set { _openPinTexts[19] = value; RaisePropertyChanged(); } }
+        public string OpenJ20Text { get => _openPinTexts[20]; set { _openPinTexts[20] = value; RaisePropertyChanged(); } }
 
-        public string EnterAtpRxDataText
-        {
-            get => _enterAtpRxDataText;
-            private set => SetProperty(ref _enterAtpRxDataText, value);
-        }
+        public string OpenJ73Text { get => _openPinTexts[73]; set { _openPinTexts[73] = value; RaisePropertyChanged(); } }
+        public string OpenJ74Text { get => _openPinTexts[74]; set { _openPinTexts[74] = value; RaisePropertyChanged(); } }
+        public string OpenJ76Text { get => _openPinTexts[76]; set { _openPinTexts[76] = value; RaisePropertyChanged(); } }
+        public string OpenJ77Text { get => _openPinTexts[77]; set { _openPinTexts[77] = value; RaisePropertyChanged(); } }
+        public string OpenJ78Text { get => _openPinTexts[78]; set { _openPinTexts[78] = value; RaisePropertyChanged(); } }
+        public string OpenJ79Text { get => _openPinTexts[79]; set { _openPinTexts[79] = value; RaisePropertyChanged(); } }
+        public string OpenJ80Text { get => _openPinTexts[80]; set { _openPinTexts[80] = value; RaisePropertyChanged(); } }
+        public string OpenJ81Text { get => _openPinTexts[81]; set { _openPinTexts[81] = value; RaisePropertyChanged(); } }
+        public string OpenJ82Text { get => _openPinTexts[82]; set { _openPinTexts[82] = value; RaisePropertyChanged(); } }
+        public string OpenJ83Text { get => _openPinTexts[83]; set { _openPinTexts[83] = value; RaisePropertyChanged(); } }
 
-        public string TestRxDataText
-        {
-            get => _testRxDataText;
-            private set => SetProperty(ref _testRxDataText, value);
-        }
+        public string OpenJ136Text { get => _openPinTexts[136]; set { _openPinTexts[136] = value; RaisePropertyChanged(); } }
+        public string OpenJ137Text { get => _openPinTexts[137]; set { _openPinTexts[137] = value; RaisePropertyChanged(); } }
+        public string OpenJ138Text { get => _openPinTexts[138]; set { _openPinTexts[138] = value; RaisePropertyChanged(); } }
+        public string OpenJ142Text { get => _openPinTexts[142]; set { _openPinTexts[142] = value; RaisePropertyChanged(); } }
 
-        public string ExitAtpRxDataText
-        {
-            get => _exitAtpRxDataText;
-            private set => SetProperty(ref _exitAtpRxDataText, value);
-        }
+        public string OpenJ198Text { get => _openPinTexts[198]; set { _openPinTexts[198] = value; RaisePropertyChanged(); } }
+        public string OpenJ199Text { get => _openPinTexts[199]; set { _openPinTexts[199] = value; RaisePropertyChanged(); } }
+        public string OpenJ200Text { get => _openPinTexts[200]; set { _openPinTexts[200] = value; RaisePropertyChanged(); } }
+        public string OpenJ201Text { get => _openPinTexts[201]; set { _openPinTexts[201] = value; RaisePropertyChanged(); } }
+        public string OpenJ204Text { get => _openPinTexts[204]; set { _openPinTexts[204] = value; RaisePropertyChanged(); } }
 
-        private void OnManualTest()
+        private void OnAutoTest()
         {
-            if (IsManualTestRunning)
+            lock (_testLock)
             {
-                _ = StopAsync();
-                return;
-            }
-
-            _ = StartAsync();
-        }
-
-        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
-        {
-            try
-            {
-                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                if (api != null)
-                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
-            }
-            catch
-            {
-            }
-        }
-
-        private async Task StartAsync()
-        {
-            await _manualTestLock.WaitAsync();
-            try
-            {
-                if (IsManualTestRunning)
+                if (_isTestBusy)
+                {
+                    if (IsAutoTestRunning)
+                    {
+                        _autoCts?.Cancel();
+                    }
                     return;
+                }
+                _isTestBusy = true;
+            }
 
-                IsManualTestRunning = true;
+            _ = RunAutoTestAsync();
+        }
+
+        private async Task RunAutoTestAsync()
+        {
+            await _opLock.WaitAsync();
+            try
+            {
+                IsAutoTestRunning = true;
                 LastTestTime = "--";
                 LastTestResult = "--";
-                EnterAtpRxDataText = "--";
-                TestRxDataText = "--";
-                ExitAtpRxDataText = "--";
+                ResetAllPinTexts();
 
-                _cts?.Cancel();
-                _cts?.Dispose();
-                _cts = new CancellationTokenSource();
+                _autoCts?.Cancel();
+                _autoCts?.Dispose();
+                _autoCts = new CancellationTokenSource();
+                var token = _autoCts.Token;
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动(仿真模式)：开始打开设备");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试开始");
 
-                try
-                {
-                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                    if (api != null)
-                        await api.ApplyComponent28VStateAsync(CancellationToken.None);
-                }
-                catch { }
+                // 步骤1: 初始化硬件设备（不包含上电逻辑）
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤1: 初始化硬件设备...");
+                await InitializeHardwareAsync(token);
 
-                _simulation.SimProductRxChannelIndex = 4;
-                _simulation.SimProductTxChannelIndex = 5;
-                _simulation.ArincRate = 100000.0;
-                await _simulation.StartAsync(EnterAtpTxChannel, EnterAtpRxChannel, msg => AddLog(msg));
-            }
-            catch (Exception ex)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动异常：{ex.Message}");
-                IsManualTestRunning = false;
+                // 步骤2: 发送ATP指令进入测试模式
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤2: 发送ATP指令进入测试模式...");
+                await SendEnterAtpAsync(token);
+
+                // 步骤3: 接地测试
+                SelectedTabIndex = 0;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3: 开始接地测试...");
+                await SetGndStateAsync(true, token);
+                await Task.Delay(200, token);
+
+                var gndFailures = await TestAllPinsAsync(true, token);
+
+                // 步骤4: 接开测试
+                SelectedTabIndex = 1;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤4: 开始接开测试...");
+                await SetGndStateAsync(false, token);
+                await Task.Delay(200, token);
+
+                var ocFailures = await TestAllPinsAsync(false, token);
+
+                // 步骤5: 退出ATP模式
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤5: 退出ATP模式...");
+                await SendExitAtpAsync(token);
+
+                // 汇总结果
+                var allFailures = gndFailures.Concat(ocFailures).ToList();
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            }
-            finally
-            {
-                _manualTestLock.Release();
-            }
-        }
+                LastTestResult = allFailures.Count == 0 ? "PASS" : "FAIL";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试完成：{LastTestResult}");
 
-        private async Task StopAsync()
-        {
-            await _manualTestLock.WaitAsync();
-            try
-            {
-                if (!IsManualTestRunning)
-                    return;
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试停止：释放ARINC429");
-
-                try { _cts?.Cancel(); } catch { }
-
-                await _simulation.StopAsync(msg => AddLog(msg));
-
-                IsManualTestRunning = false;
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            }
-            finally
-            {
-                try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                _manualTestLock.Release();
-            }
-        }
-
-        private async Task ApplyGndOcSwitchAsync(SimGndOcState state, CancellationToken token)
-        {
-            try
-            {
-                // 外置485继电器板切换（接地=ON，接开=OFF）
-                bool on = state == SimGndOcState.Gnd;
-                await SetExternalRelayAsync(RelayIndex, on, token);
-
-                var delay = Math.Max(0, RelaySettleDelayMs);
-                if (delay > 0)
-                    await Task.Delay(delay, token);
-            }
-            catch (Exception ex)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 继电器切换{(state == SimGndOcState.Gnd ? "接地" : "接开")}失败：{ex.Message}");
-            }
-        }
-
-        private async Task<bool> SendEnterAtpAsync()
-        {
-            await _opLock.WaitAsync();
-            try
-            {
-                var token = _cts?.Token ?? CancellationToken.None;
-
-                EnterAtpRxDataText = "--";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：进入ATP，TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}");
-
-                try { await _simulation.ClearRxFifoAsync(EnterAtpRxChannel); } catch { }
-                await Task.Delay(50, token);
-
-                var resp = await _simulation.SendBenchCommandAndWaitAsync(
-                    EnterAtpTxChannel,
-                    EnterAtpRxChannel,
-                    DefaultLabel,
-                    EnterAtpCommand,
-                    b => b != null && b.SequenceEqual(EnterAtpOk),
-                    timeoutMs: 3000,
-                    msg => AddLog(msg),
-                    token);
-
-                if (resp == null)
+                if (allFailures.Count > 0)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP超时，未收到OK");
-                    return false;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 失败项({allFailures.Count}):");
+                    foreach (var f in allFailures)
+                        AddLog($"  - {f}");
                 }
-
-                EnterAtpRxDataText = "0x" + FormatBytes(resp);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 收到ATP OK");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP异常：{ex.Message}");
-                return false;
-            }
-            finally
-            {
-                _opLock.Release();
-            }
-        }
-
-        private async Task<bool> SendExitAtpAsync()
-        {
-            await _opLock.WaitAsync();
-            try
-            {
-                var token = _cts?.Token ?? CancellationToken.None;
-
-                ExitAtpRxDataText = "--";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送：退出ATP，TX={ExitAtpTxChannel}, RX={ExitAtpRxChannel}");
-
-                try { await _simulation.ClearRxFifoAsync(ExitAtpRxChannel); } catch { }
-                await Task.Delay(50, token);
-
-                var resp = await _simulation.SendBenchCommandAndWaitAsync(
-                    ExitAtpTxChannel,
-                    ExitAtpRxChannel,
-                    DefaultLabel,
-                    ExitAtpCommand,
-                    b => b != null && b.SequenceEqual(ExitAtpOk),
-                    timeoutMs: 2000,
-                    msg => AddLog(msg),
-                    token);
-
-                if (resp == null)
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP超时，未收到OK");
-                    return false;
-                }
-
-                ExitAtpRxDataText = "0x" + FormatBytes(resp);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 收到退出ATP OK");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP异常：{ex.Message}");
-                return false;
-            }
-            finally
-            {
-                _opLock.Release();
-            }
-        }
-
-        private async Task RunOneKeyTestAsync(SimGndOcState inputMode)
-        {
-            await _opLock.WaitAsync();
-            try
-            {
-                var token = _cts?.Token ?? CancellationToken.None;
-
-                TestRxDataText = "--";
-
-                _simulation.DsiSimInputMode = inputMode;
-
-                var failures = new List<string>();
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 开始离散输入一键测试：输入状态={(inputMode == SimGndOcState.Gnd ? "接地" : "接开")}");
-                await ApplyGndOcSwitchAsync(inputMode, token);
-
-                try { await _simulation.ClearRxFifoAsync(TestRxChannel); } catch { }
-                await Task.Delay(30, token);
-
-                foreach (var (ch, seq) in EnumerateDsiChannels())
-                {
-                    token.ThrowIfCancellationRequested();
-                    var expected = GetExpectedStateText(inputMode, ch);
-
-                    var (ok, actual, respText) = await TestSingleChannelAsync(ch, seq, expected, token);
-                    if (!ok)
-                    {
-                        failures.Add($"DSI_GND_{ch}: 超时");
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] DSI_GND_{ch}: expected={expected}, actual=--, resp=-- -> FAIL(超时)");
-                        continue;
-                    }
-
-                    bool pass = string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase);
-                    if (!pass)
-                        failures.Add($"DSI_GND_{ch}: expected={expected}, actual={actual}");
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] DSI_GND_{ch}: expected={expected}, actual={actual}, resp={respText} -> {(pass ? "PASS" : "FAIL")}");
-                }
-
-                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = failures.Count == 0 ? "PASS" : "FAIL";
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 一键测试完成：{LastTestResult}");
-                foreach (var f in failures)
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 不合格：{f}");
             }
             catch (OperationCanceledException)
             {
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 LastTestResult = "已停止";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 一键测试已停止");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试已停止");
             }
             catch (Exception ex)
             {
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                LastTestResult = "异常";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 一键测试异常：{ex.Message}");
+                LastTestResult = "FAIL";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试异常：{ex.Message}");
             }
             finally
             {
-                _simulation.DsiSimInputMode = SimGndOcState.Oc;
+                await CleanupHardwareAsync();
+                IsAutoTestRunning = false;
+                lock (_testLock)
+                {
+                    _isTestBusy = false;
+                }
                 _opLock.Release();
             }
         }
 
-        private static string GetExpectedStateText(SimGndOcState inputMode, int channel)
+        private async Task InitializeHardwareAsync(CancellationToken token)
         {
-            if (inputMode == SimGndOcState.Gnd)
-            {
-                return channel == 28 ? "OC" : "GND";
-            }
+            // 1. 初始化程控电源
+            await EnsurePowerSupplyConnectedAsync(token);
 
-            return channel == 29 ? "GND" : "OC";
+            // 2. 初始化7131板卡
+            await EnsureJy7131ReadyAsync(token);
+
+            // 3. 产品上电：先开485继电器第5路使能DO17-DO20，再开DO18给产品供电
+            await PowerOnProductAsync(token);
+
+            // 4. 初始化ARINC429
+            try { await _arinc.StopAsync(msg => { }); } catch { }
+            await Task.Delay(100, token);
+
+            _arinc.IsRealProduct = true;
+            _arinc.ArincRate = 100000.0;
+            await _arinc.StartAsync(TxChannel, RxChannel, msg => AddLog(msg));
+            AddLog($"[{DateTime.Now:HH:mm:ss}] ARINC429初始化完成 (TX:{TxChannel}, RX:{RxChannel})");
+
+            // 清理接收缓存
+            for (int i = 0; i < 3; i++)
+            {
+                try { await _arinc.ClearRxFifoAsync(RxChannel); } catch { }
+                await Task.Delay(50, token);
+            }
         }
 
-        private IEnumerable<(int ChannelNumber, byte SequenceId)> EnumerateDsiChannels()
+        private async Task EnsurePowerSupplyConnectedAsync(CancellationToken token)
         {
-            for (int i = 0; i < DsiChannels.Length; i++)
+            _powerSupply ??= new PowerSupplySocketApi();
+            if (!_powerSupply.IsConnected)
             {
-                yield return (DsiChannels[i], (byte)(i + 1));
+                await _powerSupply.ConnectAsync(PowerSupplyIpAddress, token);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 程控电源已连接 ({PowerSupplyIpAddress})");
             }
         }
 
-        private async Task<(bool Ok, string StateText, string RespText)> TestSingleChannelAsync(int channelNumber, byte sequenceId, string expectedStateText, CancellationToken token)
+        private async Task EnsureJy7131ReadyAsync(CancellationToken token)
         {
-            var cmd = new byte[8] { 0x08, 0x01, sequenceId, 0x01, 0x00, 0x00, 0x00, 0x00 };
-
-            try { await _simulation.ClearRxFifoAsync(TestRxChannel); } catch { }
-            await Task.Delay(10, token);
-
-            bool readyOk;
             try
             {
-                readyOk = await _simulation.EnsureBenchChannelsAsync(TestTxChannel, TestRxChannel, _ => { });
-            }
-            catch
-            {
-                readyOk = false;
-            }
-
-            if (!readyOk)
-                return (false, "--", "--");
-
-            await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, DefaultLabel, cmd, _ => { }, token);
-
-            byte[] lastResp = null;
-            string lastState = "--";
-            string lastRespText = "--";
-
-            DateTime? matchStartUtc = null;
-            var deadline = DateTime.UtcNow.AddMilliseconds(1200);
-
-            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
-            {
-                int sliceMs = (int)Math.Min(200, Math.Max(1, (deadline - DateTime.UtcNow).TotalMilliseconds));
-
-                var resp = await _simulation.WaitBenchResponseAsync(
-                    TestRxChannel,
-                    DefaultLabel,
-                    b => b != null
-                         && b.Length == 8
-                         && b[0] == 0x08
-                         && b[1] == 0x01
-                         && (b[2] == sequenceId || b[2] == unchecked((byte)channelNumber))
-                         && (b[3] == 0x02 || b[3] == 0x01),
-                    timeoutMs: sliceMs,
-                    log: _ => { },
-                    token);
-
-                if (resp == null)
+                if (_jy7131Api == null)
                 {
-                    if (matchStartUtc.HasValue && (DateTime.UtcNow - matchStartUtc.Value).TotalMilliseconds >= 200)
-                        break;
-                    continue;
+                    var device7131 = FindFirstJy7131Device();
+                    if (device7131 != null)
+                    {
+                        var devSlot = Infer7131SlotNumber(device7131);
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 找到7131板卡: {device7131.Model ?? device7131.Name}，槽位={devSlot}");
+                        if (int.TryParse(devSlot, out var slotNum))
+                            _jy7131Api = new Jy7131Api(device7131, slotNum);
+                        else
+                            _jy7131Api = new Jy7131Api(device7131);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException("未找到7131板卡");
+                    }
                 }
 
-                lastResp = resp;
-                lastState = ParseStateText(resp);
-                lastRespText = "0x" + FormatBytes(resp);
-                TestRxDataText = lastRespText;
-
-                if (string.Equals(lastState, expectedStateText, StringComparison.OrdinalIgnoreCase))
+                if (!_jy7131Api.IsConnected)
                 {
-                    matchStartUtc ??= DateTime.UtcNow;
+                    await _jy7131Api.ConnectAsync(token);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡连接成功");
+                }
+
+                if (!_jy7131Api.IsRunning)
+                {
+                    await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token);
+                    await _jy7131Api.StartAsync(token);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡已启动");
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡初始化失败: {ex.Message}");
+                throw;
+            }
+        }
+
+        private async Task PowerOnProductAsync(CancellationToken token)
+        {
+            // 1. 程控电源设置28V输出
+            await _powerSupply.SetVoltageAsync(PowerSupplyChannel.CH1, PowerSupplyVoltage, token);
+            await _powerSupply.SetCurrentAsync(PowerSupplyChannel.CH1, PowerSupplyCurrentLimit, token);
+            await _powerSupply.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 程控电源输出 {PowerSupplyVoltage:0.#}V / {PowerSupplyCurrentLimit:0.#}A");
+
+            // 2. 打开485继电器第5路（索引4），使能DO17-DO20
+            if (!_isRelay485PowerOn)
+            {
+                await _jy7131Api.SetRelayAsync(Relay485PowerChannelIndex, true, token);
+                _isRelay485PowerOn = true;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 485继电器第{Relay485PowerChannelIndex + 1}路已开启（使能DO17-DO20）");
+                await Task.Delay(100, token);
+            }
+
+            // 3. 开启DO18（API索引DO17）给产品上电
+            if (!_isDoPowerOn)
+            {
+                await _jy7131Api.WriteDoAsync(DoPowerChannel, true, token);
+                _isDoPowerOn = true;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡{DoPowerChannel}已开启，产品28V上电");
+                await Task.Delay(500, token);  // 等待产品稳定
+            }
+        }
+
+        private async Task PowerOffProductAsync(CancellationToken token)
+        {
+            // 1. 关闭DO18（API索引DO17）
+            if (_isDoPowerOn)
+            {
+                try
+                {
+                    await _jy7131Api.WriteDoAsync(DoPowerChannel, false, token);
+                    _isDoPowerOn = false;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡{DoPowerChannel}已关闭，产品下电");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 关闭{DoPowerChannel}失败: {ex.Message}");
+                }
+            }
+
+            // 2. 关闭485继电器第5路
+            if (_isRelay485PowerOn)
+            {
+                try
+                {
+                    await _jy7131Api.SetRelayAsync(Relay485PowerChannelIndex, false, token);
+                    _isRelay485PowerOn = false;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 485继电器第{Relay485PowerChannelIndex + 1}路已关闭");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 关闭485继电器第{Relay485PowerChannelIndex + 1}路失败: {ex.Message}");
+                }
+            }
+
+            // 3. 关闭程控电源输出
+            if (_powerSupply?.IsConnected == true)
+            {
+                try
+                {
+                    await _powerSupply.SetOutputEnabledAsync(PowerSupplyChannel.CH1, false, token);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 程控电源输出已关闭");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 关闭程控电源输出失败: {ex.Message}");
+                }
+            }
+        }
+
+        private async Task SetGndStateAsync(bool isGnd, CancellationToken token)
+        {
+            try
+            {
+                if (_jy7131Api == null || !_jy7131Api.IsConnected)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡不可用，跳过继电器控制");
+                    return;
+                }
+
+                if (isGnd)
+                {
+                    // 接地：打开485继电器通道3，打开DO9-DO12
+                    if (!_isRelay485GndOcOn)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 打开485继电器通道{Relay485GndOcChannelIndex + 1}...");
+                        await _jy7131Api.SetRelayAsync(Relay485GndOcChannelIndex, true, token);
+                        _isRelay485GndOcOn = true;
+                        await Task.Delay(100, token);
+                    }
+
+                    foreach (var doChannel in DoChannelsGndOc)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 打开{doChannel}...");
+                        await _jy7131Api.WriteDoAsync(doChannel, true, token);
+                        await Task.Delay(50, token);
+                    }
+                    _isDoGndOcOn = true;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 已将所有地/开型离散输入接\"地\"信号");
                 }
                 else
                 {
-                    matchStartUtc = null;
+                    // 接开：关闭DO9-DO12，关闭485继电器通道3
+                    foreach (var doChannel in DoChannelsGndOc)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 关闭{doChannel}...");
+                        await _jy7131Api.WriteDoAsync(doChannel, false, token);
+                        await Task.Delay(50, token);
+                    }
+                    _isDoGndOcOn = false;
+
+                    if (_isRelay485GndOcOn)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 关闭485继电器通道{Relay485GndOcChannelIndex + 1}...");
+                        await _jy7131Api.SetRelayAsync(Relay485GndOcChannelIndex, false, token);
+                        _isRelay485GndOcOn = false;
+                        await Task.Delay(100, token);
+                    }
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 已将所有地/开型离散输入接\"开\"信号");
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 设置{(isGnd ? "接地" : "接开")}状态失败: {ex.Message}");
+            }
+        }
+
+        private async Task<List<string>> TestAllPinsAsync(bool isGroundTest, CancellationToken token)
+        {
+            var failures = new List<string>();
+            string expectedValue = isGroundTest ? "1" : "0";
+            string testType = isGroundTest ? "接地" : "接开";
+
+            foreach (var pin in TestPins)
+            {
+                token.ThrowIfCancellationRequested();
+                var result = await TestSinglePinAsync(pin, isGroundTest, token);
+                SetPinText(pin, isGroundTest, result);
+
+                bool pass = result == expectedValue;
+                if (!pass)
+                    failures.Add($"J{pin}{testType}: {result}");
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] J{pin} {testType}测试: {result} -> {(pass ? "PASS" : "FAIL")}");
+                await Task.Delay(TestCommandIntervalMs, token);
+            }
+
+            return failures;
+        }
+
+        private async Task<string> TestSinglePinAsync(int pin, bool isGroundTest, CancellationToken token)
+        {
+            try
+            {
+                if (!PinToDsiChannel.TryGetValue(pin, out int dsiChannel))
+                    return "ERR";
+                if (!DsiChannelToSeqId.TryGetValue(dsiChannel, out byte seqId))
+                    return "ERR";
+
+                // 构造发送指令: 08 01 XX 01 00 00 00 00
+                var sendCmd = new byte[8] { 0x08, 0x01, seqId, 0x01, 0x00, 0x00, 0x00, 0x00 };
+
+                string lastResult = "超时";
+                for (int attempt = 1; attempt <= TestCommandRetryCount + 1; attempt++)
+                {
+                    try { await _arinc.ClearRxFifoAsync(RxChannel); } catch { }
+                    await Task.Delay(50, token);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] J{pin} 发送测试指令，第{attempt}次：{FormatBytesHex(sendCmd)}");
+                    await _arinc.SendBenchCommandOnlyAsync(TxChannel, sendCmd, msg => { }, token);
+
+                    var resp = await _arinc.WaitBenchResponse8Async(
+                        RxChannel,
+                        b => b != null && b.Length == 8 && b[0] == 0x08 && b[1] == 0x01 && b[2] == seqId && b[3] == 0x02,
+                        timeoutMs: 3000,
+                        msg => { },
+                        token);
+
+                    if (resp == null)
+                    {
+                        lastResult = "超时";
+                    }
+                    else
+                    {
+                        ushort data = (ushort)((resp[6] << 8) | resp[7]);
+                        if (isGroundTest)
+                        {
+                            lastResult = data == 0xAAAA ? "1" : $"0x{data:X4}";
+                        }
+                        else
+                        {
+                            lastResult = data == 0x5555 ? "0" : $"0x{data:X4}";
+                        }
+                    }
+
+                    if ((isGroundTest && lastResult == "1") || (!isGroundTest && lastResult == "0"))
+                        return lastResult;
+
+                    if (attempt <= TestCommandRetryCount)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] J{pin} 第{attempt}次测试结果={lastResult}，{TestCommandRetryDelayMs}ms后重试");
+                        await Task.Delay(TestCommandRetryDelayMs, token);
+                    }
+                }
+
+                return lastResult;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试J{pin}异常: {ex.Message}");
+                return "ERR";
+            }
+        }
+
+        private async Task SendEnterAtpAsync(CancellationToken token)
+        {
+            try { await _arinc.ClearRxFifoAsync(RxChannel); } catch { }
+            await Task.Delay(20, token);
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 发送进入ATP：{FormatBytesHex(AtpEnterCommand)}");
+            await _arinc.SendBenchCommandOnlyAsync(TxChannel, AtpEnterCommand, msg => AddLog(msg), token);
+            await Task.Delay(300, token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] ATP指令已发送");
+        }
+
+        private async Task SendExitAtpAsync(CancellationToken token)
+        {
+            try { await _arinc.ClearRxFifoAsync(RxChannel); } catch { }
+            await Task.Delay(20, token);
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 发送退出ATP：{FormatBytesHex(AtpExitCommand)}");
+            await _arinc.SendBenchCommandOnlyAsync(TxChannel, AtpExitCommand, msg => AddLog(msg), token);
+            await Task.Delay(100, token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP完成");
+        }
+
+        private async Task CleanupHardwareAsync()
+        {
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 开始清理硬件资源...");
+
+            // 1. 发送退出ATP指令
+            try
+            {
+                await _arinc.SendBenchCommandOnlyAsync(TxChannel, AtpExitCommand, msg => { }, CancellationToken.None);
+                await Task.Delay(100);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 已发送退出ATP指令");
+            }
+            catch { }
+
+            // 2. 关闭接地/接开测试用的DO通道和485继电器
+            try
+            {
+                if (_jy7131Api != null && _jy7131Api.IsConnected)
+                {
+                    foreach (var doChannel in DoChannelsGndOc)
+                    {
+                        try { await _jy7131Api.WriteDoAsync(doChannel, false, CancellationToken.None); } catch { }
+                    }
+                    _isDoGndOcOn = false;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 接地/接开测试DO通道已关闭");
+
+                    try { await _jy7131Api.SetRelayAsync(Relay485GndOcChannelIndex, false, CancellationToken.None); } catch { }
+                    _isRelay485GndOcOn = false;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 485继电器通道{Relay485GndOcChannelIndex + 1}已关闭");
+                }
+            }
+            catch { }
+
+            // 3. 清空429接收缓冲区并关闭
+            try { await _arinc.ClearRxFifoAsync(RxChannel); } catch { }
+            try { await _arinc.ClearRxFifoAsync(TxChannel); } catch { }
+            try
+            {
+                await _arinc.StopAsync(msg => AddLog(msg));
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 429板卡已关闭");
+            }
+            catch { }
+
+            // 4. 产品下电（关闭DO18、485继电器第5路、程控电源）
+            try
+            {
+                await PowerOffProductAsync(CancellationToken.None);
+            }
+            catch { }
+
+            // 5. 停止并断开7131板卡，释放给其他测试项使用
+            try
+            {
+                if (_jy7131Api != null && _jy7131Api.IsConnected)
+                {
+                    if (_jy7131Api.IsRunning)
+                    {
+                        await _jy7131Api.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡已停止");
+                    }
+
+                    await _jy7131Api.DisconnectAsync(CancellationToken.None).ConfigureAwait(false);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡已断开");
+                }
+            }
+            catch { }
+            finally
+            {
+                _jy7131Api = null;
+                _isRelay485PowerOn = false;
+                _isRelay485GndOcOn = false;
+                _isDoPowerOn = false;
+                _isDoGndOcOn = false;
+            }
+
+            // 6. 断开程控电源连接
+            try
+            {
+                if (_powerSupply?.IsConnected == true)
+                {
+                    await _powerSupply.DisconnectAsync(CancellationToken.None);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 程控电源已断开");
+                }
+            }
+            catch { }
+
+            await Task.Delay(200);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 硬件资源清理完成");
+        }
+
+        private void ResetAllPinTexts()
+        {
+            foreach (var pin in TestPins)
+            {
+                SetPinText(pin, true, "---");
+                SetPinText(pin, false, "---");
+            }
+        }
+
+        private void SetPinText(int pin, bool isGround, string value)
+        {
+            var propName = isGround ? $"GroundJ{pin}Text" : $"OpenJ{pin}Text";
+            var prop = GetType().GetProperty(propName);
+            prop?.SetValue(this, value);
+        }
+
+        private DeviceBase FindFirstJy7131Device()
+        {
+            var chassisList = _pxiChassisService?.GetAllChassis();
+            if (chassisList == null)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [7131查找] 机箱列表为null");
+                return null;
+            }
+
+            foreach (var chassis in chassisList)
+            {
+                if (chassis?.Devices == null)
+                    continue;
+
+                var device = chassis.Devices.FirstOrDefault(d =>
+                    d is DigitalIODevice ||
+                    (d?.Model?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("离散量", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("数字量", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                if (device != null)
+                    return device;
+
+                foreach (var d in chassis.Devices)
+                {
+                    if (d?.Children == null)
+                        continue;
+
+                    var childDevice = d.Children.FirstOrDefault(c =>
+                        c is DigitalIODevice ||
+                        (c?.Model?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        (c?.DeviceTypeName?.IndexOf("离散量", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        (c?.DeviceTypeName?.IndexOf("数字量", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                    if (childDevice != null)
+                        return childDevice;
                 }
             }
 
-            if (lastResp == null)
-            {
-                TestRxDataText = "--";
-                return (false, "--", "--");
-            }
-
-            return (true, lastState, lastRespText);
+            return null;
         }
 
-        private static string ParseStateText(byte[] resp)
+        private static string Infer7131SlotNumber(DeviceBase device)
         {
-            if (resp == null || resp.Length != 8)
-                return "--";
+            if (device is PxiDeviceBase pxi && pxi.SlotIndex > 0)
+                return pxi.SlotIndex.ToString();
 
-            // 真实控制器：0x08 0x01 <id> 0x02 <value32>
-            // 这里按 value32==0 => GND, 非0 => OC
-            if (resp[3] == 0x02)
+            var slot = device?.SlotPosition;
+            if (!string.IsNullOrWhiteSpace(slot))
             {
-                uint v = ((uint)resp[4] << 24) | ((uint)resp[5] << 16) | ((uint)resp[6] << 8) | resp[7];
-                return v == 0 ? "GND" : "OC";
+                var trimmed = slot.Replace("Slot", "").Replace("slot", "").Trim();
+                if (int.TryParse(trimmed, out var slotNum) && slotNum > 0)
+                    return slotNum.ToString();
             }
 
-            // 兼容旧仿真：末字节 0x00=GND, 0x01=OC
-            return resp[7] == 0x00 ? "GND" : "OC";
+            return "12";
         }
 
-        private static string FormatBytes(byte[] bytes)
+        private static string FormatBytesHex(byte[] bytes)
         {
             if (bytes == null || bytes.Length == 0)
-                return "--";
-
-            return string.Join(" ", bytes.Select(b => b.ToString("X2")));
+                return string.Empty;
+            return string.Join(" ", bytes.Select(b => b.ToString("X2", CultureInfo.InvariantCulture)));
         }
 
         private void AddLog(string message)
@@ -570,7 +816,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             try
             {
-                Logs.Add(message);
+                if (System.Windows.Application.Current?.Dispatcher?.CheckAccess() == false)
+                {
+                    System.Windows.Application.Current.Dispatcher.Invoke(() => Logs.Add(message));
+                }
+                else
+                {
+                    Logs.Add(message);
+                }
             }
             catch
             {
