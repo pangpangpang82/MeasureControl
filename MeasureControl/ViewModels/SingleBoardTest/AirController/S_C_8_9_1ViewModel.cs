@@ -44,11 +44,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const double Power28VCurrentLimit = 3.0;
 
         private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
-        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x05, 0x00, 0xE8, 0x03, 0x00, 0x00, 0xE8, 0x03, 0x00, 0x00 };
+        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x05, 0x00, 0xA8, 0x00, 0x00, 0x00, 0xA8, 0x00, 0x00, 0x00 };
 
         private const int FixedGearFrequencyHz = 20;
 
-        private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1); 
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _opLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _instrumentLock = new SemaphoreSlim(1, 1);
@@ -1034,6 +1034,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     {
                         AddLog($"FPGA复位: 发送 {FormatData(ResetToInitialCommandFrame)}");
                         await _fpga.WriteAsync(ResetToInitialCommandFrame, 0, ResetToInitialCommandFrame.Length, token).ConfigureAwait(false);
+                        await Task.Delay(500, token).ConfigureAwait(false);
                     }
                     catch { }
                 }
