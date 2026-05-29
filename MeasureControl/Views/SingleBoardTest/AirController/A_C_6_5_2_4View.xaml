@@ -259,7 +259,7 @@
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     FontSize="12"
-                                    Text="429_CH5" />
+                                    Text="{Binding EnterAtpTxChannel}" />
                             </Border>
 
                             <Border
@@ -345,7 +345,7 @@
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     FontSize="12"
-                                    Text="{Binding TestTxChannel}" />
+                                    Text="429_CH7" />
                             </Border>
 
                             <Border
@@ -436,7 +436,7 @@
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     FontSize="12"
-                                    Text="{Binding TestTxChannel}" />
+                                    Text="429_CH5" />
                             </Border>
 
                             <Border
@@ -567,7 +567,7 @@
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     FontSize="12"
-                                    Text="429_CH5" />
+                                    Text="{Binding ExitAtpTxChannel}" />
                             </Border>
 
                             <Border

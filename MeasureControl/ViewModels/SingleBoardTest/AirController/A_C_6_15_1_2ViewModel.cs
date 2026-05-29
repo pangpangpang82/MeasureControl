@@ -19,10 +19,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const string FixedTxChannel = "429_CH0";
         private const string FixedRxChannel = "429_CH2";
 
-        private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-        private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
-        private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        private static readonly byte[] EnterAtpCommand8 = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] EnterAtpOk8 = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 }; // not used (send-only)
+        private static readonly byte[] ExitAtpCommand8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExitAtpOk8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 }; // not used (send-only)
 
         private static readonly byte[] PhHighCommand8 = { 0x21, 0x03, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] PhLowCommand8 = { 0x21, 0x03, 0x02, 0x02, 0x00, 0x00, 0x00, 0x00 };
@@ -234,18 +234,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
-        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
-        {
-            try
-            {
-                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                if (api != null)
-                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
-            }
-            catch
-            {
-            }
-        }
+        
 
         private async Task RunManualTestAsync()
         {
@@ -268,13 +257,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
 
-                    try
-                    {
-                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                        if (api != null)
-                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
-                    }
-                    catch { }
+                    // removed power on step per requirement
 
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                 }
@@ -310,7 +293,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    // removed power off step per requirement
                     IsBusy = false;
                 }
             }
@@ -338,13 +321,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts = new CancellationTokenSource();
                 var token = _autoTestCts.Token;
 
-                try
-                {
-                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                    if (api != null)
-                        await api.ApplyComponent28VStateAsync(token);
-                }
-                catch { }
+                // removed power on step per requirement
 
                 try
                 {
@@ -402,7 +379,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
                     try { await DisconnectMatrixAsync(CancellationToken.None); } catch { }
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 }
             }
             finally
@@ -433,36 +409,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await Task.Delay(20, token);
             await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
 
-            if (!cmd8.SequenceEqual(EnterAtpCommand8) && !cmd8.SequenceEqual(ExitAtpCommand8))
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送完成（不等待回读）");
-                return true;
-            }
-
-            var resp = await _simulation.WaitBenchResponse8Async(
-                TestRxChannel,
-                b => b != null && b.SequenceEqual(expected8),
-                timeoutMs: 1500,
-                log: msg => AddLog(msg),
-                token: token);
-
-            if (resp == null)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：等待超时");
-                return false;
-            }
-
-            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：OK (0x{FormatBytesHex(resp)})");
-            if (cmd8.SequenceEqual(EnterAtpCommand8))
-                EnterAtpRxDataText = $"0x{FormatBytesHex(resp)}";
-            if (cmd8.SequenceEqual(ExitAtpCommand8))
-                ExitAtpRxDataText = $"0x{FormatBytesHex(resp)}";
+            // Align with A_C_6_5_2_1: all ATP and other commands are send-only (no OK wait)
+            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送完成（不等待回读）");
             return true;
         }
 
         private async Task SendAndWaitOkAsync(byte[] cmd8, byte[] ok8, string title)
         {
-            if (!IsManualTestRunning || IsBusy)
+            if (IsBusy)
                 return;
 
             await _arincOpLock.WaitAsync();
@@ -478,28 +432,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
 
-                    var resp = await _simulation.WaitBenchResponse8Async(
-                        TestRxChannel,
-                        b => b != null && b.SequenceEqual(ok8),
-                        timeoutMs: 1500,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (resp == null)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：等待超时");
-                        SetLastTestResult("FAIL");
-                        return;
-                    }
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：OK (0x{FormatBytesHex(resp)})");
-
-                    if (cmd8.SequenceEqual(EnterAtpCommand8))
-                        EnterAtpRxDataText = $"0x{FormatBytesHex(resp)}";
-                    else if (cmd8.SequenceEqual(ExitAtpCommand8))
-                        ExitAtpRxDataText = $"0x{FormatBytesHex(resp)}";
-
-                    SetLastTestResult("PASS");
+                    // Align with A_C_6_5_2_1: send-only for ATP, do not wait for OK
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：指令已发送（不等待回读）");
                 }
                 finally
                 {
@@ -509,7 +443,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             catch (Exception ex)
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] {title}异常：{ex.Message}");
-                SetLastTestResult("FAIL");
             }
             finally
             {
@@ -519,7 +452,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task SendPhAndMeasureAsync(byte[] cmd8, bool isHigh, string title)
         {
-            if (!IsManualTestRunning || IsBusy)
+            if (IsBusy)
                 return;
 
             await _instrumentLock.WaitAsync();
