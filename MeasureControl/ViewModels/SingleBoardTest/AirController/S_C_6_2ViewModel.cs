@@ -615,6 +615,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             try
             {
+                if (_jy7131?.IsConnected == true)
+                {
+                    if (_jy7131.IsRunning)
+                    {
+                        await _jy7131.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+
+                    await _jy7131.DisconnectAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            catch { }
+            finally
+            {
+                _jy7131 = null;
+                _isDo18On = false;
+                _isRelay485On = false;
+            }
+
+            try
+            {
                 if (_powerSupply?.IsConnected == true)
                 {
                     await _powerSupply.DisconnectAsync(CancellationToken.None);
