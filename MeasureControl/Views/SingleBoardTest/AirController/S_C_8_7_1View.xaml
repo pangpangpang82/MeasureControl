@@ -514,7 +514,7 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 FontSize="12"
-                                Text="0x00 01 00 01 00 00 00 00" />
+                                Text="{Binding EnterAtpTxDataText}" />
 
                         </Border>
 
@@ -802,7 +802,7 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 FontSize="12"
-                                Text="0x15 02 01 01 00 00 00 00" />
+                                Text="{Binding TestCommandTxDataText}" />
 
                         </Border>
 
@@ -900,31 +900,11 @@
 
 
                     <Border
-                        Width="100"
-                        Height="28"
-                        Margin="10,0,0,0"
-                        VerticalAlignment="Center"
-                        BorderBrush="#D9D9D9"
-                        BorderThickness="1"
-                        CornerRadius="3">
-
-                        <TextBlock
-                            Margin="1"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="{Binding PressureTelemetryValueText}" />
-
-                    </Border>
-
-
-
-                    <Border
                         Width="180"
                         Height="28"
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"
-                        Background="LightYellow"
+                        Background="AliceBlue"
                         BorderBrush="#D9D9D9"
                         BorderThickness="1"
                         CornerRadius="3">
@@ -935,6 +915,26 @@
                             VerticalAlignment="Center"
                             FontSize="12"
                             Text="{Binding PressureTelemetryRxDataText}" />
+
+                    </Border>
+
+
+
+                    <Border
+                        Width="70"
+                        Height="28"
+                        Margin="10,0,0,0"
+                        VerticalAlignment="Center"
+                        BorderBrush="#D9D9D9"
+                        BorderThickness="1"
+                        CornerRadius="3">
+
+                        <TextBlock
+                            Margin="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Text="{Binding PressureTelemetryValueText}" />
 
                     </Border>
 
@@ -1007,7 +1007,7 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 FontSize="12"
-                                Text="0x00 02 00 01 00 00 00 01" />
+                                Text="{Binding ExitAtpTxDataText}" />
 
                         </Border>
 

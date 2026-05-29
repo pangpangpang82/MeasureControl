@@ -4,13 +4,85 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:sys="clr-namespace:System;assembly=mscorlib"
     d:DesignHeight="550"
     d:DesignWidth="970"
     mc:Ignorable="d">
     <UserControl.Resources>
+        <Style x:Key="TheTabControlTabItemStyle" TargetType="{x:Type TabItem}">
+            <Setter Property="Background" Value="#F5F5F5" />
+            <Setter Property="BorderBrush" Value="#D9D9D9" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TabItem}">
+                        <Border
+                            x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4,4,0,0">
+                            <ContentPresenter
+                                x:Name="Content"
+                                Margin="{TemplateBinding Padding}"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                ContentSource="Header"
+                                RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFFFFFFF" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#686868" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.6" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFF1F5F9" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="TheTabControlStyle" TargetType="{x:Type TabControl}">
+            <Setter Property="BorderBrush" Value="#D9D9D9" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TabControl}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <TabPanel
+                                Grid.Row="0"
+                                Panel.ZIndex="1"
+                                IsItemsHost="True"
+                                KeyboardNavigation.TabIndex="1" />
+                            <Border
+                                Grid.Row="1"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                ClipToBounds="True"
+                                CornerRadius="4">
+                                <ContentPresenter
+                                    x:Name="PART_SelectedContentHost"
+                                    Margin="10"
+                                    ContentSource="SelectedContent" />
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
-
     <Grid
         x:Name="RootGrid"
         Background="White"
@@ -21,7 +93,6 @@
             <RowDefinition Height="6*" />
             <RowDefinition Height="1.2*" />
         </Grid.RowDefinitions>
-
         <Border
             Grid.Row="0"
             Margin="8,8,8,4"
@@ -42,78 +113,42 @@
                     <Button
                         Width="100"
                         Height="32"
-                        Margin="0,0,20,0"
+                        Margin="0,0,30,0"
                         VerticalAlignment="Center"
                         BorderThickness="0"
-                        Command="{Binding ManualTestCommand}">
+                        Command="{Binding AutoTestCommand}"
+                        IsEnabled="{Binding CanStartAutoTest, FallbackValue=True}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border
                                     x:Name="border"
-                                    Background="#3b82f6"
+                                    Background="#22c55e"
                                     CornerRadius="6">
                                     <StackPanel Orientation="Horizontal">
                                         <Image
-                                            x:Name="DeviceImage"
                                             Width="15"
                                             Height="15"
                                             Margin="5,0,5,0"
-                                            Source="/Resources/Logo/hand_w.png" />
+                                            Source="/Resources/Logo/auto.png" />
                                         <TextBlock
                                             x:Name="DeviceAction"
                                             Margin="0,0,5,0"
                                             VerticalAlignment="Center"
                                             FontSize="16"
                                             Foreground="White"
-                                            Text="手动测试" />
+                                            Text="自动测试" />
                                     </StackPanel>
                                 </Border>
                                 <ControlTemplate.Triggers>
-                                    <DataTrigger Binding="{Binding IsManualTestRunning}" Value="True">
-                                        <Setter Property="Tag" Value="True" />
+                                    <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="True">
                                         <Setter TargetName="border" Property="Background" Value="#ef4444" />
                                         <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
                                     </DataTrigger>
-
-                                    <DataTrigger Binding="{Binding IsManualTestRunning}" Value="False">
-                                        <Setter Property="Tag" Value="False" />
-                                    </DataTrigger>
-
-                                    <MultiTrigger>
-                                        <MultiTrigger.Conditions>
-                                            <Condition Property="Tag" Value="False" />
-                                            <Condition Property="IsMouseOver" Value="True" />
-                                        </MultiTrigger.Conditions>
-                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                                    </MultiTrigger>
-
-                                    <MultiTrigger>
-                                        <MultiTrigger.Conditions>
-                                            <Condition Property="Tag" Value="False" />
-                                            <Condition Property="IsPressed" Value="True" />
-                                        </MultiTrigger.Conditions>
-                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                                    </MultiTrigger>
-
-                                    <MultiTrigger>
-                                        <MultiTrigger.Conditions>
-                                            <Condition Property="Tag" Value="True" />
-                                            <Condition Property="IsMouseOver" Value="True" />
-                                        </MultiTrigger.Conditions>
-                                        <Setter TargetName="border" Property="Background" Value="#b91c1c" />
-                                    </MultiTrigger>
-
-                                    <MultiTrigger>
-                                        <MultiTrigger.Conditions>
-                                            <Condition Property="Tag" Value="True" />
-                                            <Condition Property="IsPressed" Value="True" />
-                                        </MultiTrigger.Conditions>
-                                        <Setter TargetName="border" Property="Background" Value="#b91c1c" />
-                                    </MultiTrigger>
-
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                    </Trigger>
                                     <Trigger Property="IsEnabled" Value="False">
                                         <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                        <Setter Property="Cursor" Value="Arrow" />
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
@@ -122,7 +157,6 @@
                 </StackPanel>
             </Grid>
         </Border>
-
         <Border
             Grid.Row="1"
             Margin="8,4,8,4"
@@ -131,650 +165,454 @@
             BorderThickness="1.5"
             CornerRadius="8">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="1*" />
-                    <RowDefinition Height="2*" />
-                    <RowDefinition Height="2*" />
-                    <RowDefinition Height="2*" />
-                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.6*" />
+                    <ColumnDefinition Width="1.8*" />
                     <ColumnDefinition Width="1*" />
                 </Grid.ColumnDefinitions>
-
-                <TextBlock
-                    Grid.Row="0"
-                    Margin="10,0,0,0"
-                    VerticalAlignment="Center"
-                    FontSize="20"
-                    FontWeight="Bold"
-                    Text="测试步骤" />
-
-                <Grid Grid.Row="1" Grid.RowSpan="3">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-
-                    <Grid Grid.Row="0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Margin="5" Orientation="Horizontal">
-                            <TextBlock
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="(1) 进入ATP模式：" />
-                            <TextBlock
-                                Margin="0,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="TX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding EnterAtpTxChannel}" />
-                            </Border>
-
-                            <Border
-                                Width="180"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="0x00 01 00 01 00 00 00 00" />
-                            </Border>
-
-                            <Button
-                                Width="50"
-                                Height="28"
-                                Margin="15,0,0,0"
-                                VerticalAlignment="Center"
-                                BorderThickness="0"
-                                Command="{Binding SendEnterAtpCommand}">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border
-                                            x:Name="border"
-                                            Background="#3b82f6"
-                                            CornerRadius="4">
-                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                <TextBlock
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    FontSize="14"
-                                                    Foreground="White"
-                                                    Text="发送" />
-                                            </StackPanel>
+                <TabControl
+                    Grid.Column="0"
+                    BorderBrush="#D9D9D9"
+                    SelectedIndex="{Binding SelectedTabIndex}"
+                    Style="{StaticResource TheTabControlStyle}">
+                    <TabItem Header="接地测试" Style="{StaticResource TheTabControlTabItemStyle}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <Grid Margin="10,8,10,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <!-- 第1列: J11-J20 -->
+                                <StackPanel Grid.Column="0" Margin="5,0">
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J11：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ11Text, FallbackValue=---}" />
                                         </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsEnabled" Value="False">
-                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                <Setter Property="Cursor" Value="Arrow" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </StackPanel>
-
-                        <StackPanel
-                            Grid.Row="1"
-                            Margin="115,5,5,5"
-                            Orientation="Horizontal">
-                            <TextBlock
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="RX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding EnterAtpRxChannel}" />
-                            </Border>
-
-                            <Border
-                                Width="180"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding EnterAtpRxDataText}" />
-                            </Border>
-                        </StackPanel>
-                    </Grid>
-
-                    <Grid Grid.Row="1" Margin="5,5,5,5">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Grid.Row="0" Orientation="Horizontal">
-                            <TextBlock
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="(2) 接地后发送一键测试：" />
-                            <TextBlock
-                                Margin="0,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="TX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding TestTxChannel}" />
-                            </Border>
-
-                            <Border
-                                Width="180"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="0x08 01 xx 01 00 00 00 00" />
-                            </Border>
-
-                            <Button
-                                Width="70"
-                                Height="28"
-                                Margin="15,0,0,0"
-                                VerticalAlignment="Center"
-                                BorderThickness="0"
-                                Command="{Binding RunGroundOneKeyTestCommand}">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border
-                                            x:Name="border"
-                                            Background="#3b82f6"
-                                            CornerRadius="4">
-                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                <TextBlock
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    FontSize="14"
-                                                    Foreground="White"
-                                                    Text="发送" />
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsEnabled" Value="False">
-                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                <Setter Property="Cursor" Value="Arrow" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </StackPanel>
-
-                        <StackPanel
-                            Grid.Row="1"
-                            Margin="115,5,5,5"
-                            Orientation="Horizontal">
-                            <TextBlock
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="RX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding TestRxChannel}" />
-                            </Border>
-
-                            <Border
-                                Width="180"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding TestRxDataText}" />
-                            </Border>
-                        </StackPanel>
-                    </Grid>
-
-                    <Grid Grid.Row="2" Margin="5">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Grid.Row="0" Orientation="Horizontal">
-                            <TextBlock
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="(3) 接开后发送一键测试：" />
-                            <TextBlock
-                                Margin="0,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="TX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding TestTxChannel}" />
-                            </Border>
-
-                            <Border
-                                Width="180"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="0x08 01 xx 01 00 00 00 00" />
-                            </Border>
-
-                            <Button
-                                Width="70"
-                                Height="28"
-                                Margin="15,0,0,0"
-                                VerticalAlignment="Center"
-                                BorderThickness="0"
-                                Command="{Binding RunOpenOneKeyTestCommand}">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border
-                                            x:Name="border"
-                                            Background="#3b82f6"
-                                            CornerRadius="4">
-                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                <TextBlock
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    FontSize="14"
-                                                    Foreground="White"
-                                                    Text="发送" />
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsEnabled" Value="False">
-                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                <Setter Property="Cursor" Value="Arrow" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </StackPanel>
-
-                        <StackPanel
-                            Grid.Row="1"
-                            Margin="115,5,5,5"
-                            Orientation="Horizontal">
-                            <TextBlock
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="RX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding TestRxChannel}" />
-                            </Border>
-
-                            <Border
-                                Width="180"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding TestRxDataText}" />
-                            </Border>
-                        </StackPanel>
-                    </Grid>
-
-                    <Grid Grid.Row="3">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Margin="5" Orientation="Horizontal">
-                            <TextBlock
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="(4) 退出ATP模式：" />
-                            <TextBlock
-                                Margin="0,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="TX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding ExitAtpTxChannel}" />
-                            </Border>
-
-                            <Border
-                                Width="180"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="0x00 02 00 01 00 00 00 01" />
-                            </Border>
-
-                            <Button
-                                Width="50"
-                                Height="28"
-                                Margin="15,0,0,0"
-                                VerticalAlignment="Center"
-                                BorderThickness="0"
-                                Command="{Binding SendExitAtpCommand}">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border
-                                            x:Name="border"
-                                            Background="#3b82f6"
-                                            CornerRadius="4">
-                                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                                <TextBlock
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    FontSize="14"
-                                                    Foreground="White"
-                                                    Text="发送" />
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                            </Trigger>
-                                            <Trigger Property="IsEnabled" Value="False">
-                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                <Setter Property="Cursor" Value="Arrow" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </StackPanel>
-
-                        <StackPanel
-                            Grid.Row="1"
-                            Margin="115,5,5,5"
-                            Orientation="Horizontal">
-                            <TextBlock
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="RX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding ExitAtpRxChannel}" />
-                            </Border>
-
-                            <Border
-                                Width="180"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding ExitAtpRxDataText}" />
-                            </Border>
-                        </StackPanel>
-                    </Grid>
-                </Grid>
-
-                <StackPanel
-                    Grid.Row="0"
-                    Grid.Column="1"
-                    Margin="10,5,0,0"
-                    Orientation="Horizontal">
-                    <TextBlock
-                        VerticalAlignment="Center"
-                        FontSize="22"
-                        FontWeight="Bold"
-                        Text="测试信息" />
-                    <Button
-                        Width="80"
-                        Height="32"
-                        Margin="80,0,0,0"
-                        VerticalAlignment="Center"
-                        BorderThickness="0"
-                        Command="{Binding ClearLogCommand}">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border
-                                    x:Name="border"
-                                    Background="#3b82f6"
-                                    CornerRadius="4">
-                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                        <TextBlock
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="16"
-                                            Foreground="White"
-                                            Text="清除内容" />
                                     </StackPanel>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                    </Trigger>
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                    </Trigger>
-                                    <Trigger Property="IsEnabled" Value="False">
-                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                        <Setter Property="Cursor" Value="Arrow" />
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-                </StackPanel>
-
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J12：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ12Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J13：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ13Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J14：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ14Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J15：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ15Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J16：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ16Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J17：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ17Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J18：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ18Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J19：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ19Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J20：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ20Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!-- 第2列: J73-J83 -->
+                                <StackPanel Grid.Column="1" Margin="5,0">
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J73：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ73Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J74：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ74Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J76：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ76Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J77：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ77Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J78：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ78Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J79：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ79Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J80：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ80Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J81：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ81Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J82：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ82Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J83：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ83Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!-- 第3列: J136-J142 -->
+                                <StackPanel Grid.Column="2" Margin="5,0">
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J136：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ136Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J137：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ137Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J138：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ138Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J142：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ142Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!-- 第4列: J198-J204 -->
+                                <StackPanel Grid.Column="3" Margin="5,0">
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J198：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ198Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J199：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ199Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J200：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ200Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J201：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ201Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J204：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding GroundJ204Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+                    </TabItem>
+                    <TabItem Header="接开测试" Style="{StaticResource TheTabControlTabItemStyle}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <Grid Margin="10,8,10,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <!-- 第1列: J11-J20 -->
+                                <StackPanel Grid.Column="0" Margin="5,0">
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J11：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ11Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J12：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ12Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J13：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ13Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J14：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ14Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J15：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ15Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J16：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ16Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J17：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ17Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J18：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ18Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J19：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ19Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J20：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ20Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!-- 第2列: J73-J83 -->
+                                <StackPanel Grid.Column="1" Margin="5,0">
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J73：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ73Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J74：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ74Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J76：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ76Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J77：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ77Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J78：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ78Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J79：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ79Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J80：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ80Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J81：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ81Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J82：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ82Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="50" VerticalAlignment="Center" FontSize="15" Text="J83：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ83Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!-- 第3列: J136-J142 -->
+                                <StackPanel Grid.Column="2" Margin="5,0">
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J136：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ136Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J137：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ137Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J138：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ138Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J142：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ142Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!-- 第4列: J198-J204 -->
+                                <StackPanel Grid.Column="3" Margin="5,0">
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J198：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ198Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J199：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ199Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J200：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ200Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J201：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ201Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,4" Orientation="Horizontal">
+                                        <TextBlock Width="55" VerticalAlignment="Center" FontSize="15" Text="J204：" />
+                                        <Border Width="70" Height="26" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                            <TextBlock Margin="5,0" VerticalAlignment="Center" FontSize="14" Text="{Binding OpenJ204Text, FallbackValue=---}" />
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+                    </TabItem>
+                </TabControl>
                 <Border
-                    Grid.Row="1"
-                    Grid.RowSpan="4"
                     Grid.Column="1"
-                    Width="350"
-                    Height="350"
-                    Margin="0,0,5,0"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
+                    Margin="5"
                     BorderBrush="#D9D9D9"
                     BorderThickness="1.5"
                     CornerRadius="4">
                     <Grid Margin="5">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Margin="5" Orientation="Horizontal">
+                            <TextBlock VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Text="测试日志" />
+                            <Button
+                                Width="70"
+                                Height="26"
+                                Margin="60,0,0,0"
+                                BorderThickness="0"
+                                Command="{Binding ClearLogCommand}">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="清除" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </StackPanel>
                         <ListBox
+                            Grid.Row="1"
                             BorderThickness="0"
                             ItemsSource="{Binding Logs}"
                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                             ScrollViewer.VerticalScrollBarVisibility="Auto">
-                            <ListBox.Resources>
-                                <Style BasedOn="{StaticResource SimpleScrollViewerStyle}" TargetType="ScrollViewer" />
-                            </ListBox.Resources>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock
-                                        FontSize="12"
-                                        Text="{Binding}"
-                                        TextWrapping="Wrap" />
+                                    <TextBlock FontSize="12" Text="{Binding}" TextWrapping="Wrap" />
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
@@ -782,7 +620,6 @@
                 </Border>
             </Grid>
         </Border>
-
         <Border
             Grid.Row="2"
             Margin="8,4,8,8"
@@ -790,7 +627,7 @@
             BorderBrush="#D9D9D9"
             BorderThickness="1.5"
             CornerRadius="8">
-            <Grid Grid.Row="2">
+            <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="1.5*" />
                     <RowDefinition Height="*" />
@@ -802,7 +639,6 @@
                     FontSize="18"
                     FontWeight="Bold">
                     <Run Text="测试结果：" />
-                    <Run Text=" " />
                     <Run Text="{Binding LastTestResult, TargetNullValue=--, FallbackValue=--}" />
                 </TextBlock>
                 <Grid Grid.Row="1">
