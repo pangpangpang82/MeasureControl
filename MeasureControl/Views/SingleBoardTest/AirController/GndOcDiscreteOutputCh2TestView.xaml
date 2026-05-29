@@ -1,1192 +1,173 @@
-<UserControl
+﻿<UserControl
     x:Class="MeasureControl.Views.SingleBoardTest.AirController.GndOcDiscreteOutputCh2TestView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:sys="clr-namespace:System;assembly=mscorlib"
+    d:DesignHeight="550"
+    d:DesignWidth="970"
     mc:Ignorable="d">
-
-    <UserControl.Resources>
-        <Style x:Key="PrimaryBlueButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#3b82f6" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border
-                            x:Name="border"
-                            Background="{TemplateBinding Background}"
-                            CornerRadius="4">
-                            <ContentPresenter
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                TextElement.Foreground="{TemplateBinding Foreground}" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                <Setter Property="Cursor" Value="Arrow" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </UserControl.Resources>
-
-    <Grid Background="White">
+    <Grid
+        x:Name="RootGrid"
+        Background="White"
+        Focusable="True"
+        PreviewMouseDown="RootGrid_PreviewMouseDown">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="0.8*" />
+            <RowDefinition Height="6*" />
+            <RowDefinition Height="1.2*" />
         </Grid.RowDefinitions>
 
-        <Border
-            Grid.Row="0"
-            Margin="8,8,8,4"
-            Background="White"
-            BorderBrush="#D9D9D9"
-            BorderThickness="1.5"
-            CornerRadius="8">
+        <Border Grid.Row="0" Margin="8,8,8,4" Background="White" BorderBrush="#D9D9D9" BorderThickness="1.5" CornerRadius="8">
             <Grid>
-                <TextBlock
-                    Width="520"
-                    Margin="10,0,0,0"
-                    HorizontalAlignment="Left"
-                    VerticalAlignment="Center"
-                    FontSize="24"
-                    FontWeight="Bold"
-                    Text="{Binding PageTitle}" />
+                <TextBlock Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="24" FontWeight="Bold" Text="{Binding PageTitle}" />
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                    <Button
-                        Width="100"
-                        Height="32"
-                        Margin="0,0,20,0"
-                        VerticalAlignment="Center"
-                        BorderThickness="0"
-                        Command="{Binding ManualTestCommand}">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Background" Value="#3b82f6" />
-                                <Setter Property="Foreground" Value="White" />
-                                <Setter Property="Cursor" Value="Hand" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsManualTestRunning}" Value="True">
-                                        <Setter Property="Background" Value="#ef4444" />
-                                        <Setter Property="Content" Value="停止测试" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding IsManualTestRunning}" Value="False">
-                                        <Setter Property="Content" Value="手动测试" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
-                    <Button
-                        Width="100"
-                        Height="32"
-                        Margin="0,0,30,0"
-                        VerticalAlignment="Center"
-                        BorderThickness="0"
-                        Command="{Binding AutoTestCommand}">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Background" Value="#22c55e" />
-                                <Setter Property="Foreground" Value="White" />
-                                <Setter Property="Cursor" Value="Hand" />
-                                <Style.Triggers>
+                    <Button Width="100" Height="32" Margin="0,0,30,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding AutoTestCommand}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border" Background="#22c55e" CornerRadius="6">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                        <Image Width="15" Height="15" Margin="5,0,5,0" Source="/Resources/Logo/auto.png" />
+                                        <TextBlock x:Name="DeviceAction" Margin="0,0,5,0" VerticalAlignment="Center" FontSize="16" Foreground="White" Text="自动测试" />
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
                                     <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="True">
-                                        <Setter Property="Background" Value="#ef4444" />
-                                        <Setter Property="Content" Value="停止测试" />
+                                        <Setter TargetName="border" Property="Background" Value="#ef4444" />
+                                        <Setter TargetName="DeviceAction" Property="Text" Value="停止测试" />
                                     </DataTrigger>
-                                    <DataTrigger Binding="{Binding IsAutoTestRunning}" Value="False">
-                                        <Setter Property="Content" Value="自动测试" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#15803d" />
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                        <Setter Property="Cursor" Value="Arrow" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
                     </Button>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3*" />
-                <ColumnDefinition Width="2*" />
-            </Grid.ColumnDefinitions>
+        <Border Grid.Row="1" Margin="8,4,8,4" Background="White" BorderBrush="#D9D9D9" BorderThickness="1.5" CornerRadius="8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.6*" />
+                    <ColumnDefinition Width="1*" />
+                </Grid.ColumnDefinitions>
 
-            <Border
-                Grid.Row="0"
-                Grid.Column="0"
-                Margin="10"
-                BorderBrush="#D9D9D9"
-                BorderThickness="1"
-                CornerRadius="4">
-                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                    <Grid Margin="10">
+                <Grid Grid.Column="0" VerticalAlignment="Top">
+                    <Border Height="320" Margin="18" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="8">
+                        <StackPanel Margin="18" VerticalAlignment="Center" Orientation="Vertical">
+                            <TextBlock VerticalAlignment="Center" FontSize="20" FontWeight="Bold" Text="GND/OC离散输出通道2测试" />
+                            <StackPanel Margin="0,14,0,0" Orientation="Vertical">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Width="130" VerticalAlignment="Center" FontSize="16" Text="GND输出指令：" />
+                                    <Border Width="220" Height="30" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                        <TextBlock Margin="5,0,1,0" VerticalAlignment="Center" FontSize="15" Text="0x09 01 02 01 00 00 00 00" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+                                    <TextBlock Width="130" VerticalAlignment="Center" FontSize="16" Text="GND回采预期：" />
+                                    <Border Width="220" Height="30" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                        <TextBlock Margin="5,0,1,0" VerticalAlignment="Center" FontSize="15" Text="label14:AAAA" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+                                    <TextBlock Width="130" VerticalAlignment="Center" FontSize="16" Text="GND实际响应：" />
+                                    <Border Width="220" Height="30" Background="LightYellow" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                        <TextBlock Margin="5,0,1,0" VerticalAlignment="Center" FontSize="15" Text="{Binding GndLabel14ActualText, TargetNullValue=--, FallbackValue=--}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+                                    <TextBlock Width="130" VerticalAlignment="Center" FontSize="16" Text="OC输出指令：" />
+                                    <Border Width="220" Height="30" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                        <TextBlock Margin="5,0,1,0" VerticalAlignment="Center" FontSize="15" Text="0x09 01 02 06 00 00 00 00" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+                                    <TextBlock Width="130" VerticalAlignment="Center" FontSize="16" Text="OC回采预期：" />
+                                    <Border Width="220" Height="30" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                        <TextBlock Margin="5,0,1,0" VerticalAlignment="Center" FontSize="15" Text="label14:5555" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+                                    <TextBlock Width="130" VerticalAlignment="Center" FontSize="16" Text="OC实际响应：" />
+                                    <Border Width="220" Height="30" Background="LightYellow" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
+                                        <TextBlock Margin="5,0,1,0" VerticalAlignment="Center" FontSize="15" Text="{Binding OcLabel14ActualText, TargetNullValue=--, FallbackValue=--}" />
+                                    </Border>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Border Grid.Column="1" Margin="5" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="6">
+                    <Grid>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-
-                        <TextBlock
-                            Grid.Row="0"
-                            FontSize="20"
-                            FontWeight="Bold"
-                            Text="测试步骤" />
-
-                        <Grid
-                            Grid.Row="1"
-                            Margin="0,14,0,0"
-                            VerticalAlignment="Center">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="220" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="190" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="90" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock
-                                Grid.Column="0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="1.进入ATP模式：" />
-
-                            <Grid Grid.Column="1" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding EnterAtpTxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding EnterAtpRxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
-
-                            <Grid Grid.Column="3" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <Border
-                                    Grid.Row="0"
-                                    Height="28"
-                                    VerticalAlignment="Center"
-                                    Background="AliceBlue"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="0x00 01 00 01 00 00 00 00" />
-                                </Border>
-
-                                <Border
-                                    Grid.Row="1"
-                                    Height="28"
-                                    Margin="0,6,0,0"
-                                    VerticalAlignment="Center"
-                                    Background="White"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{Binding EnterAtpRxDataText}"
-                                        TextTrimming="CharacterEllipsis" />
-                                </Border>
-                            </Grid>
-
-                            <Button
-                                Grid.Column="5"
-                                Width="90"
-                                Height="28"
-                                VerticalAlignment="Center"
-                                Command="{Binding SendEnterAtpCommand}"
-                                Content="发送"
-                                Style="{StaticResource PrimaryBlueButtonStyle}" />
-                        </Grid>
-
-                        <Grid
-                            Grid.Row="2"
-                            Margin="0,14,0,0"
-                            VerticalAlignment="Center">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="220" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="190" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="90" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock
-                                Grid.Column="0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="2.发送GNDTEST(ACK)：" />
-
-                            <Grid Grid.Column="1" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding TestTxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding TestRxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
-
-                            <Grid Grid.Column="3" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <Border
-                                    Grid.Row="0"
-                                    Height="28"
-                                    VerticalAlignment="Center"
-                                    Background="AliceBlue"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="0x09 01 02 01 00 00 00 00" />
-                                </Border>
-
-                                <Border
-                                    Grid.Row="1"
-                                    Height="28"
-                                    Margin="0,6,0,0"
-                                    VerticalAlignment="Center"
-                                    Background="White"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{Binding GndTestAckRxDataText}"
-                                        TextTrimming="CharacterEllipsis" />
-                                </Border>
-                            </Grid>
-
-                            <Button
-                                Grid.Column="5"
-                                Width="90"
-                                Height="28"
-                                VerticalAlignment="Center"
-                                Command="{Binding SendGndTestCommand}"
-                                Content="发送"
-                                Style="{StaticResource PrimaryBlueButtonStyle}" />
-                        </Grid>
-
-                        <Grid
-                            Grid.Row="3"
-                            Margin="0,14,0,0"
-                            VerticalAlignment="Center">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="220" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="190" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="90" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock
-                                Grid.Column="0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="3.发送GNDTEST2(回绕)：" />
-
-                            <Grid Grid.Column="1" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding TestTxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding TestRxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
-
-                            <Grid Grid.Column="3" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <Border
-                                    Grid.Row="0"
-                                    Height="28"
-                                    VerticalAlignment="Center"
-                                    Background="AliceBlue"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="0x09 01 02 03 00 00 00 00" />
-                                </Border>
-
-                                <Border
-                                    Grid.Row="1"
-                                    Height="28"
-                                    Margin="0,6,0,0"
-                                    VerticalAlignment="Center"
-                                    Background="White"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{Binding GndLoopbackRxDataText}"
-                                        TextTrimming="CharacterEllipsis" />
-                                </Border>
-                            </Grid>
-
-                            <Button
-                                Grid.Column="5"
-                                Width="90"
-                                Height="28"
-                                VerticalAlignment="Center"
-                                Command="{Binding SendGndTest2Command}"
-                                Content="发送"
-                                Style="{StaticResource PrimaryBlueButtonStyle}" />
-                        </Grid>
-
-                        <Grid
-                            Grid.Row="4"
-                            Margin="0,14,0,0"
-                            VerticalAlignment="Center">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="220" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="190" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="90" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock
-                                Grid.Column="0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="4.B通道DSI34(判读GND)：" />
-
-                            <Grid Grid.Column="1" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding TestTxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding TestRxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
-
-                            <Grid Grid.Column="3" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <Border
-                                    Grid.Row="0"
-                                    Height="28"
-                                    VerticalAlignment="Center"
-                                    Background="AliceBlue"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="0x08 01 1E 01 00 00 00 00" />
-                                </Border>
-
-                                <Border
-                                    Grid.Row="1"
-                                    Height="28"
-                                    Margin="0,6,0,0"
-                                    VerticalAlignment="Center"
-                                    Background="White"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{Binding GndDsi34RxDataText}"
-                                        TextTrimming="CharacterEllipsis" />
-                                </Border>
-                            </Grid>
-
-                            <Button
-                                Grid.Column="5"
-                                Width="90"
-                                Height="28"
-                                VerticalAlignment="Center"
-                                Command="{Binding SendGndDsi34Command}"
-                                Content="发送"
-                                Style="{StaticResource PrimaryBlueButtonStyle}" />
-                        </Grid>
-
-                        <Grid
-                            Grid.Row="5"
-                            Margin="0,14,0,0"
-                            VerticalAlignment="Center">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="220" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="190" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="90" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock
-                                Grid.Column="0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="5.发送OCTEST(ACK)：" />
-
-                            <Grid Grid.Column="1" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding TestTxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding TestRxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
-
-                            <Grid Grid.Column="3" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <Border
-                                    Grid.Row="0"
-                                    Height="28"
-                                    VerticalAlignment="Center"
-                                    Background="AliceBlue"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="0x09 01 02 06 00 00 00 00" />
-                                </Border>
-
-                                <Border
-                                    Grid.Row="1"
-                                    Height="28"
-                                    Margin="0,6,0,0"
-                                    VerticalAlignment="Center"
-                                    Background="White"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{Binding OcTestAckRxDataText}"
-                                        TextTrimming="CharacterEllipsis" />
-                                </Border>
-                            </Grid>
-
-                            <Button
-                                Grid.Column="5"
-                                Width="90"
-                                Height="28"
-                                VerticalAlignment="Center"
-                                Command="{Binding SendOcTestCommand}"
-                                Content="发送"
-                                Style="{StaticResource PrimaryBlueButtonStyle}" />
-                        </Grid>
-
-                        <Grid
-                            Grid.Row="6"
-                            Margin="0,14,0,0"
-                            VerticalAlignment="Center">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="220" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="190" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="90" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock
-                                Grid.Column="0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="6.发送OCTEST2(回绕)：" />
-
-                            <Grid Grid.Column="1" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding TestTxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding TestRxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
-
-                            <Grid Grid.Column="3" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <Border
-                                    Grid.Row="0"
-                                    Height="28"
-                                    VerticalAlignment="Center"
-                                    Background="AliceBlue"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="0x09 01 02 08 00 00 00 00" />
-                                </Border>
-
-                                <Border
-                                    Grid.Row="1"
-                                    Height="28"
-                                    Margin="0,6,0,0"
-                                    VerticalAlignment="Center"
-                                    Background="White"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{Binding OcLoopbackRxDataText}"
-                                        TextTrimming="CharacterEllipsis" />
-                                </Border>
-                            </Grid>
-
-                            <Button
-                                Grid.Column="5"
-                                Width="90"
-                                Height="28"
-                                VerticalAlignment="Center"
-                                Command="{Binding SendOcTest2Command}"
-                                Content="发送"
-                                Style="{StaticResource PrimaryBlueButtonStyle}" />
-                        </Grid>
-
-                        <Grid
-                            Grid.Row="7"
-                            Margin="0,14,0,0"
-                            VerticalAlignment="Center">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="220" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="190" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="90" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock
-                                Grid.Column="0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="7.B通道DSI34(判读OC)：" />
-
-                            <Grid Grid.Column="1" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding TestTxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding TestRxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
-
-                            <Grid Grid.Column="3" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <Border
-                                    Grid.Row="0"
-                                    Height="28"
-                                    VerticalAlignment="Center"
-                                    Background="AliceBlue"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="0x08 01 1E 01 00 00 00 00" />
-                                </Border>
-
-                                <Border
-                                    Grid.Row="1"
-                                    Height="28"
-                                    Margin="0,6,0,0"
-                                    VerticalAlignment="Center"
-                                    Background="White"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{Binding OcDsi34RxDataText}"
-                                        TextTrimming="CharacterEllipsis" />
-                                </Border>
-                            </Grid>
-
-                            <Button
-                                Grid.Column="5"
-                                Width="90"
-                                Height="28"
-                                VerticalAlignment="Center"
-                                Command="{Binding SendOcDsi34Command}"
-                                Content="发送"
-                                Style="{StaticResource PrimaryBlueButtonStyle}" />
-                        </Grid>
-
-                        <Grid
-                            Grid.Row="8"
-                            Margin="0,14,0,0"
-                            VerticalAlignment="Center">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="220" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="190" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="90" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock
-                                Grid.Column="0"
-                                VerticalAlignment="Center"
-                                FontSize="16"
-                                Text="8.退出ATP模式：" />
-
-                            <Grid Grid.Column="1" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="TX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding ExitAtpTxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="1" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Width="22" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                    <Border
-                                        Width="90"
-                                        Height="28"
-                                        Margin="5,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Background="AliceBlue"
-                                        BorderBrush="#D9D9D9"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
-                                        <TextBlock
-                                            Margin="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Text="{Binding ExitAtpRxChannelDisplay}" />
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
-
-                            <Grid Grid.Column="3" VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <Border
-                                    Grid.Row="0"
-                                    Height="28"
-                                    VerticalAlignment="Center"
-                                    Background="AliceBlue"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="0x00 02 00 01 00 00 00 01" />
-                                </Border>
-
-                                <Border
-                                    Grid.Row="1"
-                                    Height="28"
-                                    Margin="0,6,0,0"
-                                    VerticalAlignment="Center"
-                                    Background="White"
-                                    BorderBrush="#D9D9D9"
-                                    BorderThickness="1"
-                                    CornerRadius="3">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{Binding ExitAtpRxDataText}"
-                                        TextTrimming="CharacterEllipsis" />
-                                </Border>
-                            </Grid>
-
-                            <Button
-                                Grid.Column="5"
-                                Width="90"
-                                Height="28"
-                                VerticalAlignment="Center"
-                                Command="{Binding SendExitAtpCommand}"
-                                Content="发送"
-                                Style="{StaticResource PrimaryBlueButtonStyle}" />
-                        </Grid>
+                        <StackPanel Margin="10,10,0,5" Orientation="Horizontal">
+                            <TextBlock Margin="0,5,0,0" VerticalAlignment="Center" FontSize="20" FontWeight="Bold" Text="测试日志" />
+                            <Button Width="80" Height="32" Margin="170,5,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding ClearLogCommand}">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" Background="#3b82f6" CornerRadius="4">
+                                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="White" Text="清除内容" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="border" Property="Background" Value="#1d4ed8" /></Trigger>
+                                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="border" Property="Background" Value="#1d4ed8" /></Trigger>
+                                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="border" Property="Background" Value="#9ca3af" /></Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </StackPanel>
+                        <ListBox Grid.Row="1" Margin="8" BorderThickness="0" ItemsSource="{Binding Logs}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock FontSize="12" Text="{Binding}" TextWrapping="Wrap" />
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
                     </Grid>
-                </ScrollViewer>
-            </Border>
+                </Border>
+            </Grid>
+        </Border>
 
-            <Border
-                Grid.Row="0"
-                Grid.Column="1"
-                Margin="10"
-                Padding="10"
-                BorderBrush="#D9D9D9"
-                BorderThickness="1"
-                CornerRadius="4">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Text="测试信息" />
-                        <Button
-                            Width="90"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            Command="{Binding ClearContentCommand}"
-                            Content="清除内容" />
-                    </StackPanel>
-
-                    <ListBox
-                        Grid.Row="1"
-                        Margin="0,10,0,0"
-                        ItemsSource="{Binding Logs}" />
-                </Grid>
-            </Border>
-
-            <Border
-                Grid.Row="1"
-                Grid.ColumnSpan="2"
-                Margin="10,0,10,10"
-                Padding="10"
-                BorderBrush="#D9D9D9"
-                BorderThickness="1"
-                CornerRadius="4">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+        <Border Grid.Row="2" Margin="8,4,8,8" Background="White" BorderBrush="#D9D9D9" BorderThickness="1.5" CornerRadius="8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="1.5*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="18" FontWeight="Bold">
+                    <Run Text="测试结果：" />
+                    <Run Text=" " />
+                    <Run Text="{Binding LastTestResult, TargetNullValue=--, FallbackValue=--}" />
+                </TextBlock>
+                <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition />
+                        <ColumnDefinition />
                     </Grid.ColumnDefinitions>
-
-                    <StackPanel
-                        Grid.Row="0"
-                        Grid.ColumnSpan="2"
-                        VerticalAlignment="Center"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Text="测试结果：" />
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="16"
-                            Text="{Binding LastTestResult}"
-                            TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
-
-                    <StackPanel
-                        Grid.Row="1"
-                        Grid.Column="0"
-                        Margin="0,8,0,0"
-                        VerticalAlignment="Center"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            FontWeight="Bold"
-                            Text="上次测试时间：" />
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="{Binding LastTestTime}"
-                            TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
-
-                    <StackPanel
-                        Grid.Row="1"
-                        Grid.Column="1"
-                        Margin="0,8,0,0"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Orientation="Horizontal">
-                        <TextBlock
-                            FontSize="14"
-                            FontWeight="Bold"
-                            Text="上次测试结果：" />
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Text="{Binding LastTestResult}"
-                            TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
+                    <TextBlock Grid.Column="0" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" FontWeight="Bold">
+                        <Run Text="上次测试时间：" />
+                        <Run Text="{Binding LastTestTime, TargetNullValue=--, FallbackValue=--}" />
+                    </TextBlock>
+                    <TextBlock Grid.Column="1" Margin="30,0,0,0" VerticalAlignment="Center" FontSize="14" FontWeight="Bold">
+                        <Run Text="上次测试结果：" />
+                        <Run Text="{Binding LastTestResult, TargetNullValue=--, FallbackValue=--}" />
+                    </TextBlock>
                 </Grid>
-            </Border>
-        </Grid>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>
