@@ -924,32 +924,55 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 await StopTemperatureTelemetryListeningAsync();
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 等待温度遥测(不发送回采请求，超时800ms)...");
-                var (tempData, rawData) = await _simulation.WaitTelemetryAsync(
-                    TemperatureTelemetryRxChannel,
-                    timeoutMs: 800,
-                    log: msg => AddLog(msg),
-                    token: CancellationToken.None);
+                int retryCount = 0;
+                byte[] tempData = null;
+                byte[] rawData = null;
 
-                if (tempData == null)
+                while (retryCount < 3 && tempData == null)
                 {
-                    try { await _simulation.ClearRxFifoAsync(TemperatureTelemetryRxChannel); } catch { }
-                    await Task.Delay(20);
+                    if (retryCount == 0)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 等待温度遥测(不发送回采请求，超时800ms)...");
+                    }
+                    else
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 第{retryCount}次尝试重发指令接收温度遥测...");
+                    }
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送温度回采请求：{FormatData(TemperatureTelemetryCommand)}");
-                    await _simulation.SendBenchCommandOnlyAsync(
-                        ControllerTemperatureTestTxChannel,
-                        DefaultLabel,
-                        TemperatureTelemetryCommand,
-                        msg => AddLog(msg),
-                        CancellationToken.None);
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 已发送回采请求，等待温度遥测(超时2000ms)...");
-                    (tempData, rawData) = await _simulation.WaitTelemetryAsync(
+                    var result = await _simulation.WaitTelemetryAsync(
                         TemperatureTelemetryRxChannel,
-                        timeoutMs: 2000,
+                        timeoutMs: 800,
                         log: msg => AddLog(msg),
                         token: CancellationToken.None);
+                    
+                    tempData = result.Temperature;
+                    rawData = result.Raw;
+
+                    if (tempData == null)
+                    {
+                        try { await _simulation.ClearRxFifoAsync(TemperatureTelemetryRxChannel); } catch { }
+                        await Task.Delay(20);
+
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 未收到数据，发送温度回采请求：{FormatData(TemperatureTelemetryCommand)}");
+                        await _simulation.SendBenchCommandOnlyAsync(
+                            ControllerTemperatureTestTxChannel,
+                            DefaultLabel,
+                            TemperatureTelemetryCommand,
+                            msg => AddLog(msg),
+                            CancellationToken.None);
+
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 已发送回采请求，等待温度遥测(超时2000ms)...");
+                        result = await _simulation.WaitTelemetryAsync(
+                            TemperatureTelemetryRxChannel,
+                            timeoutMs: 2000,
+                            log: msg => AddLog(msg),
+                            token: CancellationToken.None);
+                        
+                        tempData = result.Temperature;
+                        rawData = result.Raw;
+                    }
+                    
+                    retryCount++;
                 }
 
                 double? temperature = null;
