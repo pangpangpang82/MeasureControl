@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -31,12 +31,11 @@ namespace MeasureControl.Simulations.PT500
 
         private bool _started;
 
-        // PT500 协议命令定义
-        private static readonly byte[] EnterAtpCommand = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] EnterAtpOk = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-        private static readonly byte[] ExitAtpCommand = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
-        private static readonly byte[] ExitAtpOk = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        // BTS 协议命令定义
+        private static readonly byte[] EnterAtpCommand = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExitAtpCommand = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] TemperatureTestCommand = { 0x07, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] TemperatureTelemetryCommand = { 0x07, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] TelemetryTemperaturePrefix = { 0x07, 0x01, 0x01, 0x02 };
         private static readonly byte[] TelemetryRawPrefix = { 0x07, 0x01, 0x01, 0x03 };
 
@@ -62,7 +61,7 @@ namespace MeasureControl.Simulations.PT500
         public Func<string> GetCurrentResistorGear { get; set; }
 
         /// <summary>
-        /// 由 ViewModel 设置，用于仿真遥测时获取当前室温选择，以生成对应合格区间内温度
+        /// 由 ViewModel 设置，用于仿真遥测时获取当前环境温度选择(10~50℃/其他)
         /// </summary>
         public Func<string> GetCurrentAmbientTemperatureSelection { get; set; }
 
@@ -90,7 +89,7 @@ namespace MeasureControl.Simulations.PT500
             if (_started) return;
             if (log == null) log = _ => { };
 
-            log($"[{DateTime.Now:HH:mm:ss}] [SIM] PT500 仿真初始化开始");
+            log($"[{DateTime.Now:HH:mm:ss}] [SIM] BTS 仿真初始化开始");
 
             _simCts = new CancellationTokenSource();
 
@@ -122,7 +121,7 @@ namespace MeasureControl.Simulations.PT500
             }
 
             _started = true;
-            log($"[{DateTime.Now:HH:mm:ss}] [SIM] PT500 仿真初始化完成");
+            log($"[{DateTime.Now:HH:mm:ss}] [SIM] BTS 仿真初始化完成");
         }
 
         private async Task StartBenchRxAsync(Action<string> log)
@@ -271,13 +270,16 @@ namespace MeasureControl.Simulations.PT500
             if (command8 == null || command8.Length != 8)
                 throw new ArgumentException("command8 must be 8 bytes", nameof(command8));
 
-            bool readyOk = await EnsureBenchChannelsAsync(benchTxChannel, benchRxChannel, log);
-            if (!readyOk)
-                throw new InvalidOperationException($"[SIM] bench通道未就绪：TX={benchTxChannel}, RX={benchRxChannel}");
-
             int txIndex = ParseChannelIndex(benchTxChannel);
             int rxIndex = ParseChannelIndex(benchRxChannel);
+
+            if (txIndex != _benchTxChannelIndex || rxIndex != _benchRxChannelIndex)
+                throw new InvalidOperationException($"[SIM] bench通道与StartAsync配置不一致：TX={txIndex}(expected={_benchTxChannelIndex}), RX={rxIndex}(expected={_benchRxChannelIndex})");
+
+            await StartBenchRxAsync(log);
+
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送: tx={txIndex}, rx={rxIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
+
             await SendMultiFrameOnChannelAsync(txIndex, label, command8, log, token);
 
             return await WaitBenchResponseAsync(
@@ -308,27 +310,6 @@ namespace MeasureControl.Simulations.PT500
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送(仅发送): tx={txIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
 
-            await SendMultiFrameOnChannelAsync(txIndex, label, command8, log, token);
-        }
-
-        public async Task SendAirCommandOnlyAsync(
-            string benchTxChannel,
-            byte label,
-            byte[] command8,
-            Action<string> log,
-            CancellationToken token)
-        {
-            if (!_started || _arincDriver == null)
-                throw new InvalidOperationException("Simulation not started");
-            if (command8 == null || command8.Length != 8)
-                throw new ArgumentException("command8 must be 8 bytes", nameof(command8));
-
-            int txIndex = ParseChannelIndex(benchTxChannel);
-
-            if (txIndex != _benchTxChannelIndex)
-                throw new InvalidOperationException($"[SIM] benchTX通道与StartAsync配置不一致：TX={txIndex}(expected={_benchTxChannelIndex})");
-
-            log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [AIR429] 发送: tx={txIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
             await SendMultiFrameOnChannelAsync(txIndex, label, command8, log, token);
         }
 
@@ -473,52 +454,8 @@ namespace MeasureControl.Simulations.PT500
             }
         }
 
-        public async Task<byte[]> WaitAirResponseAsync(
-            string benchRxChannel,
-            Func<byte[], bool> isExpectedResponse,
-            int timeoutMs,
-            Action<string> log,
-            CancellationToken token)
-        {
-            if (!_started || _arincDriver == null)
-                throw new InvalidOperationException("Simulation not started");
-
-            int rxIndex = ParseChannelIndex(benchRxChannel);
-            MultiLabelCommandAssembler labelAssembler = new MultiLabelCommandAssembler(ProductTxFragmentLabels);
-            var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
-
-            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
-            {
-                var list = await _arincDriver.ReadReceiveDataAsync(rxIndex, maxCount: 256, enableTimeTag: false, enableRateAdaption: false);
-                if (list != null && list.Count > 0)
-                {
-                    foreach (var item in list)
-                    {
-                        if (!TryParseWord(item.Data429, out var rxLabel, out var sdi, out var payload))
-                            continue;
-
-                        if (sdi != 0)
-                            continue;
-
-                        if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
-                        {
-                            if (isExpectedResponse == null || isExpectedResponse(resp8))
-                            {
-                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [AIR429] RX={rxIndex} 拼包完成 labels={string.Join("/", ProductTxFragmentLabels.Select(b => $"0x{b:X2}"))} resp8={FormatBytes(resp8)}");
-                                return resp8;
-                            }
-                        }
-                    }
-                }
-
-                await Task.Delay(10, token);
-            }
-
-            return null;
-        }
-
         /// <summary>
-        /// 等待温度遥测帧和原始数据帧（八帧拼包方式）
+        /// 等待温度遥测帧和原始数据帧
         /// </summary>
         public async Task<(byte[] Temperature, byte[] Raw)> WaitTelemetryAsync(
             string benchRxChannel,
@@ -733,13 +670,6 @@ namespace MeasureControl.Simulations.PT500
             }
         }
 
-        private static string FormatFragments(byte[] labels, ushort[] parts)
-        {
-            if (labels == null || parts == null || labels.Length != parts.Length)
-                return "--";
-            return string.Join(" ", labels.Zip(parts, (l, p) => $"0x{l:X2}=0x{p:X4}"));
-        }
-
         private bool TryFindTemperatureFrame(List<TelemetryFragment> fragments, byte[] labels, out byte[] frame8, out ushort[] partsSnapshot, out double tC)
         {
             frame8 = null;
@@ -846,38 +776,6 @@ namespace MeasureControl.Simulations.PT500
             return true;
         }
 
-        private bool IsValidTemperatureTelemetryFrame(byte[] cmd8, out double temperature)
-        {
-            temperature = 0;
-            if (cmd8 == null || cmd8.Length < 8)
-                return false;
-            if (!IsPrefix(cmd8, TelemetryTemperaturePrefix))
-                return false;
-
-            var raw = (cmd8[4] << 24) | (cmd8[5] << 16) | (cmd8[6] << 8) | cmd8[7];
-            temperature = raw * 0.01;
-            return true;
-        }
-
-        private static bool IsValidRawTelemetryFrame(byte[] frameData)
-        {
-            if (frameData == null || frameData.Length < 8)
-                return false;
-            if (!IsPrefix(frameData, TelemetryRawPrefix))
-                return false;
-
-            for (int i = 4; i <= 7; i++)
-            {
-                var b = frameData[i];
-                var hi = (b >> 4) & 0xF;
-                var lo = b & 0xF;
-                if (hi > 5 || lo > 5)
-                    return false;
-            }
-
-            return true;
-        }
-
         public async Task StopAsync(Action<string> log)
         {
             if (log == null) log = _ => { };
@@ -888,7 +786,7 @@ namespace MeasureControl.Simulations.PT500
                 return;
             }
 
-            log($"[{DateTime.Now:HH:mm:ss}] [SIM] PT500 仿真停止：释放设备资源");
+            log($"[{DateTime.Now:HH:mm:ss}] [SIM] BTS 仿真停止：释放设备资源");
 
             _started = false;
             _telemetryEnabled = false;
@@ -951,38 +849,29 @@ namespace MeasureControl.Simulations.PT500
                         {
                             if (TryParseWord(item.Data429, out byte label, out byte sdi, out ushort payload))
                             {
-                                bool assembled;
-                                byte[] cmd8;
-
-                                if (_rxLabelAssembler.TryAddFragment(label, payload, DateTime.UtcNow, out cmd8))
-                                {
-                                    assembled = cmd8 != null;
-                                }
-                                else
-                                {
-                                    assembled = false;
-                                    cmd8 = null;
-                                }
-
-                                if (assembled)
+                                if (_rxLabelAssembler.TryAddFragment(label, payload, DateTime.UtcNow, out var cmd8) && cmd8 != null)
                                 {
                                     log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] simRX={SimProductRxChannelIndex} 拼包完成 cmd8={FormatBytes(cmd8)}");
 
                                     if (cmd8.SequenceEqual(EnterAtpCommand))
                                     {
-                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP指令 -> 回复 ATP OK");
-                                        await SendMultiFrameResponseAsync(label, EnterAtpOk, log, token);
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP指令");
                                     }
                                     else if (cmd8.SequenceEqual(ExitAtpCommand))
                                     {
-                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP指令 -> 回复 EXIT OK");
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP指令");
                                         _telemetryEnabled = false;
-                                        await SendMultiFrameResponseAsync(label, ExitAtpOk, log, token);
                                     }
                                     else if (cmd8.SequenceEqual(TemperatureTestCommand))
                                     {
                                         log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到温度测试指令 -> 回复确认并开启遥测");
                                         await SendMultiFrameResponseAsync(label, TemperatureTestCommand, log, token);
+                                        _telemetryEnabled = true;
+                                        StartTelemetryLoopIfNeeded(label, log);
+                                    }
+                                    else if (cmd8.SequenceEqual(TemperatureTelemetryCommand))
+                                    {
+                                        log($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到温度回采指令 -> 开启遥测");
                                         _telemetryEnabled = true;
                                         StartTelemetryLoopIfNeeded(label, log);
                                     }
@@ -1036,26 +925,22 @@ namespace MeasureControl.Simulations.PT500
 
                     // 基于当前电阻档位生成模拟温度
                     string gear = GetCurrentResistorGear?.Invoke() ?? "1挡";
-                    string ambientSelection = GetCurrentAmbientTemperatureSelection?.Invoke() ?? "10~50℃";
-                    double temperature = GenerateSimulatedTemperature(gear, ambientSelection);
+                    double temperature = GenerateSimulatedTemperature(gear);
 
-                    // 构造温度遥测帧: 07 01 01 02 + 温度数据
+                    // 构造温度遥测帧: 07 01 07 02 + 温度数据
                     var tempPayload = new byte[8];
                     tempPayload[0] = TelemetryTemperaturePrefix[0];
                     tempPayload[1] = TelemetryTemperaturePrefix[1];
                     tempPayload[2] = TelemetryTemperaturePrefix[2];
                     tempPayload[3] = TelemetryTemperaturePrefix[3];
 
-                    int intPart = (int)temperature;
-                    int fracPart = (int)(Math.Abs(temperature - intPart) * 10000);
-                    tempPayload[4] = (byte)((intPart >> 8) & 0xFF);
-                    tempPayload[5] = (byte)(intPart & 0xFF);
-                    tempPayload[6] = (byte)((fracPart >> 8) & 0xFF);
-                    tempPayload[7] = (byte)(fracPart & 0xFF);
+                    short tRaw = (short)Math.Round(temperature / 0.01, MidpointRounding.AwayFromZero);
+                    tempPayload[6] = (byte)((tRaw >> 8) & 0xFF);
+                    tempPayload[7] = (byte)(tRaw & 0xFF);
 
                     await SendMultiFrameResponseAsync(label, tempPayload, log, token);
 
-                    // 构造原始数据遥测帧: 07 01 01 03 + 6进制编码
+                    // 构造原始数据遥测帧: 07 01 07 03 + 6进制编码
                     var rawPayload = new byte[8];
                     rawPayload[0] = TelemetryRawPrefix[0];
                     rawPayload[1] = TelemetryRawPrefix[1];
@@ -1101,27 +986,25 @@ namespace MeasureControl.Simulations.PT500
             }
         }
 
-        private double GenerateSimulatedTemperature(string gear, string ambientSelection)
+        private double GenerateSimulatedTemperature(string gear)
         {
-            var (min, max) = GetQualifiedTemperatureRange(gear, ambientSelection);
+            string ambient = GetCurrentAmbientTemperatureSelection?.Invoke() ?? "10~50℃";
+            var (min, max) = GetQualifiedTemperatureRange(gear, ambient);
             lock (_rand)
             {
                 return min + _rand.NextDouble() * (max - min);
             }
         }
 
-        private static bool IsAmbientTemperatureBetween10And50(string ambientSelection)
-            => string.Equals(ambientSelection, "10~50℃", StringComparison.Ordinal);
-
         private static (double Min, double Max) GetQualifiedTemperatureRange(string gear, string ambientSelection)
         {
-            var ambient = IsAmbientTemperatureBetween10And50(ambientSelection);
+            bool isNormalAmbient = string.Equals(ambientSelection, "10~50℃", StringComparison.OrdinalIgnoreCase);
             return gear switch
             {
-                "1挡" => ambient ? (-65.93, -64.07) : (-69.05, -60.95),
-                "2挡" => ambient ? (24.75, 26.61) : (21.63, 29.73),
-                "3挡" => ambient ? (134.06, 135.94) : (130.94, 139.06),
-                _ => ambient ? (-65.93, -64.07) : (-69.05, -60.95)
+                "1挡" => isNormalAmbient ? (-65.93, -64.07) : (-69.05, -60.95),
+                "2挡" => isNormalAmbient ? (24.75, 26.61) : (21.63, 29.73),
+                "3挡" => isNormalAmbient ? (134.06, 135.94) : (130.94, 139.06),
+                _ => (-65.93, -64.07)
             };
         }
 
@@ -1132,12 +1015,14 @@ namespace MeasureControl.Simulations.PT500
             if (payload8 == null || payload8.Length != 8)
                 return;
 
+            var swapped = SwapPairs8(payload8);
+
             uint[] data429 = new uint[4];
             uint[] parity = new uint[4];
 
             for (byte frag = 0; frag < 4; frag++)
             {
-                ushort part = (ushort)((payload8[frag * 2] << 8) | payload8[frag * 2 + 1]);
+                ushort part = (ushort)((swapped[frag * 2] << 8) | swapped[frag * 2 + 1]);
                 byte fragLabel = ProductTxFragmentLabels[frag];
                 uint word = BuildWord(fragLabel, 0, part);
                 data429[frag] = ApplyParity(word);
@@ -1206,7 +1091,6 @@ namespace MeasureControl.Simulations.PT500
                 log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchTX={txChannelIndex} send labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))} payload8={FormatBytes(payload8)}");
             }
         }
-
 
         // ========== 板卡管理 ==========
 
@@ -1324,7 +1208,6 @@ namespace MeasureControl.Simulations.PT500
                 _benchRxStarted = false;
                 _benchTxChannelIndex = -1;
                 _benchRxChannelIndex = -1;
-                _started = false;
             }
         }
 
@@ -1385,6 +1268,48 @@ namespace MeasureControl.Simulations.PT500
             return true;
         }
 
+        private static bool TryParseTemperatureC(byte[] frameData, out double temperatureC)
+        {
+            temperatureC = 0;
+            if (frameData == null || frameData.Length < 8)
+                return false;
+            if (!IsPrefix(frameData, TelemetryTemperaturePrefix))
+                return false;
+
+            var raw32 = (frameData[4] << 24) | (frameData[5] << 16) | (frameData[6] << 8) | frameData[7];
+            temperatureC = raw32 * 0.01;
+            return true;
+        }
+
+        private bool IsValidTemperatureTelemetryFrame(byte[] frameData, out double temperatureC)
+        {
+            temperatureC = 0;
+            if (!TryParseTemperatureC(frameData, out temperatureC))
+                return false;
+
+            // 只验证帧格式，不验证温度值范围，避免实际产品返回的温度超出预期范围时被误判为无效帧
+            return true;
+        }
+
+        private static bool IsValidRawTelemetryFrame(byte[] frameData)
+        {
+            if (frameData == null || frameData.Length < 8)
+                return false;
+            if (!IsPrefix(frameData, TelemetryRawPrefix))
+                return false;
+
+            for (int i = 4; i <= 7; i++)
+            {
+                var b = frameData[i];
+                var hi = (b >> 4) & 0xF;
+                var lo = b & 0xF;
+                if (hi > 5 || lo > 5)
+                    return false;
+            }
+
+            return true;
+        }
+
         public static int ParseChannelIndex(string channel)
         {
             if (string.IsNullOrWhiteSpace(channel)) return -1;
@@ -1430,6 +1355,23 @@ namespace MeasureControl.Simulations.PT500
             if (bytes == null || bytes.Length == 0)
                 return string.Empty;
             return string.Join(" ", bytes.Select(b => b.ToString("X2")));
+        }
+
+        private static string FormatFragments(byte[] fragLabels, ushort[] parts)
+        {
+            if (fragLabels == null || parts == null)
+                return string.Empty;
+            var count = Math.Min(4, Math.Min(fragLabels.Length, parts.Length));
+            if (count <= 0)
+                return string.Empty;
+
+            return string.Join(", ", Enumerable.Range(0, count).Select(i =>
+            {
+                var p = parts[i];
+                var lo = (byte)(p & 0xFF);
+                var hi = (byte)((p >> 8) & 0xFF);
+                return $"0x{fragLabels[i]:X2}=0x{p:X4}({lo:X2} {hi:X2})";
+            }));
         }
 
         private sealed class MultiLabelCommandAssembler
