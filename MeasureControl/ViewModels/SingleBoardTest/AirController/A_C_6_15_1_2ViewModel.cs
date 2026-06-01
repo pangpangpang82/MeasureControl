@@ -16,7 +16,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public sealed class A_C_6_15_1_2ViewModel : BindableBase, IDisposable
     {
-        private const string FixedTxChannel = "429_CH0";
+        private const string FixedTxChannel = "429_CH5";
         private const string FixedRxChannel = "429_CH2";
 
         private static readonly byte[] EnterAtpCommand8 = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
@@ -469,15 +469,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
-                if (QualifyVoltages(_phHighVoltage, _phLowVoltage, out var reason))
+                if (_phHighVoltage.HasValue && _phLowVoltage.HasValue)
                 {
-                    SetLastTestResult("PASS");
+                    if (QualifyVoltages(_phHighVoltage, _phLowVoltage, out var reason))
+                    {
+                        SetLastTestResult("PASS");
+                    }
+                    else
+                    {
+                        if (!string.IsNullOrWhiteSpace(reason))
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] 判据FAIL：{reason}");
+                        SetLastTestResult("FAIL");
+                    }
                 }
                 else
                 {
-                    if (!string.IsNullOrWhiteSpace(reason))
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 判据FAIL：{reason}");
-                    SetLastTestResult("FAIL");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}测量成功，等待另一电平测量后再判定结果...");
                 }
             }
             catch (Exception ex)
