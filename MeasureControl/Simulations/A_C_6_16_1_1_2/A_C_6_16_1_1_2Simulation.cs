@@ -11,15 +11,28 @@ namespace MeasureControl.Simulations.A_C_6_16_1_1_2
     {
         private readonly MultiLabelCommandAssembler _rxLabelAssembler = new MultiLabelCommandAssembler(BenchTxFragmentLabels);
 
-        private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-        private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
-        private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        private static readonly byte[] EnterAtpCommand8 = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] EnterAtpOk8 = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 }; // send-only (unused)
+        private static readonly byte[] ExitAtpCommand8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExitAtpOk8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 }; // send-only (unused)
 
         private static readonly byte[] SupImpedanceCommand8 = { 0x22, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
-        private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
-        private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
+        private static readonly byte[] BenchTxFragmentLabels = { 0x8C, 0x4C, 0xCC, 0x2C };
+        private static readonly byte[] ProductTxFragmentLabels = { 0x90, 0x50, 0xD0, 0x30 };
+
+        private static byte[] SwapPairs8(byte[] data8)
+        {
+            if (data8 == null || data8.Length != 8)
+                return data8;
+            var b = new byte[8];
+            for (int i = 0; i < 4; i++)
+            {
+                b[i * 2] = data8[i * 2 + 1];
+                b[i * 2 + 1] = data8[i * 2];
+            }
+            return b;
+        }
 
         public async Task SendBenchCommandOnlyAsync(string benchTxChannel, byte[] command8, Action<string> log, CancellationToken token)
         {
@@ -32,7 +45,8 @@ namespace MeasureControl.Simulations.A_C_6_16_1_1_2
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送: tx={txIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
 
-            await SendMultiLabelFrameOnChannelAsync(txIndex, BenchTxFragmentLabels, command8, log, token);
+            var swapped = SwapPairs8(command8);
+            await SendMultiLabelFrameOnChannelAsync(txIndex, BenchTxFragmentLabels, swapped, log, token);
         }
 
         public async Task<byte[]> WaitBenchResponse8Async(string benchRxChannel, Func<byte[], bool> isExpected, int timeoutMs, Action<string> log, CancellationToken token)
@@ -118,19 +132,20 @@ namespace MeasureControl.Simulations.A_C_6_16_1_1_2
 
                             if (cmd8.SequenceEqual(EnterAtpCommand8))
                             {
-                                await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, EnterAtpOk8, log, token);
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP (send-only, no OK)");
                                 continue;
                             }
 
                             if (cmd8.SequenceEqual(ExitAtpCommand8))
                             {
-                                await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, ExitAtpOk8, log, token);
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP (send-only, no OK)");
                                 continue;
                             }
 
                             if (cmd8.SequenceEqual(SupImpedanceCommand8))
                             {
-                                await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, cmd8, log, token);
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到SupImpedance -> 发送回包");
+                                await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, SwapPairs8(cmd8), log, token);
                                 continue;
                             }
                         }
@@ -204,8 +219,8 @@ namespace MeasureControl.Simulations.A_C_6_16_1_1_2
                 cmd8 = new byte[8];
                 for (int j = 0; j < 4; j++)
                 {
-                    cmd8[j * 2] = (byte)((_parts[j] >> 8) & 0xFF);
-                    cmd8[j * 2 + 1] = (byte)(_parts[j] & 0xFF);
+                    cmd8[j * 2] = (byte)(_parts[j] & 0xFF);
+                    cmd8[j * 2 + 1] = (byte)((_parts[j] >> 8) & 0xFF);
                 }
 
                 _mask = 0;
