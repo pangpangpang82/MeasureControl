@@ -537,6 +537,15 @@
     <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputTestView.xaml.cs">
       <DependentUpon>A28vOc400mADiscreteOutputTestView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mACh1TestView.xaml.cs">
+      <DependentUpon>A28vOc400mACh1TestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mACh2TestView.xaml.cs">
+      <DependentUpon>A28vOc400mACh2TestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mACh3TestView.xaml.cs">
+      <DependentUpon>A28vOc400mACh3TestView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\ScriptTest\ScriptTestDialog.xaml.cs">
       <DependentUpon>ScriptTestDialog.xaml</DependentUpon>
     </Compile>
@@ -979,6 +988,9 @@
     <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc100mADiscreteOutputCh1TestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc100mADiscreteOutputCh2TestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc400mADiscreteOutputTestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc400mACh1TestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc400mACh2TestViewModel.cs" />
+    <Compile Include="ViewModels\SingleBoardTest\AirController\A28vOc400mACh3TestViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\AC_6_4CanViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\AC_6_4ViewModel.cs" />
     <Compile Include="ViewModels\SingleBoardTest\AirController\AirSimpleSequenceViewModel.cs" />
@@ -1363,6 +1375,15 @@
     <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputTestView.xaml.cs">
       <DependentUpon>A28vOc400mADiscreteOutputTestView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mACh1TestView.xaml.cs">
+      <DependentUpon>A28vOc400mACh1TestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mACh2TestView.xaml.cs">
+      <DependentUpon>A28vOc400mACh2TestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mACh3TestView.xaml.cs">
+      <DependentUpon>A28vOc400mACh3TestView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SingleBoardTest\AirController\AC_6_4.xaml.cs">
       <DependentUpon>AC_6_4.xaml</DependentUpon>
     </Compile>
@@ -1506,6 +1527,18 @@
     <Page Include="Views\SingleBoardTest\AirController\R_6_8_9View.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A28vOc400mACh1TestView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A28vOc400mACh2TestView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A28vOc400mACh3TestView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\SingleBoardTest\AirController\S_C_6_13_2_1View.xaml">
       <Generator>MSBuild:Compile</Generator>
