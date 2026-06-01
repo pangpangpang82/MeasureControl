@@ -245,6 +245,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (data14 != 0x5555)
                 throw new InvalidOperationException($"28V回采数据不符：期望0x5555，实际0x{data14:X4}");
 
+            // 返回的有8帧数据，这里只判断前四帧，为了避免影响后续测试，显式舍弃后四帧（清理FIFO）
+            await Task.Delay(100, token);
+            try { await _arinc.ClearRxFifoAsync(RxChannel); } catch { }
+
             AddLog($"[{DateTime.Now:HH:mm:ss}] 28V回采判读：PASS");
         }
 

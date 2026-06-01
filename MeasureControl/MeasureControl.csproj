@@ -537,6 +537,9 @@
     <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputTestView.xaml.cs">
       <DependentUpon>A28vOc400mADiscreteOutputTestView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh1TestView.cs" />
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh2TestView.cs" />
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh3TestView.cs" />
     <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mACh1TestView.xaml.cs">
       <DependentUpon>A28vOc400mACh1TestView.xaml</DependentUpon>
     </Compile>
@@ -1375,6 +1378,9 @@
     <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputTestView.xaml.cs">
       <DependentUpon>A28vOc400mADiscreteOutputTestView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh1TestView.cs" />
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh2TestView.cs" />
+    <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputCh3TestView.cs" />
     <Compile Include="Views\SingleBoardTest\AirController\A28vOc400mACh1TestView.xaml.cs">
       <DependentUpon>A28vOc400mACh1TestView.xaml</DependentUpon>
     </Compile>
@@ -1528,6 +1534,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputTestView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="Views\SingleBoardTest\AirController\A28vOc400mACh1TestView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -1617,6 +1627,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\SingleBoardTest\AirController\S_C_8_9_9View.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\A28vOc400mADiscreteOutputTestView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
