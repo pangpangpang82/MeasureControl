@@ -276,7 +276,7 @@
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     FontSize="12"
-                                    Text="0x00 01 00 01 00 00 00 00" />
+                                    Text="0x30 01 01 01 00 00 00 00" />
                             </Border>
 
                             <Button
@@ -317,49 +317,6 @@
                                     </ControlTemplate>
                                 </Button.Template>
                             </Button>
-                        </StackPanel>
-
-                        <StackPanel
-                            Grid.Row="1"
-                            Margin="115,5,5,5"
-                            Orientation="Horizontal">
-                            <TextBlock
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="RX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding EnterAtpRxChannel}" />
-                            </Border>
-
-                            <Border
-                                Width="220"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding EnterAtpRxDataText}" />
-                            </Border>
                         </StackPanel>
                     </Grid>
 
@@ -405,7 +362,7 @@
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     FontSize="12"
-                                    Text="0x13 01 01 01 00 00 00 00" />
+                                    Text="0x04 01 01 01 00 00 00 00" />
                             </Border>
 
                             <Button
@@ -460,7 +417,7 @@
                                 Margin="10,0,0,0"
                                 VerticalAlignment="Center"
                                 FontSize="16"
-                                Text="发送接收指令：" />
+                                Text="发送AB_A429ARX5_RECEIVE：" />
                             <TextBlock
                                 VerticalAlignment="Center"
                                 FontSize="14"
@@ -541,9 +498,10 @@
 
                         <StackPanel
                             Grid.Row="1"
-                            Margin="115,5,5,5"
+                            Margin="150,5,5,5"
                             Orientation="Horizontal">
                             <TextBlock
+                                Margin="10,0,0,0"
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Text="RX" />
@@ -630,7 +588,7 @@
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     FontSize="12"
-                                    Text="0x00 02 00 01 00 00 00 01" />
+                                    Text="0x30 02 02 01 00 00 00 00" />
                             </Border>
 
                             <Button
@@ -671,49 +629,6 @@
                                     </ControlTemplate>
                                 </Button.Template>
                             </Button>
-                        </StackPanel>
-
-                        <StackPanel
-                            Grid.Row="1"
-                            Margin="115,5,5,5"
-                            Orientation="Horizontal">
-                            <TextBlock
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="RX" />
-                            <Border
-                                Width="100"
-                                Height="28"
-                                Margin="5,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding ExitAtpRxChannel}" />
-                            </Border>
-
-                            <Border
-                                Width="220"
-                                Height="28"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center"
-                                Background="AliceBlue"
-                                BorderBrush="#D9D9D9"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                                <TextBlock
-                                    Margin="1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="12"
-                                    Text="{Binding ExitAtpRxDataText}" />
-                            </Border>
                         </StackPanel>
                     </Grid>
 

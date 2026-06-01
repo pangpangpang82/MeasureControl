@@ -217,37 +217,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private async Task<byte[]> WaitBenchData8ForExpectedAsync(string benchRxChannel, int timeoutMs, CancellationToken token)
-        {
-            var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
-
-            while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
-            {
-                int remainingMs = (int)Math.Max(100, (deadline - DateTime.UtcNow).TotalMilliseconds);
-
-                var resp8 = await _simulation.WaitBenchData8Async(
-                    benchRxChannel,
-                    Label50,
-                    Label51,
-                    Label52,
-                    Label53,
-                    timeoutMs: remainingMs,
-                    log: msg => AddLog(msg),
-                    token: token);
-
-                if (resp8 == null || resp8.Length != 8)
-                    return null;
-
-                var data4 = resp8.Take(4).ToArray();
-                if (data4.SequenceEqual(ExpectedData4))
-                    return resp8;
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 收到非期望数据={FormatBytesHexCompact(resp8)}，继续等待期望数据={FormatBytesHexCompact(ExpectedData4)}");
-            }
-
-            return null;
-        }
-
         private void OnManualTest()
         {
             if (IsManualTestRunning)
@@ -461,7 +430,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, SArinc429OutCommand8, msg => AddLog(msg), CancellationToken.None);
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 等待接收数据(LABEL0x{Label50:X2}/0x{Label51:X2}/0x{Label52:X2}/0x{Label53:X2})...");
-                    var resp8 = await WaitBenchData8ForExpectedAsync(TestRxChannel, timeoutMs: 1200, token: CancellationToken.None);
+                    var resp8 = await _simulation.WaitBenchData8Async(
+                        TestRxChannel,
+                        Label50,
+                        Label51,
+                        Label52,
+                        Label53,
+                        timeoutMs: 1200,
+                        log: msg => AddLog(msg),
+                        token: CancellationToken.None);
 
                     if (resp8 == null || resp8.Length != 8)
                     {
@@ -631,7 +608,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤3：接收四包数据(LABEL0x{Label50:X2}/0x{Label51:X2}/0x{Label52:X2}/0x{Label53:X2})");
                     CurrentStepImage = CreateImageSource("/Resources/Logo/communicate.png");
-                    var resp8 = await WaitBenchData8ForExpectedAsync(TestRxChannel, timeoutMs: 1200, token: token);
+                    var resp8 = await _simulation.WaitBenchData8Async(
+                        TestRxChannel,
+                        Label50,
+                        Label51,
+                        Label52,
+                        Label53,
+                        timeoutMs: 1200,
+                        log: msg => AddLog(msg),
+                        token: token);
 
                     if (resp8 == null || resp8.Length != 8)
                     {

@@ -250,7 +250,75 @@
     <Compile Include="Services\MatrixSwitchTcpServerAutoStartService.cs" />
     <Compile Include="Helpers\**\*.cs" />
     <Compile Include="Drivers\**\*.cs" />
-    <Compile Include="Simulations\**\*.cs" />
+    <Compile Include="Simulations\AC_6_4\AC_6_4Simulation.cs" />
+    <Compile Include="Simulations\AirController\A_C_7_1Simulation.cs" />
+    <Compile Include="Simulations\AirController\A_C_8_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_10_1_1\A_C_6_10_1_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_10_2_1\A_C_6_10_2_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_10_3_1\A_C_6_10_3_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_10_4_1\A_C_6_10_4_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_10_5_1\A_C_6_10_5_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_10_6_1\A_C_6_10_6_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_10_7_1\A_C_6_10_7_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_11_1_1\A_C_6_11_1_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_12_1_1\A_C_6_12_1_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_13_1_1\A_C_6_13_1_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_15_1_1\A_C_6_15_1_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_15_1_2\A_C_6_15_1_2Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_15_2_1\A_C_6_15_2_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_15_2_2\A_C_6_15_2_2Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_16_1_1_1\A_C_6_16_1_1_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_16_1_1_2\A_C_6_16_1_1_2Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_16_3_1\A_C_6_16_3_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_17_1_2\A_C_6_17_1_2Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_17_2_2\A_C_6_17_2_2Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_17_3_2\A_C_6_17_3_2Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_17_4_1\A_C_6_17_4_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_17_4_2\A_C_6_17_4_2Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_18_1_1\A_C_6_18_1_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_18_2_1\A_C_6_18_2_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_18_3_1\A_C_6_18_3_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_18_4_1\A_C_6_18_4_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_5_1_1\A_C_6_5_1_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_5_1_2\A_C_6_5_1_2Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_5_2_1\A_C_6_5_2_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_5_2_2\A_C_6_5_2_2Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_5_2_3\A_C_6_5_2_3Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_5_2_4\A_C_6_5_2_4Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_5_2_5\A_C_6_5_2_5Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_5_2_6\A_C_6_5_2_6Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_9_1_1\A_C_6_9_1_1Simulation.cs" />
+    <Compile Include="Simulations\A_C_6_9_2_1\A_C_6_9_2_1Simulation.cs" />
+    <Compile Include="Simulations\Common\ARINC429SimulationBase.cs" />
+    <Compile Include="Simulations\Common\MultiLabelCommandAssembler.cs" />
+    <Compile Include="Simulations\FuelController\DiscreteInputSimulation.cs" />
+    <Compile Include="Simulations\FuelController\DiscreteOutputSimulation.cs" />
+    <Compile Include="Simulations\FuelController\LowVoltageAlarmSimulation.cs" />
+    <Compile Include="Simulations\FuelController\PowerImpedanceSimulation.cs" />
+    <Compile Include="Simulations\FuelController\RS422CommunicationFunctionSimulation.cs" />
+    <Compile Include="Simulations\FuelController\RS422SelfCheckSimulation.cs" />
+    <Compile Include="Simulations\FuelController\SecondaryPowerSimulation.cs" />
+    <Compile Include="Simulations\FuelController\TemperatureAcquisitionSimulation.cs" />
+    <Compile Include="Simulations\PT500\PT500TemperatureSensor429Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_2\R_6_8_2Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_3\R_6_8_3Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_4\R_6_8_4Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_5\R_6_8_5Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_6\R_6_8_6Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_7\R_6_8_7Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_8\R_6_8_8Simulation.cs" />
+    <Compile Include="Simulations\R_6_8_9\R_6_8_9Simulation.cs" />
+    <Compile Include="Simulations\S_C_6_13_2_1\S_C_6_13_2_1Simulation.cs" />
+    <Compile Include="Simulations\S_C_8_3_1\S_C_8_3_1Simulation.cs" />
+    <Compile Include="Simulations\S_C_8_3_2\S_C_8_3_2Simulation.cs" />
+    <Compile Include="Simulations\S_C_8_3_3\S_C_8_3_3Simulation.cs" />
+    <Compile Include="Simulations\S_C_8_5_1\S_C_8_5_1Simulation.cs" />
+    <Compile Include="Simulations\S_C_8_5_2\S_C_8_5_2Simulation.cs" />
+    <Compile Include="Simulations\S_C_8_6_1\S_C_8_6_1Simulation.cs" />
+    <Compile Include="Simulations\S_C_8_6_2\S_C_8_6_2Simulation.cs" />
+    <Compile Include="Simulations\S_C_8_7_1\S_C_8_7_1Simulation.cs" />
+    <Compile Include="Simulations\S_C_8_7_2\S_C_8_7_2Simulation.cs" />
+    <Compile Include="Simulations\S_C_8_7_3\S_C_8_7_3Simulation.cs" />
     <Compile Include="ViewModels\**\*.cs" />
     <Compile Include="Views\**\*.cs" Exclude="Views\**\*.xaml.cs;Views\**\*.Designer.cs" />
     <Compile Include="Views\Common\FloatingWindow.xaml.cs">
@@ -1415,9 +1483,29 @@
     <Compile Include="Views\SingleBoardTest\AirController\S_C_8_9_9View.xaml.cs">
       <DependentUpon>S_C_8_9_9View.xaml</DependentUpon>
     </Compile>
-    <Page Include="Views\SingleBoardTest\AirController\R_6_8_9View.xaml">
-      <Generator>MSBuild:Compile</Generator>
+    <Page Include="Views\SingleBoardTest\AirController\R_6_8_8View.xaml">
       <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\R_6_8_3View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\R_6_8_4View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\R_6_8_5View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\R_6_8_6View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SingleBoardTest\AirController\R_6_8_9View.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\SingleBoardTest\AirController\S_C_6_13_2_1View.xaml">
       <Generator>MSBuild:Compile</Generator>
