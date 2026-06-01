@@ -488,13 +488,12 @@
 
                     <StackPanel>
 
-                        <Grid Margin="0,0,0,8">
+                        <Grid Margin="0,5,0,18">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="150" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="*" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
@@ -506,7 +505,7 @@
                                     <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding TestTxChannel}" />
                                 </Border>
                                 <Border Width="220" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x00 01 00 01 00 00 00 00" />
+                                    <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x30 01 01 01 00 00 00 00" />
                                 </Border>
                                 <Button Width="50" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding SendEnterAtpCommand}" IsEnabled="{Binding IsManualTestRunning}">
                                     <Button.Template>
@@ -532,34 +531,20 @@
                                     </Button.Template>
                                 </Button>
                             </StackPanel>
-
-                            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,12,0,0" Orientation="Horizontal">
-                                <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                <Border Width="100" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding TestRxChannel}" />
-                                </Border>
-                                <Border Width="220" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxDataText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                </Border>
-                            </StackPanel>
-
                         </Grid>
 
-                        <Border Height="1" Margin="0,2,0,2" Background="#E5E7EB" />
-
-                        <Grid Margin="0,8,0,8">
+                        <Grid Margin="0,18,0,18">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="150" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="AB_MOTORTCV_SPEED1：" />
-                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="10,6,0,8" VerticalAlignment="Center" FontSize="16" Text="AB_MOTORTCV_SPEED1：" />
+                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,6,0,8">
                                 <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
                                 <Border Width="100" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
                                     <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding TestTxChannel}" />
@@ -592,8 +577,8 @@
                                 </Button>
                             </StackPanel>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Grid.RowSpan="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="测量结果：" />
-                            <Grid Grid.Row="1" Grid.Column="1" Grid.RowSpan="2" Margin="0,12,0,0">
+                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="10,8,0,6" VerticalAlignment="Center" FontSize="16" Text="测量结果：" />
+                            <Grid Grid.Row="1" Grid.Column="1" Margin="0,8,0,6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width=" auto" />
                                     <ColumnDefinition Width="70" />
@@ -643,15 +628,12 @@
 
                         </Grid>
 
-                        <Border Height="1" Margin="0,2,0,2" Background="#E5E7EB" />
-
-                        <Grid Margin="0,8,0,0">
+                        <Grid Margin="0,18,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="150" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="*" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
@@ -663,7 +645,7 @@
                                     <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding TestTxChannel}" />
                                 </Border>
                                 <Border Width="220" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x00 02 00 01 00 00 00 01" />
+                                    <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x30 02 02 01 00 00 00 00" />
                                 </Border>
                                 <Button Width="50" Height="28" Margin="15,0,0,0" VerticalAlignment="Center" BorderThickness="0" Command="{Binding SendExitAtpCommand}" IsEnabled="{Binding IsManualTestRunning}">
                                     <Button.Template>
@@ -689,17 +671,6 @@
                                     </Button.Template>
                                 </Button>
                             </StackPanel>
-
-                            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,12,0,0" Orientation="Horizontal">
-                                <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                <Border Width="100" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding TestRxChannel}" />
-                                </Border>
-                                <Border Width="220" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding ExitAtpRxDataText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                </Border>
-                            </StackPanel>
-
                         </Grid>
 
                     </StackPanel>
