@@ -104,6 +104,41 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
+        private async Task<byte[]> SendAndReadWithRetryAsync(byte[] sendCmd, Func<byte[], bool> predicate, int timeoutMs, CancellationToken token)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                // 等待残留的硬件报文到达，避免清除不完全
+                await Task.Delay(200, token);
+                try { await _arinc.ClearRxFifoAsync(RxChannel); } catch { }
+                await Task.Delay(50, token);
+
+                await _arinc.SendBenchCommandOnlyAsync(TxChannel, sendCmd, msg => { }, token);
+                
+                try
+                {
+                    var resp = await _arinc.WaitBenchResponse8Async(
+                        RxChannel,
+                        predicate,
+                        timeoutMs,
+                        msg => { },
+                        token);
+
+                    if (resp != null)
+                    {
+                        return resp;
+                    }
+                }
+                catch (TimeoutException)
+                {
+                    // 内部抛出超时异常则捕获并进入下一次重试
+                }
+                
+                AddLog("[{DateTime.Now:HH:mm:ss}] 响应超时或未匹配，正在重试第 {i + 1}/3 次...");
+            }
+            throw new TimeoutException("多次重试均未收到预期响应包，请检查硬件连接或时序");
+        }
+
         private async Task RunAutoTestAsync()
         {
             await _opLock.WaitAsync();
@@ -119,7 +154,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoCts = new CancellationTokenSource();
                 var token = _autoCts.Token;
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试开始");
+                AddLog("[{DateTime.Now:HH:mm:ss}] 自动测试开始");
 
                 try { await _arinc.StopAsync(msg => { }); } catch { }
                 await Task.Delay(100, token);
@@ -127,7 +162,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _arinc.IsRealProduct = true;
                 _arinc.ArincRate = 100000.0;
                 await _arinc.StartAsync(TxChannel, RxChannel, msg => AddLog(msg));
-                AddLog($"[{DateTime.Now:HH:mm:ss}] ARINC429初始化完成 (TX:{TxChannel}, RX:{RxChannel})");
+                AddLog("[{DateTime.Now:HH:mm:ss}] ARINC429初始化完成 (TX:{TxChannel}, RX:{RxChannel})");
 
                 for (int i = 0; i < 3; i++)
                 {
@@ -136,10 +171,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
 
                 // (1) 429发送指令0x30 01 01 01 00 00 00 00进入ATP模式；
-                AddLog($"[{DateTime.Now:HH:mm:ss}] (1) 发送进入ATP：{FormatBytesHex(AtpEnterCommand)}");
+                AddLog("[{DateTime.Now:HH:mm:ss}] (1) 发送进入ATP：{FormatBytesHex(AtpEnterCommand)}");
                 await _arinc.SendBenchCommandOnlyAsync(TxChannel, AtpEnterCommand, msg => AddLog(msg), token);
                 await Task.Delay(300, token);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] ATP指令已发送");
+                AddLog("[{DateTime.Now:HH:mm:ss}] ATP指令已发送");
 
                 // (2) - (5) 接地测试阶段
                 await TestGndPhaseAsync(token);
@@ -148,26 +183,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 await TestOcPhaseAsync(token);
 
                 // 退出ATP
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送退出ATP：{FormatBytesHex(AtpExitCommand)}");
+                AddLog("[{DateTime.Now:HH:mm:ss}] 发送退出ATP：{FormatBytesHex(AtpExitCommand)}");
                 await _arinc.SendBenchCommandOnlyAsync(TxChannel, AtpExitCommand, msg => AddLog(msg), token);
                 await Task.Delay(100, token);
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP完成");
+                AddLog("[{DateTime.Now:HH:mm:ss}] 退出ATP完成");
 
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 LastTestResult = "PASS";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试完成：PASS");
+                AddLog("[{DateTime.Now:HH:mm:ss}] 自动测试完成：PASS");
             }
             catch (OperationCanceledException)
             {
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 LastTestResult = "已停止";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试已停止");
+                AddLog("[{DateTime.Now:HH:mm:ss}] 自动测试已停止");
             }
             catch (Exception ex)
             {
                 LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 LastTestResult = "FAIL";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试异常：{ex.Message}");
+                AddLog("[{DateTime.Now:HH:mm:ss}] 自动测试异常：{ex.Message}");
             }
             finally
             {
@@ -187,107 +222,63 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private async Task TestGndPhaseAsync(CancellationToken token)
         {
             // (2) 429发送测试指令A_GNDDSO1_GNDTEST 0x09 01 01 01 00 00 00 00
-            try { await _arinc.ClearRxFifoAsync(RxChannel); } catch { }
-            await Task.Delay(20, token);
-
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (2) 发送A_GNDDSO1_GNDTEST：{FormatBytesHex(A_GNDDSO1_GNDTEST)}");
-            await _arinc.SendBenchCommandOnlyAsync(TxChannel, A_GNDDSO1_GNDTEST, msg => AddLog(msg), token);
-
-            // (3) 上位机收到软件回复指令0x09 01 01 02 AA AA AA AA
-            var ackResp = await _arinc.WaitBenchResponse8Async(
-                RxChannel,
+            AddLog("[{DateTime.Now:HH:mm:ss}] (2) 发送A_GNDDSO1_GNDTEST：{FormatBytesHex(A_GNDDSO1_GNDTEST)}");
+            var ackResp = await SendAndReadWithRetryAsync(
+                A_GNDDSO1_GNDTEST,
                 b => b != null && b.SequenceEqual(A_GNDDSO1_GNDTEST_ACK),
-                timeoutMs: 2000,
-                msg => AddLog(msg),
+                2000,
                 token);
-
-            if (ackResp == null)
-                throw new TimeoutException("A_GNDDSO1_GNDTEST ACK超时");
-
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (3) 收到GNDTEST ACK：0x{FormatBytesHex(ackResp)}");
+            AddLog("[{DateTime.Now:HH:mm:ss}] (3) 收到GNDTEST ACK：0x{FormatBytesHex(ackResp)}");
 
             // (4) 429发送测试指令A_GNDDSO1_GNDTEST2 0x09 01 01 03 00 00 00 00；
-            try { await _arinc.ClearRxFifoAsync(RxChannel); } catch { }
-            await Task.Delay(20, token);
-
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (4) 发送A_GNDDSO1_GNDTEST2：{FormatBytesHex(A_GNDDSO1_GNDTEST2)}");
-            await _arinc.SendBenchCommandOnlyAsync(TxChannel, A_GNDDSO1_GNDTEST2, msg => AddLog(msg), token);
-
-            // (5) 判读对应离散输入接收回绕指令0x09 01 01 04 00 00 AA AA
-            var loopResp = await _arinc.WaitBenchResponse8Async(
-                RxChannel,
+            AddLog("[{DateTime.Now:HH:mm:ss}] (4) 发送A_GNDDSO1_GNDTEST2：{FormatBytesHex(A_GNDDSO1_GNDTEST2)}");
+            var loopResp = await SendAndReadWithRetryAsync(
+                A_GNDDSO1_GNDTEST2,
                 b => b != null && b.Length == 8 && b[0] == 0x09 && b[1] == 0x01 && b[2] == 0x01 && b[3] == 0x04,
-                timeoutMs: 2000,
-                msg => AddLog(msg),
+                2000,
                 token);
-
-            if (loopResp == null)
-                throw new TimeoutException("GND回绕指令超时");
-
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (5) 收到GND回绕指令：0x{FormatBytesHex(loopResp)}");
+            AddLog("[{DateTime.Now:HH:mm:ss}] (5) 收到GND回绕指令：0x{FormatBytesHex(loopResp)}");
 
             // 判读lable14数据位为AA AA
             ushort data14 = (ushort)((loopResp[7] << 8) | loopResp[6]);
             GndLabel14ActualText = $"{data14:X4}";
-            AddLog($"[{DateTime.Now:HH:mm:ss}] GND label14实际值：0x{data14:X4}");
+            AddLog("[{DateTime.Now:HH:mm:ss}] GND label14实际值：0x{data14:X4}");
 
             if (data14 != 0xAAAA)
-                throw new InvalidOperationException($"GND回采数据不符：期望0xAAAA，实际0x{data14:X4}");
+                throw new InvalidOperationException("GND回采数据不符：期望0xAAAA，实际0x{data14:X4}");
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] GND回采判读：PASS");
+            AddLog("[{DateTime.Now:HH:mm:ss}] GND回采判读：PASS");
         }
 
         private async Task TestOcPhaseAsync(CancellationToken token)
         {
             // (6) 429发送测试指令A_GNDDSO1_OCTEST 0x09 01 01 06 00 00 00 00
-            try { await _arinc.ClearRxFifoAsync(RxChannel); } catch { }
-            await Task.Delay(20, token);
-
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (6) 发送A_GNDDSO1_OCTEST：{FormatBytesHex(A_GNDDSO1_OCTEST)}");
-            await _arinc.SendBenchCommandOnlyAsync(TxChannel, A_GNDDSO1_OCTEST, msg => AddLog(msg), token);
-
-            // 上位机收到软件回复指令0x09 01 01 07 AA AA AA AA
-            var ackResp = await _arinc.WaitBenchResponse8Async(
-                RxChannel,
+            AddLog("[{DateTime.Now:HH:mm:ss}] (6) 发送A_GNDDSO1_OCTEST：{FormatBytesHex(A_GNDDSO1_OCTEST)}");
+            var ackResp = await SendAndReadWithRetryAsync(
+                A_GNDDSO1_OCTEST,
                 b => b != null && b.SequenceEqual(A_GNDDSO1_OCTEST_ACK),
-                timeoutMs: 2000,
-                msg => AddLog(msg),
+                2000,
                 token);
-
-            if (ackResp == null)
-                throw new TimeoutException("A_GNDDSO1_OCTEST ACK超时");
-
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (6) 收到OCTEST ACK：0x{FormatBytesHex(ackResp)}");
+            AddLog("[{DateTime.Now:HH:mm:ss}] (6) 收到OCTEST ACK：0x{FormatBytesHex(ackResp)}");
 
             // (7) 429发送测试指令A_GNDDSO1_OCTEST2 0x09 01 01 08 00 00 00 00；
-            try { await _arinc.ClearRxFifoAsync(RxChannel); } catch { }
-            await Task.Delay(20, token);
-
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (7) 发送A_GNDDSO1_OCTEST2：{FormatBytesHex(A_GNDDSO1_OCTEST2)}");
-            await _arinc.SendBenchCommandOnlyAsync(TxChannel, A_GNDDSO1_OCTEST2, msg => AddLog(msg), token);
-
-            // (8) 判读对应离散输入接收回绕指令0x09 01 01 09 00 00 55 55
-            var loopResp = await _arinc.WaitBenchResponse8Async(
-                RxChannel,
+            AddLog("[{DateTime.Now:HH:mm:ss}] (7) 发送A_GNDDSO1_OCTEST2：{FormatBytesHex(A_GNDDSO1_OCTEST2)}");
+            var loopResp = await SendAndReadWithRetryAsync(
+                A_GNDDSO1_OCTEST2,
                 b => b != null && b.Length == 8 && b[0] == 0x09 && b[1] == 0x01 && b[2] == 0x01 && b[3] == 0x09,
-                timeoutMs: 2000,
-                msg => AddLog(msg),
+                2000,
                 token);
-
-            if (loopResp == null)
-                throw new TimeoutException("OC回绕指令超时");
-
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (8) 收到OC回绕指令：0x{FormatBytesHex(loopResp)}");
+            AddLog("[{DateTime.Now:HH:mm:ss}] (8) 收到OC回绕指令：0x{FormatBytesHex(loopResp)}");
 
             // 判读lable14数据为55 55
             ushort data14 = (ushort)((loopResp[7] << 8) | loopResp[6]);
             OcLabel14ActualText = $"{data14:X4}";
-            AddLog($"[{DateTime.Now:HH:mm:ss}] OC label14实际值：0x{data14:X4}");
+            AddLog("[{DateTime.Now:HH:mm:ss}] OC label14实际值：0x{data14:X4}");
 
             if (data14 != 0x5555)
-                throw new InvalidOperationException($"OC回采数据不符：期望0x5555，实际0x{data14:X4}");
+                throw new InvalidOperationException("OC回采数据不符：期望0x5555，实际0x{data14:X4}");
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] OC回采判读：PASS");
+            AddLog("[{DateTime.Now:HH:mm:ss}] OC回采判读：PASS");
         }
 
         private static string FormatBytesHex(byte[] bytes)
