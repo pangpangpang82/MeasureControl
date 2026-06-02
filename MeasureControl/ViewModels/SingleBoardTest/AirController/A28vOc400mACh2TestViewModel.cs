@@ -1,4 +1,4 @@
-﻿using MeasureControl.Simulations.S_C_8_3_1;
+using MeasureControl.Simulations.S_C_8_3_1;
 using Prism.Commands;
 using Prism.Mvvm;
 using System;
@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
-    public class GndOcDiscreteOutputCh1TestViewModel : BindableBase
+    public class A28vOc400mACh2TestViewModel : BindableBase
     {
         private const string TxChannel = "429_CH5";
         private const string RxChannel = "429_CH2";
@@ -17,12 +17,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] AtpEnterCommand = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] AtpExitCommand = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
-        private static readonly byte[] A_GNDDSO1_GNDTEST = { 0x09, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] A_GNDDSO1_GNDTEST_ACK = { 0x09, 0x01, 0x01, 0x02, 0xAA, 0xAA, 0xAA, 0xAA };
-        private static readonly byte[] A_GNDDSO1_GNDTEST2 = { 0x09, 0x01, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] A_GNDDSO1_OCTEST = { 0x09, 0x01, 0x01, 0x06, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] A_GNDDSO1_OCTEST_ACK = { 0x09, 0x01, 0x01, 0x07, 0xAA, 0xAA, 0xAA, 0xAA };
-        private static readonly byte[] A_GNDDSO1_OCTEST2 = { 0x09, 0x01, 0x01, 0x08, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] A_28VDSOH_28VTEST = { 0x09, 0x04, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] A_28VDSOH_28VTEST_ACK = { 0x09, 0x04, 0x02, 0x02, 0xAA, 0xAA, 0xAA, 0xAA };
+        private static readonly byte[] A_28VDSOH_28VTEST2 = { 0x09, 0x04, 0x02, 0x03, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] A_28VDSOH_OCTEST = { 0x09, 0x04, 0x02, 0x06, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] A_28VDSOH_OCTEST_ACK = { 0x09, 0x04, 0x02, 0x07, 0xAA, 0xAA, 0xAA, 0xAA };
+        private static readonly byte[] A_28VDSOH_OCTEST2 = { 0x09, 0x04, 0x02, 0x08, 0x00, 0x00, 0x00, 0x00 };
 
         private readonly S_C_8_3_1Simulation _arinc = new S_C_8_3_1Simulation();
         private readonly SemaphoreSlim _opLock = new SemaphoreSlim(1, 1);
@@ -34,26 +34,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
 
-        private string _gndLabel14ActualText = "--";
+        private string _v28Label14ActualText = "--";
         private string _ocLabel14ActualText = "--";
 
-        public GndOcDiscreteOutputCh1TestViewModel()
+        public A28vOc400mACh2TestViewModel()
         {
             AutoTestCommand = new DelegateCommand(OnAutoTest);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
         }
 
-        public string PageTitle => "6.15.1.1GND/OC型离散输出通道1输出测试";
+        public string PageTitle => "6.15.3.2 28V/OC型400mA离散输出通道2输出测试";
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
 
         public DelegateCommand AutoTestCommand { get; }
         public DelegateCommand ClearLogCommand { get; }
 
-        public string GndLabel14ActualText
+        public string V28Label14ActualText
         {
-            get => _gndLabel14ActualText;
-            set => SetProperty(ref _gndLabel14ActualText, value);
+            get => _v28Label14ActualText;
+            set => SetProperty(ref _v28Label14ActualText, value);
         }
 
         public string OcLabel14ActualText
@@ -82,7 +82,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private void ClearContent()
         {
-            GndLabel14ActualText = "--";
+            V28Label14ActualText = "--";
             OcLabel14ActualText = "--";
         }
 
@@ -108,7 +108,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             for (int i = 0; i < 3; i++)
             {
-                // 等待残留的硬件报文到达，避免清除不完全
                 await Task.Delay(200, token);
                 try { await _arinc.ClearRxFifoAsync(RxChannel); } catch { }
                 await Task.Delay(50, token);
@@ -131,7 +130,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 catch (TimeoutException)
                 {
-                    // 内部抛出超时异常则捕获并进入下一次重试
                 }
                 
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 响应超时或未匹配，正在重试第 {i + 1}/3 次...");
@@ -176,10 +174,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 await Task.Delay(300, token);
                 AddLog($"[{DateTime.Now:HH:mm:ss}] ATP指令已发送");
 
-                // (2) - (5) 接地测试阶段
-                await TestGndPhaseAsync(token);
+                // (2) - (5) 28V测试阶段
+                await Test28vPhaseAsync(token);
 
-                // (6) - (8) 接开测试阶段
+                // (6) - (8) OC测试阶段
                 await TestOcPhaseAsync(token);
 
                 // 退出ATP
@@ -219,64 +217,68 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private async Task TestGndPhaseAsync(CancellationToken token)
+        private async Task Test28vPhaseAsync(CancellationToken token)
         {
-            // (2) 429发送测试指令A_GNDDSO1_GNDTEST 0x09 01 01 01 00 00 00 00
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (2) 发送A_GNDDSO1_GNDTEST：{FormatBytesHex(A_GNDDSO1_GNDTEST)}");
+            // (2) 429发送测试指令A_28VDSOH_28VTEST 0x09 04 02 01 00 00 00 00
+            AddLog($"[{DateTime.Now:HH:mm:ss}] (2) 发送A_28VDSOH_28VTEST：{FormatBytesHex(A_28VDSOH_28VTEST)}");
             var ackResp = await SendAndReadWithRetryAsync(
-                A_GNDDSO1_GNDTEST,
-                b => b != null && b.SequenceEqual(A_GNDDSO1_GNDTEST_ACK),
+                A_28VDSOH_28VTEST,
+                b => b != null && b.SequenceEqual(A_28VDSOH_28VTEST_ACK),
                 2000,
                 token);
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (3) 收到GNDTEST ACK：0x{FormatBytesHex(ackResp)}");
+            AddLog($"[{DateTime.Now:HH:mm:ss}] (3) 收到28VTEST ACK：0x{FormatBytesHex(ackResp)}");
 
-            // (4) 429发送测试指令A_GNDDSO1_GNDTEST2 0x09 01 01 03 00 00 00 00；
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (4) 发送A_GNDDSO1_GNDTEST2：{FormatBytesHex(A_GNDDSO1_GNDTEST2)}");
+            // (4) 429发送测试指令A_28VDSOH_28VTEST2 0x09 04 02 03 00 00 00 00；
+            AddLog($"[{DateTime.Now:HH:mm:ss}] (4) 发送A_28VDSOH_28VTEST2：{FormatBytesHex(A_28VDSOH_28VTEST2)}");
             var loopResp = await SendAndReadWithRetryAsync(
-                A_GNDDSO1_GNDTEST2,
-                b => b != null && b.Length == 8 && b[0] == 0x09 && b[1] == 0x01 && b[2] == 0x01 && b[3] == 0x04,
+                A_28VDSOH_28VTEST2,
+                b => b != null && b.Length == 8 && b[0] == 0x09 && b[1] == 0x04 && b[2] == 0x02 && b[3] == 0x04,
                 2000,
                 token);
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (5) 收到GND回绕指令：0x{FormatBytesHex(loopResp)}");
+            AddLog($"[{DateTime.Now:HH:mm:ss}] (5) 收到28V回绕指令：0x{FormatBytesHex(loopResp)}");
 
-            // 判读lable14数据位为AA AA
+            // 判读lable14数据位为55 55
             ushort data14 = (ushort)((loopResp[7] << 8) | loopResp[6]);
-            GndLabel14ActualText = $"{data14:X4}";
-            AddLog($"[{DateTime.Now:HH:mm:ss}] GND label14实际值：0x{data14:X4}");
+            V28Label14ActualText = $"{data14:X4}";
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 28V label14实际值：0x{data14:X4}");
 
-            if (data14 != 0xAAAA)
-                throw new InvalidOperationException($"GND回采数据不符：期望0xAAAA，实际0x{data14:X4}");
+            if (data14 != 0x5555)
+                throw new InvalidOperationException($"28V回采数据不符：期望0x5555，实际0x{data14:X4}");
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] GND回采判读：PASS");
+            // 返回的有8帧数据，这里只判断前四帧，为了避免影响后续测试，显式舍弃后四帧（清理FIFO）
+            await Task.Delay(100, token);
+            try { await _arinc.ClearRxFifoAsync(RxChannel); } catch { }
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 28V回采判读：PASS");
         }
 
         private async Task TestOcPhaseAsync(CancellationToken token)
         {
-            // (6) 429发送测试指令A_GNDDSO1_OCTEST 0x09 01 01 06 00 00 00 00
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (6) 发送A_GNDDSO1_OCTEST：{FormatBytesHex(A_GNDDSO1_OCTEST)}");
+            // (6) 429发送测试指令A_28VDSOH_OCTEST 0x09 04 02 06 00 00 00 00
+            AddLog($"[{DateTime.Now:HH:mm:ss}] (6) 发送A_28VDSOH_OCTEST：{FormatBytesHex(A_28VDSOH_OCTEST)}");
             var ackResp = await SendAndReadWithRetryAsync(
-                A_GNDDSO1_OCTEST,
-                b => b != null && b.SequenceEqual(A_GNDDSO1_OCTEST_ACK),
+                A_28VDSOH_OCTEST,
+                b => b != null && b.SequenceEqual(A_28VDSOH_OCTEST_ACK),
                 2000,
                 token);
             AddLog($"[{DateTime.Now:HH:mm:ss}] (6) 收到OCTEST ACK：0x{FormatBytesHex(ackResp)}");
 
-            // (7) 429发送测试指令A_GNDDSO1_OCTEST2 0x09 01 01 08 00 00 00 00；
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (7) 发送A_GNDDSO1_OCTEST2：{FormatBytesHex(A_GNDDSO1_OCTEST2)}");
+            // (7) 429发送测试指令A_28VDSOH_OCTEST2 0x09 04 02 08 00 00 00 00；
+            AddLog($"[{DateTime.Now:HH:mm:ss}] (7) 发送A_28VDSOH_OCTEST2：{FormatBytesHex(A_28VDSOH_OCTEST2)}");
             var loopResp = await SendAndReadWithRetryAsync(
-                A_GNDDSO1_OCTEST2,
-                b => b != null && b.Length == 8 && b[0] == 0x09 && b[1] == 0x01 && b[2] == 0x01 && b[3] == 0x09,
+                A_28VDSOH_OCTEST2,
+                b => b != null && b.Length == 8 && b[0] == 0x09 && b[1] == 0x04 && b[2] == 0x02 && b[3] == 0x09,
                 2000,
                 token);
             AddLog($"[{DateTime.Now:HH:mm:ss}] (8) 收到OC回绕指令：0x{FormatBytesHex(loopResp)}");
 
-            // 判读lable14数据为55 55
+            // 判读lable14数据为AA AA
             ushort data14 = (ushort)((loopResp[7] << 8) | loopResp[6]);
             OcLabel14ActualText = $"{data14:X4}";
             AddLog($"[{DateTime.Now:HH:mm:ss}] OC label14实际值：0x{data14:X4}");
 
-            if (data14 != 0x5555)
-                throw new InvalidOperationException($"OC回采数据不符：期望0x5555，实际0x{data14:X4}");
+            if (data14 != 0xAAAA)
+                throw new InvalidOperationException($"OC回采数据不符：期望0xAAAA，实际0x{data14:X4}");
 
             AddLog($"[{DateTime.Now:HH:mm:ss}] OC回采判读：PASS");
         }

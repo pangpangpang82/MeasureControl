@@ -45,13 +45,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "7.1功率板电源对地阻抗测试", () => new A_C_7_1View() },
                 { "6.4控制通道光耦供电测试", () => new AC_6_4() },
                 { "6.14.1控制通道GND/OC离散输入通道输入测试", () => new GndOcDiscreteInputTestView() },
-                { "6.15.1.1GND/OC型离散输出通道3输出测试", () => new GndOcDiscreteOutputCh3TestView() },
+                { "6.15.1.1GND/OC型离散输出通道1输出测试", () => new GndOcDiscreteOutputCh1TestView() },
                 { "6.15.1.2GND/OC型100mA离散输出通道2输出测试", () => new GndOcDiscreteOutputCh2TestView() },
                 { "6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试", () => new A28vOc100mADiscreteOutputCh1TestView() },
                 { "6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试", () => new A28vOc100mADiscreteOutputCh2TestView() },
-                { "6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试", () => new A28vOc400mADiscreteOutputCh1TestView() },
-                { "6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试", () => new A28vOc400mADiscreteOutputCh2TestView() },
-                { "6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试", () => new A28vOc400mADiscreteOutputCh3TestView() },
+                { "6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试", () => new A28vOc400mACh1TestView() },
+                { "6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试", () => new A28vOc400mACh2TestView() },
+                { "6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试", () => new A28vOc400mACh3TestView() },
                 { "6.8.1控制通道PDTS传感器测试", () => new PT500TemperatureSensorCommTabView() },
                 { "6.8.2控制通道MIXTS传感器测试", () => new R_6_8_2View() },
                 { "6.8.3控制通道CAR_TS传感器测试", () => new R_6_8_3View() },
@@ -995,7 +995,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.15.2.1 A控制通道功率板AWV直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.2.2 A控制通道功率板AVV直流电机驱动模块方向控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.14.1控制通道GND/OC离散输入通道输入测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.15.1.1GND/OC型离散输出通道3输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.1.1GND/OC型离散输出通道1输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.1.2GND/OC型100mA离散输出通道2输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试"));

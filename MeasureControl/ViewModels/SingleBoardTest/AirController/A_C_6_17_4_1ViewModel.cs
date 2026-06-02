@@ -492,7 +492,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
                     AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送完成（不等待回读）");
-                    SetLastTestResult("PASS");
                 }
                 finally
                 {
@@ -522,55 +521,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             IsBusy = true;
             try
             {
-                await _instrumentLock.WaitAsync();
+                var token = _manualMeasureCts.Token;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测量：开始... ");
+
+                bool pass;
                 try
                 {
-                    var token = _manualMeasureCts.Token;
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 测量：开始... ");
-
-                    var m = await MeasureRawCoreAsync(token);
-                    if (m == null)
-                        return;
-
-                    // Marshal to UI thread synchronously so freq/duty appear BEFORE test result
-                    var freqStr = FormatNum(m.FreqHz);
-                    var dutyStr = FormatNum(m.DutyPct);
-                    try
-                    {
-                        var dispatcher = Application.Current?.Dispatcher;
-                        if (dispatcher != null && !dispatcher.CheckAccess())
-                        {
-                            dispatcher.Invoke(new Action(() =>
-                            {
-                                FreqHzText = freqStr;
-                                DutyPctText = dutyStr;
-                            }));
-                        }
-                        else
-                        {
-                            FreqHzText = freqStr;
-                            DutyPctText = dutyStr;
-                        }
-                    }
-                    catch
-                    {
-                        FreqHzText = freqStr;
-                        DutyPctText = dutyStr;
-                    }
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] UI更新：频率={freqStr}, 占空比={dutyStr}");
+                    pass = await MeasureAndQualifyAsync(token);
                 }
                 catch (OperationCanceledException)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 测量已手动取消/停止");
+                    return;
                 }
                 catch (Exception ex)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 测量异常：{ex.Message}");
+                    SetLastTestResult("FAIL");
+                    return;
                 }
-                finally
-                {
-                    _instrumentLock.Release();
-                }
+
+                SetLastTestResult(pass ? "PASS" : "FAIL");
             }
             finally
             {
