@@ -31,7 +31,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const double QualifyDutyTargetPct = 50.0;
         private const double QualifyDutyTolPct = 5.0;
 
-        private const string FixedTxChannel = "429_CH0";
+        private const string FixedTxChannel = "429_CH5";
         private const string FixedRxChannel = "429_CH2";
 
         private readonly A_C_6_17_4_1Simulation _simulation = new A_C_6_17_4_1Simulation();
@@ -48,6 +48,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool _matrixRouted;
 
         private CancellationTokenSource _autoTestCts;
+        private CancellationTokenSource _manualMeasureCts;
 
         private string _testTxChannel = FixedTxChannel;
         private string _testRxChannel = FixedRxChannel;
@@ -105,11 +106,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string TestTxChannel
         {
             get => _testTxChannel;
+            set => SetProperty(ref _testTxChannel, value);
         }
 
         public string TestRxChannel
         {
             get => _testRxChannel;
+            set => SetProperty(ref _testRxChannel, value);
         }
 
         public string OscilloscopeIpAddress
@@ -186,8 +189,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private void EnsureManualArincChannels()
         {
-            SetProperty(ref _testTxChannel, FixedTxChannel);
-            SetProperty(ref _testRxChannel, FixedRxChannel);
+            TestTxChannel = FixedTxChannel;
+            TestRxChannel = FixedRxChannel;
         }
 
         private void OnManualTest()
@@ -210,19 +213,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
 
             _ = RunAutoTestAsync();
-        }
-
-        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
-        {
-            try
-            {
-                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                if (api != null)
-                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
-            }
-            catch
-            {
-            }
         }
 
         private async Task RunManualTestAsync()
@@ -250,14 +240,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
 
-                    try
-                    {
-                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                        if (api != null)
-                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
-                    }
-                    catch { }
-
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                 }
                 finally
@@ -278,29 +260,49 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task StopManualTestAsync()
         {
-            await _manualTestLock.WaitAsync();
+            try { _manualMeasureCts?.Cancel(); } catch { }
+            try { _manualMeasureCts?.Dispose(); } catch { }
+            _manualMeasureCts = null;
+
+            // Force-close network stream immediately to unblock any pending I/O
+            SafeCloseNetworkStream(ref _scopeTcpStream);
+            SafeCloseTcpClient(ref _scopeTcpClient);
+
+            // Brief delay to let any in-flight I/O settle after stream closure
+            await Task.Delay(100);
+
             try
             {
-                IsBusy = true;
+                await _manualTestLock.WaitAsync();
                 try
                 {
-                    try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
-                    try { await DisconnectInstrumentsAndMatrixAsync(CancellationToken.None); } catch { }
-                    EnterAtpRxDataText = "--";
-                    ExitAtpRxDataText = "--";
-                    ClearMeasurementTexts();
-                    IsManualTestRunning = false;
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试已停止 ==========");
+                    IsBusy = true;
+                    try
+                    {
+                        try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
+                        try { await DisconnectInstrumentsAndMatrixAsync(CancellationToken.None); } catch { }
+                        EnterAtpRxDataText = "--";
+                        ExitAtpRxDataText = "--";
+                        ClearMeasurementTexts();
+                        IsManualTestRunning = false;
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试已停止 ==========");
+                    }
+                    finally
+                    {
+                        IsBusy = false;
+                    }
                 }
                 finally
                 {
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    IsBusy = false;
+                    _manualTestLock.Release();
                 }
             }
-            finally
+            catch (Exception ex)
             {
-                _manualTestLock.Release();
+                // Ensure cleanup even if lock acquisition or other operations fail
+                IsManualTestRunning = false;
+                IsBusy = false;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 停止手动测试异常（已强制清理）：{ex.Message}");
             }
         }
 
@@ -326,14 +328,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 try
                 {
-                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                    if (api != null)
-                        await api.ApplyComponent28VStateAsync(token);
-                }
-                catch { }
-
-                try
-                {
                     EnterAtpRxDataText = "--";
                     ExitAtpRxDataText = "--";
                     ClearMeasurementTexts();
@@ -346,15 +340,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     var failures = new System.Collections.Generic.List<string>();
 
-                    if (!await AutoStepAsync(EnterAtpCommand8, EnterAtpOk8, "进入ATP", token))
+                    if (!await AutoStepAsync(EnterAtpCommand8, EnterAtpOk8, "进入ATP", token, noReadback: true))
                         failures.Add("进入ATP失败");
 
-                    if (!await AutoStepAsync(SupImpedanceCommand8, SupImpedanceCommand8, "AB_MOTORCABTAV_SUPIMPEDANCE", token))
-                        failures.Add("AB_MOTORCABTAV_SUPIMPEDANCE回读失败");
+                    if (!await AutoStepAsync(SupImpedanceCommand8, SupImpedanceCommand8, "AB_MOTORCABTAV_SUPIMPEDANCE", token, noReadback: true))
+                        failures.Add("AB_MOTORCABTAV_SUPIMPEDANCE失败");
                     else if (!await MeasureAndQualifyAsync(token))
                         failures.Add("占空比/频率判据不合格");
 
-                    if (!await AutoStepAsync(ExitAtpCommand8, ExitAtpOk8, "退出ATP", token))
+                    if (!await AutoStepAsync(ExitAtpCommand8, ExitAtpOk8, "退出ATP", token, noReadback: true))
                         failures.Add("退出ATP失败");
 
                     if (failures.Count == 0)
@@ -384,7 +378,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
                     try { await DisconnectInstrumentsAndMatrixAsync(CancellationToken.None); } catch { }
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 }
             }
             finally
@@ -397,25 +390,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task StopAutoTestAsync()
         {
-            await _autoTestLock.WaitAsync();
-            try
-            {
-                try { _autoTestCts?.Cancel(); } catch { }
-            }
-            finally
-            {
-                _autoTestLock.Release();
-            }
+            // Cancel the auto test CTS to unblock any pending operations
+            try { _autoTestCts?.Cancel(); } catch { }
+
+            // Force-close network stream to unblock any pending scope I/O
+            SafeCloseNetworkStream(ref _scopeTcpStream);
+            SafeCloseTcpClient(ref _scopeTcpClient);
+
+            // Brief delay to let in-flight I/O settle after stream closure
+            await Task.Delay(100);
+
+            // Update UI state immediately (do NOT wait for _autoTestLock, it's held by RunAutoTestAsync)
+            IsAutoTestRunning = false;
+            IsBusy = false;
+            ClearMeasurementTexts();
+            AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试已停止 ==========");
         }
 
-        private async Task<bool> AutoStepAsync(byte[] cmd8, byte[] expected8, string title, CancellationToken token)
+        private async Task<bool> AutoStepAsync(byte[] cmd8, byte[] expected8, string title, CancellationToken token, bool noReadback = false)
         {
             AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送...");
             await _simulation.ClearRxFifoAsync(TestRxChannel);
             await Task.Delay(20, token);
+
             await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
 
-            if (!cmd8.SequenceEqual(EnterAtpCommand8) && !cmd8.SequenceEqual(ExitAtpCommand8))
+            if (noReadback)
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送完成（不等待回读）");
                 return true;
@@ -440,7 +440,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task SendAndWaitOkAsync(byte[] cmd8, byte[] ok8, string title)
         {
-            if (!IsManualTestRunning || IsBusy)
+            if (IsBusy)
                 return;
 
             await _arincOpLock.WaitAsync();
@@ -456,28 +456,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
 
-                    var resp = await _simulation.WaitBenchResponse8Async(
-                        TestRxChannel,
-                        b => b != null && b.SequenceEqual(ok8),
-                        timeoutMs: 1500,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (resp == null)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：等待超时");
-                        SetLastTestResult("FAIL");
-                        return;
-                    }
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：OK ({FormatData(resp)})");
-
-                    if (cmd8.SequenceEqual(EnterAtpCommand8))
-                        EnterAtpRxDataText = FormatData(resp);
-                    else if (cmd8.SequenceEqual(ExitAtpCommand8))
-                        ExitAtpRxDataText = FormatData(resp);
-
-                    SetLastTestResult("PASS");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：指令已发送（不等待回读）");
                 }
                 finally
                 {
@@ -497,7 +476,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task SendAndWaitEchoAsync(byte[] cmd8, string title)
         {
-            if (!IsManualTestRunning || IsBusy)
+            if (IsBusy)
                 return;
 
             await _arincOpLock.WaitAsync();
@@ -513,7 +492,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
                     AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送完成（不等待回读）");
-                    SetLastTestResult("PASS");
                 }
                 finally
                 {
@@ -536,33 +514,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (!IsManualTestRunning || IsBusy)
                 return;
 
-            await _instrumentLock.WaitAsync();
+            try { _manualMeasureCts?.Cancel(); } catch { }
+            try { _manualMeasureCts?.Dispose(); } catch { }
+            _manualMeasureCts = new CancellationTokenSource();
+
+            IsBusy = true;
             try
             {
-                IsBusy = true;
-                var token = CancellationToken.None;
+                var token = _manualMeasureCts.Token;
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 测量：开始... ");
 
-                var m = await MeasureRawCoreAsync(token);
-                if (m == null)
-                    return;
-
-                await Application.Current.Dispatcher.InvokeAsync(() =>
+                bool pass;
+                try
                 {
-                    FreqHzText = FormatNum(m.FreqHz);
-                    DutyPctText = FormatNum(m.DutyPct);
-                });
+                    pass = await MeasureAndQualifyAsync(token);
+                }
+                catch (OperationCanceledException)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 测量已手动取消/停止");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 测量异常：{ex.Message}");
+                    SetLastTestResult("FAIL");
+                    return;
+                }
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 测量完成：F={FormatNum(m.FreqHz)} Hz, DUTY={FormatNum(m.DutyPct)} %");
-            }
-            catch (Exception ex)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 测量异常：{ex.Message}");
+                SetLastTestResult(pass ? "PASS" : "FAIL");
             }
             finally
             {
                 IsBusy = false;
-                _instrumentLock.Release();
             }
         }
 
@@ -575,11 +558,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (m == null)
                     return false;
 
-                await Application.Current.Dispatcher.InvokeAsync(() =>
+                // Marshal to UI thread synchronously so freq/duty appear BEFORE qualification result
+                var freqStr = FormatNum(m.FreqHz);
+                var dutyStr = FormatNum(m.DutyPct);
+                try
                 {
-                    FreqHzText = FormatNum(m.FreqHz);
-                    DutyPctText = FormatNum(m.DutyPct);
-                });
+                    var dispatcher = Application.Current?.Dispatcher;
+                    if (dispatcher != null && !dispatcher.CheckAccess())
+                    {
+                        dispatcher.Invoke(new Action(() =>
+                        {
+                            FreqHzText = freqStr;
+                            DutyPctText = dutyStr;
+                        }));
+                    }
+                    else
+                    {
+                        FreqHzText = freqStr;
+                        DutyPctText = dutyStr;
+                    }
+                }
+                catch
+                {
+                    FreqHzText = freqStr;
+                    DutyPctText = dutyStr;
+                }
 
                 if (!m.FreqHz.HasValue)
                 {
@@ -639,10 +642,95 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
 
             await EnsureInstrumentsConnectedAsync(token);
-            await Task.Delay(200, token);
-            var freq = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? FREQuency", token);
-            var dutyPct = await QueryScopeDutyPctAsync(1, token);
 
+            // Send AUToscale to auto-configure the scope settings
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 发送 :AUToscale (示波器自动设置) 并等待完成...");
+            try
+            {
+                await SendScopeCommandAsync(":AUToscale", token);
+                try
+                {
+                    var opc = await QueryScopeAsync("*OPC?", 20000, token);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] *OPC? 响应：{opc ?? "(null)"}");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待 *OPC? 超时/异常：{ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 发送 :AUToscale 失败：{ex.Message}");
+            }
+
+            // Configure measurement items on the scope
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 正在配置测量项 (FREQuency, PWIDth, NWIDth)...");
+            try
+            {
+                await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
+                await SendScopeCommandAsync(":MEASure:CLEar", token);
+                await SendScopeCommandAsync(":MEASure:ITEM FREQuency", token);
+                await SendScopeCommandAsync(":MEASure:ITEM PWIDth", token);
+                await SendScopeCommandAsync(":MEASure:ITEM NWIDth", token);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 配置测量项异常：{ex.Message}");
+            }
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 延时5秒等待波形在自动设置后稳定...");
+            await Task.Delay(5000, token);
+
+            // Query frequency (separate lock per operation, matching OscilloscopeTestPanel pattern)
+            double? freq = null;
+            try
+            {
+                await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
+                var rawFreq = await QueryScopeAsync(":MEASure:ITEM? FREQuency", 10000, token);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 频率原始响应：'{rawFreq}'");
+                freq = ParseScopeDouble(rawFreq);
+                if (freq.HasValue)
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 频率解析值：{freq.Value:F3} Hz");
+                else
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 频率解析失败");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 查询频率异常：{ex.Message}");
+            }
+
+            // Query duty cycle — calculate from PWIDth (高电平时间) + NWIDth (低电平时间)
+            double? dutyPct = null;
+            try
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 通过PWIDth+NWIDth计算占空比...");
+                var rawPw = await QueryScopeAsync(":MEASure:ITEM? PWIDth", 10000, token);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 高电平时间原始响应(PWIDth)：'{rawPw}'");
+                var pw = ParseScopeDouble(rawPw);
+
+                var rawNw = await QueryScopeAsync(":MEASure:ITEM? NWIDth", 10000, token);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 低电平时间原始响应(NWIDth)：'{rawNw}'");
+                var nw = ParseScopeDouble(rawNw);
+
+                if (pw.HasValue && nw.HasValue && (pw.Value + nw.Value) > 0)
+                {
+                    dutyPct = pw.Value / (pw.Value + nw.Value) * 100.0;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 占空比计算值：PWIDth={pw.Value:F6}s, NWIDth={nw.Value:F6}s, DUTY={dutyPct.Value:F3} %");
+                }
+                else
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWIDth/NWIDth无法获取有效值，占空比计算失败");
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 查询占空比异常：{ex.Message}");
+            }
+
+            // Disconnect matrix switch after reading scope values
+            await DisconnectMatrixAsync(token);
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 测量完成：F={FormatNum(freq)} Hz, DUTY={FormatNum(dutyPct)} %");
             return new Measurement
             {
                 FreqHz = freq,
@@ -664,7 +752,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     throw new InvalidOperationException("OscilloscopeIpAddress 为空");
 
                 _scopeTcpClient = new TcpClient();
-                await _scopeTcpClient.ConnectAsync(OscilloscopeIpAddress.Trim(), 5555);
+                var connectTask = _scopeTcpClient.ConnectAsync(OscilloscopeIpAddress.Trim(), 5555);
+                var delayTask = Task.Delay(3000, token);
+                var completedTask = await Task.WhenAny(connectTask, delayTask).ConfigureAwait(false);
+                if (completedTask == delayTask)
+                {
+                    _scopeTcpClient.Close();
+                    throw new TimeoutException("连接示波器超时（限时3秒），请检查示波器网络。");
+                }
+                await connectTask.ConfigureAwait(false);
                 _scopeTcpStream = _scopeTcpClient.GetStream();
                 try
                 {
@@ -702,48 +798,62 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task DisconnectInstrumentsAndMatrixAsync(CancellationToken token)
         {
-            await _instrumentLock.WaitAsync(token);
+            // Force-close first regardless of lock state
+            SafeCloseNetworkStream(ref _scopeTcpStream);
+            SafeCloseTcpClient(ref _scopeTcpClient);
+
             try
             {
-                try
-                {
-                    SafeCloseNetworkStream(ref _scopeTcpStream);
-                    SafeCloseTcpClient(ref _scopeTcpClient);
-                }
-                catch
-                {
-                }
-
-                try
-                {
-                    if (_matrixRouted)
-                    {
-                        var svc = MatrixControlService.Instance;
-
-                        var operations = new (string inNode, string outNode, int slot, string ip)[]
-                        {
-                            ("I1", "O9", 9, "192.168.1.3"),
-                            ("I0", "O8", 4, "192.168.1.3")
-                        };
-
-                        var disconnectTasks = operations
-                            .Select(op => svc.DisconnectNodesAsync(op.inNode, op.outNode, op.slot, op.ip))
-                            .ToArray();
-
-                        _ = await Task.WhenAll(disconnectTasks);
-                    }
-                }
-                catch
-                {
-                }
-                finally
-                {
-                    _matrixRouted = false;
-                }
+                // Use timeout so stop doesn't deadlock if measurement holds lock
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                cts.CancelAfter(3000);
+                await _instrumentLock.WaitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Lock unavailable, already force-closed above
+                await DisconnectMatrixAsync(token);
+                return;
+            }
+            try
+            {
+                SafeCloseNetworkStream(ref _scopeTcpStream);
+                SafeCloseTcpClient(ref _scopeTcpClient);
+                await DisconnectMatrixAsync(token);
             }
             finally
             {
                 _instrumentLock.Release();
+            }
+        }
+
+        private async Task DisconnectMatrixAsync(CancellationToken token)
+        {
+            try
+            {
+                if (_matrixRouted)
+                {
+                    var svc = MatrixControlService.Instance;
+
+                    var operations = new (string inNode, string outNode, int slot, string ip)[]
+                    {
+                        ("I1", "O9", 9, "192.168.1.3"),
+                        ("I0", "O8", 4, "192.168.1.3")
+                    };
+
+                    var disconnectTasks = operations
+                        .Select(op => svc.DisconnectNodesAsync(op.inNode, op.outNode, op.slot, op.ip))
+                        .ToArray();
+
+                    _ = await Task.WhenAll(disconnectTasks);
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                _matrixRouted = false;
             }
         }
 
@@ -765,25 +875,35 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             client = null;
         }
 
-        private async Task<double?> QueryScopeDoubleAsync(int channel, string query, CancellationToken token)
+        /// <summary>
+        /// Synchronous scope write — caller must hold _scopeIoLock.
+        /// Matches OscilloscopeTestPanelViewModel.WriteOscilloscopeUnsafe pattern.
+        /// </summary>
+        private void WriteScopeUnsafe(string command)
         {
-            if (_scopeTcpStream == null)
-                return null;
+            var stream = _scopeTcpStream;
+            if (stream == null) return;
+            var cmd = command.EndsWith("\n", StringComparison.Ordinal) ? command : command + "\n";
+            var bytes = Encoding.ASCII.GetBytes(cmd);
+            stream.Write(bytes, 0, bytes.Length);
+        }
+
+        /// <summary>
+        /// Async send-only scope command with independent lock acquisition.
+        /// Matches OscilloscopeTestPanelViewModel.SendOscilloscopeCommandAsync pattern.
+        /// </summary>
+        private async Task SendScopeCommandAsync(string command, CancellationToken token)
+        {
+            if (_scopeTcpStream == null && _scopeTcpClient == null)
+                return;
 
             await _scopeIoLock.WaitAsync(token);
             try
             {
-                await WriteScopeAsync($":MEASure:SOURce CHANnel{channel}", token);
-                var raw = await QueryScopeAsync(query, token);
-                if (string.IsNullOrWhiteSpace(raw))
-                    return null;
-
-                raw = raw.Trim();
-                if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
-                    return v;
-                if (double.TryParse(raw, NumberStyles.Float, CultureInfo.CurrentCulture, out v))
-                    return v;
-                return null;
+                await Task.Run(() =>
+                {
+                    WriteScopeUnsafe(command);
+                }, token);
             }
             finally
             {
@@ -791,21 +911,77 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private async Task WriteScopeAsync(string command, CancellationToken token)
-        {
-            if (_scopeTcpStream == null)
-                return;
-
-            var cmd = command.EndsWith("\n", StringComparison.Ordinal) ? command : command + "\n";
-            var bytes = Encoding.ASCII.GetBytes(cmd);
-            await _scopeTcpStream.WriteAsync(bytes, 0, bytes.Length, token);
-            await _scopeTcpStream.FlushAsync(token);
-        }
-
         private async Task<string> QueryScopeAsync(string command, CancellationToken token)
         {
-            await WriteScopeAsync(command, token);
-            return await ReadLineAsync(_scopeTcpStream, 5000, token);
+            return await QueryScopeAsync(command, 5000, token);
+        }
+
+        /// <summary>
+        /// Async scope query with independent lock acquisition.
+        /// Matches OscilloscopeTestPanelViewModel.QueryOscilloscopeAsync pattern:
+        /// acquire lock → Task.Run(sync write + sync ReadLine) → release lock.
+        /// </summary>
+        private async Task<string> QueryScopeAsync(string command, int timeoutMs, CancellationToken token)
+        {
+            if (_scopeTcpStream == null && _scopeTcpClient == null)
+                return null;
+
+            await _scopeIoLock.WaitAsync(token);
+            try
+            {
+                return await Task.Run(() =>
+                {
+                    var stream = _scopeTcpStream;
+                    if (stream == null)
+                        return null;
+
+                    // Synchronous write inside lock
+                    var cmd = command.EndsWith("\n", StringComparison.Ordinal) ? command : command + "\n";
+                    var bytes = Encoding.ASCII.GetBytes(cmd);
+                    stream.Write(bytes, 0, bytes.Length);
+
+                    // Synchronous read with timeout
+                    try
+                    {
+                        return ReadLineAsync(stream, timeoutMs, token).GetAwaiter().GetResult();
+                    }
+                    catch (TimeoutException)
+                    {
+                        return null;
+                    }
+                }, token);
+            }
+            finally
+            {
+                _scopeIoLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Parse a scope response string into a double, matching OscilloscopeTestPanelViewModel.NormalizeOscilloscopeNumber pattern.
+        /// </summary>
+        private static double? ParseScopeDouble(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return null;
+
+            raw = raw.Trim();
+            int comma = raw.IndexOf(',');
+            if (comma > 0)
+                raw = raw.Substring(0, comma);
+
+            var match = System.Text.RegularExpressions.Regex.Match(raw, @"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?");
+            if (!match.Success)
+                return null;
+
+            var clean = match.Value;
+            if (double.TryParse(clean, NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
+            {
+                if (double.IsNaN(v) || double.IsInfinity(v) || Math.Abs(v) > 1e36)
+                    return null;
+                return v;
+            }
+            return null;
         }
 
         private static async Task<string> ReadLineAsync(NetworkStream stream, int timeoutMs, CancellationToken token)
@@ -849,24 +1025,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return dutyValue;
         }
 
-        private async Task<double?> QueryScopeDutyPctAsync(int channel, CancellationToken token)
-        {
-            var duty = await QueryScopeDoubleAsync(channel, ":MEASure:ITEM? DUTY", token);
-            if (duty.HasValue)
-                return NormalizeDutyToPercent(duty.Value);
-
-            duty = await QueryScopeDoubleAsync(channel, ":MEASure:ITEM? DUTYcycle", token);
-            if (duty.HasValue)
-                return NormalizeDutyToPercent(duty.Value);
-
-            return null;
-        }
-
         private static string FormatNum(double? v)
         {
             if (!v.HasValue || double.IsNaN(v.Value) || double.IsInfinity(v.Value))
                 return "--";
-            return v.Value.ToString("F6", CultureInfo.InvariantCulture);
+            return v.Value.ToString("G6", CultureInfo.InvariantCulture);
         }
 
         private void AddLog(string message)

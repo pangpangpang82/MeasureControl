@@ -4,34 +4,30 @@ using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using MeasureControl.Helpers;
 using MeasureControl.Services;
+using MeasureControl.Services.HardwareApis;
 using MeasureControl.Simulations.A_C_6_17_1_2;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public sealed class A_C_6_17_1_2ViewModel : BindableBase, IDisposable
     {
-        private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-        private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
-        private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        private static readonly byte[] EnterAtpCommand8 = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] EnterAtpOk8 = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 }; // not used (send-only)
+        private static readonly byte[] ExitAtpCommand8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExitAtpOk8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 }; // not used (send-only)
 
         private static readonly byte[] DirHighCommand8 = { 0x22, 0x01, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] DirLowCommand8 = { 0x22, 0x01, 0x03, 0x02, 0x00, 0x00, 0x00, 0x00 };
 
         private const string MatrixIp = "192.168.1.3";
 
-        private const string FixedTxChannel = "429_CH0";
+        private const string FixedTxChannel = "429_CH5";
         private const string FixedRxChannel = "429_CH2";
 
         private readonly A_C_6_17_1_2Simulation _simulation = new A_C_6_17_1_2Simulation();
@@ -40,20 +36,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _arincOpLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _instrumentLock = new SemaphoreSlim(1, 1);
-        private readonly SemaphoreSlim _scopeIoLock = new SemaphoreSlim(1, 1);
 
         private CancellationTokenSource _autoTestCts;
 
-        private bool _matrixRouted;
-
-        private TcpClient _scopeTcpClient;
-        private NetworkStream _scopeTcpStream;
+        private bool _matrixHighRouted;
+        private bool _matrixLowRouted;
 
         private string _testTxChannel = FixedTxChannel;
         private string _testRxChannel = FixedRxChannel;
         private double _arincRate = 100000.0;
 
-        private string _oscilloscopeIpAddress = "192.168.1.18";
+        private string _dmmIpAddress = "192.168.1.13";
 
         private bool _isBusy;
         private bool _isManualTestRunning;
@@ -62,15 +55,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _enterAtpRxDataText = "--";
         private string _exitAtpRxDataText = "--";
 
-        private double? _dirHighLevel;
-        private double? _dirLowLevel;
+        private double? _dirHighVoltage;
+        private double? _dirLowVoltage;
 
-        private string _dirHighVmaxText = "--";
-        private string _dirHighVminText = "--";
-        private string _dirLowVmaxText = "--";
-        private string _dirLowVminText = "--";
-
-        private ImageSource _waveformImage;
+        private string _dirHighVoltageText = "--";
+        private string _dirLowVoltageText = "--";
 
         private string _lastTestTime = "--";
         private string _lastTestResult = "--";
@@ -125,10 +114,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             set => SetProperty(ref _testRxChannel, value);
         }
 
-        public string OscilloscopeIpAddress
+        public string DmmIpAddress
         {
-            get => _oscilloscopeIpAddress;
-            set => SetProperty(ref _oscilloscopeIpAddress, value);
+            get => _dmmIpAddress;
+            set => SetProperty(ref _dmmIpAddress, value);
         }
 
         public bool IsBusy
@@ -161,34 +150,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _exitAtpRxDataText, value);
         }
 
-        public string DirHighVmaxText
+        public string DirHighVoltageText
         {
-            get => _dirHighVmaxText;
-            private set => SetProperty(ref _dirHighVmaxText, value);
+            get => _dirHighVoltageText;
+            private set => SetProperty(ref _dirHighVoltageText, value);
         }
 
-        public string DirHighVminText
+        public string DirLowVoltageText
         {
-            get => _dirHighVminText;
-            private set => SetProperty(ref _dirHighVminText, value);
-        }
-
-        public string DirLowVmaxText
-        {
-            get => _dirLowVmaxText;
-            private set => SetProperty(ref _dirLowVmaxText, value);
-        }
-
-        public string DirLowVminText
-        {
-            get => _dirLowVminText;
-            private set => SetProperty(ref _dirLowVminText, value);
-        }
-
-        public ImageSource WaveformImage
-        {
-            get => _waveformImage;
-            private set => SetProperty(ref _waveformImage, value);
+            get => _dirLowVoltageText;
+            private set => SetProperty(ref _dirLowVoltageText, value);
         }
 
         public string LastTestTime
@@ -249,13 +220,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             EnterAtpRxDataText = "--";
             ExitAtpRxDataText = "--";
-            _dirHighLevel = null;
-            _dirLowLevel = null;
-            DirHighVmaxText = "--";
-            DirHighVminText = "--";
-            DirLowVmaxText = "--";
-            DirLowVminText = "--";
-            WaveformImage = null;
+            _dirHighVoltage = null;
+            _dirLowVoltage = null;
+            DirHighVoltageText = "--";
+            DirLowVoltageText = "--";
             LastTestTime = "--";
             LastTestResult = "--";
             PreviousTestTime = "--";
@@ -318,19 +286,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
-        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
-        {
-            try
-            {
-                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                if (api != null)
-                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
-            }
-            catch
-            {
-            }
-        }
-
         private async Task RunManualTestAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -354,13 +309,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
 
-                    try
-                    {
-                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                        if (api != null)
-                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
-                    }
-                    catch { }
+                    // removed power on step per requirement
 
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                 }
@@ -389,14 +338,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 try
                 {
                     try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
-                    try { await DisconnectInstrumentsAndMatrixAsync(CancellationToken.None); } catch { }
+                    try { await DisconnectMatrixAsync(CancellationToken.None); } catch { }
                     ResetUi();
                     IsManualTestRunning = false;
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试已停止 ==========");
                 }
                 finally
                 {
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    // removed power off step per requirement
                     IsBusy = false;
                 }
             }
@@ -426,13 +375,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts = new CancellationTokenSource();
                 var token = _autoTestCts.Token;
 
-                try
-                {
-                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                    if (api != null)
-                        await api.ApplyComponent28VStateAsync(token);
-                }
-                catch { }
+                // removed power on step per requirement
 
                 try
                 {
@@ -458,9 +401,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                         if (failures.Count == 0)
                         {
-                            if (!QualifyDirLevel(true, _dirHighLevel, out var reasonHigh))
+                            if (!QualifyDirLevel(true, _dirHighVoltage, out var reasonHigh))
                                 failures.Add(reasonHigh ?? "DIR高电平判据不合格");
-                            if (!QualifyDirLevel(false, _dirLowLevel, out var reasonLow))
+                            if (!QualifyDirLevel(false, _dirLowVoltage, out var reasonLow))
                                 failures.Add(reasonLow ?? "DIR低电平判据不合格");
                         }
                     }
@@ -494,8 +437,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 finally
                 {
                     try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
-                    try { await DisconnectInstrumentsAndMatrixAsync(CancellationToken.None); } catch { }
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await DisconnectMatrixAsync(CancellationToken.None); } catch { }
                 }
             }
             finally
@@ -526,36 +468,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await Task.Delay(20, token);
             await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
 
-            if (!cmd8.SequenceEqual(EnterAtpCommand8) && !cmd8.SequenceEqual(ExitAtpCommand8))
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送完成（不等待回读）");
-                return true;
-            }
-
-            var resp = await _simulation.WaitBenchResponse8Async(
-                TestRxChannel,
-                b => b != null && b.SequenceEqual(expected8),
-                timeoutMs: 1500,
-                log: msg => AddLog(msg),
-                token: token);
-
-            if (resp == null)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：等待超时");
-                return false;
-            }
-
-            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：OK (0x{FormatBytesHex(resp)})");
-            if (cmd8.SequenceEqual(EnterAtpCommand8))
-                EnterAtpRxDataText = $"0x{FormatBytesHex(resp)}";
-            if (cmd8.SequenceEqual(ExitAtpCommand8))
-                ExitAtpRxDataText = $"0x{FormatBytesHex(resp)}";
+            // Align with A_C_6_15_1_2: ATP instructions are send-only (no OK wait)
+            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送完成（不等待回读）");
             return true;
         }
 
         private async Task SendAndWaitOkAsync(byte[] cmd8, byte[] ok8, string title)
         {
-            if (!IsManualTestRunning || IsBusy)
+            if (IsBusy)
                 return;
 
             await _arincOpLock.WaitAsync();
@@ -571,28 +491,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
 
-                    var resp = await _simulation.WaitBenchResponse8Async(
-                        TestRxChannel,
-                        b => b != null && b.SequenceEqual(ok8),
-                        timeoutMs: 1500,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (resp == null)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：等待超时");
-                        SetLastTestResult("FAIL");
-                        return;
-                    }
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：OK (0x{FormatBytesHex(resp)})");
-
-                    if (cmd8.SequenceEqual(EnterAtpCommand8))
-                        EnterAtpRxDataText = $"0x{FormatBytesHex(resp)}";
-                    else if (cmd8.SequenceEqual(ExitAtpCommand8))
-                        ExitAtpRxDataText = $"0x{FormatBytesHex(resp)}";
-
-                    SetLastTestResult("PASS");
+                    // Align with A_C_6_15_1_2: send-only for ATP, do not wait for OK
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：指令已发送（不等待回读）");
                 }
                 finally
                 {
@@ -602,7 +502,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             catch (Exception ex)
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] {title}异常：{ex.Message}");
-                SetLastTestResult("FAIL");
             }
             finally
             {
@@ -612,7 +511,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task SendDirAndMeasureAsync(byte[] cmd8, bool isHigh, string title)
         {
-            if (!IsManualTestRunning || IsBusy)
+            if (IsBusy)
                 return;
 
             await _instrumentLock.WaitAsync();
@@ -629,15 +528,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
                 }
 
-                if (QualifyDirLevel(isHigh, isHigh ? _dirHighLevel : _dirLowLevel, out var reason))
+                if (_dirHighVoltage.HasValue && _dirLowVoltage.HasValue)
                 {
-                    SetLastTestResult("PASS");
+                    bool pass = true;
+                    if (!QualifyDirLevel(true, _dirHighVoltage, out var reasonHigh))
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 判据FAIL：{reasonHigh}");
+                        pass = false;
+                    }
+                    if (!QualifyDirLevel(false, _dirLowVoltage, out var reasonLow))
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 判据FAIL：{reasonLow}");
+                        pass = false;
+                    }
+
+                    if (pass)
+                    {
+                        SetLastTestResult("PASS");
+                    }
+                    else
+                    {
+                        SetLastTestResult("FAIL");
+                    }
                 }
                 else
                 {
-                    if (!string.IsNullOrWhiteSpace(reason))
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 判据FAIL：{reason}");
-                    SetLastTestResult("FAIL");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}测量成功，等待另一电平测量后再判定结果...");
                 }
             }
             catch (Exception ex)
@@ -654,347 +570,105 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task<bool> SendDirAndMeasureCoreAsync(byte[] cmd8, bool isHigh, CancellationToken token)
         {
-            if (!await EnsureMatrixRoutedAsync(token))
+            if (!await EnsureMatrixRoutedAsync(isHigh, token))
                 return false;
-
-            await EnsureInstrumentsConnectedAsync(token);
 
             await Task.Delay(20, token);
             await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
-            await Task.Delay(200, token);
-            var vmax = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VMAX", token);
-            var vmin = await QueryScopeDoubleAsync(1, ":MEASure:ITEM? VMIN", token);
+            await Task.Delay(80, token);
 
-            if (!vmax.HasValue)
+            var v = await ReadDmmVoltageAsync(isHigh, token);
+            if (!v.HasValue)
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] VMAX测量无有效值");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 电压测量无有效值");
                 return false;
             }
 
-            var level = vmax;
-
-            var screenshotBytes = await CaptureScopeScreenshotAsync(token);
-            if (screenshotBytes != null && screenshotBytes.Length > 0)
-            {
-                var img = CreateBitmapImage(screenshotBytes);
-                await Application.Current.Dispatcher.InvokeAsync(() => WaveformImage = img);
-            }
+            var level = v;
 
             if (isHigh)
             {
-                _dirHighLevel = level;
-                if (vmax.HasValue) DirHighVmaxText = $"{vmax.Value:0.00000} V";
-                if (vmin.HasValue) DirHighVminText = $"{vmin.Value:0.00000} V";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] DIR高电平 VMAX={(vmax.HasValue ? vmax.Value.ToString("0.00000", CultureInfo.InvariantCulture) : "--")} V, VMIN={(vmin.HasValue ? vmin.Value.ToString("0.00000", CultureInfo.InvariantCulture) : "--")} V");
+                _dirHighVoltage = level;
+                DirHighVoltageText = level.HasValue ? $"{level.Value:0.00000} V" : "--";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] DIR高电平电压={(level.HasValue ? level.Value.ToString("0.00000", CultureInfo.InvariantCulture) : "--")} V");
             }
             else
             {
-                _dirLowLevel = level;
-                if (vmax.HasValue) DirLowVmaxText = $"{vmax.Value:0.00000} V";
-                if (vmin.HasValue) DirLowVminText = $"{vmin.Value:0.00000} V";
-                AddLog($"[{DateTime.Now:HH:mm:ss}] DIR低电平 VMAX={(vmax.HasValue ? vmax.Value.ToString("0.00000", CultureInfo.InvariantCulture) : "--")} V, VMIN={(vmin.HasValue ? vmin.Value.ToString("0.00000", CultureInfo.InvariantCulture) : "--")} V");
+                _dirLowVoltage = level;
+                DirLowVoltageText = level.HasValue ? $"{level.Value:0.00000} V" : "--";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] DIR低电平电压={(level.HasValue ? level.Value.ToString("0.00000", CultureInfo.InvariantCulture) : "--")} V");
             }
 
             return true;
         }
 
-        private async Task<bool> EnsureMatrixRoutedAsync(CancellationToken token)
+        private async Task<double?> ReadDmmVoltageAsync(bool isHigh, CancellationToken token)
         {
-            if (_matrixRouted)
-                return true;
+            var ip = (DmmIpAddress ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(ip))
+                throw new InvalidOperationException("DmmIpAddress 为空");
 
+            await using IDmmApi dmm = new DmmSocketApi();
+            try
+            {
+                await dmm.ConnectAsync(ip, token);
+                var r = await dmm.ReadOnceAsync(DmmMeasureMode.DCV, new DmmReadOptions { TimeoutMilliseconds = 8000 }, token);
+                if (r == null)
+                    return null;
+                if (r.IsOverrange)
+                    return null;
+                return r.Value;
+            }
+            finally
+            {
+                try { await dmm.DisconnectAsync(token); } catch { }
+            }
+        }
+
+        private async Task<bool> EnsureMatrixRoutedAsync(bool isHigh, CancellationToken token)
+        {
             var svc = MatrixControlService.Instance;
 
-            var operations = new (string inNode, string outNode, int slot, string ip)[]
+            if (_matrixHighRouted && _matrixLowRouted)
+                return true;
+
+            var connectTasks = new[]
             {
-                ("I1", "O15", 9, MatrixIp),
-                ("I0", "O8", 4, MatrixIp)
+                svc.ConnectNodesAsync("I0", "O15", 9, MatrixIp),
+                svc.ConnectNodesAsync("I4", "O7", 4, MatrixIp)
             };
 
-            var connectTasks = operations
-                .Select(op => svc.ConnectNodesAsync(op.inNode, op.outNode, op.slot, op.ip))
-                .ToArray();
-
             var results = await Task.WhenAll(connectTasks);
-            _matrixRouted = results.All(r => r);
-
-            if (_matrixRouted)
-                await Task.Delay(200, token);
+            var ok = results.All(r => r);
+            _matrixHighRouted = ok;
+            _matrixLowRouted = ok;
             _ = token;
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(示波器): I1->O15 slot=9 + I0->O8 slot=4, ip={MatrixIp}, ok={_matrixRouted}");
-            return _matrixRouted;
+            //AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关通路(DIR{(isHigh ? "高" : "低")}): I1->O1 slot=9 & I0->O7 slot=4 ip={MatrixIp}, ok={ok}");
+            return ok;
         }
 
-        private async Task EnsureInstrumentsConnectedAsync(CancellationToken token)
+        private async Task DisconnectMatrixAsync(CancellationToken token)
         {
-            if (_scopeTcpClient == null || _scopeTcpStream == null)
-            {
-                if (string.IsNullOrWhiteSpace(OscilloscopeIpAddress))
-                    throw new InvalidOperationException("OscilloscopeIpAddress 为空");
+            var svc = MatrixControlService.Instance;
 
-                _scopeTcpClient = new TcpClient();
-                await _scopeTcpClient.ConnectAsync(OscilloscopeIpAddress.Trim(), 5555);
-                _scopeTcpStream = _scopeTcpClient.GetStream();
-                try
-                {
-                    _scopeTcpStream.ReadTimeout = 5000;
-                    _scopeTcpStream.WriteTimeout = 5000;
-                }
-                catch
-                {
-                }
-
-                await QueryScopeAsync(":MEASure:CLEar", token);
-            }
-        }
-
-        private async Task DisconnectInstrumentsAndMatrixAsync(CancellationToken token)
-        {
-            await _instrumentLock.WaitAsync(token);
             try
             {
-                try
+                if (_matrixHighRouted || _matrixLowRouted)
                 {
-                    SafeCloseNetworkStream(ref _scopeTcpStream);
-                    SafeCloseTcpClient(ref _scopeTcpClient);
-                }
-                catch
-                {
-                }
-
-                try
-                {
-                    if (_matrixRouted)
+                    var disconnectTasks = new[]
                     {
-                        var svc = MatrixControlService.Instance;
+                        svc.DisconnectNodesAsync("I1", "O1", 9, MatrixIp),
+                        svc.DisconnectNodesAsync("I0", "O7", 4, MatrixIp)
+                    };
 
-                        var operations = new (string inNode, string outNode, int slot, string ip)[]
-                        {
-                            ("I1", "O15", 9, MatrixIp),
-                            ("I0", "O8", 4, MatrixIp)
-                        };
-
-                        var disconnectTasks = operations
-                            .Select(op => svc.DisconnectNodesAsync(op.inNode, op.outNode, op.slot, op.ip))
-                            .ToArray();
-
-                        _ = await Task.WhenAll(disconnectTasks);
-                    }
-                }
-                catch
-                {
-                }
-                finally
-                {
-                    _matrixRouted = false;
+                    _ = await Task.WhenAll(disconnectTasks);
                 }
             }
+            catch { }
             finally
             {
-                _instrumentLock.Release();
-            }
-        }
-
-        private static void SafeCloseNetworkStream(ref NetworkStream stream)
-        {
-            if (stream == null)
-                return;
-            try { stream.Close(); } catch { }
-            try { stream.Dispose(); } catch { }
-            stream = null;
-        }
-
-        private static void SafeCloseTcpClient(ref TcpClient client)
-        {
-            if (client == null)
-                return;
-            try { client.Close(); } catch { }
-            try { client.Dispose(); } catch { }
-            client = null;
-        }
-
-        private async Task<double?> QueryScopeDoubleAsync(int channel, string query, CancellationToken token)
-        {
-            if (_scopeTcpStream == null)
-                return null;
-
-            await _scopeIoLock.WaitAsync(token);
-            try
-            {
-                await WriteScopeAsync($":MEASure:SOURce CHANnel{channel}", token);
-                var raw = await QueryScopeAsync(query, token);
-                if (string.IsNullOrWhiteSpace(raw))
-                    return null;
-
-                raw = raw.Trim();
-                if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
-                    return v;
-                if (double.TryParse(raw, NumberStyles.Float, CultureInfo.CurrentCulture, out v))
-                    return v;
-                return null;
-            }
-            finally
-            {
-                _scopeIoLock.Release();
-            }
-        }
-
-        private async Task<byte[]> CaptureScopeScreenshotAsync(CancellationToken token)
-        {
-            if (_scopeTcpStream == null)
-                return null;
-
-            await _scopeIoLock.WaitAsync(token);
-            try
-            {
-                var cmd = Encoding.ASCII.GetBytes(":DISPlay:DATA?\n");
-                await _scopeTcpStream.WriteAsync(cmd, 0, cmd.Length, token);
-                await _scopeTcpStream.FlushAsync(token);
-
-                return await Task.Run(() => ReadIeee4882DefiniteLengthBlock(_scopeTcpStream, 100_000_000), token);
-            }
-            catch
-            {
-                return null;
-            }
-            finally
-            {
-                _scopeIoLock.Release();
-            }
-        }
-
-        private async Task WriteScopeAsync(string command, CancellationToken token)
-        {
-            if (_scopeTcpStream == null)
-                return;
-
-            var cmd = command.EndsWith("\n", StringComparison.Ordinal) ? command : command + "\n";
-            var bytes = Encoding.ASCII.GetBytes(cmd);
-            await _scopeTcpStream.WriteAsync(bytes, 0, bytes.Length, token);
-            await _scopeTcpStream.FlushAsync(token);
-        }
-
-        private async Task<string> QueryScopeAsync(string command, CancellationToken token)
-        {
-            await WriteScopeAsync(command, token);
-            return await ReadLineAsync(_scopeTcpStream, 5000, token);
-        }
-
-        private static async Task<string> ReadLineAsync(NetworkStream stream, int timeoutMs, CancellationToken token)
-        {
-            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(token))
-            {
-                cts.CancelAfter(timeoutMs);
-                var sb = new StringBuilder();
-                var buf = new byte[1];
-                while (true)
-                {
-                    int n;
-                    try
-                    {
-                        n = await stream.ReadAsync(buf, 0, 1, cts.Token);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        if (token.IsCancellationRequested)
-                            throw;
-                        throw new TimeoutException($"示波器读取超时({timeoutMs}ms)");
-                    }
-                    if (n <= 0)
-                        break;
-                    char ch = (char)buf[0];
-                    if (ch == '\n')
-                        break;
-                    if (ch != '\r')
-                        sb.Append(ch);
-                }
-                return sb.ToString().Trim();
-            }
-        }
-
-        private static BitmapImage CreateBitmapImage(byte[] bytes)
-        {
-            if (bytes == null || bytes.Length == 0)
-                return null;
-
-            var img = new BitmapImage();
-            using (var ms = new MemoryStream(bytes))
-            {
-                img.BeginInit();
-                img.CacheOption = BitmapCacheOption.OnLoad;
-                img.StreamSource = ms;
-                img.EndInit();
-                img.Freeze();
-            }
-            return img;
-        }
-
-        private static byte[] ReadIeee4882DefiniteLengthBlock(NetworkStream stream, int maxBytes)
-        {
-            if (stream == null)
-                throw new ArgumentNullException(nameof(stream));
-            if (maxBytes <= 0)
-                throw new ArgumentOutOfRangeException(nameof(maxBytes));
-
-            try
-            {
-                int b;
-                do
-                {
-                    b = stream.ReadByte();
-                    if (b < 0)
-                        return Array.Empty<byte>();
-                } while (b != '#');
-
-                int n = stream.ReadByte();
-                if (n < 0)
-                    return Array.Empty<byte>();
-                int nDigits = n - '0';
-                if (nDigits < 0 || nDigits > 9)
-                    return Array.Empty<byte>();
-
-                var lenBuf = new byte[nDigits];
-                ReadExact(stream, lenBuf, 0, nDigits);
-                if (!int.TryParse(Encoding.ASCII.GetString(lenBuf), out var payloadLen) || payloadLen < 0)
-                    return Array.Empty<byte>();
-                if (payloadLen > maxBytes)
-                    return Array.Empty<byte>();
-
-                var payload = new byte[payloadLen];
-                ReadExact(stream, payload, 0, payloadLen);
-
-                try
-                {
-                    while (stream.DataAvailable)
-                    {
-                        int next = stream.ReadByte();
-                        if (next < 0)
-                            break;
-                        if (next != '\n' && next != '\r')
-                            break;
-                    }
-                }
-                catch
-                {
-                }
-
-                return payload;
-            }
-            catch
-            {
-                return Array.Empty<byte>();
-            }
-        }
-
-        private static void ReadExact(NetworkStream stream, byte[] buffer, int offset, int count)
-        {
-            int read = 0;
-            while (read < count)
-            {
-                int r = stream.Read(buffer, offset + read, count - read);
-                if (r <= 0)
-                    throw new IOException("网络读取失败");
-                read += r;
+                _matrixHighRouted = false;
+                _matrixLowRouted = false;
             }
         }
 
@@ -1011,7 +685,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try { _autoTestCts?.Cancel(); } catch { }
             try { _autoTestCts?.Dispose(); } catch { }
             try { _simulation.StopAsync(_ => { }).GetAwaiter().GetResult(); } catch { }
-            try { DisconnectInstrumentsAndMatrixAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
+            try { DisconnectMatrixAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
         }
     }
 }

@@ -17,13 +17,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public sealed class A_C_6_18_2_1ViewModel : BindableBase, IDisposable
     {
-        private const string FixedTxChannel = "429_CH0";
+        private const string FixedTxChannel = "429_CH5";
         private const string FixedRxChannel = "429_CH2";
 
-        private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-        private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
-        private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        private static readonly byte[] EnterAtpCommand8 = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExitAtpCommand8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] TestCommandTemplate8 = { 0x23, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
@@ -532,14 +530,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：开始打开设备");
 
-                    try
-                    {
-                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                        if (api != null)
-                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
-                    }
-                    catch { }
-
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试已启动：可发送测试指令");
                 }
@@ -582,7 +572,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsManualTestRunning = false;
                     IsBusy = false;
                 }
@@ -598,42 +587,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (!IsManualTestRunning || IsBusy)
                 return;
 
-            if (!string.Equals(EnterAtpTxChannel, TestTxChannel, StringComparison.OrdinalIgnoreCase) ||
-                !string.Equals(EnterAtpRxChannel, TestRxChannel, StringComparison.OrdinalIgnoreCase))
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 当前仿真仅打开通道：TX={TestTxChannel}, RX={TestRxChannel}。进入ATP的TX/RX需与其一致");
-                return;
-            }
-
             await _arincOpLock.WaitAsync();
             try
             {
                 IsBusy = true;
                 try
                 {
-                    await _simulation.ClearRxFifoAsync(EnterAtpRxChannel);
+                    await _simulation.ClearRxFifoAsync(TestRxChannel);
                     await Task.Delay(20);
 
                     var token = CancellationToken.None;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送进入ATP：{FormatBytes(EnterAtpCommand8)}");
-                    await _simulation.SendBenchCommandOnlyAsync(EnterAtpTxChannel, EnterAtpCommand8, msg => AddLog(msg), token);
-
-                    var resp = await _simulation.WaitBenchResponse8Async(
-                        EnterAtpRxChannel,
-                        b => b != null && b.SequenceEqual(EnterAtpOk8),
-                        timeoutMs: 1200,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (resp == null)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP失败：未收到OK");
-                        return;
-                    }
-
-                    EnterAtpRxDataText = $"0x{FormatBytesHex(resp)}";
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP成功");
+                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, EnterAtpCommand8, msg => AddLog(msg), token);
+                    await Task.Delay(50);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP指令已发送（不等待回读）");
                 }
                 finally
                 {
@@ -655,42 +623,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (!IsManualTestRunning || IsBusy)
                 return;
 
-            if (!string.Equals(ExitAtpTxChannel, TestTxChannel, StringComparison.OrdinalIgnoreCase) ||
-                !string.Equals(ExitAtpRxChannel, TestRxChannel, StringComparison.OrdinalIgnoreCase))
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 当前仿真仅打开通道：TX={TestTxChannel}, RX={TestRxChannel}。退出ATP的TX/RX需与其一致");
-                return;
-            }
-
             await _arincOpLock.WaitAsync();
             try
             {
                 IsBusy = true;
                 try
                 {
-                    await _simulation.ClearRxFifoAsync(ExitAtpRxChannel);
+                    await _simulation.ClearRxFifoAsync(TestRxChannel);
                     await Task.Delay(20);
 
                     var token = CancellationToken.None;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送退出ATP：{FormatBytes(ExitAtpCommand8)}");
-                    await _simulation.SendBenchCommandOnlyAsync(ExitAtpTxChannel, ExitAtpCommand8, msg => AddLog(msg), token);
-
-                    var resp = await _simulation.WaitBenchResponse8Async(
-                        ExitAtpRxChannel,
-                        b => b != null && b.SequenceEqual(ExitAtpOk8),
-                        timeoutMs: 1200,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (resp == null)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP失败：未收到OK");
-                        return;
-                    }
-
-                    ExitAtpRxDataText = $"0x{FormatBytesHex(resp)}";
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP成功");
+                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, ExitAtpCommand8, msg => AddLog(msg), token);
+                    await Task.Delay(50);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP指令已发送（不等待回读）");
                 }
                 finally
                 {
@@ -778,6 +725,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     IsBusy = false;
                 }
+                CheckManualTestResult();
             }
             catch (Exception ex)
             {
@@ -822,6 +770,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     IsBusy = false;
                 }
+                CheckManualTestResult();
             }
             catch (Exception ex)
             {
@@ -866,6 +815,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     IsBusy = false;
                 }
+                CheckManualTestResult();
             }
             catch (Exception ex)
             {
@@ -910,6 +860,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     IsBusy = false;
                 }
+                CheckManualTestResult();
             }
             catch (Exception ex)
             {
@@ -921,11 +872,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        private void CheckManualTestResult()
+        {
+            if (_j167Voltage.HasValue && _j168Voltage.HasValue && _j169Voltage.HasValue && _j231Voltage.HasValue)
+            {
+                bool pass = (_j167Voltage.Value >= VoltageLowerLimit && _j167Voltage.Value <= VoltageUpperLimit) &&
+                             (_j168Voltage.Value >= VoltageLowerLimit && _j168Voltage.Value <= VoltageUpperLimit) &&
+                             (_j169Voltage.Value >= VoltageLowerLimit && _j169Voltage.Value <= VoltageUpperLimit) &&
+                             (_j231Voltage.Value >= VoltageLowerLimit && _j231Voltage.Value <= VoltageUpperLimit);
+                SetLastTestResult(pass ? "PASS" : "FAIL");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 所有4个点测量完成，最终测试结果：{LastTestResult}");
+            }
+            else
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测量成功，等待其它点全部测量后再判定最终结果...");
+            }
+        }
+
         private async Task<double?> ReadDmmVoltageAsync(string pointName, (string inNode, string outNode, int slot, int? basePort)[] ops, CancellationToken token)
         {
             bool matrixOk = await ConnectMatrixAsync(pointName, ops, token);
             if (!matrixOk)
                 throw new InvalidOperationException("矩阵开关通路建立失败");
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] {pointName} 延时2秒等待波形稳定...");
+            await Task.Delay(2000, token);
 
             await using IDmmApi dmm = new DmmSocketApi();
             try
@@ -1084,14 +1055,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     var token = _autoTestCts.Token;
 
-                    try
-                    {
-                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                        if (api != null)
-                            await api.ApplyComponent28VStateAsync(token);
-                    }
-                    catch { }
-
                     _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
 
@@ -1103,22 +1066,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤1：进入ATP");
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, EnterAtpCommand8, msg => AddLog(msg), token);
-
-                    var enterOk = await _simulation.WaitBenchResponse8Async(
-                        TestRxChannel,
-                        b => b != null && b.SequenceEqual(EnterAtpOk8),
-                        timeoutMs: 1200,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (enterOk == null)
-                    {
-                        SetLastTestResult("FAIL");
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试失败：进入ATP超时");
-                        return;
-                    }
-
-                    EnterAtpRxDataText = $"0x{FormatBytesHex(enterOk)}";
+                    await Task.Delay(50, token);
 
                     await _simulation.ClearRxFifoAsync(TestRxChannel);
                     await Task.Delay(20, token);
@@ -1211,18 +1159,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤7：退出ATP");
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, ExitAtpCommand8, msg => AddLog(msg), token);
-
-                    var exitOk = await _simulation.WaitBenchResponse8Async(
-                        TestRxChannel,
-                        b => b != null && b.SequenceEqual(ExitAtpOk8),
-                        timeoutMs: 1200,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (exitOk != null)
-                    {
-                        ExitAtpRxDataText = $"0x{FormatBytesHex(exitOk)}";
-                    }
+                    await Task.Delay(50, token);
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试结束：{LastTestResult}");
                 }
@@ -1250,8 +1187,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     catch
                     {
                     }
-
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
                     IsAutoTestRunning = false;
                     IsBusy = false;

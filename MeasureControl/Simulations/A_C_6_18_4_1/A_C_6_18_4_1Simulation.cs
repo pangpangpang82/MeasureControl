@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,13 +11,24 @@ namespace MeasureControl.Simulations.A_C_6_18_4_1
     {
         private readonly MultiLabelCommandAssembler _rxLabelAssembler = new MultiLabelCommandAssembler(BenchTxFragmentLabels);
 
-        private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-        private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
-        private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        private static readonly byte[] EnterAtpCommand8 = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExitAtpCommand8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
-        private static readonly byte[] BenchTxFragmentLabels = { 0x31, 0x32, 0x33, 0x34 };
-        private static readonly byte[] ProductTxFragmentLabels = { 0x09, 0x0A, 0x0B, 0x0C };
+        private static readonly byte[] BenchTxFragmentLabels = { 0x8C, 0x4C, 0xCC, 0x2C };
+        private static readonly byte[] ProductTxFragmentLabels = { 0x90, 0x50, 0xD0, 0x30 };
+
+        private static byte[] SwapPairs8(byte[] data8)
+        {
+            if (data8 == null || data8.Length != 8)
+                return data8;
+            var b = new byte[8];
+            for (int i = 0; i < 4; i++)
+            {
+                b[i * 2] = data8[i * 2 + 1];
+                b[i * 2 + 1] = data8[i * 2];
+            }
+            return b;
+        }
 
         public async Task SendBenchCommandOnlyAsync(string benchTxChannel, byte[] command8, Action<string> log, CancellationToken token)
         {
@@ -29,7 +41,8 @@ namespace MeasureControl.Simulations.A_C_6_18_4_1
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送: tx={txIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
 
-            await SendMultiLabelFrameOnChannelAsync(txIndex, BenchTxFragmentLabels, command8, log, token);
+            var swapped = SwapPairs8(command8);
+            await SendMultiLabelFrameOnChannelAsync(txIndex, BenchTxFragmentLabels, swapped, log, token);
         }
 
         public async Task<byte[]> WaitBenchResponse8Async(string benchRxChannel, Func<byte[], bool> isExpected, int timeoutMs, Action<string> log, CancellationToken token)
@@ -115,15 +128,13 @@ namespace MeasureControl.Simulations.A_C_6_18_4_1
 
                             if (cmd8.SequenceEqual(EnterAtpCommand8))
                             {
-                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP -> 回复OK");
-                                await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, EnterAtpOk8, log, token);
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP (send-only, no OK)");
                                 continue;
                             }
 
                             if (cmd8.SequenceEqual(ExitAtpCommand8))
                             {
-                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP -> 回复OK");
-                                await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, ExitAtpOk8, log, token);
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP (send-only, no OK)");
                                 continue;
                             }
                         }
@@ -159,6 +170,64 @@ namespace MeasureControl.Simulations.A_C_6_18_4_1
             if (bytes == null || bytes.Length == 0)
                 return string.Empty;
             return string.Join(" ", bytes.Select(b => b.ToString("X2")));
+        }
+
+        private sealed class MultiLabelCommandAssembler
+        {
+            private readonly ushort[] _parts = new ushort[4];
+            private int _mask;
+            private DateTime _firstSeenUtc;
+            private readonly Dictionary<byte, int> _labelToIndex;
+
+            private static readonly TimeSpan AssemblyTimeout = TimeSpan.FromMilliseconds(200);
+
+            public MultiLabelCommandAssembler(byte[] fragLabels)
+            {
+                _labelToIndex = new Dictionary<byte, int>();
+                if (fragLabels != null)
+                {
+                    for (int i = 0; i < fragLabels.Length && i < 4; i++)
+                    {
+                        _labelToIndex[fragLabels[i]] = i;
+                    }
+                }
+            }
+
+            public bool TryAddFragment(byte label, ushort payload16, DateTime nowUtc, out byte[] cmd8)
+            {
+                cmd8 = null;
+
+                if (!_labelToIndex.TryGetValue(label, out var index))
+                    return false;
+
+                if (_mask == 0 || (nowUtc - _firstSeenUtc) > AssemblyTimeout)
+                {
+                    _mask = 0;
+                    _firstSeenUtc = nowUtc;
+                }
+
+                _parts[index] = payload16;
+                _mask |= (1 << index);
+
+                if (_mask != 0b1111)
+                    return false;
+
+                cmd8 = new byte[8];
+                for (int j = 0; j < 4; j++)
+                {
+                    cmd8[j * 2] = (byte)(_parts[j] & 0xFF);
+                    cmd8[j * 2 + 1] = (byte)((_parts[j] >> 8) & 0xFF);
+                }
+
+                _mask = 0;
+                return true;
+            }
+
+            public void Reset()
+            {
+                _mask = 0;
+                _firstSeenUtc = default;
+            }
         }
     }
 }

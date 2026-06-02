@@ -327,7 +327,6 @@
                     Margin="10,0,10,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
-                        <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
                     <StackPanel Margin="5" Orientation="Horizontal">
@@ -351,7 +350,7 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 FontSize="12"
-                                Text="0x00 01 00 01 00 00 00 00" />
+                                Text="0x30 01 01 01 00 00 00 00" />
                         </Border>
 
                         <Button
@@ -394,29 +393,7 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="1" Margin="115,5,5,5" Orientation="Horizontal">
-                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                        <Border Width="80" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TestRxChannel}" />
-                        </Border>
-
-                        <Border
-                            Width="220"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="LightYellow"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding EnterAtpRxDataText}" />
-                        </Border>
-                    </StackPanel>
+                    <!-- Removed Enter ATP RX section per requirement -->
                 </Grid>
 
                 <Grid
@@ -424,7 +401,6 @@
                     Grid.Column="0"
                     Margin="10,0,10,0">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
@@ -633,7 +609,7 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 FontSize="12"
-                                Text="0x00 02 00 01 00 00 00 01" />
+                                Text="0x30 02 02 01 00 00 00 00" />
                         </Border>
                         <Button
                             Width="50"
@@ -675,29 +651,7 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="5" Margin="115,5,5,5" Orientation="Horizontal">
-                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Text="RX" />
-                        <Border Width="80" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                            <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="{Binding TestRxChannel}" />
-                        </Border>
-
-                        <Border
-                            Width="220"
-                            Height="28"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
-                            Background="LightYellow"
-                            BorderBrush="#D9D9D9"
-                            BorderThickness="1"
-                            CornerRadius="3">
-                            <TextBlock
-                                Margin="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Text="{Binding ExitAtpRxDataText}" />
-                        </Border>
-                    </StackPanel>
+                    <!-- Removed Exit ATP RX section per requirement -->
                 </Grid>
             </Grid>
         </Border>

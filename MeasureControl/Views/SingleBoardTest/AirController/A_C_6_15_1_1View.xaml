@@ -412,13 +412,12 @@
 
                     <StackPanel>
 
-                        <Grid Margin="0,0,0,6">
+                        <Grid Margin="0,5,0,18">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="120" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="*" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
@@ -436,7 +435,7 @@
                                     <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding TestTxChannel}" />
                                 </Border>
                                 <Border Width="180" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x00 01 00 01 00 00 00 00" />
+                                    <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="0x30 01 01 01 00 00 00 00" />
                                 </Border>
                                 <Button
                                     Width="50"
@@ -478,33 +477,20 @@
                                     </Button.Template>
                                 </Button>
                             </StackPanel>
-
-                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
-                                <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                <Border Width="100" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding TestRxChannel}" />
-                                </Border>
-                                <Border Width="180" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding EnterAtpRxDataText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                </Border>
-                            </StackPanel>
-
                         </Grid>
 
-                        <Grid Margin="0,6,0,6">
+                        <Grid Margin="0,18,0,18">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="120" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="100%PWM：" />
-                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="10,6,0,8" VerticalAlignment="Center" FontSize="16" Text="100%PWM：" />
+                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,6,0,8">
                                 <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
                                 <Border Width="100" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
                                     <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding TestTxChannel}" />
@@ -554,16 +540,15 @@
 
                             <TextBlock
                                 Grid.Row="1"
-                                Grid.RowSpan="3"
                                 Grid.Column="0"
-                                Margin="10,0,0,0"
+                                Margin="10,8,0,6"
                                 VerticalAlignment="Center"
                                 FontSize="16"
                                 Text="输出波形：" />
                             <Grid
                                 Grid.Row="1"
-                                Grid.RowSpan="3"
-                                Grid.Column="1">
+                                Grid.Column="1"
+                                Margin="0,8,0,6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width=" auto" />
                                     <ColumnDefinition Width="70" />
@@ -589,30 +574,7 @@
                                                 HorizontalAlignment="Center"
                                                 VerticalAlignment="Center"
                                                 FontSize="12"
-                                                Text="{Binding Pwm100VrmsText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                        </Border>
-                                    </StackPanel>
-
-                                    <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
-                                        <TextBlock
-                                            VerticalAlignment="Center"
-                                            FontSize="14"
-                                            Text="电压(V)" />
-                                        <Border
-                                            Width="90"
-                                            Height="28"
-                                            Margin="8,0,0,0"
-                                            VerticalAlignment="Center"
-                                            Background="LightYellow"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="1"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                FontSize="12"
-                                                Text="{Binding Pwm100VmaxText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                                Text="{Binding Pwm100VoltageText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
                                         </Border>
                                     </StackPanel>
                                 </StackPanel>
@@ -658,24 +620,20 @@
                                 </Button>
 
                             </Grid>
-
                         </Grid>
 
-                        <Grid Margin="0,6,0,6">
+                        <Grid Margin="0,18,0,18">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="120" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="50%PWM：" />
-                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="10,6,0,8" VerticalAlignment="Center" FontSize="16" Text="50%PWM：" />
+                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,6,0,8">
                                 <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
                                 <Border Width="100" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
                                     <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding TestTxChannel}" />
@@ -725,16 +683,15 @@
 
                             <TextBlock
                                 Grid.Row="1"
-                                Grid.RowSpan="4"
                                 Grid.Column="0"
-                                Margin="10,0,0,0"
+                                Margin="10,8,0,6"
                                 VerticalAlignment="Center"
                                 FontSize="16"
                                 Text="输出波形：" />
                             <Grid
                                 Grid.Row="1"
-                                Grid.RowSpan="4"
-                                Grid.Column="1">
+                                Grid.Column="1"
+                                Margin="0,8,0,6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width=" auto" />
                                     <ColumnDefinition Width="70" />
@@ -742,52 +699,6 @@
 
                                 <StackPanel Grid.Column="0">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock
-                                            VerticalAlignment="Center"
-                                            FontSize="14"
-                                            Text="有效值(V)" />
-                                        <Border
-                                            Width="90"
-                                            Height="28"
-                                            Margin="8,0,0,0"
-                                            VerticalAlignment="Center"
-                                            Background="LightYellow"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="1"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                FontSize="12"
-                                                Text="{Binding Pwm50VrmsText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                        </Border>
-                                    </StackPanel>
-
-                                    <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
-                                        <TextBlock
-                                            VerticalAlignment="Center"
-                                            FontSize="14"
-                                            Text="电压(V)" />
-                                        <Border
-                                            Width="90"
-                                            Height="28"
-                                            Margin="8,0,0,0"
-                                            VerticalAlignment="Center"
-                                            Background="LightYellow"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="1"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                FontSize="12"
-                                                Text="{Binding Pwm50VmaxText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                        </Border>
-                                    </StackPanel>
-
-                                    <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
                                         <TextBlock
                                             VerticalAlignment="Center"
                                             FontSize="14"
@@ -852,23 +763,20 @@
                                 </Button>
 
                             </Grid>
-
                         </Grid>
 
-                        <Grid Margin="0,6,0,0">
+                        <Grid Margin="0,18,0,18">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="120" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Text="0%PWM：" />
-                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="10,6,0,8" VerticalAlignment="Center" FontSize="16" Text="0%PWM：" />
+                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,6,0,8">
                                 <TextBlock VerticalAlignment="Center" FontSize="14" Text="TX" />
                                 <Border Width="100" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
                                     <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding TestTxChannel}" />
@@ -918,16 +826,15 @@
 
                             <TextBlock
                                 Grid.Row="1"
-                                Grid.RowSpan="3"
                                 Grid.Column="0"
-                                Margin="10,0,0,0"
+                                Margin="10,8,0,6"
                                 VerticalAlignment="Center"
                                 FontSize="16"
                                 Text="输出波形：" />
                             <Grid
                                 Grid.Row="1"
-                                Grid.RowSpan="3"
-                                Grid.Column="1">
+                                Grid.Column="1"
+                                Margin="0,8,0,6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width=" auto" />
                                     <ColumnDefinition Width="70" />
@@ -953,30 +860,7 @@
                                                 HorizontalAlignment="Center"
                                                 VerticalAlignment="Center"
                                                 FontSize="12"
-                                                Text="{Binding Pwm0VrmsText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                        </Border>
-                                    </StackPanel>
-
-                                    <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
-                                        <TextBlock
-                                            VerticalAlignment="Center"
-                                            FontSize="14"
-                                            Text="电压(V)" />
-                                        <Border
-                                            Width="90"
-                                            Height="28"
-                                            Margin="8,0,0,0"
-                                            VerticalAlignment="Center"
-                                            Background="LightYellow"
-                                            BorderBrush="#D9D9D9"
-                                            BorderThickness="1"
-                                            CornerRadius="3">
-                                            <TextBlock
-                                                Margin="1"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                FontSize="12"
-                                                Text="{Binding Pwm0VmaxText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                                Text="{Binding Pwm0VoltageText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
                                         </Border>
                                     </StackPanel>
                                 </StackPanel>
@@ -1022,16 +906,14 @@
                                 </Button>
 
                             </Grid>
-
                         </Grid>
 
-                        <Grid Margin="0,6,0,0">
+                        <Grid Margin="0,18,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="120" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="*" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
@@ -1049,7 +931,7 @@
                                     <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding TestTxChannel}" />
                                 </Border>
                                 <Border Width="180" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="0x00 02 00 01 00 00 00 01" />
+                                    <TextBlock Margin="1" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Text="0x30 02 02 01 00 00 00 00" />
                                 </Border>
                                 <Button
                                     Width="50"
@@ -1091,17 +973,6 @@
                                     </Button.Template>
                                 </Button>
                             </StackPanel>
-
-                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
-                                <TextBlock VerticalAlignment="Center" FontSize="14" Text="RX" />
-                                <Border Width="100" Height="28" Margin="5,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding TestRxChannel}" />
-                                </Border>
-                                <Border Width="180" Height="28" Margin="10,0,0,0" VerticalAlignment="Center" Background="AliceBlue" BorderBrush="#D9D9D9" BorderThickness="1" CornerRadius="3">
-                                    <TextBlock Margin="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding ExitAtpRxDataText, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-                                </Border>
-                            </StackPanel>
-
                         </Grid>
 
                     </StackPanel>

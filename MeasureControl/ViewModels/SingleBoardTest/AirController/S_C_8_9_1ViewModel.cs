@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -46,13 +47,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
         private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x05, 0x00, 0xA8, 0x00, 0x00, 0x00, 0xA8, 0x00, 0x00, 0x00 };
 
-        private const int FixedGearFrequencyHz = 20;
+        private const int FixedGearFrequencyHz = 2000;
 
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1); 
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _opLock = new SemaphoreSlim(1, 1);
-        private readonly SemaphoreSlim _instrumentLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _instrumentLock = new SemaphoreSlim(1, 1); 
+        private readonly SemaphoreSlim _scopeIoLock = new SemaphoreSlim(1, 1);
 
+        private CancellationTokenSource _manualMeasureCts;
         private CancellationTokenSource _autoTestCts;
 
         private FpgaTcpClient _fpga;
@@ -800,7 +803,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (IsBusy || !IsManualTestRunning)
                 return;
 
-            await SetMeasuringAsync(dutyPct, true);
+            SetMeasuring(dutyPct, true);
             try
             {
                 var (pass, failPoint) = await MeasureAllPointsAsync(dutyPct, CancellationToken.None).ConfigureAwait(false);
@@ -808,7 +811,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             finally
             {
-                await SetMeasuringAsync(dutyPct, false);
+                SetMeasuring(dutyPct, false);
             }
         }
 
@@ -817,7 +820,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await _opLock.WaitAsync(token).ConfigureAwait(false);
             try
             {
-                await SetMeasuringAsync(dutyPct, true);
+                SetMeasuring(dutyPct, true);
                 try
                 {
                     await SendPwmFrameAsync(dutyPct, FixedGearFrequencyHz, sendInit: dutyPct == 100, token).ConfigureAwait(false);
@@ -830,7 +833,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
-                    await SetMeasuringAsync(dutyPct, false);
+                    SetMeasuring(dutyPct, false);
                 }
             }
             finally
@@ -839,9 +842,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private async Task SetMeasuringAsync(int dutyPct, bool value)
+        private void SetMeasuring(int dutyPct, bool value)
         {
-            await Application.Current.Dispatcher.InvokeAsync(() =>
+            Application.Current?.Dispatcher?.Invoke(() =>
             {
                 switch (dutyPct)
                 {
@@ -885,6 +888,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return false;
             }
 
+            // 0% PWM: amplitude only — both VMAX and VMIN should be near 0V
             if (expectedDutyPct == 0)
             {
                 if (!m.Vmax.HasValue || !m.Vmin.HasValue)
@@ -903,6 +907,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return true;
             }
 
+            // 100% PWM: amplitude only — VMAX should be in [17,32]V, VMIN should be near 0V
+            if (expectedDutyPct == 100)
+            {
+                if (!m.Vmax.HasValue)
+                {
+                    reason = "VMAX无有效值";
+                    return false;
+                }
+
+                if (m.Vmax.Value < 17.0 || m.Vmax.Value > 32.0)
+                {
+                    reason = $"VMAX不在[17,32]V：{m.Vmax.Value:F4}V";
+                    return false;
+                }
+
+                reason = null;
+                return true;
+            }
+
+            // 50% PWM: amplitude + duty cycle — VMAX in [17,32]V and duty cycle within ±1%
             if (!m.Vmax.HasValue)
             {
                 reason = "VMAX无有效值";
@@ -1079,10 +1103,39 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     await EnsureScopeConnectedAsync(token).ConfigureAwait(false);
                     await Task.Delay(200, token).ConfigureAwait(false);
 
-                    var vmax = await QueryScopeDoubleAsync(":MEASure:ITEM? VMAX", token).ConfigureAwait(false);
-                    var vmin = await QueryScopeDoubleAsync(":MEASure:ITEM? VMIN", token).ConfigureAwait(false);
-                    var vpp = await QueryScopeDoubleAsync(":MEASure:ITEM? VPP", token).ConfigureAwait(false);
-                    var duty = await QueryScopeDoubleAsync(":MEASure:ITEM? DUTY", token).ConfigureAwait(false);
+                    // Query amplitude values
+                    double? vmax = null, vmin = null, vpp = null;
+                    try
+                    {
+                        var rawVmax = await QueryScopeAsync(":MEASure:ITEM? VMAX", 10000, token).ConfigureAwait(false);
+                        vmax = ParseScopeDouble(rawVmax);
+                        var rawVmin = await QueryScopeAsync(":MEASure:ITEM? VMIN", 10000, token).ConfigureAwait(false);
+                        vmin = ParseScopeDouble(rawVmin);
+                        var rawVpp = await QueryScopeAsync(":MEASure:ITEM? VPP", 10000, token).ConfigureAwait(false);
+                        vpp = ParseScopeDouble(rawVpp);
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询电压值异常：{ex.Message}");
+                    }
+
+                    // Query duty cycle — calculate from PWIDth + NWIDth
+                    double? duty = null;
+                    try
+                    {
+                        var rawPw = await QueryScopeAsync(":MEASure:ITEM? PWIDth", 10000, token).ConfigureAwait(false);
+                        var pw = ParseScopeDouble(rawPw);
+                        var rawNw = await QueryScopeAsync(":MEASure:ITEM? NWIDth", 10000, token).ConfigureAwait(false);
+                        var nw = ParseScopeDouble(rawNw);
+                        if (pw.HasValue && nw.HasValue && (pw.Value + nw.Value) > 0)
+                        {
+                            duty = pw.Value / (pw.Value + nw.Value) * 100.0;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询占空比异常：{ex.Message}");
+                    }
 
                     return new MeasurementResult
                     {
@@ -1139,12 +1192,84 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         return null;
 
                     await EnsureScopeConnectedAsync(token).ConfigureAwait(false);
-                    await Task.Delay(200, token).ConfigureAwait(false);
 
-                    var vmax = await QueryScopeDoubleAsync(":MEASure:ITEM? VMAX", token).ConfigureAwait(false);
-                    var vmin = await QueryScopeDoubleAsync(":MEASure:ITEM? VMIN", token).ConfigureAwait(false);
-                    var vpp = await QueryScopeDoubleAsync(":MEASure:ITEM? VPP", token).ConfigureAwait(false);
-                    var duty = await QueryScopeDoubleAsync(":MEASure:ITEM? DUTY", token).ConfigureAwait(false);
+                    // Send AUToscale to auto-configure the scope settings
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送 :AUToscale (示波器自动设置) 并等待完成...");
+                    try
+                    {
+                        await SendScopeCommandAsync(":AUToscale", token).ConfigureAwait(false);
+                        try
+                        {
+                            var opc = await QueryScopeAsync("*OPC?", 20000, token).ConfigureAwait(false);
+                            _ = opc;
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：等待 *OPC? 超时/异常：{ex.Message}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送 :AUToscale 失败：{ex.Message}");
+                    }
+
+                    // Configure measurement items on the scope
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：正在配置测量项 (VMAX, VMIN, VPP, PWIDth, NWIDth)...");
+                    try
+                    {
+                        await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
+                        await SendScopeCommandAsync(":MEASure:CLEar", token).ConfigureAwait(false);
+                        await SendScopeCommandAsync(":MEASure:ITEM VMAX", token).ConfigureAwait(false);
+                        await SendScopeCommandAsync(":MEASure:ITEM VMIN", token).ConfigureAwait(false);
+                        await SendScopeCommandAsync(":MEASure:ITEM VPP", token).ConfigureAwait(false);
+                        await SendScopeCommandAsync(":MEASure:ITEM PWIDth", token).ConfigureAwait(false);
+                        await SendScopeCommandAsync(":MEASure:ITEM NWIDth", token).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：配置测量项异常：{ex.Message}");
+                    }
+
+                    // Delay for waveform stabilization after AUToscale
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：延时5秒等待波形在自动设置后稳定...");
+                    await Task.Delay(5000, token).ConfigureAwait(false);
+
+                    // Query amplitude values
+                    double? vmax = null, vmin = null, vpp = null;
+                    try
+                    {
+                        await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
+                        var rawVmax = await QueryScopeAsync(":MEASure:ITEM? VMAX", 10000, token).ConfigureAwait(false);
+                        vmax = ParseScopeDouble(rawVmax);
+                        var rawVmin = await QueryScopeAsync(":MEASure:ITEM? VMIN", 10000, token).ConfigureAwait(false);
+                        vmin = ParseScopeDouble(rawVmin);
+                        var rawVpp = await QueryScopeAsync(":MEASure:ITEM? VPP", 10000, token).ConfigureAwait(false);
+                        vpp = ParseScopeDouble(rawVpp);
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询电压值异常：{ex.Message}");
+                    }
+
+                    // Query duty cycle — calculate from PWIDth (高电平时间) + NWIDth (低电平时间)
+                    double? duty = null;
+                    try
+                    {
+                        var rawPw = await QueryScopeAsync(":MEASure:ITEM? PWIDth", 10000, token).ConfigureAwait(false);
+                        var pw = ParseScopeDouble(rawPw);
+                        var rawNw = await QueryScopeAsync(":MEASure:ITEM? NWIDth", 10000, token).ConfigureAwait(false);
+                        var nw = ParseScopeDouble(rawNw);
+                        if (pw.HasValue && nw.HasValue && (pw.Value + nw.Value) > 0)
+                        {
+                            duty = pw.Value / (pw.Value + nw.Value) * 100.0;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询占空比异常：{ex.Message}");
+                    }
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：测量完成 VMAX={FormatNum(vmax)}V, VMIN={FormatNum(vmin)}V, VPP={FormatNum(vpp)}V, DUTY={FormatNum(duty)}%");
 
                     return new MeasurementResult
                     {
@@ -1184,7 +1309,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             var mV2 = await MeasureOnceWithMatrixAsync(NormalizeSlot6Output(DcmV2ToScope), "DCM_V2对地", token).ConfigureAwait(false);
             var mV11 = await MeasureOnceWithMatrixAsync(NormalizeSlot6Output(DcmV1V1ToScope), "DCM_V1对DCM_V2", token).ConfigureAwait(false);
 
-            await Application.Current.Dispatcher.InvokeAsync(() =>
+            Application.Current.Dispatcher.Invoke(() =>
             {
                 if (mV1 != null)
                 {
@@ -1213,15 +1338,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             var okV2 = IsMeasurementPass(mV2, expectedDutyPct, out var rV2);
             var okV11 = IsMeasurementPass(mV11, expectedDutyPct, out var rV11);
 
-            if (!okV1)
+            if (okV1)
+                AddLog($"{mV1?.Title ?? "DCM_V1对地"} 判据PASS");
+            else
                 AddLog($"{mV1?.Title ?? "DCM_V1对地"} 判据FAIL: {rV1}");
-            if (!okV2)
+            if (okV2)
+                AddLog($"{mV2?.Title ?? "DCM_V2对地"} 判据PASS");
+            else
                 AddLog($"{mV2?.Title ?? "DCM_V2对地"} 判据FAIL: {rV2}");
-            if (!okV11)
+            if (okV11)
+                AddLog($"{mV11?.Title ?? "DCM_V1对DCM_V2"} 判据PASS");
+            else
                 AddLog($"{mV11?.Title ?? "DCM_V1对DCM_V2"} 判据FAIL: {rV11}");
 
             if (okV1 && okV2 && okV11)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={expectedDutyPct}%：全部测量点PASS");
                 return (true, string.Empty);
+            }
 
             if (!okV1) return (false, mV1?.Title ?? "DCM_V1对地");
             if (!okV2) return (false, mV2?.Title ?? "DCM_V2对地");
@@ -1232,7 +1366,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             if (!v.HasValue || double.IsNaN(v.Value) || double.IsInfinity(v.Value))
                 return "--";
-            return v.Value.ToString("F6", CultureInfo.InvariantCulture);
+            return v.Value.ToString("G6", CultureInfo.InvariantCulture);
         }
 
         private async Task EnsureScopeConnectedAsync(CancellationToken token)
@@ -1253,35 +1387,112 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
             }
 
-            await QueryScopeStringAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
-            await QueryScopeStringAsync(":MEASure:CLEar", token).ConfigureAwait(false);
+            await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
+            await SendScopeCommandAsync(":MEASure:CLEar", token).ConfigureAwait(false);
         }
 
-        private async Task<double?> QueryScopeDoubleAsync(string command, CancellationToken token)
+        /// <summary>
+        /// Synchronous scope write — caller must hold _scopeIoLock.
+        /// Matches OscilloscopeTestPanelViewModel.WriteOscilloscopeUnsafe pattern.
+        /// </summary>
+        private void WriteScopeUnsafe(string command)
         {
-            var s = await QueryScopeStringAsync(command, token).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(s))
+            var stream = _scopeTcpStream;
+            if (stream == null) return;
+            var cmd = command.EndsWith("\n", StringComparison.Ordinal) ? command : command + "\n";
+            var bytes = Encoding.ASCII.GetBytes(cmd);
+            stream.Write(bytes, 0, bytes.Length);
+        }
+
+        /// <summary>
+        /// Async send-only scope command with independent lock acquisition.
+        /// Matches OscilloscopeTestPanelViewModel.SendOscilloscopeCommandAsync pattern.
+        /// </summary>
+        private async Task SendScopeCommandAsync(string command, CancellationToken token)
+        {
+            if (_scopeTcpStream == null && _scopeTcpClient == null)
+                return;
+
+            await _scopeIoLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                await Task.Run(() =>
+                {
+                    WriteScopeUnsafe(command);
+                }, token).ConfigureAwait(false);
+            }
+            finally
+            {
+                _scopeIoLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Async scope query with independent lock acquisition.
+        /// Matches OscilloscopeTestPanelViewModel.QueryOscilloscopeAsync pattern:
+        /// acquire lock → Task.Run(sync write + sync ReadLine) → release lock.
+        /// </summary>
+        private async Task<string> QueryScopeAsync(string command, int timeoutMs, CancellationToken token)
+        {
+            if (_scopeTcpStream == null && _scopeTcpClient == null)
                 return null;
 
-            if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
-                return v;
+            await _scopeIoLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                return await Task.Run(() =>
+                {
+                    var stream = _scopeTcpStream;
+                    if (stream == null)
+                        return null;
 
-            return null;
+                    // Synchronous write inside lock
+                    var cmd = command.EndsWith("\n", StringComparison.Ordinal) ? command : command + "\n";
+                    var bytes = Encoding.ASCII.GetBytes(cmd);
+                    stream.Write(bytes, 0, bytes.Length);
+
+                    // Synchronous read with timeout
+                    try
+                    {
+                        return ReadLineAsync(stream, timeoutMs, token).GetAwaiter().GetResult();
+                    }
+                    catch (TimeoutException)
+                    {
+                        return null;
+                    }
+                }, token).ConfigureAwait(false);
+            }
+            finally
+            {
+                _scopeIoLock.Release();
+            }
         }
 
-        private async Task<string> QueryScopeStringAsync(string command, CancellationToken token)
+        /// <summary>
+        /// Parse a scope response string into a double, matching OscilloscopeTestPanelViewModel.NormalizeOscilloscopeNumber pattern.
+        /// </summary>
+        private static double? ParseScopeDouble(string raw)
         {
-            if (_scopeTcpStream == null)
-                throw new InvalidOperationException("示波器未连接");
+            if (string.IsNullOrWhiteSpace(raw))
+                return null;
 
-            var cmd = Encoding.ASCII.GetBytes(command + "\n");
-            await _scopeTcpStream.WriteAsync(cmd, 0, cmd.Length, token).ConfigureAwait(false);
-            await _scopeTcpStream.FlushAsync(token).ConfigureAwait(false);
+            raw = raw.Trim();
+            int comma = raw.IndexOf(',');
+            if (comma > 0)
+                raw = raw.Substring(0, comma);
 
-            if (!command.TrimEnd().EndsWith("?", StringComparison.Ordinal))
-                return string.Empty;
+            var match = Regex.Match(raw, @"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?");
+            if (!match.Success)
+                return null;
 
-            return await ReadLineAsync(_scopeTcpStream, 5000, token).ConfigureAwait(false);
+            var clean = match.Value;
+            if (double.TryParse(clean, NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
+            {
+                if (double.IsNaN(v) || double.IsInfinity(v) || Math.Abs(v) > 1e36)
+                    return null;
+                return v;
+            }
+            return null;
         }
 
         private static async Task<string> ReadLineAsync(NetworkStream stream, int timeoutMs, CancellationToken token)
@@ -1289,27 +1500,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             using (var cts = CancellationTokenSource.CreateLinkedTokenSource(token))
             {
                 cts.CancelAfter(timeoutMs);
-
                 var sb = new StringBuilder();
-                var buffer = new byte[1];
-
+                var buf = new byte[1];
                 while (true)
                 {
-                    int n = await stream.ReadAsync(buffer, 0, 1, cts.Token).ConfigureAwait(false);
+                    int n;
+                    try
+                    {
+                        n = await stream.ReadAsync(buf, 0, 1, cts.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        if (token.IsCancellationRequested)
+                            throw;
+                        throw new TimeoutException($"示波器读取超时({timeoutMs}ms)");
+                    }
                     if (n <= 0)
                         break;
-
-                    char ch = (char)buffer[0];
+                    char ch = (char)buf[0];
                     if (ch == '\n')
                         break;
-                    if (ch == '\r')
-                        continue;
-                    sb.Append(ch);
-
-                    if (sb.Length > 4096)
-                        break;
+                    if (ch != '\r')
+                        sb.Append(ch);
                 }
-
                 return sb.ToString().Trim();
             }
         }
@@ -1395,10 +1608,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try { _powerSupply28V?.DisposeAsync().AsTask().Wait(1000); } catch { }
             _powerSupply28V = null;
 
+            try { _manualMeasureCts?.Cancel(); } catch { }
+            try { _manualMeasureCts?.Dispose(); } catch { }
+            _manualMeasureCts = null;
+
             try { _manualTestLock?.Dispose(); } catch { }
             try { _autoTestLock?.Dispose(); } catch { }
             try { _opLock?.Dispose(); } catch { }
             try { _instrumentLock?.Dispose(); } catch { }
+            try { _scopeIoLock?.Dispose(); } catch { }
         }
 
         private sealed class MeasurementResult

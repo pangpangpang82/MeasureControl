@@ -1,4 +1,4 @@
-﻿using MeasureControl.Drivers;
+using MeasureControl.Drivers;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
 using MeasureControl.Simulations.S_C_8_3_1;
@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
-    public class A28vOc100mADiscreteOutputCh2TestViewModel : BindableBase
+    public class A28vOc400mACh3TestViewModel : BindableBase
     {
         private const string TxChannel = "429_CH5";
         private const string RxChannel = "429_CH2";
@@ -24,13 +24,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] AtpEnterCommand = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] AtpExitCommand = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
-        private static readonly byte[] AB_28VDSOM22_28VTEST = { 0x09, 0x03, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] AB_28VDSOM22_28VTEST_ACK = { 0x09, 0x03, 0x02, 0x02, 0xAA, 0xAA, 0xAA, 0xAA };
-        private static readonly byte[] AB_28VDSOM22_28VTEST2 = { 0x09, 0x03, 0x02, 0x03, 0x00, 0x00, 0x00, 0x00 };
-        
-        private static readonly byte[] AB_28VDSOM20_OCTEST = { 0x09, 0x03, 0x02, 0x06, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] AB_28VDSOM20_OCTEST_ACK = { 0x09, 0x03, 0x02, 0x07, 0xAA, 0xAA, 0xAA, 0xAA };
-        private static readonly byte[] AB_28VDSOM20_OCTEST2 = { 0x09, 0x03, 0x02, 0x08, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] A_28VDSOH_28VTEST = { 0x09, 0x04, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] A_28VDSOH_28VTEST_ACK = { 0x09, 0x04, 0x03, 0x02, 0xAA, 0xAA, 0xAA, 0xAA };
+        private static readonly byte[] A_28VDSOH_28VTEST2 = { 0x09, 0x04, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] A_28VDSOH_OCTEST = { 0x09, 0x04, 0x03, 0x06, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] A_28VDSOH_OCTEST_ACK = { 0x09, 0x04, 0x03, 0x07, 0xAA, 0xAA, 0xAA, 0xAA };
+        private static readonly byte[] A_28VDSOH_OCTEST2 = { 0x09, 0x04, 0x03, 0x08, 0x00, 0x00, 0x00, 0x00 };
 
         private readonly S_C_8_3_1Simulation _arinc = new S_C_8_3_1Simulation();
         private readonly SemaphoreSlim _opLock = new SemaphoreSlim(1, 1);
@@ -47,13 +46,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _ocLabel14ActualText = "--";
         private string _loadVoltageActualText = "--";
 
-        public A28vOc100mADiscreteOutputCh2TestViewModel()
+        public A28vOc400mACh3TestViewModel()
         {
             AutoTestCommand = new DelegateCommand(OnAutoTest);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
         }
 
-        public string PageTitle => "6.15.2.2控制通道28V/OC型100mA离散输出通道2输出测试";
+        public string PageTitle => "6.15.3.3 28V/OC型400mA离散输出通道3输出测试";
 
         public ObservableCollection<string> Logs { get; } = new ObservableCollection<string>();
 
@@ -325,19 +324,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task Test28vPhaseAsync(CancellationToken token)
         {
-            // (2) 429发送测试指令AB_28VDSOM22_28VTEST 0x09 03 02 01 00 00 00 00
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (2) 发送AB_28VDSOM22_28VTEST：{FormatBytesHex(AB_28VDSOM22_28VTEST)}");
+            // (2) 429发送测试指令A_28VDSOH_28VTEST 0x09 04 03 01 00 00 00 00
+            AddLog($"[{DateTime.Now:HH:mm:ss}] (2) 发送A_28VDSOH_28VTEST：{FormatBytesHex(A_28VDSOH_28VTEST)}");
             var ackResp = await SendAndReadWithRetryAsync(
-                AB_28VDSOM22_28VTEST,
-                b => b != null && b.SequenceEqual(AB_28VDSOM22_28VTEST_ACK),
+                A_28VDSOH_28VTEST,
+                b => b != null && b.SequenceEqual(A_28VDSOH_28VTEST_ACK),
                 2000,
                 token);
             AddLog($"[{DateTime.Now:HH:mm:ss}] (3) 收到28VTEST ACK：0x{FormatBytesHex(ackResp)}");
 
-            // 用万用表直流电压挡位和矩阵开关测量负载两端实际电压值，3022的矩阵开关I0 c33（slot2） 和r4  c0(slot4)
+            // 用万用表直流电压挡位和矩阵开关测量负载两端实际电压值，3022的矩阵开关I0 c37（slot2） 和r4  c0(slot4)
             var matrixOps = new (string inNode, string outNode, int slot, int? basePort)[]
             {
-                ("I0", "O33", 2, 50300),
+                ("I0", "O37", 2, 50300),
                 ("I4", "O0", MatrixSlotIndex, null)
             };
             AddLog($"[{DateTime.Now:HH:mm:ss}] 万用表测量负载两端电压...");
@@ -360,11 +359,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 throw new InvalidOperationException("无法获取到有效的万用表电压数据");
             }
 
-            // (4) 429发送测试指令AB_28VDSOM22_28VTEST2 0x09 03 02 03 00 00 00 00
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (4) 发送AB_28VDSOM22_28VTEST2：{FormatBytesHex(AB_28VDSOM22_28VTEST2)}");
+            // (4) 429发送测试指令A_28VDSOH_28VTEST2 0x09 04 03 03 00 00 00 00；
+            AddLog($"[{DateTime.Now:HH:mm:ss}] (4) 发送A_28VDSOH_28VTEST2：{FormatBytesHex(A_28VDSOH_28VTEST2)}");
             var loopResp = await SendAndReadWithRetryAsync(
-                AB_28VDSOM22_28VTEST2,
-                b => b != null && b.Length == 8 && b[0] == 0x09 && b[1] == 0x03 && b[2] == 0x02 && b[3] == 0x04,
+                A_28VDSOH_28VTEST2,
+                b => b != null && b.Length == 8 && b[0] == 0x09 && b[1] == 0x04 && b[2] == 0x03 && b[3] == 0x04,
                 2000,
                 token);
             AddLog($"[{DateTime.Now:HH:mm:ss}] (5) 收到28V回绕指令：0x{FormatBytesHex(loopResp)}");
@@ -374,39 +373,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             V28Label14ActualText = $"{data14:X4}";
             AddLog($"[{DateTime.Now:HH:mm:ss}] 28V label14实际值：0x{data14:X4}");
 
-            // 读取并舍弃后四组数据 (避免影响后续测试)
-            try
-            {
-                var extraData = await _arinc.WaitBenchResponse8Async(RxChannel, _ => true, 200, msg => { }, token);
-                if (extraData != null)
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 已舍弃额外的回绕数据");
-                }
-            }
-            catch { }
-
             if (data14 != 0x5555)
                 throw new InvalidOperationException($"28V回采数据不符：期望0x5555，实际0x{data14:X4}");
+
+            // 返回的有8帧数据，这里只判断前四帧，为了避免影响后续测试，显式舍弃后四帧（清理FIFO）
+            await Task.Delay(100, token);
+            try { await _arinc.ClearRxFifoAsync(RxChannel); } catch { }
 
             AddLog($"[{DateTime.Now:HH:mm:ss}] 28V回采判读：PASS");
         }
 
         private async Task TestOcPhaseAsync(CancellationToken token)
         {
-            // (6) 429发送测试指令AB_28VDSOM20_OCTEST 0x09 03 02 06 00 00 00 00
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (6) 发送AB_28VDSOM20_OCTEST：{FormatBytesHex(AB_28VDSOM20_OCTEST)}");
+            // (6) 429发送测试指令A_28VDSOH_OCTEST 0x09 04 03 06 00 00 00 00
+            AddLog($"[{DateTime.Now:HH:mm:ss}] (6) 发送A_28VDSOH_OCTEST：{FormatBytesHex(A_28VDSOH_OCTEST)}");
             var ackResp = await SendAndReadWithRetryAsync(
-                AB_28VDSOM20_OCTEST,
-                b => b != null && b.SequenceEqual(AB_28VDSOM20_OCTEST_ACK),
+                A_28VDSOH_OCTEST,
+                b => b != null && b.SequenceEqual(A_28VDSOH_OCTEST_ACK),
                 2000,
                 token);
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (6) 收到软件回复指令：0x{FormatBytesHex(ackResp)}");
+            AddLog($"[{DateTime.Now:HH:mm:ss}] (6) 收到OCTEST ACK：0x{FormatBytesHex(ackResp)}");
 
-            // (7) 429发送测试指令AB_28VDSOM20_OCTEST2 0x09 03 02 08 00 00 00 00
-            AddLog($"[{DateTime.Now:HH:mm:ss}] (7) 发送AB_28VDSOM20_OCTEST2：{FormatBytesHex(AB_28VDSOM20_OCTEST2)}");
+            // (7) 429发送测试指令A_28VDSOH_OCTEST2 0x09 04 03 08 00 00 00 00；
+            AddLog($"[{DateTime.Now:HH:mm:ss}] (7) 发送A_28VDSOH_OCTEST2：{FormatBytesHex(A_28VDSOH_OCTEST2)}");
             var loopResp = await SendAndReadWithRetryAsync(
-                AB_28VDSOM20_OCTEST2,
-                b => b != null && b.Length == 8 && b[0] == 0x09 && b[1] == 0x03 && b[2] == 0x02 && b[3] == 0x09,
+                A_28VDSOH_OCTEST2,
+                b => b != null && b.Length == 8 && b[0] == 0x09 && b[1] == 0x04 && b[2] == 0x03 && b[3] == 0x09,
                 2000,
                 token);
             AddLog($"[{DateTime.Now:HH:mm:ss}] (8) 收到OC回绕指令：0x{FormatBytesHex(loopResp)}");
