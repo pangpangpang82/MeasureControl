@@ -99,7 +99,7 @@ namespace MeasureControl.Simulations.AC_6_4
             if (_started) return;
             if (log == null) log = _ => { };
 
-            log($"[{DateTime.Now:HH:mm:ss}] [SIM] 6_4 仿真初始化开始");
+            log($"[{DateTime.Now:HH:mm:ss}] [SIM] 6_4 测试初始化开始");
 
             _simCts = new CancellationTokenSource();
 
@@ -130,7 +130,7 @@ namespace MeasureControl.Simulations.AC_6_4
             // TODO: 在此处加入矩阵开关通路配置（由你后续实现）
 
             _started = true;
-            log($"[{DateTime.Now:HH:mm:ss}] [SIM] 6_4 仿真初始化完成");
+            log($"[{DateTime.Now:HH:mm:ss}] [SIM] 6_4 测试初始化完成");
         }
 
         private async Task StartBenchRxAsync(Action<string> log)
@@ -376,7 +376,7 @@ namespace MeasureControl.Simulations.AC_6_4
                 return;
             }
 
-            log($"[{DateTime.Now:HH:mm:ss}] [SIM] 6_4 仿真停止：释放设备资源");
+            log($"[{DateTime.Now:HH:mm:ss}] [SIM] 6_4 测试停止：释放设备资源");
 
             // 先设置_started为false，防止重入
             _started = false;
