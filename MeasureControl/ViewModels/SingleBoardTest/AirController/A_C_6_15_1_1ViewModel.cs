@@ -627,23 +627,43 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
 
             // Configure measurement items on the scope
-            AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：正在配置测量项 (VMAX, VMIN, VAVG, VRMS, VPP, FREQuency, PWIDth, NWIDth)...");
-            try
+            if (pwmPercent == 50)
             {
-                await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
-                await SendScopeCommandAsync(":MEASure:CLEar", token);
-                await SendScopeCommandAsync(":MEASure:ITEM VMAX", token);
-                await SendScopeCommandAsync(":MEASure:ITEM VMIN", token);
-                await SendScopeCommandAsync(":MEASure:ITEM VAVG", token);
-                await SendScopeCommandAsync(":MEASure:ITEM VRMS", token);
-                await SendScopeCommandAsync(":MEASure:ITEM VPP", token);
-                await SendScopeCommandAsync(":MEASure:ITEM FREQuency", token);
-                await SendScopeCommandAsync(":MEASure:ITEM PWIDth", token);
-                await SendScopeCommandAsync(":MEASure:ITEM NWIDth", token);
+                // 50% 只关心频率和占空比，按 6.16.1.1.1 的方式仅配置 FREQuency、PWIDth、NWIDth
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：正在配置测量项 (FREQuency, PWIDth, NWIDth)...");
+                try
+                {
+                    await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
+                    await SendScopeCommandAsync(":MEASure:CLEar", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM FREQuency", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM PWIDth", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM NWIDth", token);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 配置测量项异常：{ex.Message}");
+                }
             }
-            catch (Exception ex)
+            else
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 配置测量项异常：{ex.Message}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：正在配置测量项 (VMAX, VMIN, VAVG, VRMS, VPP, FREQuency, PWIDth, NWIDth)...");
+                try
+                {
+                    await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
+                    await SendScopeCommandAsync(":MEASure:CLEar", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM VMAX", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM VMIN", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM VAVG", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM VRMS", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM VPP", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM FREQuency", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM PWIDth", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM NWIDth", token);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 配置测量项异常：{ex.Message}");
+                }
             }
 
             AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：延时5秒等待波形在自动设置后稳定...");
@@ -651,23 +671,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             // Query amplitude values
             double? vmax = null, vmin = null, vavg = null, vrms = null, vpp = null;
-            try
+            if (pwmPercent != 50)
             {
-                await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
-                var rawVmax = await QueryScopeAsync(":MEASure:ITEM? VMAX", 10000, token);
-                vmax = ParseScopeDouble(rawVmax);
-                var rawVmin = await QueryScopeAsync(":MEASure:ITEM? VMIN", 10000, token);
-                vmin = ParseScopeDouble(rawVmin);
-                var rawVavg = await QueryScopeAsync(":MEASure:ITEM? VAVG", 10000, token);
-                vavg = ParseScopeDouble(rawVavg);
-                var rawVrms = await QueryScopeAsync(":MEASure:ITEM? VRMS", 10000, token);
-                vrms = ParseScopeDouble(rawVrms);
-                var rawVpp = await QueryScopeAsync(":MEASure:ITEM? VPP", 10000, token);
-                vpp = ParseScopeDouble(rawVpp);
-            }
-            catch (Exception ex)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 查询电压值异常：{ex.Message}");
+                try
+                {
+                    await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
+                    var rawVmax = await QueryScopeAsync(":MEASure:ITEM? VMAX", 10000, token);
+                    vmax = ParseScopeDouble(rawVmax);
+                    var rawVmin = await QueryScopeAsync(":MEASure:ITEM? VMIN", 10000, token);
+                    vmin = ParseScopeDouble(rawVmin);
+                    var rawVavg = await QueryScopeAsync(":MEASure:ITEM? VAVG", 10000, token);
+                    vavg = ParseScopeDouble(rawVavg);
+                    var rawVrms = await QueryScopeAsync(":MEASure:ITEM? VRMS", 10000, token);
+                    vrms = ParseScopeDouble(rawVrms);
+                    var rawVpp = await QueryScopeAsync(":MEASure:ITEM? VPP", 10000, token);
+                    vpp = ParseScopeDouble(rawVpp);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 查询电压值异常：{ex.Message}");
+                }
             }
 
             // Query frequency
@@ -686,13 +709,51 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             double? dutyPct = null;
             try
             {
-                var rawPw = await QueryScopeAsync(":MEASure:ITEM? PWIDth", 10000, token);
-                var pw = ParseScopeDouble(rawPw);
-                var rawNw = await QueryScopeAsync(":MEASure:ITEM? NWIDth", 10000, token);
-                var nw = ParseScopeDouble(rawNw);
-                if (pw.HasValue && nw.HasValue && (pw.Value + nw.Value) > 0)
+                const int dutyMaxAttempts = 3;
+                const int dutyTimeoutMs = 3000; // 单次占空比查询使用较短超时，配合重试避免长时间卡界面
+
+                for (int attempt = 1; attempt <= dutyMaxAttempts; attempt++)
                 {
-                    dutyPct = pw.Value / (pw.Value + nw.Value) * 100.0;
+                    if (token.IsCancellationRequested)
+                        break;
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：第{attempt}/{dutyMaxAttempts}次尝试查询PWIDth/NWIDth用于计算占空比...");
+
+                    var rawPw = await QueryScopeAsync(":MEASure:ITEM? PWIDth", dutyTimeoutMs, token);
+                    var pw = ParseScopeDouble(rawPw);
+                    if (string.IsNullOrWhiteSpace(rawPw))
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：PWIDth无返回或超时");
+                    }
+                    else if (!pw.HasValue)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：PWIDth返回值无效：'{rawPw}'");
+                    }
+
+                    var rawNw = await QueryScopeAsync(":MEASure:ITEM? NWIDth", dutyTimeoutMs, token);
+                    var nw = ParseScopeDouble(rawNw);
+                    if (string.IsNullOrWhiteSpace(rawNw))
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：NWIDth无返回或超时");
+                    }
+                    else if (!nw.HasValue)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：NWIDth返回值无效：'{rawNw}'");
+                    }
+
+                    if (pw.HasValue && nw.HasValue && (pw.Value + nw.Value) > 0)
+                    {
+                        dutyPct = pw.Value / (pw.Value + nw.Value) * 100.0;
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：占空比计算完成，PWIDth={FormatNum(pw)} s, NWIDth={FormatNum(nw)} s, DUTY={FormatNum(dutyPct)} %");
+                        break;
+                    }
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：第{attempt}次未能根据PWIDth/NWIDth计算占空比，PWIDth={FormatNum(pw)} s, NWIDth={FormatNum(nw)} s");
+                }
+
+                if (!dutyPct.HasValue)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：多次重试后仍未能读取占空比，将占空比视为无效");
                 }
             }
             catch (Exception ex)
@@ -1155,7 +1216,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
                     AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送完成（不等待回读）");
-                    SetLastTestResult("PASS");
                 }
                 finally
                 {
@@ -1165,7 +1225,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             catch (Exception ex)
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] {title}异常：{ex.Message}");
-                SetLastTestResult("FAIL");
             }
             finally
             {
