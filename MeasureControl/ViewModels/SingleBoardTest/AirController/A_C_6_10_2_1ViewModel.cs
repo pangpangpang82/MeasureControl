@@ -42,17 +42,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
     {
 
-        private const string FixedTxChannel = "429_CH0";
+        private const string FixedTxChannel = "429_CH5";
 
         private const string FixedRxChannel = "429_CH2";
 
-        private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        // 按 6.10.2 规范的 ATP 编码
+        private static readonly byte[] EnterAtpCommand8 = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
-        private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-
-        private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
-
-        private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        private static readonly byte[] ExitAtpCommand8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
 
 
@@ -63,6 +60,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
         private const string AoChannel = "AO2";
+
+        private static readonly string[] Mtx532EnabledAoChannels = { "AO2" };
+
+        private const int Mtx532ReadyTimeoutMs = 6000;
+
+        private const int Mtx532ReadyPollMs = 200;
+
+        private const double Mtx532SampleRateHz = 20000.0;
 
 
 
@@ -123,6 +128,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _pressureTelemetryValueText;
 
         private string _pressureTelemetryRxDataText;
+        private string _pressureTelemetryRawRxDataText;
 
 
 
@@ -168,13 +174,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private bool _isBusy;
 
+        private bool _autoTestEnteredAtp;
+
 
 
         private double _arincRate = 100000.0;
 
 
 
-        // 压力遥测持续监听（AC_6_4风格）
+        // 压力遥测持续监听（与 6.10.1 对齐）
 
         private CancellationTokenSource _telemetryListeningCts;
 
@@ -183,6 +191,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private int _pressureTelemetrySeq;
 
         private byte[] _lastPressureTelemetryFrame;
+        private byte[] _lastPressureTelemetryRawFrame;
 
 
 
@@ -217,6 +226,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             PressureTelemetryValueText = "--";
 
             PressureTelemetryRxDataText = "--";
+            PressureTelemetryRawRxDataText = "--";
 
 
 
@@ -537,6 +547,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _pressureTelemetryRxDataText, value);
         }
 
+        public string PressureTelemetryRawRxDataText
+        {
+
+            get => _pressureTelemetryRawRxDataText;
+
+            private set
+
+            {
+
+                SetProperty(ref _pressureTelemetryRawRxDataText, value);
+
+            }
+
+        }
+
         public string EnterAtpRxDataText
         {
             get => _enterAtpRxDataText;
@@ -802,19 +827,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = RunAutoTestAsync();
         }
 
-        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
-        {
-            try
-            {
-                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                if (api != null)
-                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
-            }
-            catch
-            {
-            }
-        }
-
         private void OnToggleMtx532Hardware()
         {
             _ = ToggleMtx532HardwareAsync();
@@ -863,52 +875,51 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task StartManualTestAsync()
         {
-            if (IsBusy)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动被阻止：当前IsBusy=True");
-                return;
-            }
-
             await _manualTestLock.WaitAsync();
             try
             {
-                if (IsBusy)
+                if (IsManualTestRunning || IsBusy)
                     return;
+
+                IsManualTestRunning = true;
+                PressureTelemetryValueText = "--";
+                PressureTelemetryRxDataText = "--";
+                EnterAtpRxDataText = "--";
+                ExitAtpRxDataText = "--";
+                IsInAtp = false;
+                LastTestTime = "--";
+                LastTestResult = "--";
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：开始打开设备");
 
                 IsBusy = true;
                 try
                 {
                     EnsureManualArincChannels();
 
-                    IsManualTestRunning = true;
-                    PressureTelemetryValueText = "--";
-                    PressureTelemetryRxDataText = "--";
-                    EnterAtpRxDataText = "--";
-                    ExitAtpRxDataText = "--";
-                    IsInAtp = false;
-                    LastTestTime = "--";
-                    LastTestResult = "--";
+                    var mtxOk = await PreconnectMtx532ForTestAsync("手动测试", CancellationToken.None);
+                    if (!mtxOk)
+                    {
+                        IsMtx532RealHardware = false;
+                        IsManualTestRunning = false;
+                        LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动失败：MTX532连接失败");
+                        return;
+                    }
+
+                    IsMtx532RealHardware = true;
 
                     _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：打开ARINC429");
-
-                    try
-                    {
-                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                        if (api != null)
-                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
-                    }
-                    catch { }
-
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试已启动");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：429板卡已就绪");
                 }
                 catch (Exception ex)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动失败: {ex.Message}");
                     IsManualTestRunning = false;
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 }
                 finally
                 {
@@ -932,31 +943,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
                 try
                 {
-                    await _simulation.ClearRxFifoAsync(EnterAtpRxChannel);
-                    await Task.Delay(20);
-
                     var token = CancellationToken.None;
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送进入ATP：TX={EnterAtpTxChannel}, RX={EnterAtpRxChannel}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送进入ATP：TX={EnterAtpTxChannel}");
                     await _simulation.SendBenchCommandOnlyAsync(EnterAtpTxChannel, EnterAtpCommand8, msg => AddLog(msg), token);
 
-                    var resp = await _simulation.WaitBenchResponse8Async(
-                        EnterAtpRxChannel,
-                        b => b != null && b.SequenceEqual(EnterAtpOk8),
-                        timeoutMs: 1200,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (resp == null)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP超时");
-                        SetLastTestResult("FAIL");
-                        IsInAtp = false;
-                        return;
-                    }
-
-                    EnterAtpRxDataText = "0x" + FormatData(resp);
                     IsInAtp = true;
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP成功");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP指令已发送");
 
                     StartPressureTelemetryListeningIfNeeded();
                 }
@@ -977,31 +969,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task StopManualTestAsync()
         {
-            if (IsBusy)
-                return;
-
-            await StopPressureTelemetryListeningAsync();
-
             await _manualTestLock.WaitAsync();
             try
             {
-                if (IsBusy)
+                if (!IsManualTestRunning || IsBusy)
                     return;
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试停止：关闭设备");
+                IsManualTestRunning = false;
 
                 IsBusy = true;
                 try
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试停止：释放ARINC429资源");
-                    await _simulation.StopAsync(msg => AddLog(msg));
+                    await ShutdownOpenedBoardsForTestEndAsync();
+                    IsInAtp = false;
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 停止失败: {ex.Message}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试停止异常：{ex.Message}");
+                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 }
                 finally
                 {
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-                    IsManualTestRunning = false;
                     IsBusy = false;
                 }
             }
@@ -1013,37 +1003,45 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task RunAutoTestAsync()
         {
-            if (IsBusy)
-                return;
-
             await _autoTestLock.WaitAsync();
             try
             {
+                if (IsManualTestRunning)
+                    return;
+
                 if (IsBusy)
                     return;
 
                 IsBusy = true;
+                IsAutoTestRunning = true;
                 try
                 {
-                    IsAutoTestRunning = true;
+                    EnsureManualArincChannels();
+
                     PressureTelemetryValueText = "--";
                     PressureTelemetryRxDataText = "--";
+                    PressureTelemetryRawRxDataText = "--";
+                    EnterAtpRxDataText = "--";
+                    ExitAtpRxDataText = "--";
                     LastTestTime = "--";
                     LastTestResult = "--";
+                    _autoTestEnteredAtp = false;
 
                     _autoTestCts?.Cancel();
                     _autoTestCts?.Dispose();
                     _autoTestCts = new CancellationTokenSource();
-
                     var token = _autoTestCts.Token;
 
-                    try
+                    var mtxOk = await PreconnectMtx532ForTestAsync("自动测试", token);
+                    if (!mtxOk)
                     {
-                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                        if (api != null)
-                            await api.ApplyComponent28VStateAsync(token);
+                        IsMtx532RealHardware = false;
+                        SetLastTestResult("FAIL");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动失败：MTX532连接失败");
+                        return;
                     }
-                    catch { }
+
+                    IsMtx532RealHardware = true;
 
                     _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
@@ -1051,32 +1049,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
 
-                    await _simulation.ClearRxFifoAsync(TestRxChannel);
-                    await Task.Delay(20, token);
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤1：进入ATP");
-                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, EnterAtpCommand8, msg => AddLog(msg), token);
-
-                    var enterOk = await _simulation.WaitBenchResponse8Async(
-                        TestRxChannel,
-                        b => b != null && b.SequenceEqual(EnterAtpOk8),
-                        timeoutMs: 1200,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (enterOk == null)
-                    {
-                        SetLastTestResult("FAIL");
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 进入ATP超时");
-                        return;
-                    }
-
-                    EnterAtpRxDataText = "0x" + FormatData(enterOk);
-                    IsInAtp = true;
-                    StartPressureTelemetryListeningIfNeeded();
-
-                    await _simulation.ClearRxFifoAsync(TestRxChannel);
-                    await Task.Delay(20, token);
+                    await AutoEnterAtpAsync(token);
+                    _autoTestEnteredAtp = true;
 
                     var failures = new System.Collections.Generic.List<string>();
 
@@ -1086,25 +1060,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     token.ThrowIfCancellationRequested();
                     await RunGearAutoAsync(3, 9.75, token, failures);
 
-                    await _simulation.ClearRxFifoAsync(TestRxChannel);
-                    await Task.Delay(20, token);
-
-                    await StopPressureTelemetryListeningAsync();
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 步骤X：退出ATP");
-                    await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, ExitAtpCommand8, msg => AddLog(msg), token);
-
-                    var exitOk = await _simulation.WaitBenchResponse8Async(
-                        TestRxChannel,
-                        b => b != null && b.SequenceEqual(ExitAtpOk8),
-                        timeoutMs: 1200,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (exitOk == null)
-                    {
-                        failures.Add("退出ATP超时");
-                    }
+                    await AutoExitAtpAsync(token);
+                    _autoTestEnteredAtp = false;
 
                     if (failures.Count == 0)
                     {
@@ -1131,18 +1088,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
-                    try { await StopPressureTelemetryListeningAsync(); } catch { }
-                    IsInAtp = false;
-
-                    try
+                    if (_autoTestEnteredAtp)
                     {
-                        await _simulation.StopAsync(msg => AddLog(msg));
-                    }
-                    catch
-                    {
+                        try { await AutoExitAtpAsync(CancellationToken.None); } catch { }
+                        _autoTestEnteredAtp = false;
                     }
 
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await ShutdownOpenedBoardsForTestEndAsync(); } catch { }
 
                     IsAutoTestRunning = false;
                     IsBusy = false;
@@ -1152,6 +1104,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 _autoTestLock.Release();
             }
+        }
+
+        private async Task<bool> AutoEnterAtpAsync(CancellationToken token)
+        {
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：发送进入ATP");
+            await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, EnterAtpCommand8, msg => AddLog(msg), token);
+            IsInAtp = true;
+            StartPressureTelemetryListeningIfNeeded();
+            return true;
+        }
+
+        private async Task<bool> AutoExitAtpAsync(CancellationToken token)
+        {
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：发送退出ATP");
+            try { await StopPressureTelemetryListeningAsync(); } catch { }
+            await _simulation.SendBenchCommandOnlyAsync(ExitAtpTxChannel, ExitAtpCommand8, msg => AddLog(msg), token);
+            IsInAtp = false;
+            return true;
         }
 
         private async Task StopAutoTestAsync()
@@ -1186,23 +1156,43 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return;
             }
 
-            await Task.Delay(50, token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：档位{gearIndex} AO2输出后等待稳定5s");
+            await Task.Delay(TimeSpan.FromSeconds(5), token);
 
-            await _simulation.ClearRxFifoAsync(TestRxChannel);
+            try { await _simulation.ClearRxFifoAsync(TestRxChannel); } catch { }
             await Task.Delay(20, token);
+
+            StartPressureTelemetryListeningIfNeeded();
+
+            var startSeq = Volatile.Read(ref _pressureTelemetrySeq);
+            Interlocked.Exchange(ref _lastPressureTelemetryFrame, null);
+            Interlocked.Exchange(ref _lastPressureTelemetryRawFrame, null);
 
             AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：发送AB_BPS_PRESSURE");
             await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbBpsPressure8, msg => AddLog(msg), token);
 
-            var startSeq = Volatile.Read(ref _pressureTelemetrySeq);
-            Interlocked.Exchange(ref _lastPressureTelemetryFrame, null);
-
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：等待压力遥测(07 03 02 02)[持续监听]");
-            var tel = await WaitNextPressureTelemetryFrameAsync(startSeq, timeoutMs: 1500, token: token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：等待压力遥测(07 03 02 02)[持续监听]，timeout=7000ms");
+            var tel = await WaitNextPressureTelemetryFrameAsync(startSeq, timeoutMs: 7000, token: token);
             if (tel == null)
             {
-                failures.Add($"档位{gearIndex}压力遥测超时");
-                return;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：第一次等待压力遥测超时，尝试直接从RX={PressureTelemetryRxChannel}读取压力遥测");
+
+                try { await StopPressureTelemetryListeningAsync(); } catch { }
+                try { await _simulation.ClearRxFifoAsync(TestRxChannel); } catch { }
+                await Task.Delay(20, token);
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：重发AB_BPS_PRESSURE用于直接遥测读取");
+                await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbBpsPressure8, msg => AddLog(msg), token);
+
+                tel = await DirectWaitPressureTelemetryFrameAsync(gearIndex, token);
+
+                StartPressureTelemetryListeningIfNeeded();
+
+                if (tel == null)
+                {
+                    failures.Add($"档位{gearIndex}压力遥测超时：RX={PressureTelemetryRxChannel}未收到label=0x90/0x50/0xD0/0x30且编码模板=07 03 02 02 00 00 00 00的回传帧");
+                    return;
+                }
             }
 
             PressureTelemetryRxDataText = "0x" + FormatData(tel);
@@ -1326,12 +1316,62 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 try
                 {
                     var token = CancellationToken.None;
+                    var gearIndex = CurrentGearIndex <= 0 ? 1 : CurrentGearIndex;
 
                     PressureTelemetryValueText = "--";
                     PressureTelemetryRxDataText = "--";
 
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 控制器压力单次测试：准备发送AB_BPS_PRESSURE，TX={ControllerPressureTestTxChannel}, RX={PressureTelemetryRxChannel}, 当前档位={gearIndex}, IsInAtp={IsInAtp}");
+
+                    StartPressureTelemetryListeningIfNeeded();
+
+                    var startSeq = Volatile.Read(ref _pressureTelemetrySeq);
+
+                    Interlocked.Exchange(ref _lastPressureTelemetryFrame, null);
+                    Interlocked.Exchange(ref _lastPressureTelemetryRawFrame, null);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送前遥测状态：监听任务={(_telemetryListeningTask != null ? "已启动" : "未启动")}, startSeq={startSeq}");
+
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 发送AB_BPS_PRESSURE：TX={ControllerPressureTestTxChannel}, Data={FormatData(AbBpsPressure8)}");
                     await _simulation.SendBenchCommandOnlyAsync(ControllerPressureTestTxChannel, AbBpsPressure8, msg => AddLog(msg), token);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 测试指令已发送，等待压力遥测：RX={PressureTelemetryRxChannel}, 编码模板=07 03 02 02 00 00 00 00, timeout=8000ms");
+
+                    var tel = await WaitNextPressureTelemetryFrameAsync(startSeq, timeoutMs: 8000, token: token);
+
+                    var currentSeq = Volatile.Read(ref _pressureTelemetrySeq);
+
+                    if (tel == null)
+                    {
+                        SetLastTestResult("FAIL");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测超时：startSeq={startSeq}, currentSeq={currentSeq}, RX={PressureTelemetryRxChannel}, seq未增长，说明监听未收到产品回传压力帧。请检查产品是否在RX={PressureTelemetryRxChannel}回发label=0x90/0x50/0xD0/0x30且编码模板=07 03 02 02 00 00 00 00，并确认429接线/通道配置");
+                        return;
+                    }
+
+                    PressureTelemetryRxDataText = "0x" + FormatData(tel);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 收到压力遥测帧：Data={FormatData(tel)}, seq={currentSeq}");
+
+                    var rawData = Interlocked.CompareExchange(ref _lastPressureTelemetryRawFrame, null, null);
+
+                    if (rawData != null)
+                    {
+                        PressureTelemetryRawRxDataText = "0x" + FormatData(rawData);
+                        LogPressureRawData(rawData);
+                    }
+
+                    if (!TryParseTelemetryPressure(tel, out var pressureBar))
+                    {
+                        SetLastTestResult("FAIL");
+                        PressureTelemetryValueText = "--";
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测解析失败：Data={FormatData(tel)}");
+                        return;
+                    }
+
+                    PressureTelemetryValueText = pressureBar.ToString("0.####", CultureInfo.InvariantCulture);
+                    var pass = IsPressureQualified(gearIndex, pressureBar);
+                    SetLastTestResult(pass ? "PASS" : "FAIL");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 压力回采完成：档位{gearIndex}, 压力={pressureBar.ToString("0.####", CultureInfo.InvariantCulture)}Bar, 判定={LastTestResult}");
                 }
                 finally
                 {
@@ -1361,35 +1401,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     await StopPressureTelemetryListeningAsync();
 
-                    await _simulation.ClearRxFifoAsync(ExitAtpRxChannel);
-                    await Task.Delay(20);
-
                     var token = CancellationToken.None;
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送退出ATP：TX={ExitAtpTxChannel}, RX={ExitAtpRxChannel}, Data={FormatData(ExitAtpCommand8)}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 发送退出ATP：TX={ExitAtpTxChannel}, Data={FormatData(ExitAtpCommand8)}");
                     await _simulation.SendBenchCommandOnlyAsync(ExitAtpTxChannel, ExitAtpCommand8, msg => AddLog(msg), token);
 
-                    var resp = await _simulation.WaitBenchResponse8Async(
-                        ExitAtpRxChannel,
-                        b => b != null && b.SequenceEqual(ExitAtpOk8),
-                        timeoutMs: 1200,
-                        log: msg => AddLog(msg),
-                        token: token);
-
-                    if (resp == null)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP超时");
-                        SetLastTestResult("FAIL");
-
-                        if (IsInAtp)
-                            StartPressureTelemetryListeningIfNeeded();
-
-                        return;
-                    }
-
-                    ExitAtpRxDataText = "0x" + FormatData(resp);
                     IsInAtp = false;
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP成功");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 退出ATP指令已发送");
                 }
                 finally
                 {
@@ -1412,7 +1430,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         {
 
-            VoltageSetValueText = voltageV.ToString("0.###", CultureInfo.InvariantCulture);
+            VoltageSetValueText = "--";
 
 
 
@@ -1440,7 +1458,51 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-                await _mtxApi.SetDcAsync(AoChannel, voltageV, enable: true, cancellationToken: token);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] MTX532档位电压写入开始：{AoChannel}={voltageV.ToString("0.####", CultureInfo.InvariantCulture)}V");
+
+                await SetAoVoltageAsync(voltageV, token);
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] MTX532档位电压写入完成：{AoChannel}={voltageV.ToString("0.####", CultureInfo.InvariantCulture)}V，IsOutputRunning={_mtxApi.IsOutputRunning}");
+
+                if (!_mtxApi.IsOutputRunning)
+
+                {
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] MTX532输出未运行，准备等待Ready后启动输出");
+
+                    await WaitForMtx532ReadyAsync(token);
+
+                    await _mtxApi.StartOutputAsync(token);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] MTX532 StartOutputAsync完成，IsOutputRunning={_mtxApi.IsOutputRunning}");
+
+                }
+
+
+
+                await Task.Delay(100, token);
+
+                var readBackVoltage = await ReadAoVoltageAsync(token);
+
+                if (readBackVoltage.HasValue)
+
+                {
+
+                    VoltageSetValueText = readBackVoltage.Value.ToString("0.####", CultureInfo.InvariantCulture);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {AoChannel}设定={voltageV.ToString("0.####", CultureInfo.InvariantCulture)}V，板卡读回={VoltageSetValueText}V");
+
+                }
+
+                else
+
+                {
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {AoChannel}板卡读回失败");
+
+                }
+
+
 
                 return true;
 
@@ -1470,47 +1532,303 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
+        private async Task<double?> ReadAoVoltageAsync(CancellationToken token)
+
+        {
+
+            if (_mtxApi == null || !_mtxApi.IsConnected)
+
+                return null;
+
+
+
+            var samples = new System.Collections.Generic.List<double>(3);
+
+            for (int i = 0; i < 3; i++)
+
+            {
+
+                token.ThrowIfCancellationRequested();
+
+                var value = await _mtxApi.GetLastOutputVoltageAsync(AoChannel, token);
+
+                samples.Add(value);
+
+                if (i < 2)
+
+                    await Task.Delay(20, token);
+
+            }
+
+
+
+            return samples.Count > 0 ? samples.Average() : (double?)null;
+
+        }
+
+
+
+        private async Task SetAoVoltageAsync(double voltageV, CancellationToken token)
+
+        {
+
+            if (_mtxApi == null || !_mtxApi.IsConnected)
+
+                throw new InvalidOperationException("MTX532未连接");
+
+
+
+            await _mtxApi.WriteOnceDcAsync(new System.Collections.Generic.Dictionary<string, double>
+
+            {
+
+                [AoChannel] = voltageV
+
+            }, token).ConfigureAwait(false);
+
+        }
+
+
+
         private async Task<bool> EnsureMtx532ConnectedAsync(CancellationToken token = default)
 
         {
 
             if (_mtxApi != null && _mtxApi.IsConnected)
 
+            {
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] MTX532已连接，跳过重新连接，IsOutputRunning={_mtxApi.IsOutputRunning}");
+
                 return true;
 
+            }
 
+
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] MTX532连接流程开始：硬件AO为1基，目标业务通道={AoChannel}");
 
             var device = FindMtx532Device();
 
             if (device == null)
 
+            {
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] MTX532连接失败：未找到MTX532(模拟量输出)板卡");
+
                 return false;
 
+            }
 
 
-            var slot = (device as PxiDeviceBase)?.SlotIndex;
+
+            var slotNumber = device is PxiDeviceBase pxi ? pxi.SlotIndex : 7;
 
             var options = new Mtx532Options
 
             {
 
-                SampleRateHz = 1000.0,
+                SampleRateHz = Mtx532SampleRateHz,
 
-                SuppressNativeDialogs = true,
-
-                ResetToZeroOnStop = true,
-
-                ResetDelayMs = 500
+                UseOneBasedAoChannelNumbering = true
 
             };
 
 
 
-            _mtxApi = new Mtx532Api(device, options, slotNumber: slot.HasValue && slot.Value > 0 ? slot.Value : 7);
+            _mtxApi = new Mtx532Api(device, options, slotNumber: slotNumber);
 
-            await _mtxApi.ConnectAsync(token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] MTX532开始ConnectAsync：enabledAoChannels={string.Join(",", Mtx532EnabledAoChannels)}（1基），目标输出={AoChannel}");
+
+            await _mtxApi.ConnectAsync(token, Mtx532EnabledAoChannels).ConfigureAwait(false);
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] MTX532写初始0V：{AoChannel}=0V");
+
+            await SetAoVoltageAsync(0.0, token).ConfigureAwait(false);
+
+            await Task.Delay(300, token).ConfigureAwait(false);
+
+            await WaitForMtx532ReadyAsync(token).ConfigureAwait(false);
+
+            await _mtxApi.StartOutputAsync(token).ConfigureAwait(false);
+
+            await Task.Delay(300, token).ConfigureAwait(false);
+
+
 
             return _mtxApi.IsConnected;
+
+        }
+
+
+
+        private async Task WaitForMtx532ReadyAsync(CancellationToken token)
+
+        {
+
+            if (_mtxApi == null || !_mtxApi.IsConnected)
+
+                throw new InvalidOperationException("MTX532未连接");
+
+
+
+            var deadline = DateTime.UtcNow.AddMilliseconds(Mtx532ReadyTimeoutMs);
+
+            while (DateTime.UtcNow <= deadline)
+
+            {
+
+                token.ThrowIfCancellationRequested();
+
+                if (await _mtxApi.CanStartOutputAsync(token))
+
+                    return;
+
+
+
+                await Task.Delay(Mtx532ReadyPollMs, token);
+
+            }
+
+
+
+            throw new InvalidOperationException("MTX532已连接，但在等待超时前仍未准备好输出");
+
+        }
+
+
+
+        private async Task<bool> PreconnectMtx532ForTestAsync(string testName, CancellationToken token)
+
+        {
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] {testName}：按钮启动后优先打开MTX532");
+
+            await _mtxOpLock.WaitAsync(token);
+
+            try
+
+            {
+
+                var ok = await EnsureMtx532ConnectedAsync(token);
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] {testName}：MTX532预打开结果={ok}，IsConnected={_mtxApi?.IsConnected == true}，IsOutputRunning={_mtxApi?.IsOutputRunning == true}");
+
+                return ok;
+
+            }
+
+            finally
+
+            {
+
+                _mtxOpLock.Release();
+
+            }
+
+        }
+
+
+
+        private async Task ShutdownMtx532ForTestEndAsync()
+
+        {
+
+            await _mtxOpLock.WaitAsync();
+
+            try
+
+            {
+
+                if (_mtxApi == null)
+
+                {
+
+                    IsMtx532RealHardware = false;
+
+                    VoltageSetValueText = "--";
+
+                    return;
+
+                }
+
+
+
+                await DisconnectMtx532Async();
+
+                IsMtx532RealHardware = false;
+
+                VoltageSetValueText = "--";
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] MTX532已关闭并断开连接");
+
+            }
+
+            catch (Exception ex)
+
+            {
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] MTX532关闭异常：{ex.Message}");
+
+            }
+
+            finally
+
+            {
+
+                _mtxOpLock.Release();
+
+            }
+
+        }
+
+
+
+        private async Task ShutdownOpenedBoardsForTestEndAsync()
+
+        {
+
+            try
+
+            {
+
+                await StopPressureTelemetryListeningAsync();
+
+            }
+
+            catch (Exception ex)
+
+            {
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 遥测监听停止异常：{ex.Message}");
+
+            }
+
+
+
+            try
+
+            {
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] ARINC429板卡关闭开始");
+
+                await _simulation.StopAsync(msg => AddLog(msg));
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] ARINC429板卡已关闭");
+
+            }
+
+            catch (Exception ex)
+
+            {
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] ARINC429板卡关闭异常：{ex.Message}");
+
+            }
+
+
+
+            await ShutdownMtx532ForTestEndAsync();
 
         }
 
@@ -1740,15 +2058,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            var intPartRaw = (ushort)((frameData[4] << 8) | frameData[5]);
+            var raw = (ushort)((frameData[6] << 8) | frameData[7]);
 
-            var fracPart = (ushort)((frameData[6] << 8) | frameData[7]);
+            var signedRaw = unchecked((short)raw);
 
-            var signedInt = unchecked((short)intPartRaw);
-
-            var frac = fracPart / 10000.0;
-
-            pressure = signedInt < 0 ? signedInt - frac : signedInt + frac;
+            pressure = signedRaw * 0.001;
 
             return true;
 
@@ -1794,7 +2108,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-        #region 持续压力遥测监听 (AC_6_4风格)
+        private void LogPressureRawData(byte[] rawData)
+
+        {
+
+            if (rawData == null || rawData.Length < 8)
+
+                return;
+
+
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 压力原始遥测帧：Data={FormatData(rawData)}");
+
+        }
+
+
+
+        #region 持续压力遥测监听 (与 6.10.1 对齐)
 
 
 
@@ -1804,19 +2134,43 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             if (_telemetryListeningTask != null)
 
+            {
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测监听已在运行：RX={PressureTelemetryRxChannel}, seq={Volatile.Read(ref _pressureTelemetrySeq)}");
+
                 return;
+
+            }
 
             if (string.IsNullOrWhiteSpace(PressureTelemetryRxChannel))
 
+            {
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测监听未启动：RX通道为空");
+
                 return;
+
+            }
 
             if (!IsInAtp)
 
+            {
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测监听未启动：当前未进入ATP模式");
+
                 return;
+
+            }
 
             if (!IsManualTestRunning && !IsAutoTestRunning)
 
+            {
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测监听未启动：手动/自动测试均未运行");
+
                 return;
+
+            }
 
 
 
@@ -1828,13 +2182,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             var token = _telemetryListeningCts.Token;
 
+            var rxChannel = PressureTelemetryRxChannel;
+
+
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 准备启动压力遥测持续监听：RX={rxChannel}, IsManual={IsManualTestRunning}, IsAuto={IsAutoTestRunning}, IsInAtp={IsInAtp}");
+
 
 
             _telemetryListeningTask = Task.Run(async () =>
 
             {
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 启动压力遥测持续监听：RX={PressureTelemetryRxChannel}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 启动压力遥测持续监听：RX={rxChannel}");
 
                 while (!token.IsCancellationRequested)
 
@@ -1846,7 +2206,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                         var tel = await _simulation.WaitPressureTelemetryAsync(
 
-                            PressureTelemetryRxChannel,
+                            rxChannel,
 
                             timeoutMs: 300,
 
@@ -1864,9 +2224,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                             Interlocked.Exchange(ref _lastPressureTelemetryFrame, frameCopy);
 
-                            Interlocked.Increment(ref _pressureTelemetrySeq);
+                            var seq = Interlocked.Increment(ref _pressureTelemetrySeq);
 
-                            // 更新UI（需要在UI线程）
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测监听收到有效帧：seq={seq}, Pressure={pressureBar.ToString("0.####", CultureInfo.InvariantCulture)}Bar, Data={FormatData(frameCopy)}");
 
                             var dispatcher = Application.Current?.Dispatcher;
 
@@ -1902,6 +2262,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                         {
 
+                            if (tel != null)
+
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测监听收到帧但解析失败：Data={FormatData(tel)}");
+
                             await Task.Delay(30, token);
 
                         }
@@ -1916,9 +2280,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     }
 
-                    catch
+                    catch (Exception ex)
 
                     {
+
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 压力遥测监听异常：{ex.Message}");
 
                         try { await Task.Delay(100, token); } catch { break; }
 
@@ -1990,21 +2356,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         {
 
-            var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
+            var startUtc = DateTime.UtcNow;
+
+            var deadline = startUtc.AddMilliseconds(Math.Max(100, timeoutMs));
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
 
             {
 
-                if (Volatile.Read(ref _pressureTelemetrySeq) > startSeq)
+                var frame = Interlocked.CompareExchange(ref _lastPressureTelemetryFrame, null, null);
+
+                if (frame != null)
 
                 {
 
-                    var frame = Interlocked.CompareExchange(ref _lastPressureTelemetryFrame, null, null);
+                    var elapsedMs = (int)(DateTime.UtcNow - startUtc).TotalMilliseconds;
 
-                    if (frame != null)
+                    var currentSeq = Volatile.Read(ref _pressureTelemetrySeq);
 
-                        return frame;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] WaitNextPressureTelemetryFrameAsync 成功：耗时={elapsedMs}ms, startSeq={startSeq}, currentSeq={currentSeq}, 当前档位={CurrentGearIndex}");
+
+                    return frame;
 
                 }
 
@@ -2016,7 +2388,61 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
+            var totalElapsedMs = (int)(DateTime.UtcNow - startUtc).TotalMilliseconds;
+
+            var finalSeq = Volatile.Read(ref _pressureTelemetrySeq);
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] WaitNextPressureTelemetryFrameAsync 超时：耗时={totalElapsedMs}ms, startSeq={startSeq}, currentSeq={finalSeq}, 当前档位={CurrentGearIndex}");
+
             return null;
+
+        }
+
+
+
+        private async Task<byte[]> DirectWaitPressureTelemetryFrameAsync(int gearIndex, CancellationToken token)
+
+        {
+
+            var t0 = DateTime.UtcNow;
+
+            var rxChannel = PressureTelemetryRxChannel;
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：直接等待压力遥测：RX={rxChannel}，timeout=2000ms");
+
+            var tel = await _simulation.WaitPressureTelemetryAsync(
+
+                rxChannel,
+
+                timeoutMs: 2000,
+
+                log: msg => AddLog(msg),
+
+                token: token);
+
+            if (tel == null)
+
+            {
+
+                var elapsed = (int)Math.Max(0, (DateTime.UtcNow - t0).TotalMilliseconds);
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：直接等待压力遥测失败：{elapsed}ms内未收到07 03 02 02帧");
+
+                return null;
+
+            }
+
+            var frameCopy = tel.ToArray();
+
+            Interlocked.Exchange(ref _lastPressureTelemetryFrame, frameCopy);
+
+            Interlocked.Exchange(ref _lastPressureTelemetryRawFrame, null);
+
+            var seq = Interlocked.Increment(ref _pressureTelemetrySeq);
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：直接等待压力遥测成功：seq={seq}, Data={FormatData(frameCopy)}");
+
+            return frameCopy;
 
         }
 

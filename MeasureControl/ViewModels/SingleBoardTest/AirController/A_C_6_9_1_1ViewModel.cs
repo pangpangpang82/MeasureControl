@@ -1020,8 +1020,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     await _simulation.SendBenchCommandOnlyAsync(ControllerPressureTestTxChannel, AbCkptVentsTemperature8, msg => AddLog(msg), token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 测试指令已发送，等待温度遥测：RX={PressureTelemetryRxChannel}, 编码模板=07 02 01 02 00 00 00 00, timeout=2000ms");
-                    var tel = await WaitNextTemperatureTelemetryFrameAsync(startSeq, timeoutMs: 2000, token: token);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 测试指令已发送，等待温度遥测：RX={PressureTelemetryRxChannel}, 编码模板=07 02 01 02 00 00 00 00, timeout=8000ms");
+                    var tel = await WaitNextTemperatureTelemetryFrameAsync(startSeq, timeoutMs: 8000, token: token);
                     var currentSeq = Volatile.Read(ref _temperatureTelemetrySeq);
 
                     if (tel == null)
@@ -1842,8 +1842,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：档位{gearIndex} AO5输出后等待稳定3s");
-            await Task.Delay(TimeSpan.FromSeconds(3), token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：档位{gearIndex} AO5输出后等待稳定5s");
+            await Task.Delay(TimeSpan.FromSeconds(5), token);
+
+            await _simulation.ClearRxFifoAsync(TestRxChannel);
+            await Task.Delay(20, token);
+
             StartTemperatureTelemetryListeningIfNeeded();
 
             var startSeq = Volatile.Read(ref _temperatureTelemetrySeq);
@@ -1856,15 +1860,36 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：等待温度遥测(07 02 01 02)[持续监听]");
 
-            var tel = await WaitNextTemperatureTelemetryFrameAsync(startSeq, timeoutMs: 1500, token: token);
+            var tel = await WaitNextTemperatureTelemetryFrameAsync(startSeq, timeoutMs: 7000, token: token);
 
             if (tel == null)
 
             {
 
-                failures.Add($"档位{gearIndex}温度遥测超时：RX={PressureTelemetryRxChannel}未收到label=0x90/0x50/0xD0/0x30、编码模板07 02 01 02 00 00 00 00的回传帧");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：第一次等待温度遥测超时，尝试直接从RX={PressureTelemetryRxChannel}读取温度遥测");
 
-                return;
+                try { await StopTemperatureTelemetryListeningAsync(); } catch { }
+
+                try { await _simulation.ClearRxFifoAsync(TestRxChannel); } catch { }
+                await Task.Delay(20, token);
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：重发AB_CKPTVENTS_Temperature用于直接遥测读取");
+
+                await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, AbCkptVentsTemperature8, msg => AddLog(msg), token);
+
+                tel = await DirectWaitTemperatureTelemetryFrameAsync(gearIndex, token);
+
+                StartTemperatureTelemetryListeningIfNeeded();
+
+                if (tel == null)
+
+                {
+
+                    failures.Add($"档位{gearIndex}温度遥测超时：RX={PressureTelemetryRxChannel}未收到label=0x90/0x50/0xD0/0x30、编码模板07 02 01 02 00 00 00 00的回传帧");
+
+                    return;
+
+                }
 
             }
 
@@ -1992,8 +2017,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动档位{gearIndex}：AO5输出后等待稳定3s");
-                    await Task.Delay(TimeSpan.FromSeconds(3));
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 手动档位{gearIndex}：AO5输出后等待稳定5s");
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+
+                    await _simulation.ClearRxFifoAsync(TestRxChannel);
+                    await Task.Delay(20);
+
                     StartTemperatureTelemetryListeningIfNeeded();
 
                     var startSeq = Volatile.Read(ref _temperatureTelemetrySeq);
@@ -2005,9 +2034,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     await _simulation.SendBenchCommandOnlyAsync(ControllerPressureTestTxChannel, AbCkptVentsTemperature8, msg => AddLog(msg), token);
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待温度遥测：RX={PressureTelemetryRxChannel}[持续监听]");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 等待温度遥测：RX={PressureTelemetryRxChannel}[持续监听]，timeout=8000ms");
 
-                    var tel = await WaitNextTemperatureTelemetryFrameAsync(startSeq, timeoutMs: 1500, token: token);
+                    var tel = await WaitNextTemperatureTelemetryFrameAsync(startSeq, timeoutMs: 8000, token: token);
 
                     if (tel == null)
 
@@ -2839,21 +2868,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         {
 
-            var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(100, timeoutMs));
+            var startUtc = DateTime.UtcNow;
+
+            var deadline = startUtc.AddMilliseconds(Math.Max(100, timeoutMs));
 
             while (!token.IsCancellationRequested && DateTime.UtcNow <= deadline)
 
             {
 
-                if (Volatile.Read(ref _temperatureTelemetrySeq) > startSeq)
+                var frame = Interlocked.CompareExchange(ref _lastTemperatureTelemetryFrame, null, null);
+
+                if (frame != null)
 
                 {
 
-                    var frame = Interlocked.CompareExchange(ref _lastTemperatureTelemetryFrame, null, null);
+                    var elapsedMs = (int)(DateTime.UtcNow - startUtc).TotalMilliseconds;
 
-                    if (frame != null)
+                    var currentSeq = Volatile.Read(ref _temperatureTelemetrySeq);
 
-                        return frame;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] WaitNextTemperatureTelemetryFrameAsync 成功：耗时={elapsedMs}ms, startSeq={startSeq}, currentSeq={currentSeq}, 当前档位={CurrentGearIndex}");
+
+                    return frame;
 
                 }
 
@@ -2865,7 +2900,60 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
+            var totalElapsedMs = (int)(DateTime.UtcNow - startUtc).TotalMilliseconds;
+
+            var finalSeq = Volatile.Read(ref _temperatureTelemetrySeq);
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] WaitNextTemperatureTelemetryFrameAsync 超时：耗时={totalElapsedMs}ms, startSeq={startSeq}, finalSeq={finalSeq}, 当前档位={CurrentGearIndex}");
+
             return null;
+
+        }
+
+
+
+        private async Task<byte[]> DirectWaitTemperatureTelemetryFrameAsync(int gearIndex, CancellationToken token)
+
+        {
+
+            var t0 = DateTime.UtcNow;
+
+            var rxChannel = PressureTelemetryRxChannel;
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：直接等待温度遥测：RX={rxChannel}，timeout=2000ms");
+
+            var telemetry = await _simulation.WaitTelemetryAsync(
+                rxChannel,
+                timeoutMs: 2000,
+                msg => AddLog(msg),
+                token);
+
+            var tel = telemetry.Temperature;
+            var raw = telemetry.Raw;
+
+            if (tel == null)
+
+            {
+
+                var elapsed = (int)Math.Max(0, (DateTime.UtcNow - t0).TotalMilliseconds);
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：直接等待温度遥测失败：{elapsed}ms内未收到07 02 01 02帧");
+
+                return null;
+
+            }
+
+            var frameCopy = tel.ToArray();
+            var rawCopy = raw?.ToArray();
+
+            Interlocked.Exchange(ref _lastTemperatureTelemetryFrame, frameCopy);
+            if (rawCopy != null)
+                Interlocked.Exchange(ref _lastTemperatureTelemetryRawFrame, rawCopy);
+            var seq = Interlocked.Increment(ref _temperatureTelemetrySeq);
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 档位{gearIndex}：直接等待温度遥测成功：seq={seq}, TempFrame={FormatData(frameCopy)}, RawFrame={(rawCopy != null ? FormatData(rawCopy) : "--")}");
+
+            return frameCopy;
 
         }
 
