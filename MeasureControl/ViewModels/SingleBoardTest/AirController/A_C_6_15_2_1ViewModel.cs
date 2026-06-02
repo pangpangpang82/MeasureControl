@@ -443,20 +443,38 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     if (!await AutoStepAsync(EnterAtpCommand8, EnterAtpOk8, "进入ATP", token))
                         failures.Add("进入ATP失败");
 
-                    if (!await AutoStepAsync(Pwm100Command8, Pwm100Command8, "PWM=100%", token))
-                        failures.Add("PWM=100%回读失败");
-                    else if (!await MeasureAndQualifyPwmAsync(100, token))
-                        failures.Add("PWM=100%波形判据不合格");
+                    // 三次PWM测量期间保持矩阵连接，参照A_C_6_16_1_1_1模式
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 连接矩阵开关...");
+                    var matrixOk = await EnsureMatrixRoutedAsync(token);
+                    if (!matrixOk)
+                    {
+                        failures.Add("矩阵开关路由失败");
+                    }
+                    else
+                    {
+                        try
+                        {
+                            if (!await AutoStepAsync(Pwm100Command8, Pwm100Command8, "PWM=100%", token))
+                                failures.Add("PWM=100%回读失败");
+                            else if (!await MeasureAndQualifyPwmAsync(100, token))
+                                failures.Add("PWM=100%波形判据不合格");
 
-                    if (!await AutoStepAsync(Pwm50Command8, Pwm50Command8, "PWM=50%", token))
-                        failures.Add("PWM=50%回读失败");
-                    else if (!await MeasureAndQualifyPwmAsync(50, token))
-                        failures.Add("PWM=50%波形判据不合格");
+                            if (!await AutoStepAsync(Pwm50Command8, Pwm50Command8, "PWM=50%", token))
+                                failures.Add("PWM=50%回读失败");
+                            else if (!await MeasureAndQualifyPwmAsync(50, token))
+                                failures.Add("PWM=50%波形判据不合格");
 
-                    if (!await AutoStepAsync(Pwm0Command8, Pwm0Command8, "PWM=0%", token))
-                        failures.Add("PWM=0%回读失败");
-                    else if (!await MeasureAndQualifyPwmAsync(0, token))
-                        failures.Add("PWM=0%波形判据不合格");
+                            if (!await AutoStepAsync(Pwm0Command8, Pwm0Command8, "PWM=0%", token))
+                                failures.Add("PWM=0%回读失败");
+                            else if (!await MeasureAndQualifyPwmAsync(0, token))
+                                failures.Add("PWM=0%波形判据不合格");
+                        }
+                        finally
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] 断开矩阵开关...");
+                            await DisconnectMatrixAsync(token);
+                        }
+                    }
 
                     if (!await AutoStepAsync(ExitAtpCommand8, ExitAtpOk8, "退出ATP", token))
                         failures.Add("退出ATP失败");
@@ -559,22 +577,19 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (m == null)
                     return false;
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%测量：VMAX={FormatNum(m.Vmax)} V, VMIN={FormatNum(m.Vmin)} V, VAVG={FormatNum(m.Vavg)} V, VRMS={FormatNum(m.Vrms)} V, VPP={FormatNum(m.Vpp)} V, F={FormatNum(m.FreqHz)} Hz, DUTY={FormatNum(m.DutyPct)} %");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%测量：VRMS={FormatNum(m.Vrms)} V, DUTY={FormatNum(m.DutyPct)} %");
 
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    ScopeVmaxText = FormatNum(m.Vmax);
-                    ScopeVminText = FormatNum(m.Vmin);
-                    ScopeVavgText = FormatNum(m.Vavg);
                     ScopeVrmsText = FormatNum(m.Vrms);
-                    ScopeVppText = FormatNum(m.Vpp);
-                    FreqHzText = FormatNum(m.FreqHz);
                     DutyPctText = FormatNum(m.DutyPct);
 
                     if (pwmPercent == 100)
                     {
-                        _pwm100Voltage = m.Vmax;
-                        Pwm100VoltageText = FormatNum(m.Vmax);
+                        // 100% PWM波形本质是直流高电平，存在毛刺时VMAX会取毛刺峰值
+                        // 使用VRMS(有效值)作为电压判定值更准确
+                        _pwm100Voltage = m.Vrms;
+                        Pwm100VoltageText = FormatNum(m.Vrms);
                     }
                     else if (pwmPercent == 50)
                     {
@@ -583,16 +598,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
                     else if (pwmPercent == 0)
                     {
-                        _pwm0Voltage = m.Vmax;
-                        Pwm0VoltageText = FormatNum(m.Vmax);
+                        // 0% PWM波形本质是直流低电平，存在毛刺时VMAX会取毛刺峰值
+                        // 使用VRMS(有效值)作为电压判定值更准确
+                        _pwm0Voltage = m.Vrms;
+                        Pwm0VoltageText = FormatNum(m.Vrms);
                     }
                 });
 
                 return pwmPercent switch
                 {
-                    100 => QualifyPwm100(m.Vmax, out var reason100) ? true : FailWithReason(pwmPercent, reason100),
+                    100 => QualifyPwm100(m.Vrms, out var reason100) ? true : FailWithReason(pwmPercent, reason100),
                     50 => QualifyPwm50(m.DutyPct, out var reason50) ? true : FailWithReason(pwmPercent, reason50),
-                    0 => QualifyPwm0(m.Vmax, out var reason0) ? true : FailWithReason(pwmPercent, reason0),
+                    0 => QualifyPwm0(m.Vrms, out var reason0) ? true : FailWithReason(pwmPercent, reason0),
                     _ => true
                 };
             }
@@ -647,12 +664,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task<PwmMeasurement> MeasurePwmRawCoreAsync(int pwmPercent, CancellationToken token)
         {
-            var routed = await EnsureMatrixRoutedAsync(token);
-            if (!routed)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：矩阵开关路由失败");
-                return null;
-            }
+            // 矩阵开关由调用方控制连接/断开，此处不再自行连接/断开
+            // 这样三次PWM测量期间矩阵保持连接，50% PWM测量时信号已稳定
 
             await EnsureInstrumentsConnectedAsync(token);
 
@@ -676,92 +689,108 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 发送 :AUToscale 失败：{ex.Message}");
             }
 
-            // Configure measurement items on the scope
-            AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：正在配置测量项 (VMAX, VMIN, VAVG, VRMS, VPP, FREQuency, PWIDth, NWIDth)...");
-            try
-            {
-                await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
-                await SendScopeCommandAsync(":MEASure:CLEar", token);
-                await SendScopeCommandAsync(":MEASure:ITEM VMAX", token);
-                await SendScopeCommandAsync(":MEASure:ITEM VMIN", token);
-                await SendScopeCommandAsync(":MEASure:ITEM VAVG", token);
-                await SendScopeCommandAsync(":MEASure:ITEM VRMS", token);
-                await SendScopeCommandAsync(":MEASure:ITEM VPP", token);
-                await SendScopeCommandAsync(":MEASure:ITEM FREQuency", token);
-                await SendScopeCommandAsync(":MEASure:ITEM PWIDth", token);
-                await SendScopeCommandAsync(":MEASure:ITEM NWIDth", token);
-            }
-            catch (Exception ex)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 配置测量项异常：{ex.Message}");
-            }
-
-            AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：延时5秒等待波形在自动设置后稳定...");
-            await Task.Delay(5000, token);
-
-            // Query amplitude values
-            double? vmax = null, vmin = null, vavg = null, vrms = null, vpp = null;
-            try
-            {
-                await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
-                var rawVmax = await QueryScopeAsync(":MEASure:ITEM? VMAX", 10000, token);
-                vmax = ParseScopeDouble(rawVmax);
-                var rawVmin = await QueryScopeAsync(":MEASure:ITEM? VMIN", 10000, token);
-                vmin = ParseScopeDouble(rawVmin);
-                var rawVavg = await QueryScopeAsync(":MEASure:ITEM? VAVG", 10000, token);
-                vavg = ParseScopeDouble(rawVavg);
-                var rawVrms = await QueryScopeAsync(":MEASure:ITEM? VRMS", 10000, token);
-                vrms = ParseScopeDouble(rawVrms);
-                var rawVpp = await QueryScopeAsync(":MEASure:ITEM? VPP", 10000, token);
-                vpp = ParseScopeDouble(rawVpp);
-            }
-            catch (Exception ex)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 查询电压值异常：{ex.Message}");
-            }
-
-            // Query frequency
-            double? freq = null;
-            try
-            {
-                var rawFreq = await QueryScopeAsync(":MEASure:ITEM? FREQuency", 10000, token);
-                freq = ParseScopeDouble(rawFreq);
-            }
-            catch (Exception ex)
-            {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 查询频率异常：{ex.Message}");
-            }
-
-            // Query duty cycle — calculate from PWIDth (高电平时间) + NWIDth (低电平时间)
+            // Configure and Query based on PWM percent
+            // 100%/0% PWM：只配置VRMS（直流信号只需有效值）
+            // 50% PWM：只配置PWIDth, NWIDth（只需占空比）
+            double? vrms = null;
             double? dutyPct = null;
-            try
+
+            if (pwmPercent == 50)
             {
-                var rawPw = await QueryScopeAsync(":MEASure:ITEM? PWIDth", 10000, token);
-                var pw = ParseScopeDouble(rawPw);
-                var rawNw = await QueryScopeAsync(":MEASure:ITEM? NWIDth", 10000, token);
-                var nw = ParseScopeDouble(rawNw);
-                if (pw.HasValue && nw.HasValue && (pw.Value + nw.Value) > 0)
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：正在配置测量项 (PWIDth, NWIDth)...");
+                try
                 {
-                    dutyPct = pw.Value / (pw.Value + nw.Value) * 100.0;
+                    await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
+                    await SendScopeCommandAsync(":MEASure:CLEar", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM PWIDth", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM NWIDth", token);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 配置测量项异常：{ex.Message}");
+                }
+
+                // 参照A_C_6_16_1_1_1ViewModel：50% PWM需要更长的矩阵连接时间
+                // 让示波器有足够时间积累脉宽测量数据
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：延时8秒等待波形在自动设置后稳定（占空比测量需要更长稳定时间）...");
+                await Task.Delay(8000, token);
+
+                // 查询占空比前再延时3秒，确保示波器有足够时间积累PWIDth/NWIDth数据
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：延时3秒等待示波器积累脉宽测量数据...");
+                await Task.Delay(3000, token);
+
+                // Query duty cycle
+                try
+                {
+                    await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：通过PWIDth+NWIDth计算占空比...");
+                    var rawPw = await QueryScopeAsync(":MEASure:ITEM? PWIDth", 10000, token);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：高电平时间原始响应(PWIDth)：'{rawPw}'");
+                    var pw = ParseScopeDouble(rawPw);
+
+                    var rawNw = await QueryScopeAsync(":MEASure:ITEM? NWIDth", 10000, token);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：低电平时间原始响应(NWIDth)：'{rawNw}'");
+                    var nw = ParseScopeDouble(rawNw);
+
+                    if (pw.HasValue && nw.HasValue && (pw.Value + nw.Value) > 0)
+                    {
+                        dutyPct = pw.Value / (pw.Value + nw.Value) * 100.0;
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：占空比计算值：PWIDth={pw.Value:F6}s, NWIDth={nw.Value:F6}s, DUTY={dutyPct.Value:F3} %");
+                    }
+                    else
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：PWIDth/NWIDth无法获取有效值，占空比计算失败 (pw={FormatNum(pw)}, nw={FormatNum(nw)})");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：查询占空比异常：{ex.Message}");
                 }
             }
-            catch (Exception ex)
+            else
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 查询占空比异常：{ex.Message}");
+                // 100%/0% PWM 是直流信号：只配置和查询 VRMS
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：正在配置测量项 (VRMS)...");
+                try
+                {
+                    await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
+                    await SendScopeCommandAsync(":MEASure:CLEar", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM VRMS", token);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 配置测量项异常：{ex.Message}");
+                }
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：延时5秒等待波形在自动设置后稳定...");
+                await Task.Delay(5000, token);
+
+                // Query VRMS
+                try
+                {
+                    await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
+                    var rawVrms = await QueryScopeAsync(":MEASure:ITEM? VRMS", 10000, token);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：VRMS原始响应：'{rawVrms}'");
+                    vrms = ParseScopeDouble(rawVrms);
+                    if (vrms.HasValue)
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：VRMS解析值：{vrms.Value:F3} V");
+                    else
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：VRMS解析失败");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 查询VRMS异常：{ex.Message}");
+                }
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：直流信号，跳过占空比计算");
             }
 
-            // Immediately disconnect matrix switch after reading scope values
-            await DisconnectMatrixAsync(token);
+            // 矩阵开关由调用方控制断开，此处不断开
 
             return new PwmMeasurement
             {
                 PwmPercent = pwmPercent,
-                Vmax = vmax,
-                Vmin = vmin,
-                Vavg = vavg,
                 Vrms = vrms,
-                Vpp = vpp,
-                FreqHz = freq,
                 DutyPct = dutyPct
             };
         }
@@ -785,16 +814,28 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     {
                         var token = _manualMeasureCts.Token;
                         AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：开始测量...");
-                        var m = await MeasurePwmRawCoreAsync(pwmPercent, token);
-                        if (m == null)
+
+                        // 手动测量：连接矩阵 → 测量 → 断开矩阵
+                        var routed = await EnsureMatrixRoutedAsync(token);
+                        if (!routed)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：矩阵开关路由失败");
                             return;
+                        }
+                        try
+                        {
+                            var m = await MeasurePwmRawCoreAsync(pwmPercent, token);
+                            if (m == null)
+                                return;
 
                         Application.Current.Dispatcher.Invoke(() =>
                         {
                             if (pwmPercent == 100)
                             {
-                                _pwm100Voltage = m.Vmax;
-                                Pwm100VoltageText = FormatNum(m.Vmax);
+                                // 100% PWM波形本质是直流高电平，存在毛刺时VMAX会取毛刺峰值
+                                // 使用VRMS(有效值)作为电压判定值更准确
+                                _pwm100Voltage = m.Vrms;
+                                Pwm100VoltageText = FormatNum(m.Vrms);
                             }
                             else if (pwmPercent == 50)
                             {
@@ -803,12 +844,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                             }
                             else if (pwmPercent == 0)
                             {
-                                _pwm0Voltage = m.Vmax;
-                                Pwm0VoltageText = FormatNum(m.Vmax);
+                                // 0% PWM波形本质是直流低电平，存在毛刺时VMAX会取毛刺峰值
+                                // 使用VRMS(有效值)作为电压判定值更准确
+                                _pwm0Voltage = m.Vrms;
+                                Pwm0VoltageText = FormatNum(m.Vrms);
                             }
                         });
 
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：测量完成 VMAX={FormatNum(m.Vmax)} V{(pwmPercent == 50 ? $", DUTY={FormatNum(m.DutyPct)} %" : string.Empty)}");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：测量完成 VRMS={FormatNum(m.Vrms)}V{(pwmPercent == 50 ? $", DUTY={FormatNum(m.DutyPct)}%" : string.Empty)}");
+                        }
+                        finally
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：断开矩阵开关...");
+                            await DisconnectMatrixAsync(token);
+                        }
                     }
                     catch (OperationCanceledException)
                     {
@@ -837,20 +886,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return v.Value.ToString("G6", CultureInfo.InvariantCulture);
         }
 
-        private bool QualifyPwm100(double? vmax, out string reason)
+        private bool QualifyPwm100(double? vrms, out string reason)
         {
             const double HighMinV = 2.8;
             const double HighMaxV = 3.8;
 
-            if (!vmax.HasValue)
+            if (!vrms.HasValue)
             {
-                reason = "示波器VMAX无有效值";
+                reason = "示波器VRMS无有效值";
                 return false;
             }
 
-            if (vmax.Value < HighMinV || vmax.Value > HighMaxV)
+            if (vrms.Value < HighMinV || vrms.Value > HighMaxV)
             {
-                reason = $"VMAX不在范围: {vmax.Value:F4}V, 期望应为[{HighMinV},{HighMaxV}]V";
+                reason = $"VRMS不在范围: {vrms.Value:F4}V, 期望应为[{HighMinV},{HighMaxV}]V";
                 return false;
             }
 
@@ -879,20 +928,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return true;
         }
 
-        private bool QualifyPwm0(double? vmax, out string reason)
+        private bool QualifyPwm0(double? vrms, out string reason)
         {
             const double LowMinV = -1.0;
             const double LowMaxV = 1.0;
 
-            if (!vmax.HasValue)
+            if (!vrms.HasValue)
             {
-                reason = "示波器VMAX无有效值";
+                reason = "示波器VRMS无有效值";
                 return false;
             }
 
-            if (vmax.Value < LowMinV || vmax.Value > LowMaxV)
+            if (vrms.Value < LowMinV || vrms.Value > LowMaxV)
             {
-                reason = $"电压超范围: VMAX={vmax.Value:F4}V, 期望均在[{LowMinV},{LowMaxV}]";
+                reason = $"电压超范围: VRMS={vrms.Value:F4}V, 期望均在[{LowMinV},{LowMaxV}]";
                 return false;
             }
 
