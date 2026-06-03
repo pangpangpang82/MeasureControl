@@ -10,10 +10,51 @@ namespace MeasureControl.Simulations.A_C_6_12_1_1
     {
         private readonly MultiLabelCommandAssembler _rxLabelAssembler = new MultiLabelCommandAssembler(BenchTxFragmentLabels);
 
-        private static readonly byte[] EnterAtpCommand8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] EnterAtpOk8 = { 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-        private static readonly byte[] ExitAtpCommand8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 };
-        private static readonly byte[] ExitAtpOk8 = { 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03 };
+        private static byte[] SwapPairs8(byte[] data8)
+        {
+            if (data8 == null || data8.Length != 8)
+                return data8;
+
+            return new byte[]
+            {
+                data8[1], data8[0],
+                data8[3], data8[2],
+                data8[5], data8[4],
+                data8[7], data8[6]
+            };
+        }
+
+        private static bool IsPrefixSafe(byte[] data, byte[] prefix, out byte[] matchedData)
+        {
+            matchedData = null;
+            if (data == null || prefix == null)
+                return false;
+            if (IsPrefix(data, prefix))
+            {
+                matchedData = data;
+                return true;
+            }
+            var swapped = SwapPairs8(data);
+            if (swapped != null && IsPrefix(swapped, prefix))
+            {
+                matchedData = swapped;
+                return true;
+            }
+            return false;
+        }
+
+        private static bool SequenceEqualSafe(byte[] actual, byte[] expected)
+        {
+            if (actual == null || expected == null)
+                return false;
+            if (actual.SequenceEqual(expected))
+                return true;
+            var swapped = SwapPairs8(actual);
+            return swapped != null && swapped.SequenceEqual(expected);
+        }
+
+        private static readonly byte[] EnterAtpCommand8 = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] ExitAtpCommand8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] AbOfvtrvFinger8 = { 0x07, 0x05, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] OfvtrvFingerTelemetryPrefix4 = { 0x07, 0x05, 0x01, 0x02 };
@@ -38,7 +79,7 @@ namespace MeasureControl.Simulations.A_C_6_12_1_1
                     try
                     {
                         var telemetry = BuildFingerTelemetryPayload8();
-                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, telemetry, null, token);
+                        await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, SwapPairs8(telemetry), null, token);
                         await Task.Delay(100, token);
                     }
                     catch (OperationCanceledException)
@@ -78,7 +119,7 @@ namespace MeasureControl.Simulations.A_C_6_12_1_1
 
             log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] bench发送: tx={txIndex}, labels={string.Join("/", BenchTxFragmentLabels.Select(b => $"0x{b:X2}"))}, payload8={FormatBytes(command8)}");
 
-            await SendMultiLabelFrameOnChannelAsync(txIndex, BenchTxFragmentLabels, command8, log, token);
+            await SendMultiLabelFrameOnChannelAsync(txIndex, BenchTxFragmentLabels, SwapPairs8(command8), log, token);
         }
 
         public async Task<byte[]> WaitBenchResponse8Async(string benchRxChannel, Func<byte[], bool> isExpected, int timeoutMs, Action<string> log, CancellationToken token)
@@ -102,10 +143,12 @@ namespace MeasureControl.Simulations.A_C_6_12_1_1
 
                         if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
                         {
-                            if (isExpected == null || isExpected(resp8))
+                            var swapped = SwapPairs8(resp8);
+                            if (isExpected == null || isExpected(resp8) || (swapped != null && isExpected(swapped)))
                             {
-                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 labels={string.Join("/", ProductTxFragmentLabels.Select(b => $"0x{b:X2}"))} resp8={FormatBytes(resp8)}");
-                                return resp8;
+                                var matched = (isExpected != null && swapped != null && isExpected(swapped)) ? swapped : resp8;
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] benchRX={rxIndex} 拼包完成 labels={string.Join("/", ProductTxFragmentLabels.Select(b => $"0x{b:X2}"))} resp8={FormatBytes(matched)}");
+                                return matched;
                             }
                         }
                     }
@@ -138,10 +181,10 @@ namespace MeasureControl.Simulations.A_C_6_12_1_1
 
                         if (labelAssembler.TryAddFragment(rxLabel, payload, DateTime.UtcNow, out var resp8) && resp8 != null)
                         {
-                            if (resp8.Length == 8 && IsPrefix(resp8, OfvtrvFingerTelemetryPrefix4))
+                            if (resp8.Length == 8 && IsPrefixSafe(resp8, OfvtrvFingerTelemetryPrefix4, out var matchedSwapped))
                             {
-                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] OFVTRV选气楔遥测拼包完成：{FormatBytes(resp8)}");
-                                return resp8;
+                                log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] OFVTRV选气楔遥测拼包完成：{FormatBytes(matchedSwapped)}");
+                                return matchedSwapped;
                             }
                         }
                     }
@@ -183,23 +226,21 @@ namespace MeasureControl.Simulations.A_C_6_12_1_1
 
                             if (_rxLabelAssembler.TryAddFragment(label, payload, DateTime.UtcNow, out var cmd8) && cmd8 != null)
                             {
-                                if (cmd8.SequenceEqual(EnterAtpCommand8))
+                                if (SequenceEqualSafe(cmd8, EnterAtpCommand8))
                                 {
-                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP -> 回复OK");
-                                    await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, EnterAtpOk8, log, token);
+                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到进入ATP");
                                 }
-                                else if (cmd8.SequenceEqual(ExitAtpCommand8))
+                                else if (SequenceEqualSafe(cmd8, ExitAtpCommand8))
                                 {
-                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP -> 回复OK");
-                                    await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, ExitAtpOk8, log, token);
+                                    log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到退出ATP，停止周期遥测");
                                     StopTelemetryOutput();
                                 }
-                                else if (cmd8.SequenceEqual(AbOfvtrvFinger8))
+                                else if (SequenceEqualSafe(cmd8, AbOfvtrvFinger8))
                                 {
                                     log?.Invoke($"[{DateTime.Now:HH:mm:ss}] [SIM] 产品侧收到OFV/TRV选气楔测试命令 -> 回传遥测并启动周期遥测发送");
 
                                     var telemetry = BuildFingerTelemetryPayload8();
-                                    await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, telemetry, log, token);
+                                    await SendMultiLabelFrameOnChannelAsync(SimProductTxChannelIndex, ProductTxFragmentLabels, SwapPairs8(telemetry), log, token);
                                     StartTelemetryOutput();
                                 }
                             }
