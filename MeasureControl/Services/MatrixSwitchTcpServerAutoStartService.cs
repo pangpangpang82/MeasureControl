@@ -48,15 +48,22 @@ namespace MeasureControl.Services
             }
 
             var chassis = _pxiChassisService.GetChassisByName(chassisName);
-            var chassisDevice = chassis?.Devices?.OfType<ChassisDevice>()?.FirstOrDefault();
-            var switches = chassisDevice?.Children?.OfType<SwitchDevice>()?.Where(d => d != null && d.SlotIndex > 0).ToList() ?? new List<SwitchDevice>();
+            // 绕过 chassisDevice.Children，直接从扁平列表 chassis.Devices 中获取 SwitchDevice。
+            // 因为开机时，ChassisDevice 尚未通过 EnsureChassisDevice 自动创建（只有打开机箱页面才会创建并注入 Children）。
+            var switches = chassis?.Devices?.OfType<SwitchDevice>()?.Where(d => d != null).ToList() ?? new List<SwitchDevice>();
 
             foreach (var sw in switches)
             {
                 try
                 {
                     var basePort = ResolveTcpBasePort(sw);
-                    var port = basePort + sw.SlotIndex;
+                    int slotIndex = ParseSlotIndexFromPosition(sw.SlotPosition);
+                    if (slotIndex <= 0)
+                    {
+                        Debug.WriteLine($"[MatrixSwitchTcpServerAutoStartService] 无法从 SlotPosition '{sw.SlotPosition}' 解析槽位索引，跳过设备 {sw.CardName}");
+                        continue;
+                    }
+                    var port = basePort + slotIndex;
                     // 与现有 PxiChassisViewModel 的命名保持一致，避免后续页面打开时重复绑定端口。
                     var identifier = $"PXI2601_{port}";
 
@@ -259,13 +266,41 @@ namespace MeasureControl.Services
             try
             {
                 var chassis = _pxiChassisService.GetChassisByName(chassisName);
-                var chassisDevice = chassis?.Devices?.OfType<ChassisDevice>()?.FirstOrDefault();
-                return chassisDevice?.Children?.OfType<SwitchDevice>()?.FirstOrDefault(d => d.SlotIndex == slotIndex);
+                // 绕过 chassisDevice.Children，直接从扁平列表 chassis.Devices 中获取 SwitchDevice。
+                // 确保在尚未打开机箱页面时，指令依然可以被正确转发到目标板卡上。
+                var switches = chassis?.Devices?.OfType<SwitchDevice>() ?? Enumerable.Empty<SwitchDevice>();
+                
+                // 优先用 SlotIndex 匹配（打开机箱页面后 SlotIndex 已设置）
+                var result = switches.FirstOrDefault(d => d.SlotIndex == slotIndex && d.SlotIndex > 0);
+                if (result != null)
+                    return result;
+                
+                // 回退：用 SlotPosition 匹配（开机时 SlotIndex 可能还是默认值-1）
+                return switches.FirstOrDefault(d => 
+                    !string.IsNullOrWhiteSpace(d.SlotPosition) && 
+                    d.SlotPosition.Equals($"Slot {slotIndex}", StringComparison.OrdinalIgnoreCase));
             }
             catch
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// 从 SlotPosition（如 "Slot 2"）解析出槽位数字索引
+        /// </summary>
+        private static int ParseSlotIndexFromPosition(string slotPosition)
+        {
+            if (string.IsNullOrWhiteSpace(slotPosition))
+                return -1;
+            try
+            {
+                var parts = slotPosition.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2 && int.TryParse(parts[1], out int idx))
+                    return idx;
+            }
+            catch { }
+            return -1;
         }
 
         private static int ResolveTcpBasePort(SwitchDevice device)

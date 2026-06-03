@@ -95,16 +95,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private bool _isMeasuringPwm50;
         private bool _isMeasuringPwm0;
 
+        private string _j8VrmsText = "--";
+        private string _j8FreqHzText = "--";
         private string _j8VmaxText = "--";
         private string _j8VminText = "--";
         private string _j8VppText = "--";
         private string _j8DutyPctText = "--";
 
+        private string _j9VrmsText = "--";
+        private string _j9FreqHzText = "--";
         private string _j9VmaxText = "--";
         private string _j9VminText = "--";
         private string _j9VppText = "--";
         private string _j9DutyPctText = "--";
 
+        private string _j8j9VrmsText = "--";
+        private string _j8j9FreqHzText = "--";
         private string _j8j9VmaxText = "--";
         private string _j8j9VminText = "--";
         private string _j8j9VppText = "--";
@@ -366,6 +372,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _isMeasuringPwm0, value);
         }
 
+        public string J8VrmsText
+        {
+            get => _j8VrmsText;
+            private set => SetProperty(ref _j8VrmsText, value);
+        }
+
+        public string J8FreqHzText
+        {
+            get => _j8FreqHzText;
+            private set => SetProperty(ref _j8FreqHzText, value);
+        }
+
         public string J8VmaxText
         {
             get => _j8VmaxText;
@@ -390,6 +408,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             private set => SetProperty(ref _j8DutyPctText, value);
         }
 
+        public string J9VrmsText
+        {
+            get => _j9VrmsText;
+            private set => SetProperty(ref _j9VrmsText, value);
+        }
+
+        public string J9FreqHzText
+        {
+            get => _j9FreqHzText;
+            private set => SetProperty(ref _j9FreqHzText, value);
+        }
+
         public string J9VmaxText
         {
             get => _j9VmaxText;
@@ -412,6 +442,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             get => _j9DutyPctText;
             private set => SetProperty(ref _j9DutyPctText, value);
+        }
+
+        public string J8J9VrmsText
+        {
+            get => _j8j9VrmsText;
+            private set => SetProperty(ref _j8j9VrmsText, value);
+        }
+
+        public string J8J9FreqHzText
+        {
+            get => _j8j9FreqHzText;
+            private set => SetProperty(ref _j8j9FreqHzText, value);
         }
 
         public string J8J9VmaxText
@@ -880,7 +922,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             });
         }
 
-        private static bool IsMeasurementPass(MeasurementResult m, int expectedDutyPct, out string reason)
+        private static bool IsMeasurementPass(MeasurementResult m, int expectedDutyPct, int expectedFreqHz, out string reason)
         {
             if (m == null)
             {
@@ -888,18 +930,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return false;
             }
 
-            // 0% PWM: amplitude only — both VMAX and VMIN should be near 0V
+            // 0% PWM: VRMS should be near 0V (DC low level, VRMS avoids glitch peaks)
             if (expectedDutyPct == 0)
             {
-                if (!m.Vmax.HasValue || !m.Vmin.HasValue)
+                if (!m.Vrms.HasValue)
                 {
-                    reason = "VMAX/VMIN无有效值";
+                    reason = "示波器VRMS无有效值";
                     return false;
                 }
 
-                if (m.Vmax.Value > 1.0 || m.Vmin.Value < -1.0)
+                if (m.Vrms.Value < -1.0 || m.Vrms.Value > 1.0)
                 {
-                    reason = $"电压不在[-1,1]V：VMAX={m.Vmax.Value:F4}V, VMIN={m.Vmin.Value:F4}V";
+                    reason = $"VRMS不在[-1,1]V：{m.Vrms.Value:F4}V";
                     return false;
                 }
 
@@ -907,18 +949,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return true;
             }
 
-            // 100% PWM: amplitude only — VMAX should be in [17,32]V, VMIN should be near 0V
+            // 100% PWM: VRMS should be in [17,32]V (DC high level, VRMS avoids glitch peaks)
             if (expectedDutyPct == 100)
             {
-                if (!m.Vmax.HasValue)
+                if (!m.Vrms.HasValue)
                 {
-                    reason = "VMAX无有效值";
+                    reason = "示波器VRMS无有效值";
                     return false;
                 }
 
-                if (m.Vmax.Value < 17.0 || m.Vmax.Value > 32.0)
+                if (m.Vrms.Value < 17.0 || m.Vrms.Value > 32.0)
                 {
-                    reason = $"VMAX不在[17,32]V：{m.Vmax.Value:F4}V";
+                    reason = $"VRMS不在[17,32]V：{m.Vrms.Value:F4}V";
                     return false;
                 }
 
@@ -926,16 +968,36 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return true;
             }
 
-            // 50% PWM: amplitude + duty cycle — VMAX in [17,32]V and duty cycle within ±1%
-            if (!m.Vmax.HasValue)
+            // 50% PWM: duty cycle within ±1% (calculated from PWIDth/NWIDth)
+            if (expectedDutyPct == 50)
             {
-                reason = "VMAX无有效值";
+                if (!m.DutyPct.HasValue)
+                {
+                    reason = "占空比无有效值";
+                    return false;
+                }
+
+                if (Math.Abs(m.DutyPct.Value - expectedDutyPct) > 1.0)
+                {
+                    reason = $"占空比不在({expectedDutyPct}±1)%：{m.DutyPct.Value:F3}%";
+                    return false;
+                }
+
+                reason = null;
+                return true;
+            }
+
+            // Custom PWM: frequency within ±5% (min ±2Hz) and duty cycle within ±1%
+            if (!m.FreqHz.HasValue)
+            {
+                reason = "频率无有效值";
                 return false;
             }
 
-            if (m.Vmax.Value < 17.0 || m.Vmax.Value > 32.0)
+            var freqTol = Math.Max(expectedFreqHz * 0.05, 2.0);
+            if (Math.Abs(m.FreqHz.Value - expectedFreqHz) > freqTol)
             {
-                reason = $"VMAX不在[17,32]V：{m.Vmax.Value:F4}V";
+                reason = $"频率不在({expectedFreqHz}±{freqTol:F1})Hz：{m.FreqHz.Value:F3}Hz";
                 return false;
             }
 
@@ -1078,104 +1140,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return string.IsNullOrWhiteSpace(slot6Output) ? DefaultSlot6OutputToScope : slot6Output;
         }
 
-        private async Task<MeasurementResult> MeasureOnceWithMatrixAsync(string title, CancellationToken token)
+        private async Task<MeasurementResult> MeasureOnceWithMatrixAsync(string slot6Output, string title, int expectedDutyPct, CancellationToken token)
         {
+            slot6Output = NormalizeSlot6Output(slot6Output);
             await _instrumentLock.WaitAsync(token).ConfigureAwait(false);
             try
             {
                 var matrix = MatrixControlService.Instance;
-                var slot6Output = NormalizeSlot6Output(DcmV1ToScope);
-
-                bool ok1 = false;
-                bool ok2 = false;
-
-                try
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 路由{title}：slot6 {Slot6Row}-{slot6Output} + slot4 {Slot4Row}-{Slot4ToScope}");
-
-                    ok1 = await matrix.ConnectNodesAsync(Slot6Row, slot6Output, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-                    ok2 = await matrix.ConnectNodesAsync(Slot4Row, Slot4ToScope, Chassis2Slot4, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 路由{title}：slot6 {(ok1 ? "OK" : "FAIL")}, slot4 {(ok2 ? "OK" : "FAIL")}");
-                    if (!ok1 || !ok2)
-                        return null;
-
-                    await EnsureScopeConnectedAsync(token).ConfigureAwait(false);
-                    await Task.Delay(200, token).ConfigureAwait(false);
-
-                    // Query amplitude values
-                    double? vmax = null, vmin = null, vpp = null;
-                    try
-                    {
-                        var rawVmax = await QueryScopeAsync(":MEASure:ITEM? VMAX", 10000, token).ConfigureAwait(false);
-                        vmax = ParseScopeDouble(rawVmax);
-                        var rawVmin = await QueryScopeAsync(":MEASure:ITEM? VMIN", 10000, token).ConfigureAwait(false);
-                        vmin = ParseScopeDouble(rawVmin);
-                        var rawVpp = await QueryScopeAsync(":MEASure:ITEM? VPP", 10000, token).ConfigureAwait(false);
-                        vpp = ParseScopeDouble(rawVpp);
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询电压值异常：{ex.Message}");
-                    }
-
-                    // Query duty cycle — calculate from PWIDth + NWIDth
-                    double? duty = null;
-                    try
-                    {
-                        var rawPw = await QueryScopeAsync(":MEASure:ITEM? PWIDth", 10000, token).ConfigureAwait(false);
-                        var pw = ParseScopeDouble(rawPw);
-                        var rawNw = await QueryScopeAsync(":MEASure:ITEM? NWIDth", 10000, token).ConfigureAwait(false);
-                        var nw = ParseScopeDouble(rawNw);
-                        if (pw.HasValue && nw.HasValue && (pw.Value + nw.Value) > 0)
-                        {
-                            duty = pw.Value / (pw.Value + nw.Value) * 100.0;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询占空比异常：{ex.Message}");
-                    }
-
-                    return new MeasurementResult
-                    {
-                        Title = title,
-                        Vmax = vmax,
-                        Vmin = vmin,
-                        Vpp = vpp,
-                        DutyPct = duty
-                    };
-                }
-                finally
-                {
-                    try
-                    {
-                        if (ok2)
-                            _ = await matrix.DisconnectNodesAsync(Slot4Row, Slot4ToScope, Chassis2Slot4, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-                    }
-                    catch { }
-
-                    try
-                    {
-                        if (ok1)
-                            _ = await matrix.DisconnectNodesAsync(Slot6Row, slot6Output, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
-                    }
-                    catch { }
-                }
-            }
-            finally
-            {
-                _instrumentLock.Release();
-            }
-        }
-
-        private async Task<MeasurementResult> MeasureOnceWithMatrixAsync(string slot6Output, string title, CancellationToken token)
-        {
-            await _instrumentLock.WaitAsync(token).ConfigureAwait(false);
-            try
-            {
-                var matrix = MatrixControlService.Instance;
-                slot6Output = NormalizeSlot6Output(slot6Output);
 
                 bool ok1 = false;
                 bool ok2 = false;
@@ -1213,67 +1184,138 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送 :AUToscale 失败：{ex.Message}");
                     }
 
-                    // Configure measurement items on the scope
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：正在配置测量项 (VMAX, VMIN, VPP, PWIDth, NWIDth)...");
-                    try
-                    {
-                        await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
-                        await SendScopeCommandAsync(":MEASure:CLEar", token).ConfigureAwait(false);
-                        await SendScopeCommandAsync(":MEASure:ITEM VMAX", token).ConfigureAwait(false);
-                        await SendScopeCommandAsync(":MEASure:ITEM VMIN", token).ConfigureAwait(false);
-                        await SendScopeCommandAsync(":MEASure:ITEM VPP", token).ConfigureAwait(false);
-                        await SendScopeCommandAsync(":MEASure:ITEM PWIDth", token).ConfigureAwait(false);
-                        await SendScopeCommandAsync(":MEASure:ITEM NWIDth", token).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：配置测量项异常：{ex.Message}");
-                    }
+                    // Configure measurement items based on PWM percentage
+                    double? vrms = null, freq = null, vmax = null, vmin = null, vpp = null, duty = null;
 
-                    // Delay for waveform stabilization after AUToscale
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：延时5秒等待波形在自动设置后稳定...");
-                    await Task.Delay(5000, token).ConfigureAwait(false);
-
-                    // Query amplitude values
-                    double? vmax = null, vmin = null, vpp = null;
-                    try
+                    if (expectedDutyPct == 100 || expectedDutyPct == 0)
                     {
-                        await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
-                        var rawVmax = await QueryScopeAsync(":MEASure:ITEM? VMAX", 10000, token).ConfigureAwait(false);
-                        vmax = ParseScopeDouble(rawVmax);
-                        var rawVmin = await QueryScopeAsync(":MEASure:ITEM? VMIN", 10000, token).ConfigureAwait(false);
-                        vmin = ParseScopeDouble(rawVmin);
-                        var rawVpp = await QueryScopeAsync(":MEASure:ITEM? VPP", 10000, token).ConfigureAwait(false);
-                        vpp = ParseScopeDouble(rawVpp);
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询电压值异常：{ex.Message}");
-                    }
-
-                    // Query duty cycle — calculate from PWIDth (高电平时间) + NWIDth (低电平时间)
-                    double? duty = null;
-                    try
-                    {
-                        var rawPw = await QueryScopeAsync(":MEASure:ITEM? PWIDth", 10000, token).ConfigureAwait(false);
-                        var pw = ParseScopeDouble(rawPw);
-                        var rawNw = await QueryScopeAsync(":MEASure:ITEM? NWIDth", 10000, token).ConfigureAwait(false);
-                        var nw = ParseScopeDouble(rawNw);
-                        if (pw.HasValue && nw.HasValue && (pw.Value + nw.Value) > 0)
+                        // 100%/0% PWM: measure VRMS only (DC signal, VRMS avoids glitch peaks)
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：PWM={expectedDutyPct}%，配置测量项 VRMS...");
+                        try
                         {
-                            duty = pw.Value / (pw.Value + nw.Value) * 100.0;
+                            await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
+                            await SendScopeCommandAsync(":MEASure:CLEar", token).ConfigureAwait(false);
+                            await SendScopeCommandAsync(":MEASure:ITEM VRMS", token).ConfigureAwait(false);
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询占空比异常：{ex.Message}");
-                    }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：配置测量项异常：{ex.Message}");
+                        }
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：测量完成 VMAX={FormatNum(vmax)}V, VMIN={FormatNum(vmin)}V, VPP={FormatNum(vpp)}V, DUTY={FormatNum(duty)}%");
+                        // Delay 5s for waveform stabilization
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：延时5秒等待波形稳定...");
+                        await Task.Delay(5000, token).ConfigureAwait(false);
+
+                        try
+                        {
+                            var rawVrms = await QueryScopeAsync(":MEASure:ITEM? VRMS", 10000, token).ConfigureAwait(false);
+                            vrms = ParseScopeDouble(rawVrms);
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询VRMS异常：{ex.Message}");
+                        }
+
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：测量完成 VRMS={FormatNum(vrms)}V");
+                    }
+                    else if (expectedDutyPct == 50)
+                    {
+                        // 50% PWM: measure PWIDth + NWIDth for duty cycle calculation
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：PWM=50%，配置测量项 PWIDth, NWIDth...");
+                        try
+                        {
+                            await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
+                            await SendScopeCommandAsync(":MEASure:CLEar", token).ConfigureAwait(false);
+                            await SendScopeCommandAsync(":MEASure:ITEM PWIDth", token).ConfigureAwait(false);
+                            await SendScopeCommandAsync(":MEASure:ITEM NWIDth", token).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：配置测量项异常：{ex.Message}");
+                        }
+
+                        // Delay 8s + 3s for waveform stabilization and data accumulation
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：延时8秒等待波形稳定...");
+                        await Task.Delay(8000, token).ConfigureAwait(false);
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：延时3秒等待数据累积...");
+                        await Task.Delay(3000, token).ConfigureAwait(false);
+
+                        try
+                        {
+                            var rawPw = await QueryScopeAsync(":MEASure:ITEM? PWIDth", 10000, token).ConfigureAwait(false);
+                            var pw = ParseScopeDouble(rawPw);
+                            var rawNw = await QueryScopeAsync(":MEASure:ITEM? NWIDth", 10000, token).ConfigureAwait(false);
+                            var nw = ParseScopeDouble(rawNw);
+                            if (pw.HasValue && nw.HasValue && (pw.Value + nw.Value) > 0)
+                            {
+                                duty = pw.Value / (pw.Value + nw.Value) * 100.0;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询占空比异常：{ex.Message}");
+                        }
+
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：测量完成 DUTY={FormatNum(duty)}%");
+                    }
+                    else
+                    {
+                        // Custom PWM: measure FREQuency + PWIDth + NWIDth (referencing A_C_6_16_1_1_1ViewModel)
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：PWM={expectedDutyPct}%，配置测量项 (FREQuency, PWIDth, NWIDth)...");
+                        try
+                        {
+                            await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
+                            await SendScopeCommandAsync(":MEASure:CLEar", token).ConfigureAwait(false);
+                            await SendScopeCommandAsync(":MEASure:ITEM FREQuency", token).ConfigureAwait(false);
+                            await SendScopeCommandAsync(":MEASure:ITEM PWIDth", token).ConfigureAwait(false);
+                            await SendScopeCommandAsync(":MEASure:ITEM NWIDth", token).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：配置测量项异常：{ex.Message}");
+                        }
+
+                        // Delay 5s for waveform stabilization
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：延时5秒等待波形稳定...");
+                        await Task.Delay(5000, token).ConfigureAwait(false);
+
+                        // Query frequency
+                        try
+                        {
+                            await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
+                            var rawFreq = await QueryScopeAsync(":MEASure:ITEM? FREQuency", 10000, token).ConfigureAwait(false);
+                            freq = ParseScopeDouble(rawFreq);
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询频率异常：{ex.Message}");
+                        }
+
+                        // Query duty cycle — calculate from PWIDth + NWIDth
+                        try
+                        {
+                            var rawPw = await QueryScopeAsync(":MEASure:ITEM? PWIDth", 10000, token).ConfigureAwait(false);
+                            var pw = ParseScopeDouble(rawPw);
+                            var rawNw = await QueryScopeAsync(":MEASure:ITEM? NWIDth", 10000, token).ConfigureAwait(false);
+                            var nw = ParseScopeDouble(rawNw);
+                            if (pw.HasValue && nw.HasValue && (pw.Value + nw.Value) > 0)
+                            {
+                                duty = pw.Value / (pw.Value + nw.Value) * 100.0;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询占空比异常：{ex.Message}");
+                        }
+
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：测量完成 FREQ={FormatNum(freq)}Hz, DUTY={FormatNum(duty)}%");
+                    }
 
                     return new MeasurementResult
                     {
                         Title = title,
+                        Vrms = vrms,
+                        FreqHz = freq,
                         Vmax = vmax,
                         Vmin = vmin,
                         Vpp = vpp,
@@ -1305,14 +1347,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task<(bool Pass, string FailPoint)> MeasureAllPointsAsync(int expectedDutyPct, CancellationToken token)
         {
-            var mV1 = await MeasureOnceWithMatrixAsync(NormalizeSlot6Output(DcmV1ToScope), "DCM_V1对地", token).ConfigureAwait(false);
-            var mV2 = await MeasureOnceWithMatrixAsync(NormalizeSlot6Output(DcmV2ToScope), "DCM_V2对地", token).ConfigureAwait(false);
-            var mV11 = await MeasureOnceWithMatrixAsync(NormalizeSlot6Output(DcmV1V1ToScope), "DCM_V1对DCM_V2", token).ConfigureAwait(false);
+            var mV1 = await MeasureOnceWithMatrixAsync(NormalizeSlot6Output(DcmV1ToScope), "DCM_V1对地", expectedDutyPct, token).ConfigureAwait(false);
+            var mV2 = await MeasureOnceWithMatrixAsync(NormalizeSlot6Output(DcmV2ToScope), "DCM_V2对地", expectedDutyPct, token).ConfigureAwait(false);
+            var mV11 = await MeasureOnceWithMatrixAsync(NormalizeSlot6Output(DcmV1V1ToScope), "DCM_V1对DCM_V2", expectedDutyPct, token).ConfigureAwait(false);
 
             Application.Current.Dispatcher.Invoke(() =>
             {
                 if (mV1 != null)
                 {
+                    J8VrmsText = FormatNum(mV1.Vrms);
+                    J8FreqHzText = FormatNum(mV1.FreqHz);
                     J8VmaxText = FormatNum(mV1.Vmax);
                     J8VminText = FormatNum(mV1.Vmin);
                     J8VppText = FormatNum(mV1.Vpp);
@@ -1320,6 +1364,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 if (mV2 != null)
                 {
+                    J9VrmsText = FormatNum(mV2.Vrms);
+                    J9FreqHzText = FormatNum(mV2.FreqHz);
                     J9VmaxText = FormatNum(mV2.Vmax);
                     J9VminText = FormatNum(mV2.Vmin);
                     J9VppText = FormatNum(mV2.Vpp);
@@ -1327,6 +1373,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 if (mV11 != null)
                 {
+                    J8J9VrmsText = FormatNum(mV11.Vrms);
+                    J8J9FreqHzText = FormatNum(mV11.FreqHz);
                     J8J9VmaxText = FormatNum(mV11.Vmax);
                     J8J9VminText = FormatNum(mV11.Vmin);
                     J8J9VppText = FormatNum(mV11.Vpp);
@@ -1334,9 +1382,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
             });
 
-            var okV1 = IsMeasurementPass(mV1, expectedDutyPct, out var rV1);
-            var okV2 = IsMeasurementPass(mV2, expectedDutyPct, out var rV2);
-            var okV11 = IsMeasurementPass(mV11, expectedDutyPct, out var rV11);
+            var okV1 = IsMeasurementPass(mV1, expectedDutyPct, PwmFrequencyHz, out var rV1);
+            var okV2 = IsMeasurementPass(mV2, expectedDutyPct, PwmFrequencyHz, out var rV2);
+            var okV11 = IsMeasurementPass(mV11, expectedDutyPct, PwmFrequencyHz, out var rV11);
 
             if (okV1)
                 AddLog($"{mV1?.Title ?? "DCM_V1对地"} 判据PASS");
@@ -1622,6 +1670,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private sealed class MeasurementResult
         {
             public string Title { get; set; }
+            public double? Vrms { get; set; }
+            public double? FreqHz { get; set; }
             public double? Vmax { get; set; }
             public double? Vmin { get; set; }
             public double? Vpp { get; set; }
