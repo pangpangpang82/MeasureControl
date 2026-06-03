@@ -48,8 +48,8 @@ namespace MeasureControl.Services
             }
 
             var chassis = _pxiChassisService.GetChassisByName(chassisName);
-            // 绕过 chassisDevice.Children，直接从扁平列表 chassis.Devices 中获取 SwitchDevice。
-            // 因为开机时，ChassisDevice 尚未通过 EnsureChassisDevice 自动创建（只有打开机箱页面才会创建并注入 Children）。
+            // 直接从机箱的 Devices 扁平列表中获取 SwitchDevice，而不是依赖 chassisDevice.Children
+            // 因为开机反序列化时，板卡肯定在 Devices 列表中，而 Children 可能还没同步好
             var switches = chassis?.Devices?.OfType<SwitchDevice>()?.Where(d => d != null).ToList() ?? new List<SwitchDevice>();
 
             foreach (var sw in switches)
@@ -266,11 +266,9 @@ namespace MeasureControl.Services
             try
             {
                 var chassis = _pxiChassisService.GetChassisByName(chassisName);
-                // 绕过 chassisDevice.Children，直接从扁平列表 chassis.Devices 中获取 SwitchDevice。
-                // 确保在尚未打开机箱页面时，指令依然可以被正确转发到目标板卡上。
                 var switches = chassis?.Devices?.OfType<SwitchDevice>() ?? Enumerable.Empty<SwitchDevice>();
                 
-                // 优先用 SlotIndex 匹配（打开机箱页面后 SlotIndex 已设置）
+                // 优先用 SlotIndex 匹配（如果已设置）
                 var result = switches.FirstOrDefault(d => d.SlotIndex == slotIndex && d.SlotIndex > 0);
                 if (result != null)
                     return result;

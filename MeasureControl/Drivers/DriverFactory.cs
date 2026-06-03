@@ -60,26 +60,65 @@ namespace MeasureControl.Drivers
                 if (device == null)
                     return 1;
 
-                var pxiChassisService = ContainerLocator.Container?.Resolve(typeof(IPxiChassisService)) as IPxiChassisService;
-                if (pxiChassisService == null)
+                // 基于 SlotPosition（如 "Slot 2"）确定 deviceId，而不是依赖扁平列表中的出现顺序
+                // 因为扁平列表顺序可能和物理槽位不对应，导致 openDeviceId 映射错误
+                int slotIndex = -1;
+                if (device is PxiDeviceBase pxiDevice && pxiDevice.SlotIndex > 0)
+                {
+                    slotIndex = pxiDevice.SlotIndex;
+                }
+                else if (!string.IsNullOrWhiteSpace(device.SlotPosition) && device.SlotPosition.StartsWith("Slot"))
+                {
+                    int.TryParse(device.SlotPosition.Replace("Slot", "").Trim(), out slotIndex);
+                }
+
+                if (slotIndex > 0)
+                {
+                    // 查找同机箱中所有3022设备，按 SlotPosition 排序确定物理顺序
+                    var pxiChassisService = ContainerLocator.Container?.Resolve(typeof(IPxiChassisService)) as IPxiChassisService;
+                    if (pxiChassisService != null)
+                    {
+                        var allChassis = pxiChassisService.GetAllChassis();
+                        var chassis = allChassis?.FirstOrDefault(c => c?.Devices != null && c.Devices.Any(d => d?.Id == device.Id));
+                        if (chassis?.Devices != null)
+                        {
+                            var pxi3022Devices = chassis.Devices
+                                .OfType<SwitchDevice>()
+                                .Where(d => (d.Model ?? string.Empty).ToUpperInvariant().Contains("3022"))
+                                .ToList();
+
+                            // 按 SlotPosition 解析出的槽位号排序，确保物理顺序正确
+                            var sorted = pxi3022Devices
+                                .Select(d => new { Device = d, Slot = ParseSlotNumber(d.SlotPosition) })
+                                .Where(x => x.Slot > 0)
+                                .OrderBy(x => x.Slot)
+                                .ToList();
+
+                            int index = sorted.FindIndex(x => x.Device.Id == device.Id);
+                            if (index >= 0)
+                                return (ushort)(index + 1);
+                        }
+                    }
+                }
+
+                // 回退：使用扁平列表顺序（兼容旧逻辑）
+                var fallbackService = ContainerLocator.Container?.Resolve(typeof(IPxiChassisService)) as IPxiChassisService;
+                if (fallbackService == null)
                     return 1;
 
-                var allChassis = pxiChassisService.GetAllChassis();
-                if (allChassis == null)
+                var fallbackChassis = fallbackService.GetAllChassis()
+                    ?.FirstOrDefault(c => c?.Devices != null && c.Devices.Any(d => d?.Id == device.Id));
+                if (fallbackChassis?.Devices == null)
                     return 1;
 
-                var chassis = allChassis.FirstOrDefault(c => c?.Devices != null && c.Devices.Any(d => d?.Id == device.Id));
-                if (chassis?.Devices == null)
-                    return 1;
-
-                var pxi3022Devices = chassis.Devices
+                var fallbackDevices = fallbackChassis.Devices
                     .OfType<SwitchDevice>()
                     .Where(d => (d.Model ?? string.Empty).ToUpperInvariant().Contains("3022"))
                     .ToList();
 
-                int index = pxi3022Devices.FindIndex(d => d.Id == device.Id);
-                if (index >= 0)
-                    return (ushort)(index + 1);
+                int fallbackIndex = fallbackDevices.FindIndex(d => d.Id == device.Id);
+                if (fallbackIndex >= 0)
+                    return (ushort)(fallbackIndex + 1);
 
                 return 1;
             }
@@ -87,6 +126,17 @@ namespace MeasureControl.Drivers
             {
                 return 1;
             }
+        }
+
+        /// <summary>
+        /// 从 SlotPosition（如 "Slot 2"）解析出槽位数字
+        /// </summary>
+        private static int ParseSlotNumber(string slotPosition)
+        {
+            if (string.IsNullOrWhiteSpace(slotPosition) || !slotPosition.StartsWith("Slot"))
+                return -1;
+            int.TryParse(slotPosition.Replace("Slot", "").Trim(), out int result);
+            return result > 0 ? result : -1;
         }
 
         private static string GetPxi2601ResourceName(DeviceBase device)
@@ -608,7 +658,12 @@ namespace MeasureControl.Drivers
             // 对于PXI设备，使用设备ID和槽位信息的组合作为缓存键
             if (device is PxiDeviceBase pxiDevice)
             {
-                return $"{device.Id}_Slot{pxiDevice.SlotIndex}";
+                // SlotIndex 在开机时可能是-1（未设置），此时仅用设备ID作为缓存键
+                // 避免开机时用 Slot-1 缓存，打开页面后又用 Slot2 缓存，导致同一设备创建两个驱动实例
+                if (pxiDevice.SlotIndex > 0)
+                    return $"{device.Id}_Slot{pxiDevice.SlotIndex}";
+                else
+                    return device.Id;
             }
 
             // 对于其他设备，使用设备ID作为缓存键
