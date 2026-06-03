@@ -559,7 +559,7 @@
                                         <TextBlock
                                             VerticalAlignment="Center"
                                             FontSize="14"
-                                            Text="电压(V)" />
+                                            Text="有效值(V)" />
                                         <Border
                                             Width="90"
                                             Height="28"
@@ -845,7 +845,7 @@
                                         <TextBlock
                                             VerticalAlignment="Center"
                                             FontSize="14"
-                                            Text="电压(V)" />
+                                            Text="有效值(V)" />
                                         <Border
                                             Width="90"
                                             Height="28"

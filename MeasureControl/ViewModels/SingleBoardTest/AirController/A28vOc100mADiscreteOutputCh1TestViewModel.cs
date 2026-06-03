@@ -1,4 +1,7 @@
-﻿using MeasureControl.Simulations.S_C_8_3_1;
+﻿using MeasureControl.Drivers;
+using MeasureControl.Services;
+using MeasureControl.Services.HardwareApis;
+using MeasureControl.Simulations.S_C_8_3_1;
 using Prism.Commands;
 using Prism.Mvvm;
 using System;
@@ -14,6 +17,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const string TxChannel = "429_CH5";
         private const string RxChannel = "429_CH2";
 
+        private const string FixedDmmIpAddress = "192.168.1.13";
+        private const string MatrixIpAddress = "192.168.1.3";
+        private const int MatrixSlotIndex = 4;
+
         private static readonly byte[] AtpEnterCommand = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] AtpExitCommand = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
@@ -28,6 +35,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private readonly S_C_8_3_1Simulation _arinc = new S_C_8_3_1Simulation();
         private readonly SemaphoreSlim _opLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _matrixSwitchLock = new SemaphoreSlim(1, 1);
         private readonly object _testLock = new object();
 
         private CancellationTokenSource _autoCts;
@@ -38,6 +46,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private string _v28Label14ActualText = "--";
         private string _ocLabel14ActualText = "--";
+        private string _loadVoltageActualText = "--";
 
         public A28vOc100mADiscreteOutputCh1TestViewModel()
         {
@@ -64,6 +73,12 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             set => SetProperty(ref _ocLabel14ActualText, value);
         }
 
+        public string LoadVoltageActualText
+        {
+            get => _loadVoltageActualText;
+            set => SetProperty(ref _loadVoltageActualText, value);
+        }
+
         public bool IsAutoTestRunning
         {
             get => _isAutoTestRunning;
@@ -86,6 +101,96 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             V28Label14ActualText = "--";
             OcLabel14ActualText = "--";
+            LoadVoltageActualText = "--";
+        }
+
+        private async Task<bool> ConnectMatrixAsync(string pointName, (string inNode, string outNode, int slot, int? basePort)[] ops, CancellationToken token)
+        {
+            await _matrixSwitchLock.WaitAsync(token);
+            try
+            {
+                var tasks = ops.Select(op =>
+                {
+                    if (op.basePort.HasValue)
+                        return MatrixControlService.Instance.ConnectNodesAsync(op.inNode, op.outNode, op.slot, MatrixIpAddress, op.basePort.Value);
+                    return MatrixControlService.Instance.ConnectNodesAsync(op.inNode, op.outNode, op.slot, MatrixIpAddress);
+                }).ToArray();
+
+                var results = await Task.WhenAll(tasks);
+                for (int i = 0; i < ops.Length; i++)
+                {
+                    var op = ops[i];
+                    bool okOne = i < results.Length && results[i];
+                    string type = op.basePort.HasValue ? "3022" : "2601";
+                    string portText = op.basePort.HasValue ? $" basePort={op.basePort.Value}" : string.Empty;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {pointName} 矩阵开关通路({type}): {op.inNode}->{op.outNode} slot={op.slot} ip={MatrixIpAddress}{portText}, ok={okOne}");
+                }
+
+                bool allOk = results.All(r => r);
+                if (allOk)
+                    await Task.Delay(200, token);
+                return allOk;
+            }
+            finally
+            {
+                _matrixSwitchLock.Release();
+            }
+        }
+
+        private async Task DisconnectMatrixAsync(string pointName, (string inNode, string outNode, int slot, int? basePort)[] ops, CancellationToken token)
+        {
+            await _matrixSwitchLock.WaitAsync(token);
+            try
+            {
+                var tasks = ops.Select(op =>
+                {
+                    if (op.basePort.HasValue)
+                        return MatrixControlService.Instance.DisconnectNodesAsync(op.inNode, op.outNode, op.slot, MatrixIpAddress, op.basePort.Value);
+                    return MatrixControlService.Instance.DisconnectNodesAsync(op.inNode, op.outNode, op.slot, MatrixIpAddress);
+                }).ToArray();
+
+                var results = await Task.WhenAll(tasks);
+                for (int i = 0; i < ops.Length; i++)
+                {
+                    var op = ops[i];
+                    bool ok = i < results.Length && results[i];
+                    string type = op.basePort.HasValue ? "3022" : "2601";
+                    string portText = op.basePort.HasValue ? $" basePort={op.basePort.Value}" : string.Empty;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {pointName} 矩阵开关断开({type}): {op.inNode}->{op.outNode} slot={op.slot} ip={MatrixIpAddress}{portText}, ok={ok}");
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 矩阵开关断开异常: {ex.Message}");
+            }
+            finally
+            {
+                _matrixSwitchLock.Release();
+            }
+        }
+
+        private async Task<double?> ReadDmmVoltageAsync(string pointName, (string inNode, string outNode, int slot, int? basePort)[] ops, CancellationToken token)
+        {
+            bool matrixOk = await ConnectMatrixAsync(pointName, ops, token);
+            if (!matrixOk)
+                throw new InvalidOperationException("矩阵开关通路建立失败");
+
+            await using IDmmApi dmm = new DmmSocketApi();
+            try
+            {
+                await dmm.ConnectAsync(FixedDmmIpAddress, token);
+                var r = await dmm.ReadOnceAsync(DmmMeasureMode.DCV, new DmmReadOptions { TimeoutMilliseconds = 8000 }, token);
+                if (r == null)
+                    return null;
+                if (r.IsOverrange)
+                    return null;
+                return r.Value;
+            }
+            finally
+            {
+                try { await dmm.DisconnectAsync(token); } catch { }
+                await DisconnectMatrixAsync(pointName, ops, token);
+            }
         }
 
         private void OnAutoTest()
@@ -229,6 +334,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 2000,
                 token);
             AddLog($"[{DateTime.Now:HH:mm:ss}] (3) 收到28VTEST ACK：0x{FormatBytesHex(ackResp)}");
+
+            // 用万用表直流电压挡位和矩阵开关测量负载两端实际电压值，3022的矩阵开关I0 c32（slot2） 和r4  c0(slot4)
+            var matrixOps = new (string inNode, string outNode, int slot, int? basePort)[]
+            {
+                ("I0", "O32", 2, 50300),
+                ("I4", "O0", MatrixSlotIndex, null)
+            };
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 万用表测量负载两端电压...");
+            var voltage = await ReadDmmVoltageAsync("负载电压", matrixOps, token);
+            if (voltage.HasValue)
+            {
+                LoadVoltageActualText = $"{voltage.Value:0.00000} V";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测量到实际电压：{voltage.Value:0.00000} V");
+                
+                if (voltage.Value < 25.0 || voltage.Value > 28.0)
+                {
+                    throw new InvalidOperationException($"负载两端电压测试不合格：期望 [25, 28]V，实际 {voltage.Value:0.00000} V");
+                }
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 电压判据检查：PASS");
+            }
+            else
+            {
+                LoadVoltageActualText = "--";
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 万用表读取失败或超量程");
+                throw new InvalidOperationException("无法获取到有效的万用表电压数据");
+            }
 
             // (4) 429发送测试指令AB_28VDSOM12_28VTEST2 0x09 03 01 03 00 00 00 00
             AddLog($"[{DateTime.Now:HH:mm:ss}] (4) 发送AB_28VDSOM12_28VTEST2：{FormatBytesHex(AB_28VDSOM12_28VTEST2)}");
