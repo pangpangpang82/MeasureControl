@@ -405,84 +405,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private void StartTemperatureTelemetryListeningIfNeeded()
         {
-            if (!_enableTemperatureTelemetryListening)
-                return;
-            if (_telemetryListeningTask != null)
-                return;
-            if (!IsManualTestRunning && !IsAutoTestRunning)
-                return;
-            if (string.IsNullOrWhiteSpace(TemperatureTelemetryRxChannel))
-                return;
-
-            _telemetryListeningCts?.Cancel();
-            _telemetryListeningCts?.Dispose();
-            _telemetryListeningCts = new CancellationTokenSource();
-            var token = _telemetryListeningCts.Token;
-
-            _telemetryListeningTask = Task.Run(async () =>
-            {
-                while (!token.IsCancellationRequested)
-                {
-                    try
-                    {
-                        var (tempData, rawData) = await _simulation.WaitTelemetryAsync(
-                            TemperatureTelemetryRxChannel,
-                            timeoutMs: 300,
-                            log: _ => { },
-                            token: token);
-
-                        if (tempData != null && TryParseTelemetryTemperature(tempData, out var temperature))
-                        {
-                            _lastTemperatureTelemetryFrame = tempData;
-                            if (rawData != null)
-                                _lastTemperatureRawFrame = rawData;
-
-                            var dispatcher = Application.Current?.Dispatcher;
-                            if (dispatcher != null && !dispatcher.CheckAccess())
-                            {
-                                dispatcher.BeginInvoke(new Action(() =>
-                                {
-                                    TemperatureTelemetryRxDataText = "0x" + FormatData(tempData);
-                                    TemperatureTelemetryValueText = temperature.ToString("0.####", CultureInfo.InvariantCulture);
-                                    LastTelemetryTemperatureC = temperature;
-
-                                    if (string.Equals(ResistorGear, "1挡", StringComparison.Ordinal))
-                                        Gear1TemperatureC = temperature;
-                                    else if (string.Equals(ResistorGear, "2挡", StringComparison.Ordinal))
-                                        Gear2TemperatureC = temperature;
-                                    else if (string.Equals(ResistorGear, "3挡", StringComparison.Ordinal))
-                                        Gear3TemperatureC = temperature;
-                                }));
-                            }
-                            else
-                            {
-                                TemperatureTelemetryRxDataText = "0x" + FormatData(tempData);
-                                TemperatureTelemetryValueText = temperature.ToString("0.####", CultureInfo.InvariantCulture);
-                                LastTelemetryTemperatureC = temperature;
-
-                                if (string.Equals(ResistorGear, "1挡", StringComparison.Ordinal))
-                                    Gear1TemperatureC = temperature;
-                                else if (string.Equals(ResistorGear, "2挡", StringComparison.Ordinal))
-                                    Gear2TemperatureC = temperature;
-                                else if (string.Equals(ResistorGear, "3挡", StringComparison.Ordinal))
-                                    Gear3TemperatureC = temperature;
-                            }
-                        }
-                        else
-                        {
-                            await Task.Delay(50, token);
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        break;
-                    }
-                    catch
-                    {
-                        try { await Task.Delay(100, token); } catch { break; }
-                    }
-                }
-            }, token);
         }
 
         private async Task StopTemperatureTelemetryListeningAsync()
@@ -595,8 +517,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await SendSetControllerResistorAsync();
             token.ThrowIfCancellationRequested();
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：{gear}接入电阻后等待温度稳定10s");
-            await Task.Delay(TimeSpan.FromSeconds(10), token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：{gear}接入电阻后等待温度稳定1s");
+            await Task.Delay(TimeSpan.FromSeconds(1), token);
             token.ThrowIfCancellationRequested();
 
             await OnTestControllerTemperatureAsync();
@@ -908,140 +830,150 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await OnTestTemperatureTelemetryAsync();
         }
 
-        private async Task OnTestTemperatureTelemetryAsync()
+      private async Task OnTestTemperatureTelemetryAsync()
+{
+    await _arincOpLock.WaitAsync();
+    try
+    {
+        var t0 = DateTime.UtcNow;
+        TemperatureTelemetryValueText = "--";
+        TemperatureTelemetryRxDataText = "--";
+        LastTelemetryTemperatureC = null;
+        _lastTemperatureTelemetryFrame = null;
+        _lastTemperatureRawFrame = null;
+
+        AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：温度回采值开始，TX={ControllerTemperatureTestTxChannel}, RX={TemperatureTelemetryRxChannel}, Label=0x{DefaultLabel:X2}, Req={FormatData(TemperatureTelemetryCommand)}");
+
+        await StopTemperatureTelemetryListeningAsync();
+
+        int retryCount = 0;
+        byte[] tempData = null;
+        byte[] rawData = null;
+
+        while (retryCount < 3 && tempData == null)
         {
-            await _arincOpLock.WaitAsync();
-            try
+            var attemptIndex = retryCount + 1;
+
+            if (attemptIndex == 1)
             {
-                var t0 = DateTime.UtcNow;
-                TemperatureTelemetryValueText = "--";
-                TemperatureTelemetryRxDataText = "--";
-                LastTelemetryTemperatureC = null;
-                _lastTemperatureTelemetryFrame = null;
-                _lastTemperatureRawFrame = null;
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 测试：温度回采值开始，TX={ControllerTemperatureTestTxChannel}, RX={TemperatureTelemetryRxChannel}, Label=0x{DefaultLabel:X2}, Req={FormatData(TemperatureTelemetryCommand)}");
-
-                await StopTemperatureTelemetryListeningAsync();
-
-                int retryCount = 0;
-                byte[] tempData = null;
-                byte[] rawData = null;
-
-                while (retryCount < 3 && tempData == null)
-                {
-                    if (retryCount == 0)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 等待温度遥测(不发送回采请求，超时800ms)...");
-                    }
-                    else
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 第{retryCount}次尝试重发指令接收温度遥测...");
-                    }
-
-                    var result = await _simulation.WaitTelemetryAsync(
-                        TemperatureTelemetryRxChannel,
-                        timeoutMs: 800,
-                        log: msg => AddLog(msg),
-                        token: CancellationToken.None);
-                    
-                    tempData = result.Temperature;
-                    rawData = result.Raw;
-
-                    if (tempData == null)
-                    {
-                        try { await _simulation.ClearRxFifoAsync(TemperatureTelemetryRxChannel); } catch { }
-                        await Task.Delay(20);
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 未收到数据，发送温度回采请求：{FormatData(TemperatureTelemetryCommand)}");
-                        await _simulation.SendBenchCommandOnlyAsync(
-                            ControllerTemperatureTestTxChannel,
-                            DefaultLabel,
-                            TemperatureTelemetryCommand,
-                            msg => AddLog(msg),
-                            CancellationToken.None);
-
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 已发送回采请求，等待温度遥测(超时2000ms)...");
-                        result = await _simulation.WaitTelemetryAsync(
-                            TemperatureTelemetryRxChannel,
-                            timeoutMs: 2000,
-                            log: msg => AddLog(msg),
-                            token: CancellationToken.None);
-                        
-                        tempData = result.Temperature;
-                        rawData = result.Raw;
-                    }
-                    
-                    retryCount++;
-                }
-
-                double? temperature = null;
-                if (tempData != null && TryParseTelemetryTemperature(tempData, out var tC))
-                {
-                    temperature = tC;
-                    LastTelemetryTemperatureC = tC;
-                    _lastTemperatureTelemetryFrame = tempData;
-                    _lastTemperatureRawFrame = rawData;
-                    TemperatureTelemetryRxDataText = "0x" + FormatData(tempData);
-                }
-
-                if (temperature == null)
-                {
-                    var elapsed = (int)Math.Max(0, (DateTime.UtcNow - t0).TotalMilliseconds);
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：{elapsed}ms内未收到温度采集值(07 01 07 02)");
-                    if (!_suppressResultUpdates)
-                    {
-                        LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                        LastTestResult = $"{FormatGearForResult(ResistorGear)}电阻温度不通过";
-                    }
-                    return;
-                }
-
-                {
-                    var elapsed = (int)Math.Max(0, (DateTime.UtcNow - t0).TotalMilliseconds);
-                    var tempHex = tempData != null ? ("0x" + FormatData(tempData)) : "--";
-                    var rawHex = rawData != null ? ("0x" + FormatData(rawData)) : "--";
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值成功：{elapsed}ms，Temp={temperature.Value:0.####}℃，TempFrame={tempHex}，RawFrame={rawHex}");
-                }
-
-                TemperatureTelemetryValueText = temperature.Value.ToString("0.####", CultureInfo.InvariantCulture);
-
-                if (string.Equals(ResistorGear, "1挡", StringComparison.Ordinal))
-                    Gear1TemperatureC = temperature;
-                else if (string.Equals(ResistorGear, "2挡", StringComparison.Ordinal))
-                    Gear2TemperatureC = temperature;
-                else if (string.Equals(ResistorGear, "3挡", StringComparison.Ordinal))
-                    Gear3TemperatureC = temperature;
-
-                if (!_suppressResultUpdates)
-                {
-                    LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                    var qualified = IsTemperatureQualified(ResistorGear, temperature.Value, AmbientTemperatureSelection);
-                    LastTestResult = qualified
-                        ? $"{FormatGearForResult(ResistorGear)}电阻温度PASS"
-                        : $"{FormatGearForResult(ResistorGear)}电阻温度不通过";
-                }
-
-                if (rawData != null)
-                {
-                    var rawHex = FormatData(rawData, rawData.Length);
-                    if (TryParseBase6FromNibbles(rawData, out var rawBase6Decimal))
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 传感器温度原始数据(07 01 07 03) 后四字节(6进制)->10进制：{rawBase6Decimal}，Data={rawHex}");
-                    else
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 传感器温度原始数据(07 01 07 03) Data={rawHex}");
-                }
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 第1次发送控制器温度测试指令并等待温度遥测(先不发送回采请求，超时800ms)...");
             }
-            catch (Exception ex)
+            else
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值异常：{ex.Message}");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 第{attemptIndex}次重试：重新发送控制器温度测试指令并等待温度遥测(先不发送回采请求，超时800ms)...");
             }
-            finally
+
+            // 每次尝试都先重新发送一次控制器温度测试指令
+            await _simulation.SendBenchCommandOnlyAsync(
+                ControllerTemperatureTestTxChannel,
+                DefaultLabel,
+                AbBtsTemperature,
+                msg => AddLog(msg),
+                CancellationToken.None);
+
+            // 先等待一段时间，看是否有自然到来的温度遥测
+            var result = await _simulation.WaitTelemetryAsync(
+                TemperatureTelemetryRxChannel,
+                timeoutMs: 800,
+                log: msg => AddLog(msg),
+                token: CancellationToken.None);
+
+            tempData = result.Temperature;
+            rawData = result.Raw;
+
+            if (tempData == null)
             {
-                StartTemperatureTelemetryListeningIfNeeded();
-                _arincOpLock.Release();
+                try { await _simulation.ClearRxFifoAsync(TemperatureTelemetryRxChannel); } catch { }
+                await Task.Delay(20);
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 未收到数据，发送温度回采请求：{FormatData(TemperatureTelemetryCommand)}");
+                await _simulation.SendBenchCommandOnlyAsync(
+                    ControllerTemperatureTestTxChannel,
+                    DefaultLabel,
+                    TemperatureTelemetryCommand,
+                    msg => AddLog(msg),
+                    CancellationToken.None);
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 已发送回采请求，等待温度遥测(超时2000ms)...");
+                result = await _simulation.WaitTelemetryAsync(
+                    TemperatureTelemetryRxChannel,
+                    timeoutMs: 2000,
+                    log: msg => AddLog(msg),
+                    token: CancellationToken.None);
+
+                tempData = result.Temperature;
+                rawData = result.Raw;
             }
+
+            retryCount++;
         }
 
+        double? temperature = null;
+        if (tempData != null && TryParseTelemetryTemperature(tempData, out var tC))
+        {
+            temperature = tC;
+            LastTelemetryTemperatureC = tC;
+            _lastTemperatureTelemetryFrame = tempData;
+            _lastTemperatureRawFrame = rawData;
+            TemperatureTelemetryRxDataText = "0x" + FormatData(tempData);
+        }
+
+        if (temperature == null)
+        {
+            var elapsed = (int)Math.Max(0, (DateTime.UtcNow - t0).TotalMilliseconds);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值失败：{elapsed}ms内未收到温度采集值(07 01 07 02)");
+            if (!_suppressResultUpdates)
+            {
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                LastTestResult = $"{FormatGearForResult(ResistorGear)}电阻温度不通过";
+            }
+            return;
+        }
+
+        {
+            var elapsed = (int)Math.Max(0, (DateTime.UtcNow - t0).TotalMilliseconds);
+            var tempHex = tempData != null ? ("0x" + FormatData(tempData)) : "--";
+            var rawHex = rawData != null ? ("0x" + FormatData(rawData)) : "--";
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值成功：{elapsed}ms，Temp={temperature.Value:0.####}℃，TempFrame={tempHex}，RawFrame={rawHex}");
+        }
+
+        TemperatureTelemetryValueText = temperature.Value.ToString("0.####", CultureInfo.InvariantCulture);
+
+        if (string.Equals(ResistorGear, "1挡", StringComparison.Ordinal))
+            Gear1TemperatureC = temperature;
+        else if (string.Equals(ResistorGear, "2挡", StringComparison.Ordinal))
+            Gear2TemperatureC = temperature;
+        else if (string.Equals(ResistorGear, "3挡", StringComparison.Ordinal))
+            Gear3TemperatureC = temperature;
+
+        if (!_suppressResultUpdates)
+        {
+            LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            var qualified = IsTemperatureQualified(ResistorGear, temperature.Value, AmbientTemperatureSelection);
+            LastTestResult = qualified
+                ? $"{FormatGearForResult(ResistorGear)}电阻温度PASS"
+                : $"{FormatGearForResult(ResistorGear)}电阻温度不通过";
+        }
+
+        if (rawData != null)
+        {
+            var rawHex = FormatData(rawData, rawData.Length);
+            if (TryParseBase6FromNibbles(rawData, out var rawBase6Decimal))
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 传感器温度原始数据(07 01 07 03) 后四字节(6进制)->10进制：{rawBase6Decimal}，Data={rawHex}");
+            else
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 传感器温度原始数据(07 01 07 03) Data={rawHex}");
+        }
+    }
+    catch (Exception ex)
+    {
+        AddLog($"[{DateTime.Now:HH:mm:ss}] 温度回采值异常：{ex.Message}");
+    }
+    finally
+    {
+        StartTemperatureTelemetryListeningIfNeeded();
+        _arincOpLock.Release();
+    }
+}
         private static bool IsPrefix(byte[] data, byte[] prefix)
         {
             if (data == null || prefix == null) return false;
