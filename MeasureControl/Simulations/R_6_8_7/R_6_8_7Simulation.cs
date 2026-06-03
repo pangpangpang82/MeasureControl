@@ -89,7 +89,7 @@ namespace MeasureControl.Simulations.R_6_8_7
             if (_started) return;
             if (log == null) log = _ => { };
 
-            log($"[{DateTime.Now:HH:mm:ss}] [SIM] BTS 仿真初始化开始");
+            log($"[{DateTime.Now:HH:mm:ss}] [SIM] BTS 测试初始化开始");
 
             _simCts = new CancellationTokenSource();
 
@@ -121,7 +121,7 @@ namespace MeasureControl.Simulations.R_6_8_7
             }
 
             _started = true;
-            log($"[{DateTime.Now:HH:mm:ss}] [SIM] BTS 仿真初始化完成");
+            log($"[{DateTime.Now:HH:mm:ss}] [SIM] BTS 测试初始化完成");
         }
 
         private async Task StartBenchRxAsync(Action<string> log)
@@ -786,7 +786,7 @@ namespace MeasureControl.Simulations.R_6_8_7
                 return;
             }
 
-            log($"[{DateTime.Now:HH:mm:ss}] [SIM] BTS 仿真停止：释放设备资源");
+            log($"[{DateTime.Now:HH:mm:ss}] [SIM] BTS 测试停止：释放设备资源");
 
             _started = false;
             _telemetryEnabled = false;
