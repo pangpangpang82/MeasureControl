@@ -852,21 +852,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 while (retryCount < 3 && tempData == null)
                 {
-                    if (retryCount == 0)
+                    var attemptIndex = retryCount + 1;
+
+                    if (attemptIndex == 1)
                     {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 等待温度遥测(不发送回采请求，超时800ms)...");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 第1次发送控制器温度测试指令并等待温度遥测(先不发送回采请求，超时800ms)...");
                     }
                     else
                     {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 第{retryCount}次尝试重发指令接收温度遥测...");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 第{attemptIndex}次重试：重新发送控制器温度测试指令并等待温度遥测(先不发送回采请求，超时800ms)...");
                     }
 
+                    // 每次尝试都先重新发送一次控制器温度测试指令
+                    await _simulation.SendBenchCommandOnlyAsync(
+                        ControllerTemperatureTestTxChannel,
+                        DefaultLabel,
+                        AbBtsTemperature,
+                        msg => AddLog(msg),
+                        CancellationToken.None);
+
+                    // 先等待一段时间，看是否有自然到来的温度遥测
                     var result = await _simulation.WaitTelemetryAsync(
                         TemperatureTelemetryRxChannel,
                         timeoutMs: 800,
                         log: msg => AddLog(msg),
                         token: CancellationToken.None);
-                    
+
                     tempData = result.Temperature;
                     rawData = result.Raw;
 
@@ -889,11 +900,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                             timeoutMs: 2000,
                             log: msg => AddLog(msg),
                             token: CancellationToken.None);
-                        
+
                         tempData = result.Temperature;
                         rawData = result.Raw;
                     }
-                    
+
                     retryCount++;
                 }
 
