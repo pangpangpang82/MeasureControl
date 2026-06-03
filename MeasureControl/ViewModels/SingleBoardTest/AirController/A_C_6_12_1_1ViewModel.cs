@@ -473,10 +473,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             double voltageV = CurrentGearIndex switch
             {
-                1 => 1.0,
+                1 => 0.5,
                 2 => 5.0,
-                3 => 9.5,
-                _ => 1.0
+                3 => 10.0,
+                _ => 0.5
             };
 
             IsBusy = true;
@@ -683,11 +683,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     var failures = new System.Collections.Generic.List<string>();
 
-                    await RunGearAutoAsync(1, 1.0, token, failures);
+                    await RunGearAutoAsync(1, 0.5, token, failures);
                     token.ThrowIfCancellationRequested();
                     await RunGearAutoAsync(2, 5.0, token, failures);
                     token.ThrowIfCancellationRequested();
-                    await RunGearAutoAsync(3, 9.5, token, failures);
+                    await RunGearAutoAsync(3, 10.0, token, failures);
 
                     await AutoExitAtpAsync(token);
                     _autoTestEnteredAtp = false;

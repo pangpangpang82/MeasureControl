@@ -2142,9 +2142,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：档位{gearIndex} AO1输出后等待稳定5s");
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：档位{gearIndex} AO1输出后等待稳定1s");
 
-            await Task.Delay(TimeSpan.FromSeconds(5), token);
+            await Task.Delay(TimeSpan.FromSeconds(1), token);
 
 
 

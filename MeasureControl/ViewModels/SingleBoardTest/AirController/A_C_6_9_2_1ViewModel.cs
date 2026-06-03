@@ -69,14 +69,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
         private const string AoChannel = "AO6";
-
-        private static readonly string[] Mtx532EnabledAoChannels = { "AO1", "AO2", "AO3", "AO4", "AO5", "AO6" };
+        private static readonly string[] Mtx532EnabledAoChannels = { "AO6" };
 
         private const int Mtx532ReadyTimeoutMs = 6000;
 
         private const int Mtx532ReadyPollMs = 200;
 
-        private const int AutoGearSwitchDelayMs = 1500;
+        private const int AutoGearSwitchDelayMs = 1000;
 
         private const double Mtx532SampleRateHz = 20000.0;
 
@@ -2298,9 +2297,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：档位{gearIndex} AO6输出后等待稳定5s");
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：档位{gearIndex} AO6输出后等待稳定1s");
 
-            await Task.Delay(TimeSpan.FromSeconds(5), token);
+            await Task.Delay(TimeSpan.FromSeconds(1), token);
 
 
 
@@ -2470,7 +2469,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         SetLastTestResult("FAIL");
 
                         AddLog($"[{DateTime.Now:HH:mm:ss}] 电压输出失败");
-
                         return;
 
                     }
@@ -2679,12 +2677,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             await _mtxApi.WriteOnceDcAsync(new Dictionary<string, double>
             {
-                ["AO1"] = 0.0,
-                ["AO2"] = 0.0,
-                ["AO3"] = 0.0,
-                ["AO4"] = 0.0,
-                ["AO5"] = 0.0,
-                ["AO6"] = voltageV
+                [AoChannel] = voltageV
             }, token).ConfigureAwait(false);
         }
 

@@ -1842,8 +1842,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：档位{gearIndex} AO5输出后等待稳定5s");
-            await Task.Delay(TimeSpan.FromSeconds(5), token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：档位{gearIndex} AO5输出后等待稳定1s");
+            await Task.Delay(TimeSpan.FromSeconds(1), token);
 
             await _simulation.ClearRxFifoAsync(TestRxChannel);
             await Task.Delay(20, token);
