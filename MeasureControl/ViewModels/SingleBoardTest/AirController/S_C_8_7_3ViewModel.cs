@@ -33,7 +33,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] TelemetryRawPrefix4 = { 0x15, 0x02, 0x03, 0x03 };
 
         private const string AoChannel = "AO5";
-        private static readonly string[] Mtx532EnabledAoChannels = { "AO1", "AO2", "AO3", "AO4", "AO5" };
+        private static readonly string[] Mtx532EnabledAoChannels = { "AO5" };
         private const int AtpResponseTimeoutMs = 3000;
         private const int Mtx532ReadyTimeoutMs = 6000;
         private const int Mtx532ReadyPollMs = 200;
@@ -339,18 +339,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = StartAutoTestAsync();
         }
 
-        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
-        {
-            try
-            {
-                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                if (api != null)
-                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
-            }
-            catch
-            {
-            }
-        }
 
         private async Task StartManualTestAsync()
         {
@@ -388,14 +376,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     }
 
                     IsMtx532RealHardware = true;
-
-                    try
-                    {
-                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                        if (api != null)
-                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
-                    }
-                    catch { }
 
                     _simulation.IsRealProduct = true;
                     _simulation.ArincRate = 100000.0;
@@ -448,7 +428,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsBusy = false;
                 }
             }
@@ -781,14 +760,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     IsMtx532RealHardware = true;
 
-                    try
-                    {
-                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                        if (api != null)
-                            await api.ApplyComponent28VStateAsync(token);
-                    }
-                    catch { }
-
                     _simulation.IsRealProduct = true;
                     _simulation.ArincRate = 100000.0;
                     _simulation.SimProductArincRate = 100000.0;
@@ -865,7 +836,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         _autoTestEnteredAtp = false;
                     }
                     await ShutdownOpenedBoardsForTestEndAsync();
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsAutoTestRunning = false;
                     IsBusy = false;
                 }
@@ -941,8 +911,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return;
             }
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：{CurrentGearName} AO5输出后等待稳定3s");
-            await Task.Delay(TimeSpan.FromSeconds(3), token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：{CurrentGearName} AO5输出后等待稳定1s");
+            await Task.Delay(TimeSpan.FromSeconds(1), token);
 
             StartTelemetryListeningIfNeeded();
             var startSeq = Volatile.Read(ref _telemetrySeq);
@@ -1200,10 +1170,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             await _mtxApi.WriteOnceDcAsync(new Dictionary<string, double>
             {
-                ["AO1"] = 0.0,
-                ["AO2"] = 0.0,
-                ["AO3"] = 0.0,
-                ["AO4"] = 0.0,
                 ["AO5"] = voltageV
             }, token).ConfigureAwait(false);
         }
