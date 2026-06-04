@@ -380,6 +380,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             SafeCloseNetworkStream(ref _scopeTcpStream);
             SafeCloseTcpClient(ref _scopeTcpClient);
 
+            // 断开矩阵开关
+            try { await DisconnectInstrumentsAndMatrixAsync(CancellationToken.None); } catch { }
+
             try
             {
                 using var cts = new CancellationTokenSource(3000);

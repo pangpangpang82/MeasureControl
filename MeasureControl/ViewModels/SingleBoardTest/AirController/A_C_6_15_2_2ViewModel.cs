@@ -389,15 +389,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task StopAutoTestAsync()
         {
-            await _autoTestLock.WaitAsync();
-            try
-            {
-                try { _autoTestCts?.Cancel(); } catch { }
-            }
-            finally
-            {
-                _autoTestLock.Release();
-            }
+            try { _autoTestCts?.Cancel(); } catch { }
+            try { await DisconnectMatrixAsync(CancellationToken.None); } catch { }
         }
 
         private async Task<bool> AutoStepAsync(byte[] cmd8, byte[] expected8, string title, CancellationToken token)

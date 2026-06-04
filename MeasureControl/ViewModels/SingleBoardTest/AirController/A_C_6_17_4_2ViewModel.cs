@@ -456,15 +456,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task StopAutoTestAsync()
         {
-            await _autoTestLock.WaitAsync();
-            try
-            {
-                try { _autoTestCts?.Cancel(); } catch { }
-            }
-            finally
-            {
-                _autoTestLock.Release();
-            }
+            try { _autoTestCts?.Cancel(); } catch { }
+            try { await DisconnectMatrixAsync(CancellationToken.None); } catch { }
         }
 
         private async Task<bool> AutoStepAsync(byte[] cmd8, byte[] expected8, string title, CancellationToken token)
@@ -663,8 +656,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     var disconnectTasks = new[]
                     {
-                        svc.DisconnectNodesAsync("I1", "O1", 9, MatrixIp),
-                        svc.DisconnectNodesAsync("I0", "O7", 4, MatrixIp)
+                        svc.DisconnectNodesAsync("I0", "O21", 9, MatrixIp),
+                        svc.DisconnectNodesAsync("I4", "O7", 4, MatrixIp)
                     };
 
                     _ = await Task.WhenAll(disconnectTasks);

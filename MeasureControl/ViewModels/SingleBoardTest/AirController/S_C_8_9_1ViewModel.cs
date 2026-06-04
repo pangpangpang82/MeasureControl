@@ -772,16 +772,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 LastTestResult = "--";
                 LastTestTime = "--";
 
+                J8VrmsText = "--";
+                J8FreqHzText = "--";
                 J8VmaxText = "--";
                 J8VminText = "--";
                 J8VppText = "--";
                 J8DutyPctText = "--";
 
+                J9VrmsText = "--";
+                J9FreqHzText = "--";
                 J9VmaxText = "--";
                 J9VminText = "--";
                 J9VppText = "--";
                 J9DutyPctText = "--";
 
+                J8J9VrmsText = "--";
+                J8J9FreqHzText = "--";
                 J8J9VmaxText = "--";
                 J8J9VminText = "--";
                 J8J9VppText = "--";
@@ -930,7 +936,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return false;
             }
 
-            // 0% PWM: VRMS should be near 0V (DC low level, VRMS avoids glitch peaks)
+            // 0% PWM: VRMS should be near 0V
             if (expectedDutyPct == 0)
             {
                 if (!m.Vrms.HasValue)
@@ -949,7 +955,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return true;
             }
 
-            // 100% PWM: VRMS should be in [17,32]V (DC high level, VRMS avoids glitch peaks)
+            // 100% PWM: VRMS should be in [17,32]V
             if (expectedDutyPct == 100)
             {
                 if (!m.Vrms.HasValue)
@@ -968,7 +974,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return true;
             }
 
-            // 50% PWM: duty cycle within ±1% (calculated from PWIDth/NWIDth)
+            // 50% PWM: duty cycle within ±1%
             if (expectedDutyPct == 50)
             {
                 if (!m.DutyPct.HasValue)
@@ -1189,20 +1195,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     if (expectedDutyPct == 100 || expectedDutyPct == 0)
                     {
-                        // 100%/0% PWM: measure VRMS only (DC signal, VRMS avoids glitch peaks)
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：PWM={expectedDutyPct}%，配置测量项 VRMS...");
+                        // 100%/0% PWM: measure VRMS + FREQuency (referencing A_C_6_16_1_1_1ViewModel)
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：PWM={expectedDutyPct}%，配置测量项 VRMS, FREQuency...");
                         try
                         {
                             await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
                             await SendScopeCommandAsync(":MEASure:CLEar", token).ConfigureAwait(false);
                             await SendScopeCommandAsync(":MEASure:ITEM VRMS", token).ConfigureAwait(false);
+                            await SendScopeCommandAsync(":MEASure:ITEM FREQuency", token).ConfigureAwait(false);
                         }
                         catch (Exception ex)
                         {
                             AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：配置测量项异常：{ex.Message}");
                         }
 
-                        // Delay 5s for waveform stabilization
+                        // Delay 5s for waveform stabilization (referencing A_C_6_16_1_1_1ViewModel)
                         AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：延时5秒等待波形稳定...");
                         await Task.Delay(5000, token).ConfigureAwait(false);
 
@@ -1216,16 +1223,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                             AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询VRMS异常：{ex.Message}");
                         }
 
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：测量完成 VRMS={FormatNum(vrms)}V");
+                        try
+                        {
+                            await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
+                            var rawFreq = await QueryScopeAsync(":MEASure:ITEM? FREQuency", 10000, token).ConfigureAwait(false);
+                            freq = ParseScopeDouble(rawFreq);
+                            if (freq.HasValue)
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：频率解析值：{freq.Value:F3} Hz");
+                            else
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：频率解析失败");
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询频率异常：{ex.Message}");
+                        }
+
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：测量完成 VRMS={FormatNum(vrms)}V, FREQ={FormatNum(freq)}Hz");
                     }
                     else if (expectedDutyPct == 50)
                     {
-                        // 50% PWM: measure PWIDth + NWIDth for duty cycle calculation
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：PWM=50%，配置测量项 PWIDth, NWIDth...");
+                        // 50% PWM: measure FREQuency + PWIDth + NWIDth (referencing A_C_6_16_1_1_1ViewModel)
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：PWM=50%，配置测量项 FREQuency, PWIDth, NWIDth...");
                         try
                         {
                             await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
                             await SendScopeCommandAsync(":MEASure:CLEar", token).ConfigureAwait(false);
+                            await SendScopeCommandAsync(":MEASure:ITEM FREQuency", token).ConfigureAwait(false);
                             await SendScopeCommandAsync(":MEASure:ITEM PWIDth", token).ConfigureAwait(false);
                             await SendScopeCommandAsync(":MEASure:ITEM NWIDth", token).ConfigureAwait(false);
                         }
@@ -1234,12 +1257,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                             AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：配置测量项异常：{ex.Message}");
                         }
 
-                        // Delay 8s + 3s for waveform stabilization and data accumulation
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：延时8秒等待波形稳定...");
-                        await Task.Delay(8000, token).ConfigureAwait(false);
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：延时3秒等待数据累积...");
-                        await Task.Delay(3000, token).ConfigureAwait(false);
+                        // Delay 5s for waveform stabilization (referencing A_C_6_16_1_1_1ViewModel)
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：延时5秒等待波形稳定...");
+                        await Task.Delay(5000, token).ConfigureAwait(false);
 
+                        // Query frequency
+                        try
+                        {
+                            await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
+                            var rawFreq = await QueryScopeAsync(":MEASure:ITEM? FREQuency", 10000, token).ConfigureAwait(false);
+                            freq = ParseScopeDouble(rawFreq);
+                            if (freq.HasValue)
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：频率解析值：{freq.Value:F3} Hz");
+                            else
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：频率解析失败");
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询频率异常：{ex.Message}");
+                        }
+
+                        // Query duty cycle — calculate from PWIDth + NWIDth
                         try
                         {
                             var rawPw = await QueryScopeAsync(":MEASure:ITEM? PWIDth", 10000, token).ConfigureAwait(false);
@@ -1249,6 +1287,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                             if (pw.HasValue && nw.HasValue && (pw.Value + nw.Value) > 0)
                             {
                                 duty = pw.Value / (pw.Value + nw.Value) * 100.0;
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：占空比计算值：PWIDth={pw.Value:F6}s, NWIDth={nw.Value:F6}s, DUTY={duty.Value:F3}%");
                             }
                         }
                         catch (Exception ex)
@@ -1256,7 +1295,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                             AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询占空比异常：{ex.Message}");
                         }
 
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：测量完成 DUTY={FormatNum(duty)}%");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：测量完成 FREQ={FormatNum(freq)}Hz, DUTY={FormatNum(duty)}%");
                     }
                     else
                     {
