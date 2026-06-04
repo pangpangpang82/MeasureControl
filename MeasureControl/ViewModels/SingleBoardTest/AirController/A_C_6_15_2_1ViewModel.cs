@@ -24,9 +24,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] ExitAtpCommand8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] ExitAtpOk8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 }; // not used (send-only)
 
-        private static readonly byte[] Pwm100Command8 = { 0x21, 0x04, 0x04, 0x03, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] Pwm50Command8 = { 0x21, 0x04, 0x04, 0x02, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] Pwm0Command8 = { 0x21, 0x04, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] Pwm100Command8 = { 0x21, 0x02, 0x04, 0x03, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] Pwm50Command8 = { 0x21, 0x02, 0x04, 0x02, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] Pwm0Command8 = { 0x21, 0x02, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
         private const string FixedTxChannel = "429_CH5";
         private const string FixedRxChannel = "429_CH2";
@@ -519,6 +519,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private async Task StopAutoTestAsync()
         {
             try { _autoTestCts?.Cancel(); } catch { }
+            try { await DisconnectInstrumentsAndMatrixAsync(CancellationToken.None); } catch { }
         }
 
         private async Task<bool> AutoStepAsync(byte[] cmd8, byte[] expected8, string title, CancellationToken token)
@@ -560,7 +561,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             catch (Exception ex)
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] {title}异常：{ex.Message}");
-                SetLastTestResult("FAIL");
             }
             finally
             {
@@ -648,6 +648,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             Pwm100VoltageText = "--";
             Pwm50DutyPctText = "--";
             Pwm0VoltageText = "--";
+
+            // 清除后台测量值，防止CheckManualTestResult误判
+            _pwm100Voltage = null;
+            _pwm50DutyPct = null;
+            _pwm0Voltage = null;
         }
 
         private sealed class PwmMeasurement
@@ -858,6 +863,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                             AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：断开矩阵开关...");
                             await DisconnectMatrixAsync(token);
                         }
+
+                        // 参照A_C_6_15_1_1：每次测量完成后检查是否所有点都已测量，全部测完才判定最终结果
+                        CheckManualTestResult();
                     }
                     catch (OperationCanceledException)
                     {
@@ -1249,13 +1257,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     if (resp == null)
                     {
                         AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：等待超时");
-                        SetLastTestResult("FAIL");
                         return;
                     }
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：回读OK ({FormatData(resp)})");
-
-                    SetLastTestResult("PASS");
                 }
                 finally
                 {
@@ -1265,11 +1270,39 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             catch (Exception ex)
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] {title}异常：{ex.Message}");
-                SetLastTestResult("FAIL");
             }
             finally
             {
                 _arincOpLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// 参照A_C_6_15_1_1模式：每次手动测量完成后检查是否所有PWM点都已测量，
+        /// 全部测完才判定最终PASS/FAIL结果
+        /// </summary>
+        private void CheckManualTestResult()
+        {
+            if (_pwm100Voltage.HasValue && _pwm50DutyPct.HasValue && _pwm0Voltage.HasValue)
+            {
+                var q100 = QualifyPwm100(_pwm100Voltage, out var reason100);
+                var q50 = QualifyPwm50(_pwm50DutyPct, out var reason50);
+                var q0 = QualifyPwm0(_pwm0Voltage, out var reason0);
+                bool pass = q100 && q50 && q0;
+                SetLastTestResult(pass ? "PASS" : "FAIL");
+                if (pass)
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 所有PWM点测量完成，最终测试结果：PASS");
+                else
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 所有PWM点测量完成，最终测试结果：FAIL");
+                    if (!q100 && !string.IsNullOrWhiteSpace(reason100)) AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=100%：{reason100}");
+                    if (!q50 && !string.IsNullOrWhiteSpace(reason50)) AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：{reason50}");
+                    if (!q0 && !string.IsNullOrWhiteSpace(reason0)) AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=0%：{reason0}");
+                }
+            }
+            else
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测量成功，等待其它PWM点全部测量后再判定最终结果...");
             }
         }
 

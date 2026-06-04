@@ -400,6 +400,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             // Brief delay to let in-flight I/O settle after stream closure
             await Task.Delay(100);
 
+            // 断开矩阵开关
+            try { await DisconnectInstrumentsAndMatrixAsync(CancellationToken.None); } catch { }
+
             // Update UI state immediately (do NOT wait for _autoTestLock, it's held by RunAutoTestAsync)
             IsAutoTestRunning = false;
             IsBusy = false;

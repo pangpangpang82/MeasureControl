@@ -483,6 +483,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private async Task StopAutoTestAsync()
         {
             try { _autoTestCts?.Cancel(); } catch { }
+            try { await DisconnectInstrumentsAndMatrixAsync(CancellationToken.None); } catch { }
         }
 
         private async Task<bool> AutoStepAsync(byte[] cmd8, byte[] expected8, string title, CancellationToken token)
@@ -647,7 +648,94 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             if (pwmPercent == 50)
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：正在配置测量项 (PWIDth, NWIDth)...");
+                // 50% PWM测量流程（参照A_C_6_16_1_1_1手动测试模式）：
+                // AUToscale后先配置FREQuency+PWIDth+NWIDth，等待波形稳定，查询频率，
+                // 再根据频率调整时基比例尺，等待新时基下波形稳定，清除并重新配置PWIDth+NWIDth，
+                // 等待测量数据积累后查询占空比。
+
+                // Step 1: AUToscale后配置FREQuency+PWIDth+NWIDth（参照A_C_6_16_1_1_1）
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：正在配置测量项 (FREQuency, PWIDth, NWIDth)...");
+                try
+                {
+                    await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
+                    await SendScopeCommandAsync(":MEASure:CLEar", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM FREQuency", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM PWIDth", token);
+                    await SendScopeCommandAsync(":MEASure:ITEM NWIDth", token);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：配置测量项异常：{ex.Message}");
+                }
+
+                // Step 2: 参照A_C_6_16_1_1_1：延时5秒等待波形在自动设置后稳定
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：延时5秒等待波形在自动设置后稳定...");
+                await Task.Delay(5000, token);
+
+                // Step 3: 查询频率以计算合适的时基比例尺
+                double? pwmFreq = null;
+                try
+                {
+                    await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
+                    var rawFreq = await QueryScopeAsync(":MEASure:ITEM? FREQuency", 10000, token);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：频率原始响应：'{rawFreq}'");
+                    pwmFreq = ParseScopeDouble(rawFreq);
+                    if (pwmFreq.HasValue)
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：频率解析值：{pwmFreq.Value:F3} Hz");
+                    else
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：频率解析失败，将使用当前时基比例尺");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：查询频率异常：{ex.Message}");
+                }
+
+                // Step 4: 根据频率调整时基比例尺，确保屏幕上显示3~4个完整PWM周期
+                // DS1000Z水平方向有14个格(div)，时基比例尺单位为s/div
+                // 要显示N个周期：scale = N / (freq * 14)
+                try
+                {
+                    if (pwmFreq.HasValue && pwmFreq.Value > 0)
+                    {
+                        // 显示4个完整周期
+                        double targetScale = 4.0 / (pwmFreq.Value * 14.0);
+                        // DS1000Z时基比例尺只能设为特定步进值，示波器会自动取最近的合法值
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：计算目标时基比例尺={targetScale:F6}s/div (基于频率{pwmFreq.Value:F1}Hz, 4个周期/14格)");
+                        await SendScopeCommandAsync($":TIMebase:SCALe {targetScale.ToString("G6", CultureInfo.InvariantCulture)}", token);
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：已设置时基比例尺，等待波形在新时基下稳定...");
+                    }
+                    else
+                    {
+                        // 频率获取失败时，读取当前时基比例尺并放大3倍（缩小波形）
+                        try
+                        {
+                            var rawScale = await QueryScopeAsync(":TIMebase:SCALe?", 5000, token);
+                            var currentScale = ParseScopeDouble(rawScale);
+                            if (currentScale.HasValue && currentScale.Value > 0)
+                            {
+                                double newScale = currentScale.Value * 3.0;
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：频率未知，将时基比例尺从{currentScale.Value:F6}s/div放大到{newScale:F6}s/div");
+                                await SendScopeCommandAsync($":TIMebase:SCALe {newScale.ToString("G6", CultureInfo.InvariantCulture)}", token);
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：已设置时基比例尺，等待波形在新时基下稳定...");
+                            }
+                        }
+                        catch (Exception ex2)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：调整时基比例尺异常：{ex2.Message}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：设置时基比例尺异常：{ex.Message}");
+                }
+
+                // Step 5: 等待波形在新时基下稳定（参照A_C_6_16_1_1_1的5秒稳定延时）
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：延时5秒等待波形在新时基下稳定...");
+                await Task.Delay(5000, token);
+
+                // Step 6: 清除旧测量数据，重新配置PWIDth/NWIDth（时基变更后需重新测量）
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：清除旧测量数据，重新配置测量项 (PWIDth, NWIDth)...");
                 try
                 {
                     await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
@@ -657,19 +745,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 catch (Exception ex)
                 {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 配置测量项异常：{ex.Message}");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：配置测量项异常：{ex.Message}");
                 }
 
-                // 参照A_C_6_16_1_1_1ViewModel：50% PWM需要更长的矩阵连接时间
-                // 让示波器有足够时间积累脉宽测量数据
-                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：延时8秒等待波形在自动设置后稳定（占空比测量需要更长稳定时间）...");
-                await Task.Delay(8000, token);
+                // Step 7: 等待示波器在新时基下积累PWIDth/NWIDth测量数据
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：延时5秒等待示波器积累脉宽测量数据...");
+                await Task.Delay(5000, token);
 
-                // 查询占空比前再延时3秒，确保示波器有足够时间积累PWIDth/NWIDth数据
-                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：延时3秒等待示波器积累脉宽测量数据...");
-                await Task.Delay(3000, token);
-
-                // Query duty cycle
+                // Step 8: 查询占空比
                 try
                 {
                     await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token);
@@ -758,6 +841,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             Pwm100VoltageText = "--";
             Pwm50DutyPctText = "--";
             Pwm0VoltageText = "--";
+
+            // 清除后台测量值，防止CheckManualTestResult误判
+            _pwm100Voltage = null;
+            _pwm50DutyPct = null;
+            _pwm0Voltage = null;
         }
 
         private async Task MeasureAndUpdateUiAsync(int pwmPercent)
@@ -823,6 +911,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                             AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={pwmPercent}%：断开矩阵开关...");
                             await DisconnectMatrixAsync(token);
                         }
+
+                        // 参照A_C_6_18_1_1：每次测量完成后检查是否所有点都已测量，全部测完才判定最终结果
+                        CheckManualTestResult();
                     }
                     catch (OperationCanceledException)
                     {
@@ -841,6 +932,35 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             finally
             {
                 IsBusy = false;
+            }
+        }
+
+        /// <summary>
+        /// 参照A_C_6_18_1_1模式：每次手动测量完成后检查是否所有PWM点都已测量，
+        /// 全部测完才判定最终PASS/FAIL结果
+        /// </summary>
+        private void CheckManualTestResult()
+        {
+            if (_pwm100Voltage.HasValue && _pwm50DutyPct.HasValue && _pwm0Voltage.HasValue)
+            {
+                var q100 = QualifyPwm100(_pwm100Voltage, out var reason100);
+                var q50 = QualifyPwm50(_pwm50DutyPct, out var reason50);
+                var q0 = QualifyPwm0(_pwm0Voltage, out var reason0);
+                bool pass = q100 && q50 && q0;
+                SetLastTestResult(pass ? "PASS" : "FAIL");
+                if (pass)
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 所有PWM点测量完成，最终测试结果：PASS");
+                else
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 所有PWM点测量完成，最终测试结果：FAIL");
+                    if (!q100 && !string.IsNullOrWhiteSpace(reason100)) AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=100%：{reason100}");
+                    if (!q50 && !string.IsNullOrWhiteSpace(reason50)) AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=50%：{reason50}");
+                    if (!q0 && !string.IsNullOrWhiteSpace(reason0)) AddLog($"[{DateTime.Now:HH:mm:ss}] PWM=0%：{reason0}");
+                }
+            }
+            else
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 测量成功，等待其它PWM点全部测量后再判定最终结果...");
             }
         }
 
@@ -1204,7 +1324,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                     await _simulation.SendBenchCommandOnlyAsync(TestTxChannel, cmd8, msg => AddLog(msg), token);
                     AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送完成（不等待回读）");
-                    SetLastTestResult("PASS");
                 }
                 finally
                 {
