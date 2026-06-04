@@ -59,7 +59,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private const string AoChannel = "AO3";
 
-        private static readonly string[] Mtx532EnabledAoChannels = { "AO1", "AO2", "AO3", "AO4", "AO5" };
+        private static readonly string[] Mtx532EnabledAoChannels = { "AO3" };
 
         private const int Mtx532ReadyTimeoutMs = 6000;
 
@@ -1353,19 +1353,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
 
             await _mtxApi.WriteOnceDcAsync(new System.Collections.Generic.Dictionary<string, double>
-
             {
-
-                ["AO1"] = 0.0,
-
-                ["AO2"] = 0.0,
-
-                ["AO3"] = voltageV,
-
-                ["AO4"] = 0.0,
-
-                ["AO5"] = 0.0
-
+                ["AO3"] = voltageV
             }, token).ConfigureAwait(false);
 
         }
