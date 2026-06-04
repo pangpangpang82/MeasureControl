@@ -323,20 +323,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             _ = StartAutoTestAsync();
         }
-
-        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
-        {
-            try
-            {
-                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                if (api != null)
-                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
-            }
-            catch
-            {
-            }
-        }
-
         private async Task StartManualTestAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -349,15 +335,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 LastTestTime = "--";
                 LastTestResult = "--";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：开始打开设备");
-
-                try
-                {
-                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                    if (api != null)
-                        await api.ApplyComponent28VStateAsync(CancellationToken.None);
-                }
-                catch { }
-
                 _simulation.IsRealProduct = true;
                 _simulation.GetCurrentResistorGear = () => ResistorGear;
                 _simulation.GetCurrentAmbientTemperatureSelection = () => AmbientTemperatureSelection;
@@ -404,7 +381,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             finally
             {
-                try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 _manualTestLock.Release();
             }
         }
@@ -432,15 +408,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts?.Dispose();
                 _autoTestCts = new CancellationTokenSource();
                 var token = _autoTestCts.Token;
-
-                try
-                {
-                    var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                    if (api != null)
-                        await api.ApplyComponent28VStateAsync(token);
-                }
-                catch { }
-
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动");
                 await RunAutoTestAsync(token);
             }
@@ -621,9 +588,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
                 try { await StopResistorOutputAsync(); } catch { }
-
-                try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-
                 _suppressResultUpdates = false;
                 IsAutoTestRunning = false;
             }
@@ -637,8 +601,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await SendSetControllerResistorAsync();
             token.ThrowIfCancellationRequested();
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：{gear}接入电阻后等待温度稳定10s");
-            await Task.Delay(TimeSpan.FromSeconds(10), token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：{gear}接入电阻后等待温度稳定3s");
+            await Task.Delay(TimeSpan.FromSeconds(3), token);
             token.ThrowIfCancellationRequested();
 
             await OnTestControllerTemperatureAsync();
@@ -1161,11 +1125,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             IsResistorMeasuring = true;
             MeasuredResistanceValueText = "--";
-            bool resistorReady = false;
-
             try
             {
-                resistorReady = await EnsureResistorReadyAsync();
+                var resistorReady = await EnsureResistorReadyAsync();
                 if (!resistorReady || _resistorDriver == null || !_resistorDriver.IsConnected)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 接入电阻失败：电阻板卡未就绪");
@@ -1200,13 +1162,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             finally
             {
-                try
-                {
-                    if (resistorReady)
-                        await DisconnectResistorAsync();
-                }
-                catch { }
-
                 IsResistorMeasuring = false;
             }
         }

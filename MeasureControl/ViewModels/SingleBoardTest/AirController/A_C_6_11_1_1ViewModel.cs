@@ -794,7 +794,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return;
             }
 
-            await Task.Delay(50, token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：档位{gearIndex} AO7输出后等待稳定1s");
+            await Task.Delay(TimeSpan.FromSeconds(1), token);
 
             await _simulation.ClearRxFifoAsync(TestRxChannel);
             await Task.Delay(20, token);

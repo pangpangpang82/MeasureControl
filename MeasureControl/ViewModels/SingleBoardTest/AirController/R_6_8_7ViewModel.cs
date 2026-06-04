@@ -405,84 +405,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private void StartTemperatureTelemetryListeningIfNeeded()
         {
-            if (!_enableTemperatureTelemetryListening)
-                return;
-            if (_telemetryListeningTask != null)
-                return;
-            if (!IsManualTestRunning && !IsAutoTestRunning)
-                return;
-            if (string.IsNullOrWhiteSpace(TemperatureTelemetryRxChannel))
-                return;
-
-            _telemetryListeningCts?.Cancel();
-            _telemetryListeningCts?.Dispose();
-            _telemetryListeningCts = new CancellationTokenSource();
-            var token = _telemetryListeningCts.Token;
-
-            _telemetryListeningTask = Task.Run(async () =>
-            {
-                while (!token.IsCancellationRequested)
-                {
-                    try
-                    {
-                        var (tempData, rawData) = await _simulation.WaitTelemetryAsync(
-                            TemperatureTelemetryRxChannel,
-                            timeoutMs: 300,
-                            log: _ => { },
-                            token: token);
-
-                        if (tempData != null && TryParseTelemetryTemperature(tempData, out var temperature))
-                        {
-                            _lastTemperatureTelemetryFrame = tempData;
-                            if (rawData != null)
-                                _lastTemperatureRawFrame = rawData;
-
-                            var dispatcher = Application.Current?.Dispatcher;
-                            if (dispatcher != null && !dispatcher.CheckAccess())
-                            {
-                                dispatcher.BeginInvoke(new Action(() =>
-                                {
-                                    TemperatureTelemetryRxDataText = "0x" + FormatData(tempData);
-                                    TemperatureTelemetryValueText = temperature.ToString("0.####", CultureInfo.InvariantCulture);
-                                    LastTelemetryTemperatureC = temperature;
-
-                                    if (string.Equals(ResistorGear, "1挡", StringComparison.Ordinal))
-                                        Gear1TemperatureC = temperature;
-                                    else if (string.Equals(ResistorGear, "2挡", StringComparison.Ordinal))
-                                        Gear2TemperatureC = temperature;
-                                    else if (string.Equals(ResistorGear, "3挡", StringComparison.Ordinal))
-                                        Gear3TemperatureC = temperature;
-                                }));
-                            }
-                            else
-                            {
-                                TemperatureTelemetryRxDataText = "0x" + FormatData(tempData);
-                                TemperatureTelemetryValueText = temperature.ToString("0.####", CultureInfo.InvariantCulture);
-                                LastTelemetryTemperatureC = temperature;
-
-                                if (string.Equals(ResistorGear, "1挡", StringComparison.Ordinal))
-                                    Gear1TemperatureC = temperature;
-                                else if (string.Equals(ResistorGear, "2挡", StringComparison.Ordinal))
-                                    Gear2TemperatureC = temperature;
-                                else if (string.Equals(ResistorGear, "3挡", StringComparison.Ordinal))
-                                    Gear3TemperatureC = temperature;
-                            }
-                        }
-                        else
-                        {
-                            await Task.Delay(50, token);
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        break;
-                    }
-                    catch
-                    {
-                        try { await Task.Delay(100, token); } catch { break; }
-                    }
-                }
-            }, token);
         }
 
         private async Task StopTemperatureTelemetryListeningAsync()
@@ -595,8 +517,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await SendSetControllerResistorAsync();
             token.ThrowIfCancellationRequested();
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：{gear}接入电阻后等待温度稳定10s");
-            await Task.Delay(TimeSpan.FromSeconds(10), token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：{gear}接入电阻后等待温度稳定1s");
+            await Task.Delay(TimeSpan.FromSeconds(1), token);
             token.ThrowIfCancellationRequested();
 
             await OnTestControllerTemperatureAsync();
@@ -930,21 +852,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 while (retryCount < 3 && tempData == null)
                 {
-                    if (retryCount == 0)
+                    var attemptIndex = retryCount + 1;
+
+                    if (attemptIndex == 1)
                     {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 等待温度遥测(不发送回采请求，超时800ms)...");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 第1次发送控制器温度测试指令并等待温度遥测(先不发送回采请求，超时800ms)...");
                     }
                     else
                     {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] 第{retryCount}次尝试重发指令接收温度遥测...");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 第{attemptIndex}次重试：重新发送控制器温度测试指令并等待温度遥测(先不发送回采请求，超时800ms)...");
                     }
 
+                    // 每次尝试都先重新发送一次控制器温度测试指令
+                    await _simulation.SendBenchCommandOnlyAsync(
+                        ControllerTemperatureTestTxChannel,
+                        DefaultLabel,
+                        AbBtsTemperature,
+                        msg => AddLog(msg),
+                        CancellationToken.None);
+
+                    // 先等待一段时间，看是否有自然到来的温度遥测
                     var result = await _simulation.WaitTelemetryAsync(
                         TemperatureTelemetryRxChannel,
                         timeoutMs: 800,
                         log: msg => AddLog(msg),
                         token: CancellationToken.None);
-                    
+
                     tempData = result.Temperature;
                     rawData = result.Raw;
 
@@ -967,11 +900,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                             timeoutMs: 2000,
                             log: msg => AddLog(msg),
                             token: CancellationToken.None);
-                        
+
                         tempData = result.Temperature;
                         rawData = result.Raw;
                     }
-                    
+
                     retryCount++;
                 }
 

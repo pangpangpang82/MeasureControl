@@ -608,7 +608,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     {
                         AddLog($"[{DateTime.Now:HH:mm:ss}] 选气楔遥测解析失败");
                         SetLastTestResult("FAIL");
-                        FingerTelemetryValueText = "--";
+                        FingerTelemetryValueText = "解析失败";
                         return;
                     }
 
@@ -777,8 +777,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return;
             }
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：档位{gearIndex} {AoChannel}输出后等待稳定5s");
-            await Task.Delay(TimeSpan.FromSeconds(5), token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：档位{gearIndex} {AoChannel}输出后等待稳定1s");
+            await Task.Delay(TimeSpan.FromSeconds(1), token);
 
             try { await _simulation.ClearRxFifoAsync(TestRxChannel); } catch { }
             await Task.Delay(20, token);
@@ -817,7 +817,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (!TryParseTelemetryFingerStatus(tel, out var statusText2, out var code2))
             {
                 failures.Add($"档位{gearIndex}选气楔遥测解析失败");
-                FingerTelemetryValueText = "--";
+                FingerTelemetryValueText = "解析失败";
                 return;
             }
 
@@ -1208,13 +1208,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                             log: msg => { },
                             token: token);
 
-                        if (tel != null && TryParseTelemetryFingerStatus(tel, out var statusText, out var code))
+                        if (tel != null)
                         {
                             var frameCopy = tel.ToArray();
                             Interlocked.Exchange(ref _lastFingerTelemetryFrame, frameCopy);
                             var seq = Interlocked.Increment(ref _fingerTelemetrySeq);
 
-                            AddLog($"[{DateTime.Now:HH:mm:ss}] 选气楔遥测监听收到有效帧：seq={seq}, Status={statusText}, Data={FormatData(frameCopy)}");
+                            bool isParsed = TryParseTelemetryFingerStatus(frameCopy, out var statusText, out var code);
+                            string displayStatus = isParsed ? statusText : "解析失败";
+
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] 选气楔遥测监听收到帧：seq={seq}, Status={displayStatus}, Data={FormatData(frameCopy)}");
 
                             var dispatcher = Application.Current?.Dispatcher;
                             if (dispatcher != null && !dispatcher.CheckAccess())
@@ -1222,19 +1225,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                                 dispatcher.BeginInvoke(new Action(() =>
                                 {
                                     FingerTelemetryRxDataText = "0x" + FormatData(frameCopy);
-                                    FingerTelemetryValueText = statusText;
+                                    FingerTelemetryValueText = displayStatus;
                                 }));
                             }
                             else
                             {
                                 FingerTelemetryRxDataText = "0x" + FormatData(frameCopy);
-                                FingerTelemetryValueText = statusText;
+                                FingerTelemetryValueText = displayStatus;
                             }
-                        }
-                        else if (tel != null)
-                        {
-                            AddLog($"[{DateTime.Now:HH:mm:ss}] 选气楔遥测监听收到帧但解析失败：Data={FormatData(tel)}");
-                            await Task.Delay(30, token);
                         }
                         else
                         {
