@@ -837,14 +837,9 @@ namespace MeasureControl.ViewModels.Common
             // 加载机箱数据到服务
             _pxiChassisService.LoadChassisData(project.PxiChassisData);
 
-            // 机箱2本机（192.168.1.3）开机自启动矩阵开关 TCP 服务端：不依赖打开机箱页面/面板
-            try
-            {
-                _matrixSwitchTcpServerAutoStartService.StartForLocalChassis("PXI机箱2");
-            }
-            catch
-            {
-            }
+            // 机箱2本机（192.168.1.3）开机自启动矩阵开关 TCP 服务端：
+            // 注意：不能在这里导航，因为此时 UI Region 还没准备好，导航会失败。
+            // 改为在 NavigateToHomePageOnStartup（窗口 Loaded 事件后）中执行。
 
             // 存储连接数据，等待HardwareConfig页面导航时再加载
             if (project.ChassisConnections != null && project.ChassisConnections.Count > 0)
@@ -3461,7 +3456,17 @@ namespace MeasureControl.ViewModels.Common
         /// </summary>
         public void NavigateToHomePageOnStartup()
         {         
-            _regionManager.RequestNavigate(AppConstants.MainRegionName, "HomePage");            
+            _regionManager.RequestNavigate(AppConstants.MainRegionName, "HomePage");
+
+            // 机箱2本机（192.168.1.3）开机自启动：导航到机箱2页面以启动TCP Server
+            // 此时窗口已Loaded，Region已就绪，导航可以成功
+            try
+            {
+                _matrixSwitchTcpServerAutoStartService.StartForLocalChassis("PXI机箱2");
+            }
+            catch
+            {
+            }
         }
 
         #endregion

@@ -565,6 +565,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试停止：释放资源");
                     await _simulation.StopAsync(msg => AddLog(msg));
+                    // 断开所有可能的矩阵开关连接
+                    try { await DisconnectMatrixAsync("J167", GetMatrixOpsForJ167(), CancellationToken.None); } catch { }
+                    try { await DisconnectMatrixAsync("J168", GetMatrixOpsForJ168(), CancellationToken.None); } catch { }
+                    try { await DisconnectMatrixAsync("J169", GetMatrixOpsForJ169(), CancellationToken.None); } catch { }
+                    try { await DisconnectMatrixAsync("J231", GetMatrixOpsForJ231(), CancellationToken.None); } catch { }
                 }
                 catch (Exception ex)
                 {
@@ -845,9 +850,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     if (v.HasValue)
                     {
                         J231VoltageText = $"{v.Value:0.00000} V";
-                        bool pass = v.Value >= VoltageLowerLimit && v.Value <= VoltageUpperLimit;
+                        bool pass = v.Value < 0;
                         J231JudgeText = pass ? "PASS" : "FAIL";
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] J231 电压={v.Value:0.00000} V, 判据[{VoltageLowerLimit:0.0},{VoltageUpperLimit:0.0}]V -> {J231JudgeText}");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] J231 电压={v.Value:0.00000} V, 判据[<0]V -> {J231JudgeText}");
                     }
                     else
                     {
@@ -879,7 +884,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 bool pass = (_j167Voltage.Value >= VoltageLowerLimit && _j167Voltage.Value <= VoltageUpperLimit) &&
                              (_j168Voltage.Value >= VoltageLowerLimit && _j168Voltage.Value <= VoltageUpperLimit) &&
                              (_j169Voltage.Value >= VoltageLowerLimit && _j169Voltage.Value <= VoltageUpperLimit) &&
-                             (_j231Voltage.Value >= VoltageLowerLimit && _j231Voltage.Value <= VoltageUpperLimit);
+                             (_j231Voltage.Value < 0);
                 SetLastTestResult(pass ? "PASS" : "FAIL");
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 所有4个点测量完成，最终测试结果：{LastTestResult}");
             }
@@ -1141,7 +1146,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     if (v231.HasValue)
                     {
                         J231VoltageText = $"{v231.Value:0.00000} V";
-                        bool pass = v231.Value >= VoltageLowerLimit && v231.Value <= VoltageUpperLimit;
+                        bool pass = v231.Value < 0;
                         J231JudgeText = pass ? "PASS" : "FAIL";
                         passAll &= pass;
                     }
@@ -1216,7 +1221,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
             }
 
-            await Task.CompletedTask;
+            // 断开所有可能的矩阵开关连接
+            try { await DisconnectMatrixAsync("J167", GetMatrixOpsForJ167(), CancellationToken.None); } catch { }
+            try { await DisconnectMatrixAsync("J168", GetMatrixOpsForJ168(), CancellationToken.None); } catch { }
+            try { await DisconnectMatrixAsync("J169", GetMatrixOpsForJ169(), CancellationToken.None); } catch { }
+            try { await DisconnectMatrixAsync("J231", GetMatrixOpsForJ231(), CancellationToken.None); } catch { }
         }
 
         private static string FormatBytes(byte[] bytes)

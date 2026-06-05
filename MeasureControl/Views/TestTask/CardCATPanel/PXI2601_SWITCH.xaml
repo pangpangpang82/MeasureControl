@@ -245,65 +245,6 @@
                         FontSize="14"
                         Text="{Binding ConnectionStatus}" />
                 </StackPanel>
-                <Border Margin="5,0,0,0">
-                    <Button
-                        Width="80"
-                        Height="28"
-                        Margin="30,0,5,0"
-                        Background="#3b82f6"
-                        BorderThickness="0"
-                        Command="{Binding ToggleDeviceCommand}">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border
-                                    x:Name="border"
-                                    Background="{TemplateBinding Background}"
-                                    CornerRadius="4">
-                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                                        <!--  图标  -->
-                                        <Image
-                                            x:Name="DeviceImage"
-                                            Width="15"
-                                            Height="15"
-                                            Margin="0,0,5,0"
-                                            Source="/Resources/Logo/export.png" />
-                                        <!--  文字  -->
-                                        <TextBlock
-                                            x:Name="DeviceAction"
-                                            VerticalAlignment="Center"
-                                            Foreground="White"
-                                            Text="打开板卡" />
-                                    </StackPanel>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <!--  鼠标悬停效果  -->
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                                    </Trigger>
-
-                                    <!--  按下效果  -->
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1d4ed8" />
-                                    </Trigger>
-
-                                    <!--  根据IsDeviceOpened设置样式  -->
-                                    <DataTrigger Binding="{Binding IsDeviceOpened}" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#ef4444" />
-                                        <Setter TargetName="DeviceImage" Property="Source" Value="/Resources/Logo/import.png" />
-                                        <Setter TargetName="DeviceAction" Property="Text" Value="关闭板卡" />
-                                    </DataTrigger>
-
-                                    <!--  确保离线状态样式  -->
-                                    <DataTrigger Binding="{Binding IsDeviceOpened}" Value="False">
-                                        <Setter TargetName="border" Property="Background" Value="#3b82f6" />
-                                        <Setter TargetName="DeviceImage" Property="Source" Value="/Resources/Logo/export.png" />
-                                        <Setter TargetName="DeviceAction" Property="Text" Value="打开板卡" />
-                                    </DataTrigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-                </Border>
                 <StackPanel
                     Grid.Column="2"
                     HorizontalAlignment="Right"

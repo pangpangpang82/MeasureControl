@@ -335,7 +335,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 LastTestTime = "--";
                 LastTestResult = "--";
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动：开始打开设备");
-
                 _simulation.IsRealProduct = true;
                 _simulation.GetCurrentResistorGear = () => ResistorGear;
                 _simulation.GetCurrentAmbientTemperatureSelection = () => AmbientTemperatureSelection;
@@ -409,7 +408,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _autoTestCts?.Dispose();
                 _autoTestCts = new CancellationTokenSource();
                 var token = _autoTestCts.Token;
-
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试启动");
                 await RunAutoTestAsync(token);
             }
@@ -590,7 +588,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
                 try { await _simulation.StopAsync(msg => AddLog(msg)); } catch { }
                 try { await StopResistorOutputAsync(); } catch { }
-
                 _suppressResultUpdates = false;
                 IsAutoTestRunning = false;
             }
@@ -604,8 +601,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             await SendSetControllerResistorAsync();
             token.ThrowIfCancellationRequested();
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：{gear}接入电阻后等待温度稳定1s");
-            await Task.Delay(TimeSpan.FromSeconds(1), token);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：{gear}接入电阻后等待温度稳定3s");
+            await Task.Delay(TimeSpan.FromSeconds(3), token);
             token.ThrowIfCancellationRequested();
 
             await OnTestControllerTemperatureAsync();
@@ -987,8 +984,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (!IsPrefix(frameData, TelemetryTemperaturePrefix))
                 return false;
 
-            var raw = (frameData[4] << 24) | (frameData[5] << 16) | (frameData[6] << 8) | frameData[7];
-            temperature = raw * 0.01;
+            var raw16 = unchecked((short)((frameData[6] << 8) | frameData[7]));
+            temperature = raw16 * 0.01;
             return true;
         }
 
