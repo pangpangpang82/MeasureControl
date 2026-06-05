@@ -24,7 +24,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] ExitAtpCommand8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] AbOfvtrvFinger8 = { 0x07, 0x05, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] OfvtrvFingerTelemetryPrefix4 = { 0x07, 0x05, 0x01, 0x02 };
+        private static readonly byte[] OfvtrvFingerTelemetryPrefix4 = { 0x07, 0x05, 0x01, 0x03 };
 
         private const string AoChannel = "AO13";
         private static readonly string[] Mtx532EnabledAoChannels = { "AO13" };
@@ -475,7 +475,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 1 => 0.5,
                 2 => 5.0,
-                3 => 10.0,
+                3 => 9.7,
                 _ => 0.5
             };
 
@@ -687,7 +687,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     token.ThrowIfCancellationRequested();
                     await RunGearAutoAsync(2, 5.0, token, failures);
                     token.ThrowIfCancellationRequested();
-                    await RunGearAutoAsync(3, 10.0, token, failures);
+                    await RunGearAutoAsync(3, 9.7, token, failures);
 
                     await AutoExitAtpAsync(token);
                     _autoTestEnteredAtp = false;
@@ -1124,7 +1124,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return model.Contains("MT-X532") || model.Contains("MTX532") || model.Contains("X532");
         }
 
-        private static bool TryParseTelemetryFingerStatus(byte[] frameData, out string statusText, out byte code)
+        private static bool TryParseTelemetryFingerStatus(byte[] frameData, out string statusText, out uint code)
         {
             statusText = null;
             code = 0;
@@ -1135,25 +1135,31 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (!IsPrefix(frameData, OfvtrvFingerTelemetryPrefix4))
                 return false;
 
-            code = frameData[4];
-            statusText = code switch
+            code = (uint)((frameData[4] << 24) | (frameData[5] << 16) | (frameData[6] << 8) | frameData[7]);
+            
+            if (code == 0x00005555)
             {
-                0x00 => "工作",
-                0x01 => "故障",
-                0x02 => "非工作",
-                _ => $"未知(0x{code:X2})"
-            };
+                statusText = "工作状态";
+            }
+            else if (code == 0x0000AAAA)
+            {
+                statusText = "非工作状态";
+            }
+            else
+            {
+                statusText = "故障状态";
+            }
 
             return true;
         }
 
-        private static bool IsFingerQualified(int gearIndex, byte statusCode)
+        private static bool IsFingerQualified(int gearIndex, uint statusCode)
         {
             return gearIndex switch
             {
-                1 => statusCode == 0x00,
-                2 => statusCode == 0x01,
-                3 => statusCode == 0x02,
+                1 => statusCode == 0x00005555,
+                2 => statusCode != 0x00005555 && statusCode != 0x0000AAAA,
+                3 => statusCode == 0x0000AAAA,
                 _ => false
             };
         }
