@@ -57,7 +57,7 @@ namespace MeasureControl.Simulations.A_C_6_12_1_1
         private static readonly byte[] ExitAtpCommand8 = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
         private static readonly byte[] AbOfvtrvFinger8 = { 0x07, 0x05, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] OfvtrvFingerTelemetryPrefix4 = { 0x07, 0x05, 0x01, 0x02 };
+        private static readonly byte[] OfvtrvFingerTelemetryPrefix4 = { 0x07, 0x05, 0x01, 0x03 };
 
         private static readonly byte[] BenchTxFragmentLabels = { 0x8C, 0x4C, 0xCC, 0x2C };
         private static readonly byte[] ProductTxFragmentLabels = { 0x90, 0x50, 0xD0, 0x30 };
@@ -277,7 +277,7 @@ namespace MeasureControl.Simulations.A_C_6_12_1_1
             int gearIndex = 1;
             try { gearIndex = GetCurrentGearIndex?.Invoke() ?? 1; } catch { gearIndex = 1; }
 
-            byte stateCode = GetQualifiedStateCode(gearIndex);
+            uint stateCode = GetQualifiedStateCode(gearIndex);
 
             var payload = new byte[8];
             payload[0] = OfvtrvFingerTelemetryPrefix4[0];
@@ -285,22 +285,22 @@ namespace MeasureControl.Simulations.A_C_6_12_1_1
             payload[2] = OfvtrvFingerTelemetryPrefix4[2];
             payload[3] = OfvtrvFingerTelemetryPrefix4[3];
 
-            payload[4] = stateCode;
-            payload[5] = 0x00;
-            payload[6] = 0x00;
-            payload[7] = 0x00;
+            payload[4] = (byte)((stateCode >> 24) & 0xFF);
+            payload[5] = (byte)((stateCode >> 16) & 0xFF);
+            payload[6] = (byte)((stateCode >> 8) & 0xFF);
+            payload[7] = (byte)(stateCode & 0xFF);
 
             return payload;
         }
 
-        private static byte GetQualifiedStateCode(int gearIndex)
+        private static uint GetQualifiedStateCode(int gearIndex)
         {
             return gearIndex switch
             {
-                1 => (byte)0x00,
-                2 => (byte)0x01,
-                3 => (byte)0x02,
-                _ => (byte)0x00
+                1 => 0x00005555,
+                2 => 0x00000000,
+                3 => 0x0000AAAA,
+                _ => 0x0000AAAA
             };
         }
 
