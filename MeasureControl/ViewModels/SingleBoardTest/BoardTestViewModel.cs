@@ -76,6 +76,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "8.9.2 S通道J82/J83直流电机驱动模块方向控制测试", () => new S_C_8_9_2View() },
                 { "8.10.1 S通道J99/J100直流电机驱动模块速度控制测试", () => new S_C_8_10_1View() },
                 { "8.10.2 S通道J99/J100直流电机驱动模块方向控制测试", () => new S_C_8_10_2View() },
+                { "8.11.3 S通道OFV/TRV直流电机驱动优先级控制测试", () => new S_C_8_11_3View() },
                 { "7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试", () => new A_C_7_3_1_1_2View() },
                 { "7.3.1.2 A控制通道功率板RATA直流电机驱动模块速度控制测试", () => new A_C_7_3_1_2View() },
                 { "7.3.1.3 A控制通道功率板RATA直流电机驱动模块方向控制测试", () => new A_C_7_3_1_3View() },
@@ -1060,6 +1061,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("8.9.2 S通道J82/J83直流电机驱动模块方向控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.10.1 S通道J99/J100直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.10.2 S通道J99/J100直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.11.3 S通道OFV/TRV直流电机驱动优先级控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.5.1安全通道CAN发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.5.2安全通道CAN接收测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.6.1 S安全通道WAITS1传感器测试"));
