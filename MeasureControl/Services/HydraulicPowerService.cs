@@ -33,6 +33,7 @@ namespace MeasureControl.Services
         private const string IpAddress = "192.168.1.15";
         private const double DefaultVoltage = 28.0;
         private const double Current1A = 1.0;
+        private const double AirSafetyCurrent2A = 2.0;
 
         private bool _isPowered;
         private string _poweredBoardType;
@@ -72,7 +73,10 @@ namespace MeasureControl.Services
             try
             {
                 await api.ConnectAsync(IpAddress, cancellationToken).ConfigureAwait(false);
-                await api.ApplyAsync(PowerSupplyChannel.CH1, voltage, Current1A, cancellationToken).ConfigureAwait(false);
+                var currentLimit = string.Equals(boardType, "空气安全板", StringComparison.OrdinalIgnoreCase)
+                    ? AirSafetyCurrent2A
+                    : Current1A;
+                await api.ApplyAsync(PowerSupplyChannel.CH1, voltage, currentLimit, cancellationToken).ConfigureAwait(false);
                 await api.SetOutputEnabledAsync(PowerSupplyChannel.CH1, true, cancellationToken).ConfigureAwait(false);
                 PoweredBoardType = boardType;
                 PoweredVoltage = voltage;
