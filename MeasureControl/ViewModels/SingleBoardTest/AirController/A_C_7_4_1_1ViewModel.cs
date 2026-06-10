@@ -51,7 +51,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
         private static readonly byte[] StepperPulseCommandFrame = { 0xAA, 0x55, 0x0A, 0x04, 0x06, 0x10, 0x27, 0x00, 0x00, 0x88, 0x13, 0x00, 0x00 };
-        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x04, 0x00, 0xE8, 0x03, 0x00, 0x00, 0xE8, 0x03, 0x00, 0x00 };
+        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
         private const double ExpectedFrequencyHz = 250.0; // 1000/4
         private const double FrequencyToleranceHz = 1.0;
@@ -737,6 +737,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _scopeTcpClient = null;
 
             try { await TryResetFpgaToInitialAsync(token).ConfigureAwait(false); } catch { }
+            try { _fpga?.Disconnect(); } catch { }
             try { _fpga?.Dispose(); } catch { }
             _fpga = null;
         }

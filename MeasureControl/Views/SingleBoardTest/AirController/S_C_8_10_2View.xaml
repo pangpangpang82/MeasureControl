@@ -219,44 +219,45 @@
                                     <RowDefinition Height="40" />
                                     <RowDefinition Height="40" />
                                     <RowDefinition Height="40" />
+                                    <RowDefinition Height="40" />
+                                    <RowDefinition Height="40" />
+                                    <RowDefinition Height="40" />
+                                    <RowDefinition Height="40" />
                                 </Grid.RowDefinitions>
 
+                                <!-- 表头 -->
                                 <Border Grid.Row="0" Grid.ColumnSpan="4" Background="#f3f4f6" CornerRadius="8,8,0,0" />
                                 <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Text="序号" />
                                 <TextBlock Grid.Row="0" Grid.Column="1" Margin="20,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Text="测试步骤" />
                                 <TextBlock Grid.Row="0" Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Text="操作" />
                                 <TextBlock Grid.Row="0" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Text="结果" />
 
+                                <!-- (1) PH高电平：发送+测量按钮同行 -->
                                 <Border Grid.Row="1" Grid.ColumnSpan="4" Background="White" />
                                 <TextBlock Grid.Row="1" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="(1)" />
-                                <TextBlock Grid.Row="1" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="发送PH引脚高电平指令 " />
-                                <Button Grid.Row="1" Grid.Column="2" Width="70" Height="30" HorizontalAlignment="Left" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Step1SendFrame1Command}" Margin="10,0,0,0">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
-                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送" />
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                                                </Trigger>
-                                                <Trigger Property="IsPressed" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                                                </Trigger>
-                                                <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                    <Setter Property="Cursor" Value="Arrow" />
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                </Button>
-                                <TextBlock Grid.Row="1" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Step1Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
-
-                                <Border Grid.Row="2" Grid.ColumnSpan="4" Background="#f9fafb" />
-                                <TextBlock Grid.Row="2" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="(2)" />
-                                <TextBlock Grid.Row="2" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="万用表测量电压" />
-                                <Grid Grid.Row="2" Grid.Column="2">
+                                <TextBlock Grid.Row="1" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="PH高电平指令+测量" />
+                                <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Width="70" Height="30" Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Step1SendFrame1Command}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
+                                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                        <Setter Property="Cursor" Value="Arrow" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
                                     <Button Width="70" Height="30" Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Step2MeasureVoltage1Command}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
@@ -282,42 +283,68 @@
                                             </ControlTemplate>
                                         </Button.Template>
                                     </Button>
-                                    <Border Width="110" Height="30" Margin="100,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Background="#f3f4f6" CornerRadius="4">
-                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding Step2Voltage, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                </StackPanel>
+                                <TextBlock Grid.Row="1" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Step1Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+
+                                <!-- (2) PH高-V1对地 -->
+                                <Border Grid.Row="2" Grid.ColumnSpan="4" Background="#f9fafb" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="(2)" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="PH高-V1对地电压" />
+                                <Grid Grid.Row="2" Grid.Column="2">
+                                    <Border Width="110" Height="30" Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Background="#f3f4f6" CornerRadius="4">
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding PhHighV1GndVoltage, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
                                     </Border>
                                 </Grid>
-                                <TextBlock Grid.Row="2" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Step2Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <TextBlock Grid.Row="2" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding PhHighV1GndResult, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
 
+                                <!-- (3) PH高-V2对地 -->
                                 <Border Grid.Row="3" Grid.ColumnSpan="4" Background="White" />
                                 <TextBlock Grid.Row="3" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="(3)" />
-                                <TextBlock Grid.Row="3" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="发送PH引脚低电平指令" />
-                                <Button Grid.Row="3" Grid.Column="2" Width="70" Height="30" HorizontalAlignment="Left" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Step3SendFrame2Command}" Margin="10,0,0,0">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
-                                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送" />
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                                                </Trigger>
-                                                <Trigger Property="IsPressed" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#2563eb" />
-                                                </Trigger>
-                                                <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                    <Setter Property="Cursor" Value="Arrow" />
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                </Button>
-                                <TextBlock Grid.Row="3" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Step3Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="PH高-V2对地电压" />
+                                <Grid Grid.Row="3" Grid.Column="2">
+                                    <Border Width="110" Height="30" Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Background="#f3f4f6" CornerRadius="4">
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding PhHighV2GndVoltage, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                    </Border>
+                                </Grid>
+                                <TextBlock Grid.Row="3" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding PhHighV2GndResult, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
 
-                                <Border Grid.Row="4" Grid.ColumnSpan="4" Background="White" CornerRadius="0,0,8,8" />
+                                <!-- (4) PH高-V1V2之间 -->
+                                <Border Grid.Row="4" Grid.ColumnSpan="4" Background="#f9fafb" />
                                 <TextBlock Grid.Row="4" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="(4)" />
-                                <TextBlock Grid.Row="4" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="万用表测量电压" />
+                                <TextBlock Grid.Row="4" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="PH高-V1V2之间电压" />
                                 <Grid Grid.Row="4" Grid.Column="2">
+                                    <Border Width="110" Height="30" Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Background="#f3f4f6" CornerRadius="4">
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding PhHighV1V2Voltage, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                    </Border>
+                                </Grid>
+                                <TextBlock Grid.Row="4" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding PhHighV1V2Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+
+                                <!-- (5) PH低电平：发送+测量按钮同行 -->
+                                <Border Grid.Row="5" Grid.ColumnSpan="4" Background="White" />
+                                <TextBlock Grid.Row="5" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="(5)" />
+                                <TextBlock Grid.Row="5" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="PH低电平指令+测量" />
+                                <StackPanel Grid.Row="5" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Width="70" Height="30" Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Step3SendFrame2Command}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
+                                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="发送" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#2563eb" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter TargetName="border" Property="Background" Value="#9ca3af" />
+                                                        <Setter Property="Cursor" Value="Arrow" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
                                     <Button Width="70" Height="30" Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" BorderThickness="0" Command="{Binding Step4MeasureVoltage2Command}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
@@ -343,11 +370,41 @@
                                             </ControlTemplate>
                                         </Button.Template>
                                     </Button>
-                                    <Border Width="110" Height="30" Margin="100,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Background="#f3f4f6" CornerRadius="4">
-                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding Step4Voltage, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                </StackPanel>
+                                <TextBlock Grid.Row="5" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Step3Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+
+                                <!-- (6) PH低-V1对地 -->
+                                <Border Grid.Row="6" Grid.ColumnSpan="4" Background="#f9fafb" />
+                                <TextBlock Grid.Row="6" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="(6)" />
+                                <TextBlock Grid.Row="6" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="PH低-V1对地电压" />
+                                <Grid Grid.Row="6" Grid.Column="2">
+                                    <Border Width="110" Height="30" Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Background="#f3f4f6" CornerRadius="4">
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding PhLowV1GndVoltage, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
                                     </Border>
                                 </Grid>
-                                <TextBlock Grid.Row="4" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding Step4Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                <TextBlock Grid.Row="6" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding PhLowV1GndResult, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+
+                                <!-- (7) PH低-V2对地 -->
+                                <Border Grid.Row="7" Grid.ColumnSpan="4" Background="White" />
+                                <TextBlock Grid.Row="7" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="(7)" />
+                                <TextBlock Grid.Row="7" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="PH低-V2对地电压" />
+                                <Grid Grid.Row="7" Grid.Column="2">
+                                    <Border Width="110" Height="30" Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Background="#f3f4f6" CornerRadius="4">
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding PhLowV2GndVoltage, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                    </Border>
+                                </Grid>
+                                <TextBlock Grid.Row="7" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding PhLowV2GndResult, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+
+                                <!-- (8) PH低-V1V2之间 -->
+                                <Border Grid.Row="8" Grid.ColumnSpan="4" Background="#f9fafb" CornerRadius="0,0,8,8" />
+                                <TextBlock Grid.Row="8" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="(8)" />
+                                <TextBlock Grid.Row="8" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Text="PH低-V1V2之间电压" />
+                                <Grid Grid.Row="8" Grid.Column="2">
+                                    <Border Width="110" Height="30" Margin="10,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Background="#f3f4f6" CornerRadius="4">
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Text="{Binding PhLowV1V2Voltage, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
+                                    </Border>
+                                </Grid>
+                                <TextBlock Grid.Row="8" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Text="{Binding PhLowV1V2Result, Mode=OneWay, TargetNullValue=--, FallbackValue=--}" />
                             </Grid>
                         </Border>
 

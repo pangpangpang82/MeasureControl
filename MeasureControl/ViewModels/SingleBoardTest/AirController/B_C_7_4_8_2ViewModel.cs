@@ -51,7 +51,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
         private static readonly byte[] DirHighCommand = { 0xAA, 0x55, 0x0A, 0x04, 0x06, 0xE8, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] DirLowCommand = { 0xAA, 0x55, 0x0A, 0x04, 0x02, 0xE8, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x04, 0x00, 0xE8, 0x03, 0x00, 0x00, 0xE8, 0x03, 0x00, 0x00 };
+        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
         private const double ExpectedPhaseHighDeg = 90.0;
         private const double ExpectedPhaseLowDeg = 270.0;
@@ -923,6 +923,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _scopeTcpClient = null;
 
             try { await TryResetFpgaToInitialAsync(token).ConfigureAwait(false); } catch { }
+            try { _fpga?.Disconnect(); } catch { }
             try { _fpga?.Dispose(); } catch { }
             _fpga = null;
         }

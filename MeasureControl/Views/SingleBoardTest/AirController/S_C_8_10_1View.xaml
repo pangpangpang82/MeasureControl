@@ -412,64 +412,11 @@
                             </Grid>
                         </Border>
 
-                        <Grid Margin="0,10,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="112" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock
-                                Grid.Column="0"
-                                FontSize="20"
-                                FontWeight="Bold"
-                                Text="测试条件配置" />
-
-                            <ToggleButton
-                                Grid.Column="1"
-                                Width="100"
-                                Height="26"
-                                VerticalAlignment="Center"
-                                BorderThickness="0"
-                                Command="{Binding TogglePowerCommand}"
-                                IsChecked="{Binding IsPowerOn, Mode=OneWay}">
-                                <ToggleButton.Template>
-                                    <ControlTemplate TargetType="ToggleButton">
-                                        <Border x:Name="border" Background="#f59e0b" CornerRadius="4">
-                                            <TextBlock x:Name="text" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="White" Text="上电" />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#ef4444" />
-                                                <Setter TargetName="text" Property="Text" Value="下电" />
-                                            </Trigger>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#d97706" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#d97706" />
-                                            </Trigger>
-                                            <Trigger Property="IsEnabled" Value="False">
-                                                <Setter TargetName="border" Property="Background" Value="#9ca3af" />
-                                                <Setter Property="Cursor" Value="Arrow" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </ToggleButton.Template>
-                            </ToggleButton>
-                        </Grid>
-
-                        <Border Margin="0,0,0,10" Background="#fffbeb" BorderBrush="#fcd34d" BorderThickness="1" CornerRadius="6" Padding="8">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock FontSize="14" Text="前置条件：输出28V和3.3V供电" />
-                                    <TextBlock FontSize="14" Text="  供电: " />
-                                    <TextBlock FontSize="14" Text="{Binding PowerStatus, Mode=OneWay}" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
+                        <TextBlock
+                            Margin="0,10,0,8"
+                            FontSize="20"
+                            FontWeight="Bold"
+                            Text="测试条件配置" />
 
                         <Grid Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
@@ -523,8 +470,7 @@
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
                                     BorderThickness="0"
-                                    Command="{Binding SendPwmCustomCommand}"
-                                    IsEnabled="{Binding IsConfigSendMeasureEnabled}">
+                                    Command="{Binding SendPwmCustomCommand}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border x:Name="border" Background="#3b82f6" CornerRadius="6">
@@ -552,8 +498,7 @@
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
                                     BorderThickness="0"
-                                    Command="{Binding MeasurePwmCustomCommand}"
-                                    IsEnabled="{Binding IsConfigSendMeasureEnabled}">
+                                    Command="{Binding MeasurePwmCustomCommand}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border x:Name="border" Background="#22c55e" CornerRadius="6">
@@ -596,19 +541,15 @@
                                 <TextBlock
                                     Margin="0,6,0,0"
                                     Foreground="#166534"
-                                    Text="a) 100%PWM：J99/J100/J99-J100 的 VMAX ∈ [17,32]V 为 PASS" />
+                                    Text="a) 100%PWM：万用表DCM_V1-V2电压幅值 ∈ [17,32]V 为 PASS" />
                                 <TextBlock
                                     Margin="0,2,0,0"
                                     Foreground="#166534"
-                                    Text="b) 50%PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (50±1)% 为 PASS" />
+                                    Text="b) 50%PWM：占空比 ∈ (50±1)% 为 PASS" />
                                 <TextBlock
                                     Margin="0,2,0,0"
                                     Foreground="#166534"
-                                    Text="c) 0%PWM：VMAX ≤ 1V 且 VMIN ≥ -1V 为 PASS" />
-                                <TextBlock
-                                    Margin="0,2,0,0"
-                                    Foreground="#166534"
-                                    Text="d) 自定义PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (设定值±1)% 为 PASS" />
+                                    Text="c) 0%PWM：万用表DCM_V1-V2电压 |V| ≤ 1V 为 PASS" />
                             </StackPanel>
                         </Border>
                     </StackPanel>

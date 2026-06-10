@@ -685,6 +685,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             catch { }
 
+            try { _fpga?.Disconnect(); } catch { }
             try { _fpga?.Dispose(); } catch { }
             _fpga = null;
         }

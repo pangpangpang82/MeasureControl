@@ -62,21 +62,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 { "6.8.8控制通道PTS传感器测试", () => new R_6_8_8View() },
                 { "6.8.9控制通道CDTS传感器测试", () => new R_6_8_9View() },
                 { "6.5.1.1控制通道ARINC429发送通道1测试", () => new A_C_6_5_1_1View() },
-                { "6.5.1.2A控制通道ARINC429发送通道2/B控制通道ARINC429接收通道5测试", () => new A_C_6_5_1_2View() },
                 { "6.5.2.1A控制通道ARINC接收通道1测试", () => new A_C_6_5_2_1View() },
                 { "6.5.2.2A控制通道ARINC接收通道2测试", () => new A_C_6_5_2_2View() },
                 { "6.5.2.3A控制通道ARINC接收通道3测试", () => new A_C_6_5_2_3View() },
                 { "6.5.2.4A控制通道ARINC接收通道4测试", () => new A_C_6_5_2_4View() },
-                { "6.5.2.5A控制通道ARINC接收通道5测试", () => new A_C_6_5_2_5View() },
-                { "6.5.2.6A控制通道ARINC接收通道6测试", () => new A_C_6_5_2_6View() },
                 { "8.3.1 S安全通道ARINC429发送通道1测试", () => new S_C_8_3_1View() },
                 { "8.3.2 S安全通道ARINC429接收通道1测试", () => new S_C_8_3_2View() },
                 { "8.3.3 S安全通道ARINC429接收通道2测试", () => new S_C_8_3_3View() },
-                { "8.9.1 S通道J82/J83直流电机驱动模块速度控制测试", () => new S_C_8_9_1View() },
-                { "8.9.2 S通道J82/J83直流电机驱动模块方向控制测试", () => new S_C_8_9_2View() },
                 { "8.10.1 S通道J99/J100直流电机驱动模块速度控制测试", () => new S_C_8_10_1View() },
                 { "8.10.2 S通道J99/J100直流电机驱动模块方向控制测试", () => new S_C_8_10_2View() },
-                { "8.11.3 S通道OFV/TRV直流电机驱动优先级控制测试", () => new S_C_8_11_3View() },
                 { "7.3.1.1.2 A控制通道功率板RAIA直流电机驱动模块供电电压测试", () => new A_C_7_3_1_1_2View() },
                 { "7.3.1.2 A控制通道功率板RATA直流电机驱动模块速度控制测试", () => new A_C_7_3_1_2View() },
                 { "7.3.1.3 A控制通道功率板RATA直流电机驱动模块方向控制测试", () => new A_C_7_3_1_3View() },
@@ -303,8 +297,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                     {
                         { "8.1电源对地阻抗测试", "\t 电源的对地阻抗应不小于200Ω。" },
                         { "8.2.1电源模块测试", "\t a) 32V供电时，供电电流不大于0.94A；\r\n\t b) 28V供电时，供电电流不大于1.07A；\r\n\t c) 15V_VBIT回采值在[2.375，2.625]V范围内；\r\n\t d) 5V_VBIT回采值在[2.375，2.625]V范围内。" },
-                        { "8.9.1 S通道J82/J83直流电机驱动模块速度控制测试", "\t a) 100%PWM：J82/J83/J82-J83 的 VMAX ∈ [17,32]V 为 PASS；\r\n\t b) 50%PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (50±1)% 为 PASS；\r\n\t c) 0%PWM：VMAX ≤ 1V 且 VMIN ≥ -1V 为 PASS；\r\n\t d) 自定义PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (设定值±1)% 为 PASS。" },
-                        { "8.9.2 S通道J82/J83直流电机驱动模块方向控制测试", "\t a) PH高电平：J82-J83 电压极性为正，且电压绝对值在[17,32]V范围内为PASS；\r\n\t b) PH低电平：J82-J83 电压极性为负，且电压绝对值在[17,32]V范围内为PASS。" },
                         { "8.10.1 S通道J99/J100直流电机驱动模块速度控制测试", "\t a) 100%PWM：J99/J100/J99-J100 的 VMAX ∈ [17,32]V 为 PASS；\r\n\t b) 50%PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (50±1)% 为 PASS；\r\n\t c) 0%PWM：VMAX ≤ 1V 且 VMIN ≥ -1V 为 PASS；\r\n\t d) 自定义PWM：VMAX ∈ [17,32]V 且 DUTY ∈ (设定值±1)% 为 PASS。" },
                         { "8.10.2 S通道J99/J100直流电机驱动模块方向控制测试", "\t a) PH高电平：J99-J100 电压极性为正，且电压绝对值在[17,32]V范围内为PASS；\r\n\t b) PH低电平：J99-J100 电压极性为负，且电压绝对值在[17,32]V范围内为PASS。" },
                         { "8.5.1安全通道CAN发送测试", "\t 上位机显示\"01010101\"（对应CAN帧后4字节为01 01 01 01）则检查通过。" },
@@ -959,13 +951,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.3 5V传感器供电电压测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.4控制通道光耦供电测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.1.1控制通道ARINC429发送通道1测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.5.1.2A控制通道ARINC429发送通道2/B控制通道ARINC429接收通道5测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.1A控制通道ARINC接收通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.2A控制通道ARINC接收通道2测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.3A控制通道ARINC接收通道3测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.5.2.4A控制通道ARINC接收通道4测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.5.2.5A控制通道ARINC接收通道5测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.5.2.6A控制通道ARINC接收通道6测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.9.1A控制通道CKPT_VENTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.9.2控制通道CAB_VENTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.1控制通道BMPS压力传感器测试"));
@@ -1057,11 +1046,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("8.3.1 S安全通道ARINC429发送通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.2 S安全通道ARINC429接收通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.3 S安全通道ARINC429接收通道2测试"));
-                TestSequenceItems.Add(new TestSequenceItem("8.9.1 S通道J82/J83直流电机驱动模块速度控制测试"));
-                TestSequenceItems.Add(new TestSequenceItem("8.9.2 S通道J82/J83直流电机驱动模块方向控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.10.1 S通道J99/J100直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.10.2 S通道J99/J100直流电机驱动模块方向控制测试"));
-                TestSequenceItems.Add(new TestSequenceItem("8.11.3 S通道OFV/TRV直流电机驱动优先级控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.5.1安全通道CAN发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.5.2安全通道CAN接收测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.6.1 S安全通道WAITS1传感器测试"));

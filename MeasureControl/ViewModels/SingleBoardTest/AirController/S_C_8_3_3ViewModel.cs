@@ -229,19 +229,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _ = StartManualTestAsync();
         }
 
-        private static async Task TryApplyComponentDownStateAsync(CancellationToken token)
-        {
-            try
-            {
-                var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                if (api != null)
-                    await api.ApplyComponentDownStateAsync(token).ConfigureAwait(false);
-            }
-            catch
-            {
-            }
-        }
-
         private async Task StartManualTestAsync()
         {
             await _manualTestLock.WaitAsync();
@@ -268,14 +255,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _simulation.SimProductArincRate = ArincRate;
 
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动({(_simulation.IsRealProduct ? "真实产品模式" : "仿真模式")})：TX={TestTxChannel}, RX={TestRxChannel}");
-
-                    try
-                    {
-                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                        if (api != null)
-                            await api.ApplyComponent28VStateAsync(CancellationToken.None);
-                    }
-                    catch { }
 
                     await _simulation.StartAsync(TestTxChannel, TestRxChannel, msg => AddLog(msg));
                     AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动完成");
@@ -319,7 +298,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     IsBusy = false;
                 }
             }
@@ -590,14 +568,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     _autoTestCts = new CancellationTokenSource();
                     var token = _autoTestCts.Token;
 
-                    try
-                    {
-                        var api = Prism.Ioc.ContainerLocator.Container.Resolve(typeof(MeasureControl.Services.HardwareApis.IComponentPowerStateApi)) as MeasureControl.Services.HardwareApis.IComponentPowerStateApi;
-                        if (api != null)
-                            await api.ApplyComponent28VStateAsync(token);
-                    }
-                    catch { }
-
                     _simulation.IsRealProduct = true;
                     _simulation.ArincRate = ArincRate;
                     _simulation.SimProductArincRate = ArincRate;
@@ -699,8 +669,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     catch
                     {
                     }
-
-                    try { await TryApplyComponentDownStateAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
                     IsAutoTestRunning = false;
                     IsBusy = false;
