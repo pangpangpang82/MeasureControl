@@ -439,6 +439,11 @@
                                     <Border Width="60" Height="22" Background="#f3f4f6" CornerRadius="4" Margin="0,0,10,0">
                                         <TextBlock Text="{Binding Step4OutVoltage}" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12"/>
                                     </Border>
+
+                                    <TextBlock Text="电流:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12" Foreground="#666"/>
+                                    <Border Width="60" Height="22" Background="#f3f4f6" CornerRadius="4" Margin="0,0,10,0">
+                                        <TextBlock Text="{Binding Step4Current}" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12"/>
+                                    </Border>
                                 </StackPanel>
                             </Grid>
                         </Border>

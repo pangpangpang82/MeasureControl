@@ -45,6 +45,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] Step3GndTestCommand = { 0x19, 0x01, 0x01, 0x05, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] Step4ForceCloseCommand = { 0x19, 0x01, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] Step4CancelForceCloseCommand = { 0x19, 0x01, 0x01, 0x08, 0x00, 0x00, 0x00, 0x00 };
+        private static readonly byte[] Step4QueryCurrentCommand = { 0x19, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] EnterAtpCommand = { 0x30, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] ExitAtpCommand = { 0x30, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00 };
         private static readonly byte[] QueryEnPhCommand = { 0x19, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 };
@@ -105,13 +106,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string Step1Result
         {
             get => _step1Result;
-            set => SetProperty(ref _step1Result, value);
+            set
+            {
+                if (SetProperty(ref _step1Result, value))
+                    UpdateOverallResult();
+            }
         }
 
         public string Step2Result
         {
             get => _step2Result;
-            set => SetProperty(ref _step2Result, value);
+            set
+            {
+                if (SetProperty(ref _step2Result, value))
+                    UpdateOverallResult();
+            }
         }
 
         private string _step2J8Voltage = "--";
@@ -129,7 +138,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string Step3Result
         {
             get => _step3Result;
-            set => SetProperty(ref _step3Result, value);
+            set
+            {
+                if (SetProperty(ref _step3Result, value))
+                    UpdateOverallResult();
+            }
         }
 
         private string _step3J8Voltage = "--";
@@ -145,16 +158,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public string Step4Result
         {
             get => _step4Result;
-            set => SetProperty(ref _step4Result, value);
+            set
+            {
+                if (SetProperty(ref _step4Result, value))
+                    UpdateOverallResult();
+            }
         }
 
         private string _step4J8Voltage = "--";
         private string _step4J9Voltage = "--";
         private string _step4OutVoltage = "--";
+        private string _step4Current = "--";
 
         public string Step4J8Voltage { get => _step4J8Voltage; set => SetProperty(ref _step4J8Voltage, value); }
         public string Step4J9Voltage { get => _step4J9Voltage; set => SetProperty(ref _step4J9Voltage, value); }
         public string Step4OutVoltage { get => _step4OutVoltage; set => SetProperty(ref _step4OutVoltage, value); }
+        public string Step4Current { get => _step4Current; set => SetProperty(ref _step4Current, value); }
 
         public string J8Voltage { get => _j8Voltage; set => SetProperty(ref _j8Voltage, value); }
         public string J9Voltage { get => _j9Voltage; set => SetProperty(ref _j9Voltage, value); }
@@ -184,6 +203,24 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             Step2TestCommand = new DelegateCommand(OnStep2Test);
             Step3TestCommand = new DelegateCommand(OnStep3Test);
             Step4TestCommand = new DelegateCommand(OnStep4Test);
+        }
+
+        private void UpdateOverallResult()
+        {
+            if (Step1Result == "FAIL" || Step2Result == "FAIL" || Step3Result == "FAIL" || Step4Result == "FAIL")
+            {
+                OverallResult = "FAIL";
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            }
+            else if (Step1Result == "PASS" && Step2Result == "PASS" && Step3Result == "PASS" && Step4Result == "PASS")
+            {
+                OverallResult = "PASS";
+                LastTestTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            }
+            else
+            {
+                OverallResult = "--";
+            }
         }
 
         private async void OnManualTest()
@@ -744,6 +781,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 Step4J8Voltage = "--";
                 Step4J9Voltage = "--";
                 Step4OutVoltage = "--";
+                Step4Current = "--";
 
                 // 1. 确保7131及继电器连接
                 await EnsureJy7131ReadyAsync(token);
@@ -777,12 +815,44 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (outV.HasValue)
                     Step4OutVoltage = $"{outV.Value:F3}";
 
-                // 7. 判定合格判据
+                // 7. 发送电流回采指令
+                await _arinc.ClearRxFifoAsync("CH0");
+                AddLog($"发送电流回采指令: {FormatBytes(Step4QueryCurrentCommand)}");
+                await _arinc.SendAirCommandOnlyAsync("CH1", Step4QueryCurrentCommand, AddLog, token);
+
+                // 等待接收电流回采响应 (期望: 0x19 02 01 02 00 00 xx xx)
+                var currentResp = await _arinc.WaitAirResponseAsync("CH0", null, 1500, AddLog, token);
+                bool currentOk = false;
+                
+                if (currentResp != null && currentResp.Length >= 8)
+                {
+                    // 检查响应头
+                    if (currentResp[0] == 0x19 && currentResp[1] == 0x02 && currentResp[2] == 0x01 && currentResp[3] == 0x02)
+                    {
+                        // 解析电流值 (大端或小端，这里通常是大端解析)
+                        // label14的数据，即最后两个字节 xx xx
+                        ushort currentRaw = (ushort)((currentResp[6] << 8) | currentResp[7]);
+                        Step4Current = currentRaw.ToString();
+                        currentOk = true;
+                    }
+                    else
+                    {
+                        Step4Current = "格式错误";
+                    }
+                }
+                else
+                {
+                    AddLog("电流回采数据接收超时或失败");
+                    Step4Current = "超时";
+                }
+
+                // 8. 判定合格判据
                 // J8电压为[-1, 1]、J9电压为[27, 29], 输出电压为[17, 32]
                 bool pass = true;
                 if (!j8.HasValue || j8.Value < -1.0 || j8.Value > 1.0) pass = false;
                 if (!j9.HasValue || j9.Value < 27.0 || j9.Value > 29.0) pass = false;
                 if (!outV.HasValue || outV.Value < 17.0 || outV.Value > 32.0) pass = false;
+                // 注意：题目中并没有明确提到电流值必须在多少范围才算合格，在此不作为pass的唯一依据，如果需要可在这里添加 currentOk 相关的判据。
 
                 Step4Result = pass ? "PASS" : "FAIL";
                 AddLog($"步骤 4 结果: {Step4Result}");
