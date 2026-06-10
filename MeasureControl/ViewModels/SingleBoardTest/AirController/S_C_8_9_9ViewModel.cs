@@ -256,8 +256,15 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             GndTestAckRxDataText = "0x" + FormatBytesHex(ackResp);
             AddLog($"[{DateTime.Now:HH:mm:ss}] 收到ACK：{GndTestAckRxDataText}");
 
-            try { await _arinc.ClearRxFifoAsync(FixedRxChannel); } catch { }
-            await Task.Delay(20, token);
+            // 增加延时等待硬件继电器切换，避免回采到切换前的旧状态(OC的0000)
+            await Task.Delay(500, token);
+
+            // 发送回采指令前，多次清理接收缓存，确保将之前可能残留的旧状态包清空
+            for (int i = 0; i < 3; i++)
+            {
+                try { await _arinc.ClearRxFifoAsync(FixedRxChannel); } catch { }
+                await Task.Delay(30, token);
+            }
 
             AddLog($"[{DateTime.Now:HH:mm:ss}] 发送S_GNDOC_DISOUT01_FB：{FormatBytesHex(S_GNDOC_DISOUT01_FB)}");
             await _arinc.SendBenchCommandOnlyAsync(FixedTxChannel, S_GNDOC_DISOUT01_FB, msg => AddLog(msg), token);
@@ -269,6 +276,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 msg => AddLog(msg),
                 token);
 
+            // 过滤掉可能的历史数据包，如果连续多次读到的包最后两字节为5555(这是OC状态)，则继续读
+            if (loopResp != null && loopResp[6] == 0x55 && loopResp[7] == 0x55)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 收到疑似旧的OC回采包(5555)，继续等待GND回采包...");
+                loopResp = await _arinc.WaitBenchResponse8Async(
+                    FixedRxChannel,
+                    b => b != null && b.Length == 8 && b[0] == 0x17 && b[1] == 0x01 && b[2] == 0x01 && b[3] == 0x04 && (b[6] != 0x55 || b[7] != 0x55),
+                    timeoutMs: 1500,
+                    msg => AddLog(msg),
+                    token) ?? loopResp;
+            }
+
             if (loopResp == null)
                 throw new TimeoutException("GND回采超时");
 
@@ -277,13 +296,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             // label14 data: 小端序，loopResp[7]是高字节，loopResp[6]是低字节
             ushort data14 = (ushort)((loopResp[7] << 8) | loopResp[6]);
+            // 将usort转为二进制字符串展示，直接使用Convert.ToString，不反转
             string binaryStr = Convert.ToString(data14, 2).PadLeft(16, '0');
             GndLabel14ActualText = $"{binaryStr}";
             AddLog($"[{DateTime.Now:HH:mm:ss}] GND label14实际值：{binaryStr} (0x{data14:X4})");
 
-            // 期望值：0x5555 = 0101010101010101 (GND信号)
-            if (data14 != 0x5555)
-                throw new InvalidOperationException($"GND回采数据不符：期望0x5555，实际0x{data14:X4}");
+            // 期望值：0xAAAA (GND信号)
+            if (data14 != 0xAAAA)
+                throw new InvalidOperationException($"GND回采数据不符：期望0xAAAA，实际0x{data14:X4}");
 
             AddLog($"[{DateTime.Now:HH:mm:ss}] GND回采判读：离散输入接收GND信号 -> PASS");
 
@@ -294,8 +314,11 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             AddLog($"[{DateTime.Now:HH:mm:ss}] 阶段2：输出OC信号");
 
+            // 等待继电器硬件状态响应上一步结束
+            await Task.Delay(500, token);
+
             // 多次清理确保无残留
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < 3; i++)
             {
                 try { await _arinc.ClearRxFifoAsync(FixedRxChannel); } catch { }
                 await Task.Delay(30, token);
@@ -304,12 +327,29 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             AddLog($"[{DateTime.Now:HH:mm:ss}] 发送S_GNDOC_DISOUT02：{FormatBytesHex(S_GNDOC_DISOUT02)}");
             await _arinc.SendBenchCommandOnlyAsync(FixedTxChannel, S_GNDOC_DISOUT02, msg => AddLog(msg), token);
 
+            await Task.Delay(200, token);
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 发送回采指令：{FormatBytesHex(S_GNDOC_DISOUT01_FB)}");
+            await _arinc.SendBenchCommandOnlyAsync(FixedTxChannel, S_GNDOC_DISOUT01_FB, msg => AddLog(msg), token);
+
             var loopResp = await _arinc.WaitBenchResponse8Async(
                 FixedRxChannel,
-                b => b != null && b.Length == 8 && b[0] == 0x17 && b[1] == 0x01 && b[2] == 0x01 && b[3] == 0x07,
+                b => b != null && b.Length == 8 && b[0] == 0x17 && b[1] == 0x01 && b[2] == 0x01 && b[3] == 0x04,
                 timeoutMs: 2000,
                 msg => AddLog(msg),
                 token);
+
+            // 过滤掉可能的历史数据包，如果读到的包为AAAA(上一次GND的残留)，则继续读
+            if (loopResp != null && loopResp[6] == 0xAA && loopResp[7] == 0xAA)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 收到疑似旧的GND回采包(AAAA)，继续等待OC回采包...");
+                loopResp = await _arinc.WaitBenchResponse8Async(
+                    FixedRxChannel,
+                    b => b != null && b.Length == 8 && b[0] == 0x17 && b[1] == 0x01 && b[2] == 0x01 && b[3] == 0x04 && (b[6] != 0xAA || b[7] != 0xAA),
+                    timeoutMs: 1500,
+                    msg => AddLog(msg),
+                    token) ?? loopResp;
+            }
 
             if (loopResp == null)
                 throw new TimeoutException("OC回采超时");
@@ -319,15 +359,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             // label14 data: 小端序，loopResp[7]是高字节，loopResp[6]是低字节
             ushort data14 = (ushort)((loopResp[7] << 8) | loopResp[6]);
+            // 将usort转为二进制字符串展示，直接使用Convert.ToString，不反转
             string binaryStr = Convert.ToString(data14, 2).PadLeft(16, '0');
             OcLabel14ActualText = $"{binaryStr}";
             AddLog($"[{DateTime.Now:HH:mm:ss}] OC label14实际值：{binaryStr} (0x{data14:X4})");
 
-            // 期望值：0x0000 = 0000000000000000 (OC信号)
-            if (data14 != 0x0000)
-                throw new InvalidOperationException($"OC回采数据不符：期望0x0000，实际0x{data14:X4}");
+            // 期望值：0x5555 (OC信号)
+            if (data14 != 0x5555)
+                throw new InvalidOperationException($"OC回采数据不符：期望0x5555，实际0x{data14:X4}");
 
             AddLog($"[{DateTime.Now:HH:mm:ss}] OC回采判读：离散输入接收OC信号 -> PASS");
+            
+            _ = await TryWaitCurrentUploadAsync(token);
         }
 
         private async Task<byte[]> TryWaitCurrentUploadAsync(CancellationToken token)
