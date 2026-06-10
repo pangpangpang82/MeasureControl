@@ -13,6 +13,7 @@ namespace MeasureControl.Views.Dialogs
             "加放油单板",
             "惰化模拟板",
             "惰化控制板",
+            "空气安全板",
         };
 
         public static readonly IReadOnlyList<string> AvailableVoltages = new List<string>
@@ -36,10 +37,10 @@ namespace MeasureControl.Views.Dialogs
 
         private void BoardTypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            bool showVoltage = string.Equals(
-                BoardTypeComboBox.SelectedItem as string,
-                "加放油单板",
-                StringComparison.OrdinalIgnoreCase);
+            var selected = BoardTypeComboBox.SelectedItem as string;
+            bool showVoltage =
+                string.Equals(selected, "加放油单板", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(selected, "空气安全板", StringComparison.OrdinalIgnoreCase);
             var vis = showVoltage ? Visibility.Visible : Visibility.Collapsed;
             VoltageRowSpacer.Visibility = vis;
             VoltageLabelText.Visibility = vis;
