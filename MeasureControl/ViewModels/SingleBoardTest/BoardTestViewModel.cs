@@ -940,6 +940,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest
             {
                 TestSequenceItems.Add(new TestSequenceItem("6.1电源对地阻抗检查"));
                 TestSequenceItems.Add(new TestSequenceItem("6.2.1A控制通道供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.3 5V传感器供电电压测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.4控制通道光耦供电测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.1.1控制通道ARINC429发送通道1测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.1A控制通道ARINC接收通道1测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.2A控制通道ARINC接收通道2测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.3A控制通道ARINC接收通道3测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.5.2.4A控制通道ARINC接收通道4测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.6.1CAN发送测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.6.2CAN接收测试"));
+                TestSequenceItems.Add(new TestSequenceItem("控制通道422发送测试"));
+                TestSequenceItems.Add(new TestSequenceItem("控制通道422接收测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.1控制通道PDTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.2控制通道MIXTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.3控制通道CAR_TS传感器测试"));
@@ -949,13 +960,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.8.7控制通道BTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.8控制通道PTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.8.9控制通道CDTS传感器测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.3 5V传感器供电电压测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.4控制通道光耦供电测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.5.1.1控制通道ARINC429发送通道1测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.5.2.1A控制通道ARINC接收通道1测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.5.2.2A控制通道ARINC接收通道2测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.5.2.3A控制通道ARINC接收通道3测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.5.2.4A控制通道ARINC接收通道4测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.9.1A控制通道CKPT_VENTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.9.2控制通道CAB_VENTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.1控制通道BMPS压力传感器测试"));
@@ -964,13 +968,23 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.10.4控制通道WAIPSI2传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.5控制通道PDPS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.6A控制通道PIFS传感器测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.13.1控制通道压力传感器采集测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.13.2 S安全通道压力传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.10.7控制通道RAIA_POS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.11.1控制通道角度反馈传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.12.1控制通道选气楔传感器测试"));
+                //TestSequenceItems.Add(new TestSequenceItem("6.13.1控制通道压力传感器采集测试"));
+                //TestSequenceItems.Add(new TestSequenceItem("6.13.2 S安全通道压力传感器测试"));
+                //TestSequenceItems.Add(new TestSequenceItem("6.14.1控制通道GND/OC离散输入通道输入测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.1.1GND/OC型离散输出通道1输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.1.2GND/OC型100mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.1.1 A控制通道功率板RAIA直流电机驱动模块速度控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.15.1.2 A控制通道功率板RAIA直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.2.1 A控制通道功率板AWV直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("6.15.2.2 A控制通道功率板AVV直流电机驱动模块方向控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.16.1.1.1 A控制通道功率板TCV步进电机驱动模块输出测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.16.2.1 A控制通道功率板驾驶舱TAV步进电机驱动模块测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.16.3.1 A控制通道功率板前后客舱TAV步进电机驱动模块测试"));
@@ -983,21 +997,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("6.18.2.1 A控制通道功率板PRSOV力矩电机驱动测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.18.3.1 A控制通道功率板FCV力矩电机驱动测试"));
                 TestSequenceItems.Add(new TestSequenceItem("6.18.4.1 A控制通道功率板VAV力矩电机驱动测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.15.2.1 A控制通道功率板AWV直流电机驱动模块速度控制测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.15.2.2 A控制通道功率板AVV直流电机驱动模块方向控制测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.14.1控制通道GND/OC离散输入通道输入测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.15.1.1GND/OC型离散输出通道1输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.15.1.2GND/OC型100mA离散输出通道2输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.15.2.1A控制通道28V/OC型100mA离散输出通道1输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.15.2.2A控制通道28V/OC型100mA离散输出通道2输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.15.3.1A控制通道28V/OC型400mA离散输出通道1输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.15.3.2A控制通道28V/OC型400mA离散输出通道2输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.15.3.3A控制通道28V/OC型400mA离散输出通道3输出测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.6.1CAN发送测试"));
-                TestSequenceItems.Add(new TestSequenceItem("6.6.2CAN接收测试"));
-                TestSequenceItems.Add(new TestSequenceItem("RS422通信测试"));
-                TestSequenceItems.Add(new TestSequenceItem("控制通道422发送测试"));
-                TestSequenceItems.Add(new TestSequenceItem("控制通道422接收测试"));
             }
             else if (string.Equals(boardType, "空气功率板", StringComparison.OrdinalIgnoreCase))
             {

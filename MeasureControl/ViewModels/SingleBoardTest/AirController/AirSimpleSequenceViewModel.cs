@@ -507,7 +507,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 if (!IsManualTestRunning)
                     return;
 
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试停止：关闭设备");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试停止：停止测试流");
                 IsManualTestRunning = false;
 
                 await CleanupHardwareAfterTestAsync();
@@ -650,11 +650,17 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
+        public bool KeepPowerOnAfterTest { get; set; }
+
         protected async Task CleanupHardwareAfterTestAsync()
         {
+            if (!KeepPowerOnAfterTest || _activeSupplyVoltage != 28.0)
+            {
+                try { await PowerSupplyOutputOffAsync(CancellationToken.None); } catch { }
+            }
+
             _activeSupplyVoltage = null;
 
-            try { await PowerSupplyOutputOffAsync(CancellationToken.None); } catch { }
             try { await DisconnectPowerSupplyAsync(CancellationToken.None); } catch { }
 
             try
@@ -731,9 +737,16 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 failures.Add($"{supplyVoltage:0.###}V：{TestCommandName} 回采失败");
             }
 
-            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：断开{ChannelName}供电");
-            await PowerSupplyOutputOffAsync(token);
-            await Task.Delay(200, token);
+            if (!KeepPowerOnAfterTest || supplyVoltage != 28.0)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：断开{ChannelName}供电");
+                await PowerSupplyOutputOffAsync(token);
+                await Task.Delay(200, token);
+            }
+            else
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：测试结束，保留{ChannelName} 28V供电");
+            }
 
             _autoTestEnteredAtp = false;
         }

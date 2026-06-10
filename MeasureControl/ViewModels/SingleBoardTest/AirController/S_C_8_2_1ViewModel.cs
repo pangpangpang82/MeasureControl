@@ -15,6 +15,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         public S_C_8_2_1ViewModel()
         {
             Title = "8.2.1电源模块测试";
+            KeepPowerOnAfterTest = true;
             AutoSequenceCommand = new DelegateCommand(async () => await OnAutoSequenceAsync());
         }
 
