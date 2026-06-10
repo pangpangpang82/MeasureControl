@@ -1047,9 +1047,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("8.3.1 S安全通道ARINC429发送通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.2 S安全通道ARINC429接收通道1测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.3.3 S安全通道ARINC429接收通道2测试"));
-                TestSequenceItems.Add(new TestSequenceItem("8.10.1 S通道J99/J100直流电机驱动模块速度控制测试"));
-                TestSequenceItems.Add(new TestSequenceItem("8.10.2 S通道J99/J100直流电机驱动模块方向控制测试"));
-                TestSequenceItems.Add(new TestSequenceItem("8.11.3 S通道OFV/TRV直流电机驱动优先级控制测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.5.1安全通道CAN发送测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.5.2安全通道CAN接收测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.6.1 S安全通道WAITS1传感器测试"));
@@ -1058,6 +1055,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest
                 TestSequenceItems.Add(new TestSequenceItem("8.7.2S安全通道FWD_AVENTS2传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.7.3S安全通道AFT_AVENTS传感器测试"));
                 TestSequenceItems.Add(new TestSequenceItem("8.9.9 S安全通道GND/OC型离散输出通道1输出测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.10.1 S通道J99/J100直流电机驱动模块速度控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.10.2 S通道J99/J100直流电机驱动模块方向控制测试"));
+                TestSequenceItems.Add(new TestSequenceItem("8.11.3 S通道OFV/TRV直流电机驱动优先级控制测试"));
             }
             else if (string.Equals(boardType, "液压单板", StringComparison.OrdinalIgnoreCase))
             {
