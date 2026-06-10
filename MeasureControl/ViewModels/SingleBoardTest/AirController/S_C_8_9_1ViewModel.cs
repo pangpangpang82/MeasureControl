@@ -10,16 +10,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using MeasureControl.Helpers;
+using MeasureControl.Models.Devices;
+using MeasureControl.Models.Devices.DeviceCategories;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
+using Prism.Ioc;
+using System.Linq;
 
 namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 {
     public sealed class S_C_8_9_1ViewModel : BindableBase, IDisposable
     {
-        private const string DefaultFpgaIpAddress = "192.168.1.10";
-        private const int DefaultFpgaPort = 5001;
-
         private const string DefaultMatrixIpAddress = "192.168.1.3";
         private const int DefaultMatrixTcpBasePort = 50200;
 
@@ -38,27 +39,36 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const int DefaultScopePort = 5555;
         private const string DefaultScopeIpAddress = "192.168.1.18";
 
+        // 万用表（测量 DCM_V1 对 DCM_V2 之间的直流电压）
+        private const string DmmIpAddress = "192.168.1.13";
+        private const int DmmTimeoutMs = 8000;
+        // 万用表接入矩阵节点 ("I4", "O2", 4)；DCM_V1对DCM_V2 信号节点 ("I1", "O16", 6)
+        private const string DmmMatrixRow = "I4";
+        private const string DmmMatrixOutput = "O2";
+
         private const string PowerSupply28VIpAddress = "192.168.1.15";
 
         private const PowerSupplyChannel PowerSupply28VCh1 = PowerSupplyChannel.CH1;
         private const double Power28VVoltage = 28.0;
         private const double Power28VCurrentLimit = 3.0;
 
-        private static readonly byte[] DeviceInitCommandFrame = { 0xAA, 0x55, 0x02, 0x02, 0x01 };
-        private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x05, 0x00, 0xA8, 0x00, 0x00, 0x00, 0xA8, 0x00, 0x00, 0x00 };
+        // 7131 DO通道：DO10和DO11用于PH高低电平控制
+        private const string Do10Channel = "DO10";
+        private const string Do11Channel = "DO11";
 
-        private const int FixedGearFrequencyHz = 2000;
-
-        private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1); 
+        private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _opLock = new SemaphoreSlim(1, 1);
-        private readonly SemaphoreSlim _instrumentLock = new SemaphoreSlim(1, 1); 
+        private readonly SemaphoreSlim _instrumentLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _scopeIoLock = new SemaphoreSlim(1, 1);
 
         private CancellationTokenSource _manualMeasureCts;
         private CancellationTokenSource _autoTestCts;
 
-        private FpgaTcpClient _fpga;
+        private readonly IPxiChassisService _pxiChassisService;
+        private IJy7131Api _jy7131Api;
+
+        private IDmmApi _dmmSocket;
 
         private TcpClient _scopeTcpClient;
         private NetworkStream _scopeTcpStream;
@@ -116,9 +126,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _j8j9VppText = "--";
         private string _j8j9DutyPctText = "--";
 
-        private string _fpgaIpAddress = DefaultFpgaIpAddress;
-        private int _fpgaPort = DefaultFpgaPort;
-
         private string _scopeIpAddress = DefaultScopeIpAddress;
         private int _scopePort = DefaultScopePort;
 
@@ -127,6 +134,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public S_C_8_9_1ViewModel()
         {
+            _pxiChassisService = ContainerLocator.Container?.Resolve<IPxiChassisService>();
+
             PwmFrequencyHz = 2000;
             PwmDutyPct = 50;
 
@@ -184,18 +193,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         public DelegateCommand SendPwm0Command { get; }
         public DelegateCommand MeasurePwm0Command { get; }
-
-        public string FpgaIpAddress
-        {
-            get => _fpgaIpAddress;
-            set => SetProperty(ref _fpgaIpAddress, value);
-        }
-
-        public int FpgaPort
-        {
-            get => _fpgaPort;
-            set => SetProperty(ref _fpgaPort, value);
-        }
 
         public string ScopeIpAddress
         {
@@ -515,7 +512,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (IsPowerOn)
                 {
-                    await DisconnectFpgaAsync(CancellationToken.None).ConfigureAwait(false);
+                    await ResetDoChannelsAsync(CancellationToken.None).ConfigureAwait(false);
                     await PowerOffAsync(CancellationToken.None).ConfigureAwait(false);
                     return;
                 }
@@ -553,6 +550,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         {
             AddLog("组件供电：上电中...");
 
+            // 初始化7131板卡（用于DO10/DO11控制PH电平）
+            await EnsureJy7131ReadyAsync(token).ConfigureAwait(false);
+
             await EnsurePowerSupply28VConnectedAsync(token).ConfigureAwait(false);
             try
             {
@@ -574,6 +574,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 await UnrouteMatrixAsync(token).ConfigureAwait(false);
+            }
+            catch { }
+
+            // 关闭DO10/DO11并清理7131板卡
+            try
+            {
+                await ResetDoChannelsAsync(token).ConfigureAwait(false);
+                await Cleanup7131Async().ConfigureAwait(false);
             }
             catch { }
 
@@ -648,7 +656,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 IsBusy = true;
                 try
                 {
-                    await DisconnectFpgaAsync(CancellationToken.None).ConfigureAwait(false);
+                    await ResetDoChannelsAsync(CancellationToken.None).ConfigureAwait(false);
                     await PowerOffHardwareAsync(CancellationToken.None).ConfigureAwait(false);
                     _isTestPowerOn = false;
                     IsManualTestRunning = false;
@@ -724,7 +732,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 }
                 finally
                 {
-                    try { await DisconnectFpgaAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+                    try { await ResetDoChannelsAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
                     try
                     {
@@ -803,8 +811,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             IsBusy = true;
             try
             {
-                await SendPwmFrameAsync(PwmDutyPct, PwmFrequencyHz, sendInit: true, CancellationToken.None).ConfigureAwait(false);
-                AddLog($"PWM={PwmDutyPct}%：已发送到 FPGA，请点击“测量”查看波形");
+                await SetPhLevelAsync(PwmDutyPct, CancellationToken.None).ConfigureAwait(false);
+                AddLog($"PWM={PwmDutyPct}%：已设置PH电平，请点击“测量”查看波形");
             }
             finally
             {
@@ -837,8 +845,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             IsBusy = true;
             try
             {
-                await SendPwmFrameAsync(dutyPct, FixedGearFrequencyHz, sendInit: dutyPct == 100, CancellationToken.None).ConfigureAwait(false);
-                AddLog($"PWM={dutyPct}%：已发送到 FPGA，请点击“测量”查看波形");
+                await SetPhLevelAsync(dutyPct, CancellationToken.None).ConfigureAwait(false);
+                AddLog($"PWM={dutyPct}%：已设置PH电平，请点击“测量”查看波形");
             }
             finally
             {
@@ -871,7 +879,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 SetMeasuring(dutyPct, true);
                 try
                 {
-                    await SendPwmFrameAsync(dutyPct, FixedGearFrequencyHz, sendInit: dutyPct == 100, token).ConfigureAwait(false);
+                    await SetPhLevelAsync(dutyPct, token).ConfigureAwait(false);
                     if (delayBeforeMeasureMs > 0)
                         await Task.Delay(delayBeforeMeasureMs, token).ConfigureAwait(false);
 
@@ -1085,60 +1093,164 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _matrixRoutedSlot6Output = null;
         }
 
-        private async Task SendPwmFrameAsync(int dutyPct, int freqHz, bool sendInit, CancellationToken token)
+        private async Task SetPhLevelAsync(int dutyPct, CancellationToken token)
         {
             dutyPct = ClampDuty(dutyPct);
-            freqHz = ClampFreq(freqHz);
+            await EnsureJy7131ReadyAsync(token).ConfigureAwait(false);
 
-            AddLog($"PWM={dutyPct}%：发送到FPGA... (Freq={freqHz}Hz)");
-            await EnsureFpgaConnectedAsync(token).ConfigureAwait(false);
-
-            if (sendInit)
+            if (dutyPct == 0)
             {
-                await _fpga.WriteAsync(DeviceInitCommandFrame, 0, DeviceInitCommandFrame.Length, token).ConfigureAwait(false);
-                AddLog($"PWM={dutyPct}%：已发送设备初始化 {FormatData(DeviceInitCommandFrame)}");
+                // PH低电平：DO10给地(false)，DO11给开(true)
+                await _jy7131Api.WriteDoAsync(Do10Channel, false, token).ConfigureAwait(false);
+                await _jy7131Api.WriteDoAsync(Do11Channel, true, token).ConfigureAwait(false);
+                AddLog($"PH低电平：DO10=地, DO11=开 (PWM=0%)");
             }
-
-            var cmd = BuildPwmCommand(dutyPct, freqHz);
-            await _fpga.WriteAsync(cmd, 0, cmd.Length, token).ConfigureAwait(false);
-            AddLog($"PWM={dutyPct}%：已发送 {FormatData(cmd)}");
+            else
+            {
+                // PH高电平：DO10给开(true)，DO11给开(true)
+                await _jy7131Api.WriteDoAsync(Do10Channel, true, token).ConfigureAwait(false);
+                await _jy7131Api.WriteDoAsync(Do11Channel, true, token).ConfigureAwait(false);
+                AddLog($"PH高电平：DO10=开, DO11=开 (PWM={dutyPct}%)");
+            }
         }
 
-        private async Task EnsureFpgaConnectedAsync(CancellationToken token)
+        private async Task EnsureJy7131ReadyAsync(CancellationToken token)
         {
-            if (_fpga != null && _fpga.IsConnected)
-                return;
-
-            _fpga?.Dispose();
-            _fpga = new FpgaTcpClient();
-            await _fpga.ConnectAsync(FpgaIpAddress, FpgaPort, token).ConfigureAwait(false);
-            AddLog("FPGA连接成功");
-        }
-
-        private async Task DisconnectFpgaAsync(CancellationToken token)
-        {
-            await _opLock.WaitAsync(token).ConfigureAwait(false);
             try
             {
-                if (_fpga != null && _fpga.IsConnected)
+                if (_jy7131Api == null)
                 {
-                    try
+                    var device7131 = FindFirstJy7131Device();
+                    if (device7131 != null)
                     {
-                        AddLog($"FPGA复位: 发送 {FormatData(ResetToInitialCommandFrame)}");
-                        await _fpga.WriteAsync(ResetToInitialCommandFrame, 0, ResetToInitialCommandFrame.Length, token).ConfigureAwait(false);
-                        await Task.Delay(500, token).ConfigureAwait(false);
+                        var devSlot = Infer7131SlotNumber(device7131);
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 找到7131板卡: {device7131.Model ?? device7131.Name}，槽位={devSlot}");
+                        if (int.TryParse(devSlot, out var slotNum))
+                            _jy7131Api = new Jy7131Api(device7131, slotNum);
+                        else
+                            _jy7131Api = new Jy7131Api(device7131);
                     }
-                    catch { }
+                    else
+                    {
+                        throw new InvalidOperationException("未找到7131板卡");
+                    }
                 }
 
-                try { _fpga?.Disconnect(); } catch { }
-                try { _fpga?.Dispose(); } catch { }
-                _fpga = null;
+                if (!_jy7131Api.IsConnected)
+                {
+                    await _jy7131Api.ConnectAsync(token).ConfigureAwait(false);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡连接成功");
+                }
+
+                if (!_jy7131Api.IsRunning)
+                {
+                    await _jy7131Api.SetOutputModeAsync(Jy7131OutputMode.Sinking, token).ConfigureAwait(false);
+                    await _jy7131Api.StartAsync(token).ConfigureAwait(false);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡已启动（Sinking模式）");
+                }
             }
+            catch (Exception ex)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡初始化失败: {ex.Message}");
+                throw;
+            }
+        }
+
+        private async Task ResetDoChannelsAsync(CancellationToken token)
+        {
+            if (_jy7131Api != null && _jy7131Api.IsConnected)
+            {
+                try
+                {
+                    await _jy7131Api.WriteDoAsync(Do10Channel, false, token).ConfigureAwait(false);
+                    await _jy7131Api.WriteDoAsync(Do11Channel, false, token).ConfigureAwait(false);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] DO10/DO11已关闭");
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 关闭DO10/DO11失败: {ex.Message}");
+                }
+            }
+        }
+
+        private async Task Cleanup7131Async()
+        {
+            try
+            {
+                if (_jy7131Api != null && _jy7131Api.IsConnected)
+                {
+                    if (_jy7131Api.IsRunning)
+                    {
+                        await _jy7131Api.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡已停止");
+                    }
+                    await _jy7131Api.DisconnectAsync(CancellationToken.None).ConfigureAwait(false);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 7131板卡已断开");
+                }
+            }
+            catch { }
             finally
             {
-                _opLock.Release();
+                _jy7131Api = null;
             }
+        }
+
+        private DeviceBase FindFirstJy7131Device()
+        {
+            var chassisList = _pxiChassisService?.GetAllChassis();
+            if (chassisList == null)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] [7131查找] 机箱列表为null");
+                return null;
+            }
+
+            foreach (var chassis in chassisList)
+            {
+                if (chassis?.Devices == null)
+                    continue;
+
+                var device = chassis.Devices.FirstOrDefault(d =>
+                    d is DigitalIODevice ||
+                    (d?.Model?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("离散量", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (d?.DeviceTypeName?.IndexOf("数字量", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                if (device != null)
+                    return device;
+
+                foreach (var d in chassis.Devices)
+                {
+                    if (d?.Children == null)
+                        continue;
+
+                    var childDevice = d.Children.FirstOrDefault(c =>
+                        c is DigitalIODevice ||
+                        (c?.Model?.IndexOf("7131", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        (c?.DeviceTypeName?.IndexOf("离散量", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        (c?.DeviceTypeName?.IndexOf("数字量", StringComparison.OrdinalIgnoreCase) >= 0));
+
+                    if (childDevice != null)
+                        return childDevice;
+                }
+            }
+
+            return null;
+        }
+
+        private static string Infer7131SlotNumber(DeviceBase device)
+        {
+            if (device is PxiDeviceBase pxi && pxi.SlotIndex > 0)
+                return pxi.SlotIndex.ToString();
+
+            var slot = device?.SlotPosition;
+            if (!string.IsNullOrWhiteSpace(slot))
+            {
+                var trimmed = slot.Replace("Slot", "").Replace("slot", "").Trim();
+                if (int.TryParse(trimmed, out var slotNum) && slotNum > 0)
+                    return slotNum.ToString();
+            }
+
+            return "12";
         }
 
         private static string NormalizeSlot6Output(string slot6Output)
@@ -1386,21 +1498,39 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task<(bool Pass, string FailPoint)> MeasureAllPointsAsync(int expectedDutyPct, CancellationToken token)
         {
-            var mV1 = await MeasureOnceWithMatrixAsync(NormalizeSlot6Output(DcmV1ToScope), "DCM_V1对地", expectedDutyPct, token).ConfigureAwait(false);
+            // 100% / 0% PWM：用万用表测量 DCM_V1 对 DCM_V2 之间的直流电压（不再测量三处波形）
+            if (expectedDutyPct == 100 || expectedDutyPct == 0)
+            {
+                var (vok, voltage) = await MeasureV1V2VoltageWithMatrixAsync(token).ConfigureAwait(false);
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    J8VrmsText = "--"; J8FreqHzText = "--"; J8VmaxText = "--"; J8VminText = "--"; J8VppText = "--"; J8DutyPctText = "--";
+                    J9VrmsText = "--"; J9FreqHzText = "--"; J9VmaxText = "--"; J9VminText = "--"; J9VppText = "--"; J9DutyPctText = "--";
+                    J8J9VrmsText = FormatNum(voltage);
+                    J8J9FreqHzText = "--"; J8J9VmaxText = "--"; J8J9VminText = "--"; J8J9VppText = "--"; J8J9DutyPctText = "--";
+                });
+
+                var rVolt = string.Empty;
+                var voltageOk = vok && IsVoltagePass(voltage, expectedDutyPct, out rVolt);
+                if (voltageOk)
+                {
+                    AddLog($"DCM_V1对DCM_V2(万用表电压) 判据PASS：{FormatNum(voltage)}V");
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={expectedDutyPct}%：电压测量PASS");
+                    return (true, string.Empty);
+                }
+
+                AddLog($"DCM_V1对DCM_V2(万用表电压) 判据FAIL: {(vok ? rVolt : "万用表测量失败")}");
+                return (false, "DCM_V1对DCM_V2电压");
+            }
+
+            // 其他占空比（含50%）：只测量 DCM_V2 对地波形，判断占空比
             var mV2 = await MeasureOnceWithMatrixAsync(NormalizeSlot6Output(DcmV2ToScope), "DCM_V2对地", expectedDutyPct, token).ConfigureAwait(false);
-            var mV11 = await MeasureOnceWithMatrixAsync(NormalizeSlot6Output(DcmV1V1ToScope), "DCM_V1对DCM_V2", expectedDutyPct, token).ConfigureAwait(false);
 
             Application.Current.Dispatcher.Invoke(() =>
             {
-                if (mV1 != null)
-                {
-                    J8VrmsText = FormatNum(mV1.Vrms);
-                    J8FreqHzText = FormatNum(mV1.FreqHz);
-                    J8VmaxText = FormatNum(mV1.Vmax);
-                    J8VminText = FormatNum(mV1.Vmin);
-                    J8VppText = FormatNum(mV1.Vpp);
-                    J8DutyPctText = FormatNum(mV1.DutyPct);
-                }
+                J8VrmsText = "--"; J8FreqHzText = "--"; J8VmaxText = "--"; J8VminText = "--"; J8VppText = "--"; J8DutyPctText = "--";
+                J8J9VrmsText = "--"; J8J9FreqHzText = "--"; J8J9VmaxText = "--"; J8J9VminText = "--"; J8J9VppText = "--"; J8J9DutyPctText = "--";
                 if (mV2 != null)
                 {
                     J9VrmsText = FormatNum(mV2.Vrms);
@@ -1410,43 +1540,129 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     J9VppText = FormatNum(mV2.Vpp);
                     J9DutyPctText = FormatNum(mV2.DutyPct);
                 }
-                if (mV11 != null)
-                {
-                    J8J9VrmsText = FormatNum(mV11.Vrms);
-                    J8J9FreqHzText = FormatNum(mV11.FreqHz);
-                    J8J9VmaxText = FormatNum(mV11.Vmax);
-                    J8J9VminText = FormatNum(mV11.Vmin);
-                    J8J9VppText = FormatNum(mV11.Vpp);
-                    J8J9DutyPctText = FormatNum(mV11.DutyPct);
-                }
             });
 
-            var okV1 = IsMeasurementPass(mV1, expectedDutyPct, PwmFrequencyHz, out var rV1);
             var okV2 = IsMeasurementPass(mV2, expectedDutyPct, PwmFrequencyHz, out var rV2);
-            var okV11 = IsMeasurementPass(mV11, expectedDutyPct, PwmFrequencyHz, out var rV11);
-
-            if (okV1)
-                AddLog($"{mV1?.Title ?? "DCM_V1对地"} 判据PASS");
-            else
-                AddLog($"{mV1?.Title ?? "DCM_V1对地"} 判据FAIL: {rV1}");
             if (okV2)
-                AddLog($"{mV2?.Title ?? "DCM_V2对地"} 判据PASS");
-            else
-                AddLog($"{mV2?.Title ?? "DCM_V2对地"} 判据FAIL: {rV2}");
-            if (okV11)
-                AddLog($"{mV11?.Title ?? "DCM_V1对DCM_V2"} 判据PASS");
-            else
-                AddLog($"{mV11?.Title ?? "DCM_V1对DCM_V2"} 判据FAIL: {rV11}");
-
-            if (okV1 && okV2 && okV11)
             {
-                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={expectedDutyPct}%：全部测量点PASS");
+                AddLog($"{mV2?.Title ?? "DCM_V2对地"} 判据PASS");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={expectedDutyPct}%：DCM_V2对地占空比测量PASS");
                 return (true, string.Empty);
             }
 
-            if (!okV1) return (false, mV1?.Title ?? "DCM_V1对地");
-            if (!okV2) return (false, mV2?.Title ?? "DCM_V2对地");
-            return (false, mV11?.Title ?? "DCM_V1对DCM_V2");
+            AddLog($"{mV2?.Title ?? "DCM_V2对地"} 判据FAIL: {rV2}");
+            return (false, mV2?.Title ?? "DCM_V2对地");
+        }
+
+        /// <summary>
+        /// 100%/0% PWM：路由矩阵节点 ("I4","O2",4) + ("I1","O16",6)，用万用表测量 DCM_V1 对 DCM_V2 直流电压。
+        /// </summary>
+        private async Task<(bool Ok, double? Voltage)> MeasureV1V2VoltageWithMatrixAsync(CancellationToken token)
+        {
+            await _instrumentLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                var matrix = MatrixControlService.Instance;
+                bool okDmm = false;
+                bool okSig = false;
+                try
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 路由DCM_V1对DCM_V2(万用表)：slot{Chassis2Slot4} {DmmMatrixRow}-{DmmMatrixOutput} + slot{Chassis2Slot6} {Slot6Row}-{DcmV1V1ToScope}");
+
+                    okDmm = await matrix.ConnectNodesAsync(DmmMatrixRow, DmmMatrixOutput, Chassis2Slot4, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                    okSig = await matrix.ConnectNodesAsync(Slot6Row, DcmV1V1ToScope, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 路由结果：DMM={(okDmm ? "OK" : "FAIL")}, SIG={(okSig ? "OK" : "FAIL")}");
+                    if (!okDmm || !okSig)
+                        return (false, null);
+
+                    // 等待继电器与信号稳定
+                    await Task.Delay(200, token).ConfigureAwait(false);
+
+                    var reading = await DmmReadVoltageAsync(token).ConfigureAwait(false);
+                    if (reading?.Value == null)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] DCM_V1对DCM_V2：万用表读数无效");
+                        return (false, null);
+                    }
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] DCM_V1对DCM_V2：万用表直流电压={reading.Value.Value:F4}V");
+                    return (true, reading.Value.Value);
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] DCM_V1对DCM_V2：电压测量异常：{ex.Message}");
+                    return (false, null);
+                }
+                finally
+                {
+                    try
+                    {
+                        if (okSig)
+                            _ = await matrix.DisconnectNodesAsync(Slot6Row, DcmV1V1ToScope, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                    }
+                    catch { }
+
+                    try
+                    {
+                        if (okDmm)
+                            _ = await matrix.DisconnectNodesAsync(DmmMatrixRow, DmmMatrixOutput, Chassis2Slot4, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                    }
+                    catch { }
+                }
+            }
+            finally
+            {
+                _instrumentLock.Release();
+            }
+        }
+
+        private async Task<DmmReading> DmmReadVoltageAsync(CancellationToken token)
+        {
+            if (_dmmSocket == null)
+                _dmmSocket = new DmmSocketApi();
+
+            if (!_dmmSocket.IsConnected)
+                await _dmmSocket.ConnectAsync(DmmIpAddress, token).ConfigureAwait(false);
+
+            return await _dmmSocket.ReadOnceAsync(DmmMeasureMode.DCV, new DmmReadOptions { TimeoutMilliseconds = DmmTimeoutMs }, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// 万用表电压判据：0% 时电压应接近 0V（|V|≤1）；100% 时电压幅值应在 [17,32]V。
+        /// </summary>
+        private static bool IsVoltagePass(double? voltage, int expectedDutyPct, out string reason)
+        {
+            if (!voltage.HasValue)
+            {
+                reason = "万用表电压无有效值";
+                return false;
+            }
+
+            var v = voltage.Value;
+            var absV = Math.Abs(v);
+
+            if (expectedDutyPct == 0)
+            {
+                if (absV > 1.0)
+                {
+                    reason = $"电压不在[-1,1]V：{v:F4}V";
+                    return false;
+                }
+
+                reason = null;
+                return true;
+            }
+
+            // 100% PWM
+            if (absV < 17.0 || absV > 32.0)
+            {
+                reason = $"电压幅值不在[17,32]V：{absV:F4}V";
+                return false;
+            }
+
+            reason = null;
+            return true;
         }
 
         private static string FormatNum(double? v)
@@ -1614,46 +1830,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
         }
 
-        private static byte[] BuildPwmCommand(int dutyPct, int freqHz)
-        {
-            dutyPct = ClampDuty(dutyPct);
-            freqHz = ClampFreq(freqHz);
-
-            var periodUs = (long)Math.Round(1_000_000.0 / freqHz);
-            if (periodUs < 1)
-                periodUs = 1;
-
-            long onUs;
-            if (dutyPct >= 100)
-                onUs = 0;
-            else if (dutyPct <= 0)
-                onUs = periodUs;
-            else
-                onUs = (long)Math.Round(periodUs * dutyPct / 100.0);
-
-            if (onUs < 0)
-                onUs = 0;
-            if (onUs > periodUs)
-                onUs = periodUs;
-
-            ulong pScaled = (ulong)periodUs * 10UL;
-            ulong dutyScaled = (ulong)onUs * 10UL;
-            if (dutyScaled > pScaled)
-                dutyScaled = pScaled;
-
-            uint p = pScaled > uint.MaxValue ? uint.MaxValue : (uint)pScaled;
-            uint on = dutyScaled > p ? p : (uint)dutyScaled;
-
-            return new byte[]
-            {
-                0xAA, 0x55,
-                0x0A,0x05,
-                0x01,
-                (byte)(p & 0xFF), (byte)((p >> 8) & 0xFF), (byte)((p >> 16) & 0xFF), (byte)((p >> 24) & 0xFF),
-                (byte)(on & 0xFF), (byte)((on >> 8) & 0xFF), (byte)((on >> 16) & 0xFF), (byte)((on >> 24) & 0xFF)
-            };
-        }
-
         private static int ClampDuty(int dutyPct)
         {
             if (dutyPct < 0) return 0;
@@ -1668,22 +1844,20 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return freqHz;
         }
 
-        private static string FormatData(byte[] data)
-        {
-            if (data == null)
-                return "--";
-            return BitConverter.ToString(data).Replace("-", " ");
-        }
-
         public void Dispose()
         {
             try { _autoTestCts?.Cancel(); } catch { }
             try { _autoTestCts?.Dispose(); } catch { }
             _autoTestCts = null;
 
-            try { DisconnectFpgaAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
+            try { ResetDoChannelsAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
+            try { Cleanup7131Async().GetAwaiter().GetResult(); } catch { }
 
             try { UnrouteMatrixAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
+
+            try { if (_dmmSocket != null && _dmmSocket.IsConnected) _dmmSocket.DisconnectAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
+            try { _dmmSocket?.DisposeAsync().AsTask().Wait(1000); } catch { }
+            _dmmSocket = null;
 
             try { _scopeTcpStream?.Dispose(); } catch { }
             _scopeTcpStream = null;
