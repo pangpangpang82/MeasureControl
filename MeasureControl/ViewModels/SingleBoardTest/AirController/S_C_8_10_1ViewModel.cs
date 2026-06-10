@@ -38,7 +38,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const int DefaultScopePort = 5555;
         private const string DefaultScopeIpAddress = "192.168.1.18";
 
-        // 万用表（测量 DCM_V1 对 DCM_V2 之间的直流电压）
+        
         private const string DmmIpAddress = "192.168.1.13";
         private const int DmmTimeoutMs = 8000;
         // 万用表接入矩阵节点 ("I4", "O2", 4)；DCM_V1对DCM_V2 信号节点 ("I1", "O16", 6)
