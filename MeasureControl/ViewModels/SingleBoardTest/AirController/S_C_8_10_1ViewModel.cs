@@ -1,8 +1,10 @@
 ﻿using Prism.Commands;
 using Prism.Mvvm;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
@@ -10,7 +12,6 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using MeasureControl.Helpers;
 using MeasureControl.Services;
 using MeasureControl.Services.HardwareApis;
 
@@ -29,6 +30,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private const string Slot6Row = "I1";
         private const string DefaultSlot6OutputToScope = "O0";
+        private const string DcmV1ToScope = "O15";
         private const string DcmV2ToScope = "O14";
         private const string DcmV1V1ToScope = "O16";
 
@@ -38,7 +40,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private const int DefaultScopePort = 5555;
         private const string DefaultScopeIpAddress = "192.168.1.18";
 
-        
+        // 万用表（测量 DCM_V1 对 DCM_V2 之间的直流电压）
         private const string DmmIpAddress = "192.168.1.13";
         private const int DmmTimeoutMs = 8000;
         // 万用表接入矩阵节点 ("I4", "O2", 4)；DCM_V1对DCM_V2 信号节点 ("I1", "O16", 6)
@@ -49,6 +51,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private static readonly byte[] ResetToInitialCommandFrame = { 0xAA, 0x55, 0x0A, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
         private const int FixedGearFrequencyHz = 2000;
+        private const int AutoSimulatedClickIntervalMs = 3000;
+        private const int AutoSendToMeasureDelayMs = 10000;
 
         private readonly SemaphoreSlim _manualTestLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _autoTestLock = new SemaphoreSlim(1, 1);
@@ -59,7 +63,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private CancellationTokenSource _manualMeasureCts;
         private CancellationTokenSource _autoTestCts;
 
-        private FpgaTcpClient _fpga;
+        private TcpClient _fpgaClient;
+        private NetworkStream _fpgaStream;
+        private readonly SemaphoreSlim _fpgaSendLock = new SemaphoreSlim(1, 1);
+        private bool _fpgaInitialized;
 
         private TcpClient _scopeTcpClient;
         private NetworkStream _scopeTcpStream;
@@ -83,6 +90,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private string _pwm100Result = "--";
         private string _pwm50Result = "--";
         private string _pwm0Result = "--";
+
+        private bool? _manualPwm100Pass;
+        private bool? _manualPwm50Pass;
+        private bool? _manualPwm0Pass;
+        private string _manualPwm100FailPoint;
+        private string _manualPwm50FailPoint;
+        private string _manualPwm0FailPoint;
 
         private bool _isMeasuringPwmCustom;
         private bool _isMeasuringPwm100;
@@ -141,8 +155,8 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             AutoTestCommand = new DelegateCommand(OnAutoTest, () => !IsBusy && !IsManualTestRunning);
             ClearLogCommand = new DelegateCommand(() => Logs.Clear());
 
-            SendPwmCustomCommand = new DelegateCommand(async () => await SendCustomAsync(), () => !IsBusy && !IsManualTestRunning && !IsAutoTestRunning);
-            MeasurePwmCustomCommand = new DelegateCommand(async () => await MeasureCustomAsync(), () => !IsBusy && !IsManualTestRunning && !IsAutoTestRunning);
+            SendPwmCustomCommand = new DelegateCommand(async () => await SendCustomAsync(), () => IsConfigSendMeasureEnabled);
+            MeasurePwmCustomCommand = new DelegateCommand(async () => await MeasureCustomAsync(), () => IsConfigSendMeasureEnabled);
 
             SendPwm100Command = new DelegateCommand(async () => await SendFixedGearAsync(100), () => !IsBusy && IsManualTestRunning);
             MeasurePwm100Command = new DelegateCommand(async () => await MeasureFixedGearAsync(100), () => !IsBusy && IsManualTestRunning);
@@ -220,6 +234,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     if (value)
                         IsAutoTestRunning = false;
+                    RaisePropertyChanged(nameof(IsConfigSendMeasureEnabled));
                     RaiseAllCanExecuteChanged();
                 }
             }
@@ -234,6 +249,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 {
                     if (value)
                         IsManualTestRunning = false;
+                    RaisePropertyChanged(nameof(IsConfigSendMeasureEnabled));
                     RaiseAllCanExecuteChanged();
                 }
             }
@@ -246,10 +262,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 if (SetProperty(ref _isBusy, value))
                 {
+                    RaisePropertyChanged(nameof(IsConfigSendMeasureEnabled));
                     RaiseAllCanExecuteChanged();
                 }
             }
         }
+
+        public bool IsConfigSendMeasureEnabled => !IsBusy && !IsManualTestRunning && !IsAutoTestRunning;
 
         public int PwmFrequencyHz
         {
@@ -490,8 +509,22 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     return;
 
                 ClearResults();
-                IsManualTestRunning = true;
-                AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
+                IsBusy = true;
+                try
+                {
+                    IsManualTestRunning = true;
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试开始 ==========");
+                    await EnsureFpgaConnectedAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                finally
+                {
+                    IsBusy = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                IsManualTestRunning = false;
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 手动测试启动异常: {ex.Message}");
             }
             finally
             {
@@ -501,19 +534,27 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task StopManualTestAsync()
         {
+            try { _manualMeasureCts?.Cancel(); } catch { }
+            try { _manualMeasureCts?.Dispose(); } catch { }
+            _manualMeasureCts = null;
+
             await _manualTestLock.WaitAsync().ConfigureAwait(false);
             try
             {
                 if (!IsManualTestRunning)
                     return;
 
-                await DisconnectFpgaAsync(CancellationToken.None).ConfigureAwait(false);
-
-                // 断开示波器连接和矩阵开关（参照A_C_6_16_1_1_1ViewModel StopAutoTestAsync）
-                try { await DisconnectInstrumentsAndMatrixAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-
-                IsManualTestRunning = false;
-                AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试已停止 ==========");
+                IsBusy = true;
+                try
+                {
+                    IsManualTestRunning = false;
+                    await DisconnectFpgaAsync(CancellationToken.None).ConfigureAwait(false);
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试已停止 ==========");
+                }
+                finally
+                {
+                    IsBusy = false;
+                }
             }
             finally
             {
@@ -548,10 +589,21 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 try
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 自动测试开始 ==========");
+                    IsBusy = true;
+                    try
+                    {
+                        await EnsureFpgaConnectedAsync(token).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        IsBusy = false;
+                    }
 
-                    var r100 = await SendAndMeasureFixedAsync(100, delayBeforeMeasureMs: 500, token).ConfigureAwait(false);
-                    var r50 = await SendAndMeasureFixedAsync(50, delayBeforeMeasureMs: 500, token).ConfigureAwait(false);
-                    var r0 = await SendAndMeasureFixedAsync(0, delayBeforeMeasureMs: 500, token).ConfigureAwait(false);
+                    await SimulateManualClickDelayAsync("自动测试：模拟点击“开始手动测试”后的等待", token).ConfigureAwait(false);
+
+                    var r100 = await RunAutoFixedGearLikeManualAsync(100, token).ConfigureAwait(false);
+                    var r50 = await RunAutoFixedGearLikeManualAsync(50, token).ConfigureAwait(false);
+                    var r0 = await RunAutoFixedGearLikeManualAsync(0, token).ConfigureAwait(false);
 
                     var ok = r100.Pass && r50.Pass && r0.Pass;
                     var failPoint = !r100.Pass ? r100.FailPoint : (!r50.Pass ? r50.FailPoint : (!r0.Pass ? r0.FailPoint : string.Empty));
@@ -570,9 +622,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 finally
                 {
                     try { await DisconnectFpgaAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-
-                    // 断开示波器连接和矩阵开关（参照A_C_6_16_1_1_1ViewModel auto test finally）
-                    try { await DisconnectInstrumentsAndMatrixAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
 
                     IsAutoTestRunning = false;
                     try { _autoTestCts?.Dispose(); } catch { }
@@ -605,6 +654,13 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 LastTestResult = "--";
                 LastTestTime = "--";
 
+                _manualPwm100Pass = null;
+                _manualPwm50Pass = null;
+                _manualPwm0Pass = null;
+                _manualPwm100FailPoint = null;
+                _manualPwm50FailPoint = null;
+                _manualPwm0FailPoint = null;
+
                 J8VrmsText = "--";
                 J8FreqHzText = "--";
                 J8VmaxText = "--";
@@ -630,7 +686,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task SendCustomAsync()
         {
-            if (IsBusy || IsManualTestRunning || IsAutoTestRunning)
+            if (!IsConfigSendMeasureEnabled)
                 return;
 
             IsBusy = true;
@@ -647,54 +703,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
         private async Task MeasureCustomAsync()
         {
-            if (IsBusy)
+            if (!IsConfigSendMeasureEnabled)
                 return;
 
-            IsBusy = true;
             IsMeasuringPwmCustom = true;
             try
             {
-                // 自定义PWM只测量显示结果，不做合格判据
-                var mV2 = await MeasureOnceWithMatrixAsync(NormalizeSlot6Output(DcmV2ToScope), "DCM_V2对地", PwmDutyPct, CancellationToken.None).ConfigureAwait(false);
-
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    J8VrmsText = "--"; J8FreqHzText = "--"; J8VmaxText = "--"; J8VminText = "--"; J8VppText = "--"; J8DutyPctText = "--";
-                    J8J9VrmsText = "--"; J8J9FreqHzText = "--"; J8J9VmaxText = "--"; J8J9VminText = "--"; J8J9VppText = "--"; J8J9DutyPctText = "--";
-                    J9VrmsText = "--"; J9VmaxText = "--"; J9VminText = "--"; J9VppText = "--";
-                    if (mV2 != null)
-                    {
-                        J9FreqHzText = FormatNum(mV2.FreqHz);
-                        J9DutyPctText = FormatNum(mV2.DutyPct);
-                    }
-                    else
-                    {
-                        J9FreqHzText = "--";
-                        J9DutyPctText = "--";
-                    }
-                });
-
-                if (mV2 != null)
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 自定义PWM={PwmDutyPct}%：FREQ={FormatNum(mV2.FreqHz)}Hz, DUTY={FormatNum(mV2.DutyPct)}%（仅显示，无合格判据）");
-                else
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] 自定义PWM={PwmDutyPct}%：测量失败");
-
-                PwmCustomResult = mV2 != null ? $"FREQ={FormatNum(mV2.FreqHz)}Hz DUTY={FormatNum(mV2.DutyPct)}%" : "测量失败";
-            }
-            catch (OperationCanceledException)
-            {
-                AddLog($"自定义PWM测量已取消");
-                PwmCustomResult = "CANCEL";
-            }
-            catch (Exception ex)
-            {
-                AddLog($"自定义PWM测量异常: {ex.Message}");
-                PwmCustomResult = $"FAIL(异常:{ex.Message})";
+                var (pass, failPoint, _) = await MeasureAllPointsAsync(PwmDutyPct, PwmFrequencyHz, CancellationToken.None).ConfigureAwait(false);
+                PwmCustomResult = pass ? "PASS" : $"FAIL({failPoint})";
             }
             finally
             {
                 IsMeasuringPwmCustom = false;
-                IsBusy = false;
             }
         }
 
@@ -706,8 +726,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             IsBusy = true;
             try
             {
-                await SendPwmFrameAsync(dutyPct, FixedGearFrequencyHz, sendInit: dutyPct == 100, CancellationToken.None).ConfigureAwait(false);
-                AddLog($"PWM={dutyPct}%：已发送到 FPGA，请点击“测量”查看波形");
+                await SendFixedGearCoreAsync(dutyPct, CancellationToken.None).ConfigureAwait(false);
             }
             finally
             {
@@ -720,27 +739,105 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (IsBusy || !IsManualTestRunning)
                 return;
 
-            IsBusy = true;
+            try { _manualMeasureCts?.Cancel(); } catch { }
+            try { _manualMeasureCts?.Dispose(); } catch { }
+            _manualMeasureCts = new CancellationTokenSource();
+
             SetMeasuring(dutyPct, true);
             try
             {
-                var (pass, failPoint) = await MeasureAllPointsAsync(dutyPct, CancellationToken.None).ConfigureAwait(false);
-                SetFixedResult(dutyPct, pass ? "PASS" : $"FAIL({failPoint})");
+                var result = await MeasureFixedGearCoreAsync(dutyPct, _manualMeasureCts.Token).ConfigureAwait(false);
+                RecordManualFixedResult(dutyPct, result.Pass, result.FailPoint);
             }
             catch (OperationCanceledException)
             {
-                AddLog($"PWM={dutyPct}%测量已取消");
-                SetFixedResult(dutyPct, "CANCEL");
-            }
-            catch (Exception ex)
-            {
-                AddLog($"PWM={dutyPct}%测量异常: {ex.Message}");
-                SetFixedResult(dutyPct, $"FAIL(异常:{ex.Message})");
+                AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={dutyPct}%：测量已取消");
             }
             finally
             {
                 SetMeasuring(dutyPct, false);
-                IsBusy = false;
+            }
+        }
+
+        private void RecordManualFixedResult(int dutyPct, bool pass, string failPoint)
+        {
+            switch (dutyPct)
+            {
+                case 100:
+                    _manualPwm100Pass = pass;
+                    _manualPwm100FailPoint = failPoint;
+                    break;
+                case 50:
+                    _manualPwm50Pass = pass;
+                    _manualPwm50FailPoint = failPoint;
+                    break;
+                case 0:
+                    _manualPwm0Pass = pass;
+                    _manualPwm0FailPoint = failPoint;
+                    break;
+            }
+
+            TrySetManualLastTestResult();
+        }
+
+        private void TrySetManualLastTestResult()
+        {
+            if (!_manualPwm100Pass.HasValue || !_manualPwm50Pass.HasValue || !_manualPwm0Pass.HasValue)
+                return;
+
+            var ok = _manualPwm100Pass.Value && _manualPwm50Pass.Value && _manualPwm0Pass.Value;
+            var failPoint = !_manualPwm100Pass.Value ? _manualPwm100FailPoint : (!_manualPwm50Pass.Value ? _manualPwm50FailPoint : (!_manualPwm0Pass.Value ? _manualPwm0FailPoint : string.Empty));
+
+            SetLastTestResult(ok ? "PASS" : (string.IsNullOrWhiteSpace(failPoint) ? "FAIL" : $"FAIL({failPoint})"));
+            AddLog($"[{DateTime.Now:HH:mm:ss}] ========== 手动测试三项完成: {(ok ? "PASS" : "FAIL")} ==========");
+        }
+
+        private async Task SendFixedGearCoreAsync(int dutyPct, CancellationToken token)
+        {
+            await SendPwmFrameAsync(dutyPct, FixedGearFrequencyHz, sendInit: dutyPct == 100, token).ConfigureAwait(false);
+            AddLog($"PWM={dutyPct}%：已发送到 FPGA，请点击“测量”查看波形");
+        }
+
+        private async Task<(bool Pass, string FailPoint)> MeasureFixedGearCoreAsync(int dutyPct, CancellationToken token)
+        {
+            var (pass, failPoint, displayValue) = await MeasureAllPointsAsync(dutyPct, FixedGearFrequencyHz, token).ConfigureAwait(false);
+            SetFixedResult(dutyPct, BuildFixedResultText(displayValue, pass, failPoint));
+            return (pass, failPoint);
+        }
+
+        private async Task RouteMatrixToScopeAsync(string title, CancellationToken token)
+        {
+            await _instrumentLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                var matrix = MatrixControlService.Instance;
+
+                if (_isMatrixRouted)
+                {
+                    await UnrouteMatrixAsync(token).ConfigureAwait(false);
+                }
+
+                var slot6Output = NormalizeSlot6Output(DcmV1ToScope);
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 预览路由{title}：slot6 {Slot6Row}-{slot6Output} + slot4 {Slot4Row}-{Slot4ToScope}");
+
+                _matrixRoutedSlot6Output = slot6Output;
+                _matrixRoutedSlot6 = await matrix.ConnectNodesAsync(Slot6Row, slot6Output, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                _matrixRoutedSlot4 = await matrix.ConnectNodesAsync(Slot4Row, Slot4ToScope, Chassis2Slot4, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+
+                _isMatrixRouted = _matrixRoutedSlot6 && _matrixRoutedSlot4;
+
+                AddLog($"[{DateTime.Now:HH:mm:ss}] 预览路由{title}：slot6 {(_matrixRoutedSlot6 ? "OK" : "FAIL")}, slot4 {(_matrixRoutedSlot4 ? "OK" : "FAIL")}");
+                if (!_isMatrixRouted)
+                {
+                    await UnrouteMatrixAsync(token).ConfigureAwait(false);
+                    return;
+                }
+
+                await EnsureScopeConnectedAsync(token).ConfigureAwait(false);
+            }
+            finally
+            {
+                _instrumentLock.Release();
             }
         }
 
@@ -770,41 +867,6 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             _matrixRoutedSlot6Output = null;
         }
 
-        /// <summary>
-        /// 断开示波器连接和矩阵开关（参照A_C_6_16_1_1_1ViewModel DisconnectInstrumentsAndMatrixAsync）。
-        /// 先强制关闭示波器网络流，再在_instrumentLock保护下断开矩阵。
-        /// </summary>
-        private async Task DisconnectInstrumentsAndMatrixAsync(CancellationToken token)
-        {
-            // 先强制关闭示波器连接（不等待锁，确保stop不会死锁）
-            SafeCloseNetworkStream(ref _scopeTcpStream);
-            SafeCloseTcpClient(ref _scopeTcpClient);
-
-            try
-            {
-                // 用超时获取锁，避免测量持有锁时stop死锁
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                cts.CancelAfter(3000);
-                await _instrumentLock.WaitAsync(cts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // 锁不可用，已在上面强制关闭了示波器
-                await UnrouteMatrixAsync(CancellationToken.None).ConfigureAwait(false);
-                return;
-            }
-            try
-            {
-                SafeCloseNetworkStream(ref _scopeTcpStream);
-                SafeCloseTcpClient(ref _scopeTcpClient);
-                await UnrouteMatrixAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-            finally
-            {
-                _instrumentLock.Release();
-            }
-        }
-
         private async Task<MeasurementResult> MeasureOnceWithMatrixAsync(string slot6Output, string title, int expectedDutyPct, CancellationToken token)
         {
             slot6Output = NormalizeSlot6Output(slot6Output);
@@ -827,10 +889,10 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     if (!ok1 || !ok2)
                         return null;
 
-                    // 示波器连接跨测量保持（参照A_C_6_16_1_1_1 MeasureRawCoreAsync：scope只在test stop时断开）
+                    try { await DisconnectScopeAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     await EnsureScopeConnectedAsync(token).ConfigureAwait(false);
 
-                    // Send AUToscale to auto-configure the scope settings (referencing A_C_6_16_1_1_1ViewModel)
+                    // Send AUToscale to auto-configure the scope settings
                     AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送 :AUToscale (示波器自动设置) 并等待完成...");
                     try
                     {
@@ -838,7 +900,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         try
                         {
                             var opc = await QueryScopeAsync("*OPC?", 20000, token).ConfigureAwait(false);
-                            AddLog($"[{DateTime.Now:HH:mm:ss}] *OPC? 响应：{opc ?? "(null)"}");
+                            _ = opc;
                         }
                         catch (Exception ex)
                         {
@@ -850,83 +912,136 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                         AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：发送 :AUToscale 失败：{ex.Message}");
                     }
 
-                    // Configure measurement items: FREQuency + PWIDth + NWIDth (referencing A_C_6_16_1_1_1ViewModel)
-                    double? freq = null, duty = null;
+                    // Configure measurement items based on PWM percentage
+                    double? vrms = null, freq = null, vmax = null, vmin = null, vpp = null, duty = null;
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：PWM={expectedDutyPct}%，配置测量项 FREQuency, PWIDth, NWIDth...");
-                    try
+                    if (expectedDutyPct == 100 || expectedDutyPct == 0)
                     {
-                        await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
-                        await SendScopeCommandAsync(":MEASure:CLEar", token).ConfigureAwait(false);
-                        await SendScopeCommandAsync(":MEASure:ITEM FREQuency", token).ConfigureAwait(false);
-                        await SendScopeCommandAsync(":MEASure:ITEM PWIDth", token).ConfigureAwait(false);
-                        await SendScopeCommandAsync(":MEASure:ITEM NWIDth", token).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：配置测量项异常：{ex.Message}");
-                    }
-
-                    // Delay 5s for waveform stabilization (referencing A_C_6_16_1_1_1ViewModel)
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：延时5秒等待波形稳定...");
-                    await Task.Delay(5000, token).ConfigureAwait(false);
-
-                    // Query frequency
-                    try
-                    {
-                        await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
-                        var rawFreq = await QueryScopeAsync(":MEASure:ITEM? FREQuency", 10000, token).ConfigureAwait(false);
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：频率原始响应：'{rawFreq}'");
-                        freq = ParseScopeDouble(rawFreq);
-                        if (freq.HasValue)
-                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：频率解析值：{freq.Value:F3} Hz");
-                        else
-                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：频率解析失败");
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询频率异常：{ex.Message}");
-                    }
-
-                    // Query duty cycle — calculate from PWIDth (高电平时间) + NWIDth (低电平时间) (referencing A_C_6_16_1_1_1ViewModel)
-                    try
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：通过PWIDth+NWIDth计算占空比...");
-                        var rawPw = await QueryScopeAsync(":MEASure:ITEM? PWIDth", 10000, token).ConfigureAwait(false);
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：高电平时间原始响应(PWIDth)：'{rawPw}'");
-                        var pw = ParseScopeDouble(rawPw);
-
-                        var rawNw = await QueryScopeAsync(":MEASure:ITEM? NWIDth", 10000, token).ConfigureAwait(false);
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：低电平时间原始响应(NWIDth)：'{rawNw}'");
-                        var nw = ParseScopeDouble(rawNw);
-
-                        if (pw.HasValue && nw.HasValue && (pw.Value + nw.Value) > 0)
+                        // 100%/0% PWM: measure VRMS + FREQuency (referencing A_C_6_16_1_1_1ViewModel)
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：PWM={expectedDutyPct}%，配置测量项 VRMS, FREQuency...");
+                        try
                         {
-                            duty = pw.Value / (pw.Value + nw.Value) * 100.0;
-                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：占空比计算值：PWIDth={pw.Value:F6}s, NWIDth={nw.Value:F6}s, DUTY={duty.Value:F3}%");
+                            await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
+                            await SendScopeCommandAsync(":MEASure:CLEar", token).ConfigureAwait(false);
+                            await SendScopeCommandAsync(":MEASure:ITEM VRMS", token).ConfigureAwait(false);
+                            await SendScopeCommandAsync(":MEASure:ITEM FREQuency", token).ConfigureAwait(false);
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：PWIDth/NWIDth无法获取有效值，占空比计算失败");
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：配置测量项异常：{ex.Message}");
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询占空比异常：{ex.Message}");
-                    }
 
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：测量完成 FREQ={FormatNum(freq)}Hz, DUTY={FormatNum(duty)}%");
+                        // Delay 5s for waveform stabilization (referencing A_C_6_16_1_1_1ViewModel)
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：延时5秒等待波形稳定...");
+                        await Task.Delay(5000, token).ConfigureAwait(false);
+
+                        try
+                        {
+                            var rawVrms = await QueryScopeAsync(":MEASure:ITEM? VRMS", 10000, token).ConfigureAwait(false);
+                            vrms = ParseScopeDouble(rawVrms);
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询VRMS异常：{ex.Message}");
+                        }
+
+                        try
+                        {
+                            await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
+                            var rawFreq = await QueryScopeAsync(":MEASure:ITEM? FREQuency", 10000, token).ConfigureAwait(false);
+                            freq = ParseScopeDouble(rawFreq);
+                            if (freq.HasValue)
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：频率解析值：{freq.Value:F3} Hz");
+                            else
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：频率解析失败");
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：查询频率异常：{ex.Message}");
+                        }
+
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：测量完成 VRMS={FormatNum(vrms)}V, FREQ={FormatNum(freq)}Hz");
+                    }
+                    else if (expectedDutyPct == 50)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：PWM=50%，改用波形采样点计算频率/占空比...");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：延时5秒等待波形稳定后读取 CH1 波形...");
+                        await Task.Delay(5000, token).ConfigureAwait(false);
+
+                        try
+                        {
+                            var waveform = await MeasurePwmFromWaveformWithRetryAsync(title, token).ConfigureAwait(false);
+                            if (waveform != null)
+                            {
+                                vrms = waveform.Vrms;
+                                freq = waveform.FreqHz;
+                                vmax = waveform.Vmax;
+                                vmin = waveform.Vmin;
+                                vpp = waveform.Vpp;
+                                duty = waveform.DutyPct;
+
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：波形计算结果 FREQ={FormatNum(freq)}Hz, DUTY={FormatNum(duty)}%, VMIN={FormatNum(vmin)}V, VMAX={FormatNum(vmax)}V");
+                            }
+                            else
+                            {
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：波形采样点计算失败");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：读取波形采样点异常：{ex.Message}");
+                        }
+
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：测量完成 FREQ={FormatNum(freq)}Hz, DUTY={FormatNum(duty)}%");
+                    }
+                    else
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：PWM={expectedDutyPct}%，改用波形采样点计算频率/占空比...");
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：延时5秒等待波形稳定后读取 CH1 波形...");
+                        await Task.Delay(5000, token).ConfigureAwait(false);
+
+                        try
+                        {
+                            var waveform = await MeasurePwmFromWaveformAsync(title, token).ConfigureAwait(false);
+                            if (waveform != null)
+                            {
+                                vrms = waveform.Vrms;
+                                freq = waveform.FreqHz;
+                                vmax = waveform.Vmax;
+                                vmin = waveform.Vmin;
+                                vpp = waveform.Vpp;
+                                duty = waveform.DutyPct;
+
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：波形计算结果 FREQ={FormatNum(freq)}Hz, DUTY={FormatNum(duty)}%, VMIN={FormatNum(vmin)}V, VMAX={FormatNum(vmax)}V");
+                            }
+                            else
+                            {
+                                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：波形采样点计算失败");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：读取波形采样点异常：{ex.Message}");
+                        }
+
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：测量完成 FREQ={FormatNum(freq)}Hz, DUTY={FormatNum(duty)}%");
+                    }
 
                     return new MeasurementResult
                     {
                         Title = title,
+                        Vrms = vrms,
                         FreqHz = freq,
+                        Vmax = vmax,
+                        Vmin = vmin,
+                        Vpp = vpp,
                         DutyPct = duty
                     };
                 }
                 finally
                 {
-                    // 测量完成后断开矩阵开关（参照A_C_6_16_1_1_1 MeasureRawCoreAsync DisconnectMatrixAsync）
+                    try { await DisconnectScopeAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+
                     try
                     {
                         if (ok2)
@@ -947,31 +1062,34 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 _instrumentLock.Release();
             }
         }
-        private async Task<(bool Pass, string FailPoint)> SendAndMeasureFixedAsync(int dutyPct, int delayBeforeMeasureMs, CancellationToken token)
+        private async Task<(bool Pass, string FailPoint)> RunAutoFixedGearLikeManualAsync(int dutyPct, CancellationToken token)
         {
-            await _opLock.WaitAsync(token).ConfigureAwait(false);
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：模拟点击“发送{dutyPct}%PWM”按钮");
+            await SendFixedGearCoreAsync(dutyPct, token).ConfigureAwait(false);
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：模拟手动点击间隔，等待 {AutoSendToMeasureDelayMs / 1000.0:F1} 秒后测量 PWM={dutyPct}%");
+            await Task.Delay(AutoSendToMeasureDelayMs, token).ConfigureAwait(false);
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 自动测试：模拟点击“测量{dutyPct}%PWM”按钮");
+            SetMeasuring(dutyPct, true);
+            (bool Pass, string FailPoint) result;
             try
             {
-                SetMeasuring(dutyPct, true);
-                try
-                {
-                    await SendPwmFrameAsync(dutyPct, FixedGearFrequencyHz, sendInit: dutyPct == 100, token).ConfigureAwait(false);
-                    if (delayBeforeMeasureMs > 0)
-                        await Task.Delay(delayBeforeMeasureMs, token).ConfigureAwait(false);
-
-                    var (pass, failPoint) = await MeasureAllPointsAsync(dutyPct, token).ConfigureAwait(false);
-                    SetFixedResult(dutyPct, pass ? "PASS" : $"FAIL({failPoint})");
-                    return (pass, failPoint);
-                }
-                finally
-                {
-                    SetMeasuring(dutyPct, false);
-                }
+                result = await MeasureFixedGearCoreAsync(dutyPct, token).ConfigureAwait(false);
             }
             finally
             {
-                _opLock.Release();
+                SetMeasuring(dutyPct, false);
             }
+
+            await SimulateManualClickDelayAsync($"自动测试：PWM={dutyPct}%测量完成后的手动点击间隔", token).ConfigureAwait(false);
+            return result;
+        }
+
+        private async Task SimulateManualClickDelayAsync(string message, CancellationToken token)
+        {
+            AddLog($"[{DateTime.Now:HH:mm:ss}] {message}，等待 {AutoSimulatedClickIntervalMs / 1000.0:F1} 秒");
+            await Task.Delay(AutoSimulatedClickIntervalMs, token).ConfigureAwait(false);
         }
 
         private void SetMeasuring(int dutyPct, bool value)
@@ -1012,30 +1130,41 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             });
         }
 
+        private static string BuildFixedResultText(string displayValue, bool pass, string failPoint)
+        {
+            if (!string.IsNullOrWhiteSpace(displayValue) && displayValue != "--")
+                return displayValue;
+
+            return pass ? "--" : $"FAIL({failPoint})";
+        }
+
         private async Task DisconnectFpgaAsync(CancellationToken token)
         {
-            await _opLock.WaitAsync(token).ConfigureAwait(false);
             try
             {
-                if (_fpga != null && _fpga.IsConnected)
+                if (_fpgaClient?.Connected == true && _fpgaStream != null)
                 {
+                    await _fpgaSendLock.WaitAsync(token).ConfigureAwait(false);
                     try
                     {
                         AddLog($"FPGA复位: 发送 {FormatData(ResetToInitialCommandFrame)}");
-                        await _fpga.WriteAsync(ResetToInitialCommandFrame, 0, ResetToInitialCommandFrame.Length, token).ConfigureAwait(false);
-                        await Task.Delay(500, token).ConfigureAwait(false);
+                        await _fpgaStream.WriteAsync(ResetToInitialCommandFrame, 0, ResetToInitialCommandFrame.Length, token).ConfigureAwait(false);
+                        await _fpgaStream.FlushAsync(token).ConfigureAwait(false);
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        AddLog($"FPGA复位失败: {ex.Message}");
+                    }
+                    finally
+                    {
+                        _fpgaSendLock.Release();
+                    }
                 }
+            }
+            catch { }
 
-                try { _fpga?.Disconnect(); } catch { }
-                try { _fpga?.Dispose(); } catch { }
-                _fpga = null;
-            }
-            finally
-            {
-                _opLock.Release();
-            }
+            await DisconnectFpgaTcpAsync().ConfigureAwait(false);
+            AddLog("FPGA已断开释放");
         }
 
         private static string NormalizeSlot6Output(string slot6Output)
@@ -1043,7 +1172,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return string.IsNullOrWhiteSpace(slot6Output) ? DefaultSlot6OutputToScope : slot6Output;
         }
 
-        private async Task<(bool Pass, string FailPoint)> MeasureAllPointsAsync(int expectedDutyPct, CancellationToken token)
+        private async Task<(bool Pass, string FailPoint, string DisplayValue)> MeasureAllPointsAsync(int expectedDutyPct, int expectedFreqHz, CancellationToken token)
         {
             // 100% / 0% PWM：用万用表测量 DCM_V1 对 DCM_V2 之间的直流电压（不再测量三处波形）
             if (expectedDutyPct == 100 || expectedDutyPct == 0)
@@ -1058,17 +1187,18 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                     J8J9FreqHzText = "--"; J8J9VmaxText = "--"; J8J9VminText = "--"; J8J9VppText = "--"; J8J9DutyPctText = "--";
                 });
 
-                var rVolt = string.Empty;
+                string rVolt = null;
+                var displayValue = FormatMeasurementValue(voltage, "V");
                 var voltageOk = vok && IsVoltagePass(voltage, expectedDutyPct, out rVolt);
                 if (voltageOk)
                 {
                     AddLog($"DCM_V1对DCM_V2(万用表电压) 判据PASS：{FormatNum(voltage)}V");
                     AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={expectedDutyPct}%：电压测量PASS");
-                    return (true, string.Empty);
+                    return (true, string.Empty, displayValue);
                 }
 
                 AddLog($"DCM_V1对DCM_V2(万用表电压) 判据FAIL: {(vok ? rVolt : "万用表测量失败")}");
-                return (false, "DCM_V1对DCM_V2电压");
+                return (false, "DCM_V1对DCM_V2电压", displayValue);
             }
 
             // 其他占空比（含50%）：只测量 DCM_V2 对地波形，判断占空比
@@ -1078,36 +1208,32 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             {
                 J8VrmsText = "--"; J8FreqHzText = "--"; J8VmaxText = "--"; J8VminText = "--"; J8VppText = "--"; J8DutyPctText = "--";
                 J8J9VrmsText = "--"; J8J9FreqHzText = "--"; J8J9VmaxText = "--"; J8J9VminText = "--"; J8J9VppText = "--"; J8J9DutyPctText = "--";
-                J9VrmsText = "--"; J9VmaxText = "--"; J9VminText = "--"; J9VppText = "--";
                 if (mV2 != null)
                 {
+                    J9VrmsText = FormatNum(mV2.Vrms);
                     J9FreqHzText = FormatNum(mV2.FreqHz);
+                    J9VmaxText = FormatNum(mV2.Vmax);
+                    J9VminText = FormatNum(mV2.Vmin);
+                    J9VppText = FormatNum(mV2.Vpp);
                     J9DutyPctText = FormatNum(mV2.DutyPct);
-                }
-                else
-                {
-                    J9FreqHzText = "--";
-                    J9DutyPctText = "--";
                 }
             });
 
-            var okV2 = IsMeasurementPass(mV2, expectedDutyPct, PwmFrequencyHz, out var rV2);
+            var dutyValue = FormatMeasurementValue(mV2?.DutyPct, "%");
+            var okV2 = IsMeasurementPass(mV2, expectedDutyPct, expectedFreqHz, out var rV2);
             if (okV2)
             {
                 AddLog($"{mV2?.Title ?? "DCM_V2对地"} 判据PASS");
                 AddLog($"[{DateTime.Now:HH:mm:ss}] PWM={expectedDutyPct}%：DCM_V2对地占空比测量PASS");
-                return (true, string.Empty);
+                return (true, string.Empty, dutyValue);
             }
 
             AddLog($"{mV2?.Title ?? "DCM_V2对地"} 判据FAIL: {rV2}");
-            return (false, mV2?.Title ?? "DCM_V2对地");
+            return (false, mV2?.Title ?? "DCM_V2对地", dutyValue);
         }
 
         /// <summary>
-        /// 100%/0% PWM：路由矩阵节点，用万用表测量 DCM_V1 对 DCM_V2 直流电压。
-        /// 参照 A_C_6_18_1_1ViewModel ReadDmmVoltageAsync 模式：
-        /// 矩阵连接 → 延时2秒 → DMM连接+单次读数+断开 → 矩阵断开。
-        /// 每次新建DMM实例，无需flush read。
+        /// 100%/0% PWM：路由矩阵节点 ("I4","O2",4) + ("I1","O16",6)，用万用表测量 DCM_V1 对 DCM_V2 直流电压。
         /// </summary>
         private async Task<(bool Ok, double? Voltage)> MeasureV1V2VoltageWithMatrixAsync(CancellationToken token)
         {
@@ -1115,85 +1241,71 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try
             {
                 var matrix = MatrixControlService.Instance;
-
-                // 矩阵连接：DMM通路 + 信号通路
-                var ops = new (string inNode, string outNode, int slot)[]
-                {
-                    (DmmMatrixRow, DmmMatrixOutput, Chassis2Slot4),  // DMM通路
-                    (Slot6Row, DcmV1V1ToScope, Chassis2Slot6)        // 信号通路
-                };
-
-                AddLog($"[{DateTime.Now:HH:mm:ss}] 路由DCM_V1对DCM_V2：DMM({DmmMatrixRow}->{DmmMatrixOutput} slot{Chassis2Slot4}) + 信号({Slot6Row}->{DcmV1V1ToScope} slot{Chassis2Slot6})");
-
-                var connectTasks = ops.Select(op =>
-                    matrix.ConnectNodesAsync(op.inNode, op.outNode, op.slot, MatrixIpAddress, MatrixTcpBasePort)).ToArray();
-                var connectResults = await Task.WhenAll(connectTasks).ConfigureAwait(false);
-                bool allOk = connectResults.All(r => r);
-
-                if (!allOk)
-                {
-                    AddLog($"[{DateTime.Now:HH:mm:ss}] DCM_V1对DCM_V2：矩阵路由失败 DMM={connectResults[0]}, 信号={connectResults[1]}");
-                    // 即使失败也尝试断开已连接的
-                    try
-                    {
-                        var disconnectTasks = ops.Select(op =>
-                            matrix.DisconnectNodesAsync(op.inNode, op.outNode, op.slot, MatrixIpAddress, MatrixTcpBasePort)).ToArray();
-                        await Task.WhenAll(disconnectTasks).ConfigureAwait(false);
-                    }
-                    catch { }
-                    return (false, null);
-                }
-
-                // 延时2秒等待继电器闭合与信号通路稳定（参照A_C_6_18_1_1ViewModel ReadDmmVoltageAsync）
-                AddLog($"[{DateTime.Now:HH:mm:ss}] DCM_V1对DCM_V2：延时2秒等待信号稳定...");
-                await Task.Delay(2000, token).ConfigureAwait(false);
-
-                // DMM测量：每次新建实例，连接+读数+断开（参照A_C_6_18_1_1ViewModel ReadDmmVoltageAsync）
-                double? voltage = null;
+                bool okDmm = false;
+                bool okSig = false;
                 try
                 {
-                    var ip = (DmmIpAddress ?? string.Empty).Trim();
-                    await using IDmmApi dmm = new DmmSocketApi();
-                    try
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 路由DCM_V1对DCM_V2(万用表)：slot{Chassis2Slot4} {DmmMatrixRow}-{DmmMatrixOutput} + slot{Chassis2Slot6} {Slot6Row}-{DcmV1V1ToScope}");
+
+                    okDmm = await matrix.ConnectNodesAsync(DmmMatrixRow, DmmMatrixOutput, Chassis2Slot4, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                    okSig = await matrix.ConnectNodesAsync(Slot6Row, DcmV1V1ToScope, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] 路由结果：DMM={(okDmm ? "OK" : "FAIL")}, SIG={(okSig ? "OK" : "FAIL")}");
+                    if (!okDmm || !okSig)
+                        return (false, null);
+
+                    // 等待继电器与信号稳定
+                    await Task.Delay(200, token).ConfigureAwait(false);
+
+                    var reading = await DmmReadVoltageAsync(token).ConfigureAwait(false);
+                    if (reading?.Value == null)
                     {
-                        await dmm.ConnectAsync(ip, token).ConfigureAwait(false);
-                        var r = await dmm.ReadOnceAsync(DmmMeasureMode.DCV, new DmmReadOptions { TimeoutMilliseconds = DmmTimeoutMs }, token).ConfigureAwait(false);
-                        if (r != null && !r.IsOverrange && r.Value.HasValue)
-                        {
-                            voltage = r.Value.Value;
-                            AddLog($"[{DateTime.Now:HH:mm:ss}] DCM_V1对DCM_V2：万用表直流电压={voltage.Value:F4}V");
-                        }
-                        else
-                        {
-                            AddLog($"[{DateTime.Now:HH:mm:ss}] DCM_V1对DCM_V2：万用表读数无效 (raw={r?.Raw}, overrange={r?.IsOverrange})");
-                        }
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] DCM_V1对DCM_V2：万用表读数无效");
+                        return (false, null);
                     }
-                    finally
-                    {
-                        try { await dmm.DisconnectAsync(token).ConfigureAwait(false); } catch { }
-                    }
+
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] DCM_V1对DCM_V2：万用表直流电压={reading.Value.Value:F4}V");
+                    return (true, reading.Value.Value);
                 }
                 catch (Exception ex)
                 {
                     AddLog($"[{DateTime.Now:HH:mm:ss}] DCM_V1对DCM_V2：电压测量异常：{ex.Message}");
+                    return (false, null);
                 }
                 finally
                 {
-                    // 矩阵断开（参照A_C_6_18_1_1ViewModel ReadDmmVoltageAsync finally）
                     try
                     {
-                        var disconnectTasks = ops.Select(op =>
-                            matrix.DisconnectNodesAsync(op.inNode, op.outNode, op.slot, MatrixIpAddress, MatrixTcpBasePort)).ToArray();
-                        await Task.WhenAll(disconnectTasks).ConfigureAwait(false);
+                        if (okSig)
+                            _ = await matrix.DisconnectNodesAsync(Slot6Row, DcmV1V1ToScope, Chassis2Slot6, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
+                    }
+                    catch { }
+
+                    try
+                    {
+                        if (okDmm)
+                            _ = await matrix.DisconnectNodesAsync(DmmMatrixRow, DmmMatrixOutput, Chassis2Slot4, MatrixIpAddress, MatrixTcpBasePort).ConfigureAwait(false);
                     }
                     catch { }
                 }
-
-                return (voltage.HasValue, voltage);
             }
             finally
             {
                 _instrumentLock.Release();
+            }
+        }
+
+        private async Task<DmmReading> DmmReadVoltageAsync(CancellationToken token)
+        {
+            await using IDmmApi dmm = new DmmSocketApi();
+            try
+            {
+                await dmm.ConnectAsync(DmmIpAddress, token).ConfigureAwait(false);
+                return await dmm.ReadOnceAsync(DmmMeasureMode.DCV, new DmmReadOptions { TimeoutMilliseconds = DmmTimeoutMs }, token).ConfigureAwait(false);
+            }
+            finally
+            {
+                try { await dmm.DisconnectAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
             }
         }
 
@@ -1237,8 +1349,270 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
         private sealed class MeasurementResult
         {
             public string Title { get; set; }
+            public double? Vrms { get; set; }
             public double? FreqHz { get; set; }
+            public double? Vmax { get; set; }
+            public double? Vmin { get; set; }
+            public double? Vpp { get; set; }
             public double? DutyPct { get; set; }
+        }
+
+        private sealed class WaveformPwmResult
+        {
+            public double? Vrms { get; set; }
+            public double? FreqHz { get; set; }
+            public double? Vmax { get; set; }
+            public double? Vmin { get; set; }
+            public double? Vpp { get; set; }
+            public double? DutyPct { get; set; }
+            public int SampleCount { get; set; }
+            public int RisingEdgeCount { get; set; }
+            public int FallingEdgeCount { get; set; }
+            public double Threshold { get; set; }
+        }
+
+        private async Task<WaveformPwmResult> MeasurePwmFromWaveformWithRetryAsync(string title, CancellationToken token)
+        {
+            const int maxAttempts = 2;
+
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：第{attempt}次读取 CH1 波形采样点...");
+                var result = await MeasurePwmFromWaveformAsync(title, token).ConfigureAwait(false);
+                if (IsWaveformPwmValid(result))
+                    return result;
+
+                if (attempt < maxAttempts)
+                {
+                    AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：第{attempt}次波形未得到有效频率/占空比，保持矩阵连接并重试一次...");
+                    await Task.Delay(1500, token).ConfigureAwait(false);
+                }
+            }
+
+            AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：两次波形读取仍无有效频率/占空比，结束测量并断开矩阵");
+            return null;
+        }
+
+        private static bool IsWaveformPwmValid(WaveformPwmResult result)
+        {
+            return result != null && result.FreqHz.HasValue && result.DutyPct.HasValue;
+        }
+
+        private async Task<WaveformPwmResult> MeasurePwmFromWaveformAsync(string title, CancellationToken token)
+        {
+            if (_scopeTcpStream == null && _scopeTcpClient == null)
+                return null;
+
+            await _scopeIoLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                return await Task.Run(() =>
+                {
+                    var stream = _scopeTcpStream;
+                    if (stream == null)
+                        return null;
+
+                    string preamble = null;
+                    byte[] data = null;
+
+                    try
+                    {
+                        WriteScopeUnsafe(":STOP");
+                        token.ThrowIfCancellationRequested();
+
+                        WriteScopeUnsafe(":WAVeform:SOURce CHANnel1");
+                        WriteScopeUnsafe(":WAVeform:MODE NORM");
+                        WriteScopeUnsafe(":WAVeform:FORMat BYTE");
+                        WriteScopeUnsafe(":WAVeform:PREamble?");
+                        preamble = ReadLineAsync(stream, 10000, token).GetAwaiter().GetResult();
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：波形前导信息：'{preamble}'");
+
+                        var cmd = Encoding.ASCII.GetBytes(":WAVeform:DATA?\n");
+                        stream.Write(cmd, 0, cmd.Length);
+                        data = ReadIeee4882DefiniteLengthBlock(stream, 50_000_000);
+                    }
+                    finally
+                    {
+                        try { WriteScopeUnsafe(":RUN"); } catch { }
+                    }
+
+                    var result = AnalyzePwmWaveform(preamble, data);
+                    if (result != null)
+                    {
+                        AddLog($"[{DateTime.Now:HH:mm:ss}] {title}：波形点数={result.SampleCount}, 上升沿={result.RisingEdgeCount}, 下降沿={result.FallingEdgeCount}, 阈值={result.Threshold:F3}V");
+                    }
+
+                    return result;
+                }, token).ConfigureAwait(false);
+            }
+            finally
+            {
+                _scopeIoLock.Release();
+            }
+        }
+
+        private static WaveformPwmResult AnalyzePwmWaveform(string preamble, byte[] data)
+        {
+            if (string.IsNullOrWhiteSpace(preamble) || data == null || data.Length < 10)
+                return null;
+
+            var items = preamble
+                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => double.TryParse(s.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : double.NaN)
+                .ToArray();
+            if (items.Length < 10)
+                return null;
+
+            double xInc = items[4];
+            double yInc = items[7];
+            double yOrig = items[8];
+            double yRef = items[9];
+            if (double.IsNaN(xInc) || xInc <= 0 || double.IsNaN(yInc))
+                return null;
+
+            var volts = new double[data.Length];
+            for (int i = 0; i < data.Length; i++)
+                volts[i] = (data[i] - yRef) * yInc + yOrig;
+
+            double vMin = volts.Min();
+            double vMax = volts.Max();
+            double vpp = vMax - vMin;
+            if (vpp <= 1e-9)
+                return new WaveformPwmResult
+                {
+                    Vrms = Math.Sqrt(volts.Select(v => v * v).Average()),
+                    Vmax = vMax,
+                    Vmin = vMin,
+                    Vpp = vpp,
+                    SampleCount = volts.Length
+                };
+
+            double vLow = Percentile(volts, 0.10);
+            double vHigh = Percentile(volts, 0.90);
+            double span = vHigh - vLow;
+            if (span <= 1e-9)
+                span = vpp;
+
+            double threshold = vLow + span * 0.5;
+            double highThreshold = vLow + span * 0.6;
+            double lowThreshold = vLow + span * 0.4;
+
+            var risingEdges = new List<double>();
+            var fallingEdges = new List<double>();
+            bool isHigh = volts[0] >= threshold;
+
+            for (int i = 1; i < volts.Length; i++)
+            {
+                if (!isHigh && volts[i] >= highThreshold)
+                {
+                    risingEdges.Add(GetCrossingTime(volts[i - 1], volts[i], i, threshold, xInc));
+                    isHigh = true;
+                }
+                else if (isHigh && volts[i] <= lowThreshold)
+                {
+                    fallingEdges.Add(GetCrossingTime(volts[i - 1], volts[i], i, threshold, xInc));
+                    isHigh = false;
+                }
+            }
+
+            double? freq = CalculateFrequencyFromEdges(risingEdges, fallingEdges);
+            double? duty = CalculateDutyFromEdges(risingEdges, fallingEdges);
+
+            return new WaveformPwmResult
+            {
+                Vrms = Math.Sqrt(volts.Select(v => v * v).Average()),
+                FreqHz = freq,
+                Vmax = vMax,
+                Vmin = vMin,
+                Vpp = vpp,
+                DutyPct = duty,
+                SampleCount = volts.Length,
+                RisingEdgeCount = risingEdges.Count,
+                FallingEdgeCount = fallingEdges.Count,
+                Threshold = threshold
+            };
+        }
+
+        private static double Percentile(double[] values, double percentile)
+        {
+            var sorted = values.OrderBy(v => v).ToArray();
+            if (sorted.Length == 0)
+                return double.NaN;
+
+            var index = (int)Math.Round((sorted.Length - 1) * percentile);
+            if (index < 0)
+                index = 0;
+            if (index >= sorted.Length)
+                index = sorted.Length - 1;
+            return sorted[index];
+        }
+
+        private static double GetCrossingTime(double previous, double current, int index, double threshold, double xInc)
+        {
+            var denom = current - previous;
+            var fraction = Math.Abs(denom) < 1e-12 ? 0.0 : (threshold - previous) / denom;
+            if (fraction < 0.0)
+                fraction = 0.0;
+            if (fraction > 1.0)
+                fraction = 1.0;
+            return (index - 1 + fraction) * xInc;
+        }
+
+        private static double? CalculateFrequencyFromEdges(List<double> risingEdges, List<double> fallingEdges)
+        {
+            var periods = new List<double>();
+            for (int i = 1; i < risingEdges.Count; i++)
+            {
+                var period = risingEdges[i] - risingEdges[i - 1];
+                if (period > 0)
+                    periods.Add(period);
+            }
+
+            if (periods.Count == 0)
+            {
+                for (int i = 1; i < fallingEdges.Count; i++)
+                {
+                    var period = fallingEdges[i] - fallingEdges[i - 1];
+                    if (period > 0)
+                        periods.Add(period);
+                }
+            }
+
+            if (periods.Count == 0)
+                return null;
+
+            var medianPeriod = Median(periods);
+            return medianPeriod > 0 ? 1.0 / medianPeriod : (double?)null;
+        }
+
+        private static double? CalculateDutyFromEdges(List<double> risingEdges, List<double> fallingEdges)
+        {
+            var duties = new List<double>();
+            for (int i = 0; i < risingEdges.Count - 1; i++)
+            {
+                var rise = risingEdges[i];
+                var nextRise = risingEdges[i + 1];
+                var fall = fallingEdges.FirstOrDefault(t => t > rise && t < nextRise);
+                if (fall <= rise)
+                    continue;
+
+                var period = nextRise - rise;
+                var highWidth = fall - rise;
+                if (period > 0 && highWidth > 0)
+                    duties.Add(highWidth / period * 100.0);
+            }
+
+            if (duties.Count == 0)
+                return null;
+
+            return Median(duties);
+        }
+
+        private static double Median(List<double> values)
+        {
+            var sorted = values.OrderBy(v => v).ToArray();
+            int mid = sorted.Length / 2;
+            return sorted.Length % 2 == 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2.0;
         }
 
         private static bool IsMeasurementPass(MeasurementResult m, int expectedDutyPct, int expectedFreqHz, out string reason)
@@ -1249,7 +1623,45 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return false;
             }
 
-            // 50% PWM: duty cycle within ±1% (only duty, no frequency check)
+            // 0% PWM: VRMS should be near 0V
+            if (expectedDutyPct == 0)
+            {
+                if (!m.Vrms.HasValue)
+                {
+                    reason = "示波器VRMS无有效值";
+                    return false;
+                }
+
+                if (m.Vrms.Value < -1.0 || m.Vrms.Value > 1.0)
+                {
+                    reason = $"VRMS不在[-1,1]V：{m.Vrms.Value:F4}V";
+                    return false;
+                }
+
+                reason = null;
+                return true;
+            }
+
+            // 100% PWM: VRMS should be in [17,32]V
+            if (expectedDutyPct == 100)
+            {
+                if (!m.Vrms.HasValue)
+                {
+                    reason = "示波器VRMS无有效值";
+                    return false;
+                }
+
+                if (m.Vrms.Value < 17.0 || m.Vrms.Value > 32.0)
+                {
+                    reason = $"VRMS不在[17,32]V：{m.Vrms.Value:F4}V";
+                    return false;
+                }
+
+                reason = null;
+                return true;
+            }
+
+            // 50% PWM: duty cycle within ±1%
             if (expectedDutyPct == 50)
             {
                 if (!m.DutyPct.HasValue)
@@ -1268,9 +1680,34 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
                 return true;
             }
 
-            // 其他非0%/100%占空比不参与合格判据（由调用方决定是否判据）
-            reason = "非固定占空比，无合格判据";
-            return false;
+            // Custom PWM: frequency within ±5% (min ±2Hz) and duty cycle within ±1%
+            if (!m.FreqHz.HasValue)
+            {
+                reason = "频率无有效值";
+                return false;
+            }
+
+            var freqTol = Math.Max(expectedFreqHz * 0.05, 2.0);
+            if (Math.Abs(m.FreqHz.Value - expectedFreqHz) > freqTol)
+            {
+                reason = $"频率不在({expectedFreqHz}±{freqTol:F1})Hz：{m.FreqHz.Value:F3}Hz";
+                return false;
+            }
+
+            if (!m.DutyPct.HasValue)
+            {
+                reason = "占空比无有效值";
+                return false;
+            }
+
+            if (Math.Abs(m.DutyPct.Value - expectedDutyPct) > 1.0)
+            {
+                reason = $"占空比不在({expectedDutyPct}±1)%：{m.DutyPct.Value:F3}%";
+                return false;
+            }
+
+            reason = null;
+            return true;
         }
 
         private async Task SendPwmFrameAsync(int dutyPct, int freqHz, bool sendInit, CancellationToken token)
@@ -1278,48 +1715,106 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             dutyPct = ClampDuty(dutyPct);
             freqHz = ClampFreq(freqHz);
 
-            AddLog($"PWM={dutyPct}%：发送到FPGA... (Freq={freqHz}Hz)");
             await EnsureFpgaConnectedAsync(token).ConfigureAwait(false);
+            if (_fpgaStream == null)
+                throw new InvalidOperationException("FPGA未连接");
 
-            if (sendInit)
+            await _fpgaSendLock.WaitAsync(token).ConfigureAwait(false);
+            try
             {
-                await _fpga.WriteAsync(DeviceInitCommandFrame, 0, DeviceInitCommandFrame.Length, token).ConfigureAwait(false);
-                AddLog($"PWM={dutyPct}%：已发送设备初始化 {FormatData(DeviceInitCommandFrame)}");
-            }
+                AddLog($"PWM={dutyPct}%：发送到FPGA... (Freq={freqHz}Hz)");
 
-            var cmd = BuildPwmCommand(dutyPct, freqHz);
-            await _fpga.WriteAsync(cmd, 0, cmd.Length, token).ConfigureAwait(false);
-            AddLog($"PWM={dutyPct}%：已发送 {FormatData(cmd)}");
+                if (sendInit || !_fpgaInitialized)
+                {
+                    AddLog($"FPGA发送指令(设备初始化): {FormatData(DeviceInitCommandFrame)}");
+                    await _fpgaStream.WriteAsync(DeviceInitCommandFrame, 0, DeviceInitCommandFrame.Length, token).ConfigureAwait(false);
+                    await _fpgaStream.FlushAsync(token).ConfigureAwait(false);
+                    _fpgaInitialized = true;
+                }
+
+                var cmd = BuildPwmCommand(dutyPct, freqHz);
+                AddLog($"FPGA发送指令(PWM={dutyPct}%): {FormatData(cmd)}");
+                await _fpgaStream.WriteAsync(cmd, 0, cmd.Length, token).ConfigureAwait(false);
+                await _fpgaStream.FlushAsync(token).ConfigureAwait(false);
+            }
+            finally
+            {
+                _fpgaSendLock.Release();
+            }
         }
 
         private async Task EnsureFpgaConnectedAsync(CancellationToken token)
         {
-            if (_fpga != null && _fpga.IsConnected)
+            if (_fpgaClient?.Connected == true && _fpgaStream != null)
                 return;
 
-            _fpga?.Dispose();
-            _fpga = new FpgaTcpClient();
-            await _fpga.ConnectAsync(FpgaIpAddress, FpgaPort, token).ConfigureAwait(false);
-            AddLog("FPGA连接成功");
+            await DisconnectFpgaTcpAsync().ConfigureAwait(false);
+
+            var client = new TcpClient { NoDelay = true };
+            try
+            {
+                using (var timeoutCts = new CancellationTokenSource(2000))
+                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token))
+                {
+                    var connectTask = client.ConnectAsync(FpgaIpAddress, FpgaPort);
+                    var cancelTask = Task.Delay(Timeout.Infinite, linkedCts.Token);
+                    var completed = await Task.WhenAny(connectTask, cancelTask).ConfigureAwait(false);
+                    if (completed != connectTask)
+                    {
+                        try { client.Close(); } catch { }
+                        token.ThrowIfCancellationRequested();
+                        throw new TimeoutException($"FPGA连接超时(2s): {FpgaIpAddress}:{FpgaPort}");
+                    }
+
+                    await connectTask.ConfigureAwait(false);
+                }
+                _fpgaClient = client;
+                _fpgaStream = _fpgaClient.GetStream();
+                AddLog($"FPGA TCP连接成功: {FpgaIpAddress}:{FpgaPort}");
+            }
+            catch (Exception ex)
+            {
+                try { client.Close(); } catch { }
+                _fpgaClient = null;
+                _fpgaStream = null;
+                _fpgaInitialized = false;
+                AddLog($"FPGA TCP连接失败: {ex.Message}");
+                throw;
+            }
+        }
+
+        private async Task DisconnectFpgaTcpAsync()
+        {
+            try { _fpgaStream?.Close(); } catch { }
+            try { _fpgaClient?.Close(); } catch { }
+
+            _fpgaStream = null;
+            _fpgaClient = null;
+            _fpgaInitialized = false;
         }
 
         private async Task EnsureScopeConnectedAsync(CancellationToken token)
         {
-            if (_scopeTcpClient != null && _scopeTcpStream != null)
+            if (_scopeTcpClient != null && _scopeTcpStream != null && _scopeTcpClient.Connected)
                 return;
 
-            _scopeTcpClient = new TcpClient();
-            var connectTask = _scopeTcpClient.ConnectAsync(ScopeIpAddress, ScopePort);
-            var delayTask = Task.Delay(3000, token);
-            var completedTask = await Task.WhenAny(connectTask, delayTask).ConfigureAwait(false);
-            if (completedTask == delayTask)
+            await DisconnectScopeAsync(CancellationToken.None).ConfigureAwait(false);
+
+            var client = new TcpClient();
+            try
             {
-                _scopeTcpClient.Close();
-                _scopeTcpClient = null;
-                throw new TimeoutException("连接示波器超时（限时3秒），请检查示波器网络。");
+                await client.ConnectAsync(ScopeIpAddress, ScopePort).ConfigureAwait(false);
+                _scopeTcpClient = client;
+                _scopeTcpStream = client.GetStream();
             }
-            await connectTask.ConfigureAwait(false);
-            _scopeTcpStream = _scopeTcpClient.GetStream();
+            catch
+            {
+                try { client.Close(); } catch { }
+                try { client.Dispose(); } catch { }
+                _scopeTcpClient = null;
+                _scopeTcpStream = null;
+                throw;
+            }
 
             try
             {
@@ -1328,6 +1823,26 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             }
             catch
             {
+            }
+
+            await SendScopeCommandAsync(":MEASure:SOURce CHANnel1", token).ConfigureAwait(false);
+            await SendScopeCommandAsync(":MEASure:CLEar", token).ConfigureAwait(false);
+        }
+
+        private async Task DisconnectScopeAsync(CancellationToken token)
+        {
+            await _scopeIoLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                try { _scopeTcpStream?.Dispose(); } catch { }
+                _scopeTcpStream = null;
+                try { _scopeTcpClient?.Close(); } catch { }
+                try { _scopeTcpClient?.Dispose(); } catch { }
+                _scopeTcpClient = null;
+            }
+            finally
+            {
+                _scopeIoLock.Release();
             }
         }
 
@@ -1435,22 +1950,90 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             return null;
         }
 
-        private static void SafeCloseNetworkStream(ref NetworkStream stream)
+        private static byte[] ReadIeee4882DefiniteLengthBlock(NetworkStream stream, int maxBytes)
         {
             if (stream == null)
-                return;
-            try { stream.Close(); } catch { }
-            try { stream.Dispose(); } catch { }
-            stream = null;
+                throw new ArgumentNullException(nameof(stream));
+            if (maxBytes <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxBytes));
+
+            try
+            {
+                int b;
+                do
+                {
+                    b = stream.ReadByte();
+                    if (b < 0)
+                        return Array.Empty<byte>();
+                } while (b != '#');
+
+                int n = stream.ReadByte();
+                if (n < 0)
+                    return Array.Empty<byte>();
+
+                int nDigits = n - '0';
+                if (nDigits < 0 || nDigits > 9)
+                    return Array.Empty<byte>();
+
+                var lenBuf = new byte[nDigits];
+                ReadExact(stream, lenBuf, 0, nDigits);
+                if (!int.TryParse(Encoding.ASCII.GetString(lenBuf), out var payloadLen) || payloadLen < 0)
+                    return Array.Empty<byte>();
+                if (payloadLen > maxBytes)
+                    throw new InvalidOperationException($"块数据长度超出限制: {payloadLen} bytes");
+
+                var payload = new byte[payloadLen];
+                ReadExact(stream, payload, 0, payloadLen);
+
+                try
+                {
+                    while (stream.DataAvailable)
+                    {
+                        int next = stream.ReadByte();
+                        if (next < 0)
+                            break;
+                        if (next != '\n' && next != '\r')
+                            break;
+                    }
+                }
+                catch
+                {
+                }
+
+                return payload;
+            }
+            catch (IOException)
+            {
+                return Array.Empty<byte>();
+            }
+            catch (SocketException)
+            {
+                return Array.Empty<byte>();
+            }
+            catch (ObjectDisposedException)
+            {
+                return Array.Empty<byte>();
+            }
+            catch (InvalidOperationException)
+            {
+                return Array.Empty<byte>();
+            }
+            catch
+            {
+                return Array.Empty<byte>();
+            }
         }
 
-        private static void SafeCloseTcpClient(ref TcpClient client)
+        private static void ReadExact(NetworkStream stream, byte[] buffer, int offset, int count)
         {
-            if (client == null)
-                return;
-            try { client.Close(); } catch { }
-            try { client.Dispose(); } catch { }
-            client = null;
+            int read = 0;
+            while (read < count)
+            {
+                int r = stream.Read(buffer, offset + read, count - read);
+                if (r <= 0)
+                    throw new IOException("网络读取失败");
+                read += r;
+            }
         }
 
         private static async Task<string> ReadLineAsync(NetworkStream stream, int timeoutMs, CancellationToken token)
@@ -1490,6 +2073,14 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             if (!v.HasValue || double.IsNaN(v.Value) || double.IsInfinity(v.Value))
                 return "--";
             return v.Value.ToString("G6", CultureInfo.InvariantCulture);
+        }
+
+        private static string FormatMeasurementValue(double? v, string unit)
+        {
+            if (!v.HasValue || double.IsNaN(v.Value) || double.IsInfinity(v.Value))
+                return "--";
+
+            return $"{v.Value:F3}{unit}";
         }
 
         private static byte[] BuildPwmCommand(int dutyPct, int freqHz)
@@ -1561,8 +2152,9 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
 
             try { DisconnectFpgaAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
 
-            // 断开示波器和矩阵
-            try { DisconnectInstrumentsAndMatrixAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
+            try { UnrouteMatrixAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
+
+            try { DisconnectScopeAsync(CancellationToken.None).GetAwaiter().GetResult(); } catch { }
 
             try { _manualMeasureCts?.Cancel(); } catch { }
             try { _manualMeasureCts?.Dispose(); } catch { }
@@ -1573,6 +2165,7 @@ namespace MeasureControl.ViewModels.SingleBoardTest.AirController
             try { _opLock?.Dispose(); } catch { }
             try { _instrumentLock?.Dispose(); } catch { }
             try { _scopeIoLock?.Dispose(); } catch { }
+            try { _fpgaSendLock?.Dispose(); } catch { }
         }
     }
 }
